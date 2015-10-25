@@ -1206,11 +1206,12 @@
       seekTime(t);
     }
 
-    function nickel(url) {
+    function nickel(url, ignorehistory) {
 
       document.getElementById('imgurl').value = url;
       document.getElementById('mimg').src = url;
       document.getElementById('perma').href = window.location.href.split("?")[0] + "?img=" + url;
+      if(!ignorehistory)
       window.history.pushState(url, "Look at this graph", "/?img=" + url);
       //document.getElementById('perma').innerHTML = window.location.href.split("?")[0] + "?img=" + url;
       //player.playVideo();
@@ -1220,7 +1221,8 @@
       //player.playVideo();
     }
     window.onpopstate = function(ev){
-    	nickel(ev.state);
+    	nickel(ev.state,true);
+    	player.playVideo();
     };
   </script>
 </body>
