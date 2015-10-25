@@ -184,6 +184,7 @@
       } else {
         document.getElementById("mine").style.display = "";
         document.getElementById("mine2").style.display = "";
+        lastFrameTime=new Date()-0;
 
       }
       if (evt.data == 1) {
@@ -929,18 +930,20 @@
     var paused = false;
 	var readyimg1=null;
 	var readyimg2=null;
-
+	var lastTime=0;
+	var lastFrameTime=0;
+	
     function render() {
     var timeS=new Date()-0;
       if (player.getPlayerState() === 1 && !paused) {
-        pts = getPtsForTime(getPlaybackTime());
+        pts = getPtsForTime(getPlaybackTime()+lastTime/1000.0);
       } else {
         if (!interactive) {
-          pts = getPtsForTime(getPlaybackTime());
+          pts = getPtsForTime(getPlaybackTime()+lastTime/1000.0);
         }
       }
 
-      if (getClosestFrameB4(getPlaybackTime() + 1 / 24.).frame.blur) {
+      if (getClosestFrameB4(getPlaybackTime() + 1 / 24. +lastTime/1000.0).frame.blur) {
         //alert("OH SHIT");
 
         document.getElementById("mine").className = "blury";
@@ -1013,7 +1016,7 @@
 
       if (showimg && !simple){
             var canvas2 = document.getElementById("over2");
-      var context2 = canvas2.getContext('2d');
+      	var context2 = canvas2.getContext('2d');
       context2.clearRect(0, 0, 1000, 900);
 	  
       var timg = getImageSized(img, nwidth);
@@ -1024,10 +1027,22 @@
       context2.restore();
       
       }
+      /*
+      for(var k=0;k<500;k++){
+	  for(var v=0;v<1000000;v++){
+	  	var t=Math.sqrt(v);
+	  	
+	  }
+	  }*/
+	  
+	  lastFrameTime=new Date()-0;
+	  lastTime=((new Date()-0)-lastFrameTime);
       //context2.drawImage(canvas,0,0,1000,900);
-	  if((new Date()-0)-timeS>5){
+	  if(lastTime>5){
 	  	simple=true;
 	  }
+	  
+	  
 
     }
     var oc1;
@@ -1036,15 +1051,28 @@
     function getImageSized(img, targetWidth) {
       var steps = Math.ceil(Math.log(img.width / targetWidth) / Math.log(2));
       var img2 = img;
-      for (var i = 0; i < steps - 1; i++) {
+      for (var i = 0; i < steps-1; i++) {
         img2 = getHalfImg(img2);
       }
+      img2=getImgAsCanv(img2);
       if(cutoutFingers && img2.getContext){
       	var ctx=img2.getContext('2d');
       	ctx.clearRect(3*img2.width/4,0,img2.width/2,img2.width/20);
       }
       return img2;
     }
+	function getImgAsCanv(img){
+	  if(img.getContext)return img;
+	  if (!oc1) oc1 = document.createElement('canvas');
+      if (!oc2) oc2 = document.createElement('canvas');
+      var oc = oc1;
+      if (img === oc) oc = oc2;
+      octx = oc.getContext('2d');
+      oc.width = img.width;
+      oc.height = img.height;
+      octx.drawImage(img, 0, 0, oc.width, oc.height);
+	  return oc;
+	}
 
     function getHalfImg(img) {
       if (!oc1) oc1 = document.createElement('canvas');
@@ -1053,6 +1081,7 @@
       if (img === oc) oc = oc2;
 
       octx = oc.getContext('2d');
+
       oc.width = img.width * 0.5;
       oc.height = img.height * 0.5;
       octx.drawImage(img, 0, 0, oc.width, oc.height);
