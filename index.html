@@ -173,11 +173,14 @@
              //setTimeout(stopVideo, 6000);
              //done = true;
            } else {
+           	 if(evt.data==1){
+           		simple=false;
+           	 } 
              document.getElementById("mine").style.display = "";
              if(simple){
              	document.getElementById("mine2").style.display = "none";
              }else{
-              document.getElementById("mine2").style.display = "";
+              	document.getElementById("mine2").style.display = "";
              }
              lastFrameTime=null;
          
