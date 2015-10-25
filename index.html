@@ -1217,8 +1217,10 @@
       //player.playVideo();
     }
     if (QueryString.img) {
-      nickel(QueryString.img);
+      nickel(QueryString.img,true);
       //player.playVideo();
+    }else{
+      nickel("http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png");
     }
     window.onpopstate = function(ev){
     	nickel(ev.state,true);
