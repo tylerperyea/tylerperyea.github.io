@@ -1220,10 +1220,14 @@
       nickel(QueryString.img,true);
       //player.playVideo();
     }else{
-      nickel("http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png");
+      nickel("http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png",true);
     }
     window.onpopstate = function(ev){
-    	nickel(ev.state,true);
+    	if(ev.state){
+    		nickel(ev.state,true);
+    	}else{
+    		nickel("http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png",false);
+    	}
     	player.playVideo();
     };
   </script>
