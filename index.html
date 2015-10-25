@@ -931,7 +931,7 @@
 	var readyimg1=null;
 	var readyimg2=null;
 	var lastTime=0;
-	var lastFrameTime=0;
+	var lastFrameTime=null;
 	
     function render() {
     var timeS=new Date()-0;
@@ -1027,6 +1027,7 @@
       context2.restore();
       
       }
+      
       /*
       for(var k=0;k<500;k++){
 	  for(var v=0;v<1000000;v++){
@@ -1035,14 +1036,16 @@
 	  }
 	  }*/
 	  
-	  if(lastFrameTime===null){
+	  if(lastFrameTime!==null){
 		  lastTime=((new Date()-0)-lastFrameTime);
 	  }
 	  lastFrameTime=new Date()-0;
       //context2.drawImage(canvas,0,0,1000,900);
-	  if(lastTime>10){
+      console.log(lastTime);
+	  if(lastTime>100){
 	  	simple=true;
 	  }
+	  lastTime*=3;
 	  
 	  
 
