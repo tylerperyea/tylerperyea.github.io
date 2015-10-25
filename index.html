@@ -31,12 +31,19 @@
     }
     
     #imgurl {
-      width: 550px;
+      	width: 550px;
     }
+    .wrapper {
+    	width: 650px;
+	}
+	#mimg{
+		width:100%;
+	}
   </style>
 </head>
 
 <body>
+ <div class="wrapper">
   <div id="hiddens">
     <div> <span id="l"></span>
       <span id="l2"></span>
@@ -62,7 +69,7 @@
   <div id="hiddenImg" style="display:none;">
     <img id="mimg" src="http://i589.photobucket.com/albums/ss340/slagio2002/AOE2/Attila-TheFallofRome-AchievementGra.jpg" />
   </div>
-  Graph URL:
+  Graph Image URL (input your own graph):
   <br>
   <input id="imgurl"></input>
   <button onclick="nickel(document.getElementById('imgurl').value);player.playVideo();">Nickelize</button>
@@ -70,8 +77,10 @@
   <br>
   <a id="perma" href="#">Link</a>
   <br>
+  </div>
 
   <script type="application/javascript">
+    var cutoutFingers = false;
     var QueryString = function() {
       // This function is anonymous, is executed immediately and 
       // the return value is assigned to QueryString!
@@ -973,9 +982,10 @@
       for (var i = 0; i < steps - 1; i++) {
         img2 = getHalfImg(img2);
       }
-      var ctx=img2.getContext('2d');
-      ctx.clearRect(3*img2.width/4,0,img2.width/2,img2.width/20);
-      
+      if(cutoutFingers){
+      	var ctx=img2.getContext('2d');
+      	ctx.clearRect(3*img2.width/4,0,img2.width/2,img2.width/20);
+      }
       return img2;
     }
 
@@ -986,7 +996,6 @@
       if (img === oc) oc = oc2;
 
       octx = oc.getContext('2d');
-
       oc.width = img.width * 0.5;
       oc.height = img.height * 0.5;
       octx.drawImage(img, 0, 0, oc.width, oc.height);
