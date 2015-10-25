@@ -184,7 +184,7 @@
       } else {
         document.getElementById("mine").style.display = "";
         document.getElementById("mine2").style.display = "";
-        lastFrameTime=new Date()-0;
+        lastFrameTime=null;
 
       }
       if (evt.data == 1) {
@@ -1035,10 +1035,16 @@
 	  }
 	  }*/
 	  
-	  lastFrameTime=new Date()-0;
-	  lastTime=((new Date()-0)-lastFrameTime);
+	  if(lastFrameTime===null){
+	  
+		  lastFrameTime=new Date()-0;
+	  
+		  lastTime=((new Date()-0)-lastFrameTime);
+	  }else{
+		  lastFrameTime=new Date()-0;
+	  }
       //context2.drawImage(canvas,0,0,1000,900);
-	  if(lastTime>5){
+	  if(lastTime>10){
 	  	simple=true;
 	  }
 	  
