@@ -78,7 +78,7 @@
   <div id="mine" class="outline" style="display:none;">
     <canvas id="over" width=1000 height=900></canvas>
   </div>
-  <div id="mine2" class="" >
+  <div id="mine2" class="hide" >
     <canvas id="over2" width=1000 height=900></canvas>
   </div>
   <div id="howToVideo"></div>
@@ -183,7 +183,11 @@
         //done = true;
       } else {
         document.getElementById("mine").style.display = "";
-        document.getElementById("mine2").style.display = "";
+        if(simple){
+        	document.getElementById("mine2").style.display = "none";
+        }else{
+	        document.getElementById("mine2").style.display = "";
+        }
         lastFrameTime=null;
 
       }
@@ -951,8 +955,10 @@
       } else {
 		if(!simple){
         	document.getElementById("mine").className = "outline";
+        	document.getElementById("mine2").style.display="";
         }else{
         	document.getElementById("mine").className = "";
+        	document.getElementById("mine2").style.display="none";
     	}
         document.getElementById("mine2").className = "";
       }
@@ -1015,8 +1021,8 @@
       
 
       if (showimg && !simple){
-            var canvas2 = document.getElementById("over2");
-      	var context2 = canvas2.getContext('2d');
+      var canvas2 = document.getElementById("over2");
+      var context2 = canvas2.getContext('2d');
       context2.clearRect(0, 0, 1000, 900);
 	  
       var timg = getImageSized(img, nwidth);
@@ -1028,8 +1034,10 @@
       
       }
       
+      //for speed testing
+      
       /*
-      for(var k=0;k<500;k++){
+      for(var k=0;k<5;k++){
 	  for(var v=0;v<1000000;v++){
 	  	var t=Math.sqrt(v);
 	  	
@@ -1045,7 +1053,8 @@
 	  if(lastTime>100){
 	  	simple=true;
 	  }
-	  lastTime=lastTime-30;
+	  //No idea why this seems to work
+	  lastTime=(lastTime-30)*2.5;
 	  
 	  
 
