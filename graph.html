@@ -13,12 +13,29 @@
       width: 640px;
       height: 380px;
       overflow: hidden;
-      /*-webkit-filter: blur(0px);*/
+      
       /* background:rgba(255, 1, 1, .1);*/
+    }
+    #mine.outline{
+    	-webkit-filter: blur(6px);
+    }
+    #mine2 {
+      position: absolute;
+      color: white;
+      top: 5px;
+      left: 5px;
+      width: 640px;
+      height: 380px;
+      overflow: hidden;
+      -webkit-filter: blur(0px);
+      /* background:rgba(255, 1, 1, .1);*/
+    }
+    #mine2.hide {
+      display:none !important;
     }
     
     #mine.blury {
-      -webkit-filter: blur(20px);
+      -webkit-filter: blur(20px) !important;
     }
     
     #framelist {
@@ -31,12 +48,20 @@
     }
     
     #imgurl {
-      width: 550px;
+      	width: 550px;
     }
+    .wrapper {
+    	width: 650px;
+    	overflow-wrap: break-word;
+	}
+	#mimg{
+		width:100%;
+	}
   </style>
 </head>
 
 <body>
+ <div class="wrapper">
   <div id="hiddens">
     <div> <span id="l"></span>
       <span id="l2"></span>
@@ -50,8 +75,11 @@
       <button onclick="savePoly()">Save Frame</button>
     </div>
   </div>
-  <div id="mine" class="" style="display:none;">
+  <div id="mine" class="outline" style="display:none;">
     <canvas id="over" width=1000 height=900></canvas>
+  </div>
+  <div id="mine2" class="" >
+    <canvas id="over2" width=1000 height=900></canvas>
   </div>
   <div id="howToVideo"></div>
   <br>
@@ -60,18 +88,20 @@
   <br>
   <br>
   <div id="hiddenImg" style="display:none;">
-    <img id="mimg" src="http://i589.photobucket.com/albums/ss340/slagio2002/AOE2/Attila-TheFallofRome-AchievementGra.jpg" />
+    <img id="mimg" src="http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png" />
   </div>
-  Graph URL:
+  Graph Image URL (input your own graph):
   <br>
   <input id="imgurl"></input>
   <button onclick="nickel(document.getElementById('imgurl').value);player.playVideo();">Nickelize</button>
-  <br> Link to this graph:
+  <br> 
+  <a id="perma" href="#">Link to this graph</a>
   <br>
-  <a id="perma" href="#">Link</a>
-  <br>
+  </div>
 
   <script type="application/javascript">
+    var cutoutFingers = true;
+    var simple=true;
     var QueryString = function() {
       // This function is anonymous, is executed immediately and 
       // the return value is assigned to QueryString!
@@ -148,10 +178,12 @@
     function onPlayerStateChange(evt) {
       if (evt.data == 0) {
         document.getElementById("mine").style.display = "none";
+        document.getElementById("mine2").style.display = "none";
         //setTimeout(stopVideo, 6000);
         //done = true;
       } else {
         document.getElementById("mine").style.display = "";
+        document.getElementById("mine2").style.display = "";
 
       }
       if (evt.data == 1) {
@@ -167,7 +199,7 @@
   </script>
   <script>
     var cpts;
-    var outline = true;
+    var outline = false;
     var showimg = true;
 
 
@@ -895,6 +927,8 @@
     }
 
     var paused = false;
+	var readyimg1=null;
+	var readyimg2=null;
 
     function render() {
       if (player.getPlayerState() === 1 && !paused) {
@@ -909,9 +943,14 @@
         //alert("OH SHIT");
 
         document.getElementById("mine").className = "blury";
+        document.getElementById("mine2").className = "hide";
       } else {
-
-        document.getElementById("mine").className = "butts";
+		if(!simple){
+        	document.getElementById("mine").className = "outline";
+        }else{
+        	document.getElementById("mine").className = "";
+    	}
+        document.getElementById("mine2").className = "";
       }
       var canvas = document.getElementById("over");
       var context = canvas.getContext('2d');
@@ -954,14 +993,37 @@
       var nwidth = (distance(pts[3], pts[0]) + distance(pts[1], pts[2])) / 2;
       var nheight = (distance(pts[0], pts[1]) + distance(pts[2], pts[3])) / 2;
       var ang = (Math.atan2(pts[3].y - pts[0].y, pts[3].x - pts[0].x) + Math.atan2(pts[2].y - pts[1].y, pts[2].x - pts[1].x)) / 2;
-
-      img = getImageSized(img, nwidth);
+	  var c = calcCenter(pts);
+	  
+	  if (showimg){
+	  cutoutFingers=false;
+	  var timg = img;
+	  if(!simple)
+	  	getImageSized(img, nwidth);
       context.save();
-      var c = calcCenter(pts);
       context.translate(c.x, c.y);
       context.rotate(ang);
-      if (showimg) context.drawImage(img, -nwidth / 2, -nheight / 2, nwidth, nheight);
+      context.drawImage(timg, -nwidth / 2, -nheight / 2, nwidth, nheight);
       context.restore();
+      cutoutFingers=true;
+      }
+      
+
+      if (showimg && !simple){
+            var canvas2 = document.getElementById("over2");
+      var context2 = canvas2.getContext('2d');
+      context2.clearRect(0, 0, 1000, 900);
+	  
+      var timg = getImageSized(img, nwidth);
+      context2.save();
+      context2.translate(c.x, c.y);
+      context2.rotate(ang);
+      context2.drawImage(timg, -nwidth / 2, -nheight / 2, nwidth, nheight);
+      context2.restore();
+      
+      }
+      //context2.drawImage(canvas,0,0,1000,900);
+      
 
     }
     var oc1;
@@ -973,6 +1035,10 @@
       for (var i = 0; i < steps - 1; i++) {
         img2 = getHalfImg(img2);
       }
+      if(cutoutFingers && img2.getContext){
+      	var ctx=img2.getContext('2d');
+      	ctx.clearRect(3*img2.width/4,0,img2.width/2,img2.width/20);
+      }
       return img2;
     }
 
@@ -983,7 +1049,6 @@
       if (img === oc) oc = oc2;
 
       octx = oc.getContext('2d');
-
       oc.width = img.width * 0.5;
       oc.height = img.height * 0.5;
       octx.drawImage(img, 0, 0, oc.width, oc.height);
@@ -1108,6 +1173,16 @@
         }
         pts = getPtsForTime(player.getCurrentTime());
       }, true);
+      document.getElementById('over2').addEventListener('click', function(evt) {
+        if (player.getPlayerState() === 1) {
+          player.pauseVideo();
+          paused = true;
+        } else {
+          player.playVideo();
+          paused = false;
+        }
+        pts = getPtsForTime(player.getCurrentTime());
+      }, true);
     }
 
 
@@ -1143,18 +1218,30 @@
       seekTime(t);
     }
 
-    function nickel(url) {
+    function nickel(url, ignorehistory) {
 
       document.getElementById('imgurl').value = url;
       document.getElementById('mimg').src = url;
       document.getElementById('perma').href = window.location.href.split("?")[0] + "?img=" + url;
-      document.getElementById('perma').innerHTML = window.location.href.split("?")[0] + "?img=" + url;
+      if(!ignorehistory)
+      window.history.pushState(url, "Look at this graph", "/?img=" + url);
+      //document.getElementById('perma').innerHTML = window.location.href.split("?")[0] + "?img=" + url;
       //player.playVideo();
     }
     if (QueryString.img) {
-      nickel(QueryString.img);
+      nickel(QueryString.img,true);
       //player.playVideo();
+    }else{
+      nickel("http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png",true);
     }
+    window.onpopstate = function(ev){
+    	if(ev.state){
+    		nickel(ev.state,true);
+    	}else{
+    		nickel("http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png",true);
+    	}
+    	player.playVideo();
+    };
   </script>
 </body>
 
