@@ -101,7 +101,7 @@
 
   <script type="application/javascript">
     var cutoutFingers = true;
-    var simple=true;
+    var simple=false;
     var QueryString = function() {
       // This function is anonymous, is executed immediately and 
       // the return value is assigned to QueryString!
@@ -931,6 +931,7 @@
 	var readyimg2=null;
 
     function render() {
+    var timeS=new Date()-0;
       if (player.getPlayerState() === 1 && !paused) {
         pts = getPtsForTime(getPlaybackTime());
       } else {
@@ -1023,7 +1024,11 @@
       
       }
       //context2.drawImage(canvas,0,0,1000,900);
-      
+	  if((new Date()-0)-timeS<5){
+	  	simple=false;
+	  }else{
+	  	simple=true;
+	  }
 
     }
     var oc1;
