@@ -1,1295 +1,1285 @@
 <!DOCTYPE HTML>
 <html>
-
-<head>
-  <title>Look at this Graph</title>
-  <meta charset="utf-8">
-  <style>
-    #mine {
-      position: absolute;
-      color: white;
-      top: 5px;
-      left: 5px;
-      width: 640px;
-      height: 380px;
-      overflow: hidden;
-      
-      /* background:rgba(255, 1, 1, .1);*/
-    }
-    #mine.outline{
-    	-webkit-filter: blur(6px);
-    }
-    #mine2 {
-      position: absolute;
-      color: white;
-      top: 5px;
-      left: 5px;
-      width: 640px;
-      height: 380px;
-      overflow: hidden;
-      -webkit-filter: blur(0px);
-      /* background:rgba(255, 1, 1, .1);*/
-    }
-    #mine2.hide {
-      display:none !important;
-    }
-    
-    #mine.blury {
-      -webkit-filter: blur(20px) !important;
-    }
-    
-    #framelist {
-      height: 300px;
-      display: none;
-    }
-    
-    #hiddens {
-      display: none;
-    }
-    
-    #imgurl {
-      	width: 550px;
-    }
-    .wrapper {
-    	width: 650px;
-    	overflow-wrap: break-word;
-	}
-	#mimg{
-		width:100%;
-	}
-  </style>
-</head>
-
-<body>
- <div class="wrapper">
-  <div id="hiddens">
-    <div> <span id="l"></span>
-      <span id="l2"></span>
-
-    </div>
-    <div>
-      <button onclick="start()">Play</button>
-      <button onclick="stopVideo()">Pause</button>
-      <button onclick="nextFrame()">Next Frame</button>
-      <button onclick="prevFrame()">Prev Frame</button>
-      <button onclick="savePoly()">Save Frame</button>
-    </div>
-  </div>
-  <div id="mine" class="outline" style="display:none;">
-    <canvas id="over" width=1000 height=900></canvas>
-  </div>
-  <div id="mine2" class="hide" >
-    <canvas id="over2" width=1000 height=900></canvas>
-  </div>
-  <div id="howToVideo"></div>
-  <br>
-  <select onchange="gotoFrame()" id="framelist" multiple></select>
-  <button onclick="look()">Look at that graph</button>
-  <br>
-  <br>
-  <div id="hiddenImg" style="display:none;">
-    <img id="mimg" src="http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png" />
-  </div>
-  Graph Image URL (input your own graph):
-  <br>
-  <input id="imgurl"></input>
-  <button onclick="nickel(document.getElementById('imgurl').value);player.playVideo();">Nickelize</button>
-  <br> 
-  <a id="perma" href="#">Link to this graph</a>
-  <br>
-  </div>
-
-  <script type="application/javascript">
-    var cutoutFingers = true;
-    var simple=false;
-    var QueryString = function() {
-      // This function is anonymous, is executed immediately and 
-      // the return value is assigned to QueryString!
-      var query_string = {};
-      var query = window.location.search.substring(1);
-      var vars = query.split("&");
-      for (var i = 0; i < vars.length; i++) {
-        var pair = vars[i].split("=");
-        // If first entry with this name
-        if (typeof query_string[pair[0]] === "undefined") {
-          query_string[pair[0]] = decodeURIComponent(pair[1]);
-          // If second entry with this name
-        } else if (typeof query_string[pair[0]] === "string") {
-          var arr = [query_string[pair[0]], decodeURIComponent(pair[1])];
-          query_string[pair[0]] = arr;
-          // If third or later entry with this name
-        } else {
-          query_string[pair[0]].push(decodeURIComponent(pair[1]));
-        }
-      }
-      return query_string;
-    }();
-
-    function look() {
-      if (document.getElementById("hiddenImg").style.display === "block") {
-        document.getElementById("hiddenImg").style.display = "none";
-      } else {
-        document.getElementById("hiddenImg").style.display = "block";
-      }
-    }
-
-
-
-
-    // From http://apiblog.youtube.com/2011/01/introducing-javascript-player-api-for.html
-
-    var ga = document.createElement('script');
-    ga.type = 'text/javascript';
-    ga.async = false;
-    ga.src = 'http://www.youtube.com/player_api';
-    var s = document.getElementsByTagName('script')[0];
-    s.parentNode.insertBefore(ga, s);
-
-    var done = false;
-    var player;
-
-    function onYouTubePlayerAPIReady() {
-      //try {
-      player = new YT.Player('howToVideo', {
-        height: '390',
-        width: '640',
-        videoId: 'sz2mmM-kN1I',
-        events: {
-          'onReady': onPlayerReady,
-          'onStateChange': onPlayerStateChange
-        },
-        playerVars: {
-          'autoplay': 0,
-          'controls': 0,
-          'rel': 0
-        }
-      });
-      //} catch (e) { console.log(e); }
-    }
-
-    function onPlayerReady(evt) {
-      //                console.log('onPlayerReady', evt);
-      //              evt.target.playVideo();
-      start();
-
-      //player.setPlaybackRate(0.01);
-    }
-
-    function onPlayerStateChange(evt) {
-      if (evt.data == 0) {
-        document.getElementById("mine").style.display = "none";
-        document.getElementById("mine2").style.display = "none";
-        //setTimeout(stopVideo, 6000);
-        //done = true;
-      } else {
-        document.getElementById("mine").style.display = "";
-        if(simple){
-        	document.getElementById("mine2").style.display = "none";
-        }else{
-	        document.getElementById("mine2").style.display = "";
-        }
-        lastFrameTime=null;
-
-      }
-      if (evt.data == 1) {
-        paused = false;
-      }
-
-    }
-
-    function start() {
-      player.playVideo();
-      paused = false;
-    }
-  </script>
-  <script>
-    var cpts;
-    var outline = false;
-    var showimg = true;
-
-
-    var frames = [{
-      "time": 0,
-      "pts": [{
-        "x": 135.20240063690366,
-        "y": 403.65986894482205,
-        "hi": false
-      }, {
-        "x": 135.76287586502542,
-        "y": 501.07306019964483,
-        "hi": false
-      }, {
-        "x": 235.76287586502542,
-        "y": 501.07306019964483,
-        "hi": false
-      }, {
-        "x": 237.27184763304547,
-        "y": 402.1940106558883,
-        "hi": false
-      }]
-    }, {
-      "time": 0.043544,
-      "pts": [{
-        "x": 378.5,
-        "y": 448.5,
-        "hi": false
-      }, {
-        "x": 391.5,
-        "y": 488.5,
-        "hi": false
-      }, {
-        "x": 491.5,
-        "y": 488.5,
-        "hi": false
-      }, {
-        "x": 526.5,
-        "y": 414.5,
-        "hi": false
-      }]
-    }, {
-      "time": 0.999967,
-      "pts": [{
-        "x": 434.60554556997624,
-        "y": 446.46924925809486,
-        "hi": false
-      }, {
-        "x": 447.60554556997624,
-        "y": 519.0493493009093,
-        "hi": false
-      }, {
-        "x": 605.0998397631781,
-        "y": 489.343963967755,
-        "hi": false
-      }, {
-        "x": 580.6890690968694,
-        "y": 397.137437473241,
-        "hi": false
-      }]
-    }, {
-      "time": 1.04165,
-      "pts": [{
-        "x": 416,
-        "y": 405.25,
-        "hi": false
-      }, {
-        "x": 429,
-        "y": 479.25,
-        "hi": false
-      }, {
-        "x": 589,
-        "y": 448.25,
-        "hi": false
-      }, {
-        "x": 562,
-        "y": 355.25,
-        "hi": false
-      }]
-    }, {
-      "time": 1.166636,
-      "pts": [{
-        "x": 383,
-        "y": 360,
-        "hi": false
-      }, {
-        "x": 419,
-        "y": 466,
-        "hi": false
-      }, {
-        "x": 586,
-        "y": 400,
-        "hi": false
-      }, {
-        "x": 557,
-        "y": 290,
-        "hi": false
-      }]
-    }, {
-      "time": 1.208303,
-      "pts": [{
-        "x": 381,
-        "y": 343,
-        "hi": false
-      }, {
-        "x": 416,
-        "y": 446,
-        "hi": false
-      }, {
-        "x": 585,
-        "y": 392,
-        "hi": false
-      }, {
-        "x": 555,
-        "y": 273,
-        "hi": false
-      }]
-    }, {
-      "time": 1.24997,
-      "pts": [{
-        "x": 380,
-        "y": 329,
-        "hi": false
-      }, {
-        "x": 417,
-        "y": 433,
-        "hi": false
-      }, {
-        "x": 581,
-        "y": 369,
-        "hi": false
-      }, {
-        "x": 553,
-        "y": 262,
-        "hi": false
-      }]
-    }, {
-      "time": 1.291637,
-      "pts": [{
-        "x": 381,
-        "y": 319,
-        "hi": false
-      }, {
-        "x": 411.69051874033596,
-        "y": 413.32082589533877,
-        "hi": false
-      }, {
-        "x": 583,
-        "y": 366,
-        "hi": false
-      }, {
-        "x": 554,
-        "y": 252,
-        "hi": false
-      }]
-    }, {
-      "time": 1.333304,
-      "pts": [{
-        "x": 380,
-        "y": 310,
-        "hi": false
-      }, {
-        "x": 414.5555162215754,
-        "y": 412.77718285132676,
-        "hi": false
-      }, {
-        "x": 585,
-        "y": 358,
-        "hi": false
-      }, {
-        "x": 556,
-        "y": 243,
-        "hi": false
-      }]
-    }, {
-      "time": 1.374973,
-      "pts": [{
-        "x": 383.3335946708481,
-        "y": 303.69457822436266,
-        "hi": false
-      }, {
-        "x": 416.7777528884907,
-        "y": 414.13851243842123,
-        "hi": false
-      }, {
-        "x": 590,
-        "y": 356,
-        "hi": false
-      }, {
-        "x": 558,
-        "y": 238,
-        "hi": false
-      }]
-    }, {
-      "time": 1.499959,
-      "pts": [{
-        "x": 389,
-        "y": 292.5,
-        "hi": false
-      }, {
-        "x": 425,
-        "y": 407.5,
-        "hi": false
-      }, {
-        "x": 598,
-        "y": 350,
-        "hi": false
-      }, {
-        "x": 566,
-        "y": 230,
-        "hi": false
-      }]
-    }, {
-      "time": 1.708303,
-      "pts": [{
-        "x": 393,
-        "y": 263,
-        "hi": false
-      }, {
-        "x": 435,
-        "y": 392,
-        "hi": false
-      }, {
-        "x": 603,
-        "y": 324,
-        "hi": false
-      }, {
-        "x": 570,
-        "y": 200,
-        "hi": false
-      }]
-    }, {
-      "time": 1.727773,
-      "pts": [{
-        "x": 394,
-        "y": 249,
-        "hi": false
-      }, {
-        "x": 434.5932686101581,
-        "y": 374.72699717183383,
-        "hi": false
-      }, {
-        "x": 604.5094001635781,
-        "y": 310.9901095482572,
-        "hi": false
-      }, {
-        "x": 569.4874066584676,
-        "y": 191.18018768529024,
-        "hi": false
-      }]
-    }, {
-      "time": 1.791621,
-      "pts": [{
-        "x": 395.51075480823783,
-        "y": 236.56179111027214,
-        "hi": false
-      }, {
-        "x": 434.3921115120909,
-        "y": 362.34883722283115,
-        "hi": false
-      }, {
-        "x": 607.9286905480654,
-        "y": 300.1552851968854,
-        "hi": false
-      }, {
-        "x": 574.1684431316057,
-        "y": 176.9340864700113,
-        "hi": false
-      }]
-    }, {
-      "time": 1.811107,
-      "pts": [{
-        "x": 394,
-        "y": 226,
-        "hi": false
-      }, {
-        "x": 432,
-        "y": 351,
-        "hi": false
-      }, {
-        "x": 608.8910761227063,
-        "y": 290.92323279652294,
-        "hi": false
-      }, {
-        "x": 573.2354301316299,
-        "y": 166.69933567154192,
-        "hi": false
-      }]
-    }, {
-      "time": 1.894441,
-      "pts": [{
-        "x": 399,
-        "y": 203,
-        "hi": false
-      }, {
-        "x": 436.67675642802357,
-        "y": 331.05808682110285,
-        "hi": false
-      }, {
-        "x": 611,
-        "y": 269,
-        "hi": false
-      }, {
-        "x": 579,
-        "y": 144,
-        "hi": false
-      }]
-    }, {
-      "time": 1.936108,
-      "pts": [{
-        "x": 399,
-        "y": 193,
-        "hi": false
-      }, {
-        "x": 438,
-        "y": 325,
-        "hi": false
-      }, {
-        "x": 614.2090844510827,
-        "y": 259.0934727648766,
-        "hi": false
-      }, {
-        "x": 582,
-        "y": 136,
-        "hi": false
-      }]
-    }, {
-      "time": 1.977775,
-      "pts": [{
-        "x": 403,
-        "y": 188.25,
-        "hi": false
-      }, {
-        "x": 443,
-        "y": 321,
-        "hi": false
-      }, {
-        "x": 620,
-        "y": 255.25,
-        "hi": false
-      }, {
-        "x": 584,
-        "y": 132,
-        "hi": false
-      }]
-    }, {
-      "time": 2.019442,
-      "pts": [{
-        "x": 403.25,
-        "y": 188.25,
-        "hi": false
-      }, {
-        "x": 441.25,
-        "y": 320.25,
-        "hi": false
-      }, {
-        "x": 617.25,
-        "y": 259.25,
-        "hi": false
-      }, {
-        "x": 586.25,
-        "y": 132.25,
-        "hi": false
-      }]
-    }, {
-      "time": 2.124933,
-      "pts": [{
-        "x": 394.5625,
-        "y": 199,
-        "hi": false
-      }, {
-        "x": 429.5625,
-        "y": 329,
-        "hi": false
-      }, {
-        "x": 615.3125,
-        "y": 271,
-        "hi": false
-      }, {
-        "x": 580.5625,
-        "y": 145,
-        "hi": false
-      }]
-    }, {
-      "time": 2.352778,
-      "pts": [{
-        "x": 383.0522022270357,
-        "y": 216.30311921611516,
-        "hi": false
-      }, {
-        "x": 419,
-        "y": 346,
-        "hi": false
-      }, {
-        "x": 600,
-        "y": 290,
-        "hi": false
-      }, {
-        "x": 568.9148009135973,
-        "y": 163.38681299738738,
-        "hi": false
-      }]
-    }, {
-      "time": 2.505314,
-      "pts": [{
-        "x": 378.4145177707425,
-        "y": 206.9035991959601,
-        "hi": false
-      }, {
-        "x": 412.30981582743385,
-        "y": 339.12168616478846,
-        "hi": false
-      }, {
-        "x": 597.7511751730942,
-        "y": 285.34133866875175,
-        "hi": false
-      }, {
-        "x": 571.5244912287294,
-        "y": 160.63337597049969,
-        "hi": false
-      }]
-    }, {
-      "time": 2.522,
-      "pts": [{
-        "x": 338.2071251019445,
-        "y": 159.5232525693726,
-        "hi": false
-      }, {
-        "x": 371.8779040204688,
-        "y": 292.0171296078887,
-        "hi": false
-      }, {
-        "x": 557.8050954296718,
-        "y": 238.47958578352552,
-        "hi": false
-      }, {
-        "x": 532.1098754479149,
-        "y": 113.98003203921317,
-        "hi": false
-      }]
-    }, {
-      "time": 2.536456,
-      "pts": [{
-        "x": 337.85878075401234,
-        "y": 159.36907134352757,
-        "hi": false
-      }, {
-        "x": 371.2726729321463,
-        "y": 292.69035329339647,
-        "hi": false
-      }, {
-        "x": 558.218611859473,
-        "y": 239.1237680786295,
-        "hi": false
-      }, {
-        "x": 533,
-        "y": 115,
-        "hi": false
-      }]
-    }, {
-      "time": 2.541566,
-      "pts": [{
-        "x": 336,
-        "y": 162,
-        "hi": false
-      }, {
-        "x": 369,
-        "y": 296,
-        "hi": false
-      }, {
-        "x": 558,
-        "y": 242,
-        "hi": false
-      }, {
-        "x": 528,
-        "y": 111,
-        "hi": false
-      }]
-    }, {
-      "time": 3.208221,
-      "pts": [{
-        "x": 309,
-        "y": 157,
-        "hi": false
-      }, {
-        "x": 342,
-        "y": 291,
-        "hi": false
-      }, {
-        "x": 534,
-        "y": 243,
-        "hi": false
-      }, {
-        "x": 500.625,
-        "y": 110,
-        "hi": false
-      }]
-    }, {
-      "time": 3.83321,
-      "pts": [{
-        "x": 298,
-        "y": 173,
-        "hi": false
-      }, {
-        "x": 332,
-        "y": 309,
-        "hi": false
-      }, {
-        "x": 523,
-        "y": 259,
-        "hi": false
-      }, {
-        "x": 494,
-        "y": 125,
-        "hi": false
-      }]
-    }, {
-      "time": 4.124862,
-      "pts": [{
-        "x": 293.53125,
-        "y": 182.125,
-        "hi": false
-      }, {
-        "x": 324,
-        "y": 324,
-        "hi": false
-      }, {
-        "x": 519,
-        "y": 275,
-        "hi": false
-      }, {
-        "x": 495,
-        "y": 135,
-        "hi": false
-      }]
-    }, {
-      "time": 4.666493,
-      "pts": [{
-        "x": 298,
-        "y": 188,
-        "hi": false
-      }, {
-        "x": 329.3671875,
-        "y": 325.71875,
-        "hi": false
-      }, {
-        "x": 524,
-        "y": 280,
-        "hi": false
-      }, {
-        "x": 500,
-        "y": 140,
-        "hi": false
-      }]
-    }, {
-      "time": 5.833141,
-      "pts": [{
-        "x": 290.8984375,
-        "y": 186.84375,
-        "hi": false
-      }, {
-        "x": 322.3671875,
-        "y": 322.71875,
-        "hi": false
-      }, {
-        "x": 515,
-        "y": 278,
-        "hi": false
-      }, {
-        "x": 490,
-        "y": 141,
-        "hi": false
-      }]
-    }, {
-      "time": 6.442634666666667,
-      "pts": [{
-        "x": 293.9711015932767,
-        "y": 186.24926406264987,
-        "hi": false
-      }, {
-        "x": 323.2018702392913,
-        "y": 322.28116454588167,
-        "hi": false
-      }, {
-        "x": 516.0786498500036,
-        "y": 278.38534251232534,
-        "hi": false
-      }, {
-        "x": 490.7483783174285,
-        "y": 141.0842288791431,
-        "hi": false
-      }]
-    }, {
-      "time": 6.444156,
-      "blur": true,
-      "pts": [{
-        "x": 377.72832619495756,
-        "y": 263.93694804698737,
-        "hi": false
-      }, {
-        "x": 502,
-        "y": 545,
-        "hi": false
-      }, {
-        "x": 910,
-        "y": 379,
-        "hi": false
-      }, {
-        "x": 785,
-        "y": 106,
-        "hi": false
-      }]
-    }];
-    //{"time":6.45651+1/24,"hide":true,"pts":[{"x":67.08974969976123,"y":232.21641023118087,"hi":false},{"x":96.1585166043086,"y":368.2596683387625,"hi":false},{"x":289.0529563696623,"y":324.42341595417963,"hi":false},{"x":263.6987773262678,"y":187.10050547587701,"hi":false}]}];
-    var pts = frames[0].pts;
-
-    function getClosestFrameB4(tm) {
-      var last = null;
-      var next = null;
-      var bi;
-      for (var i in frames) {
-        var frame = frames[i];
-        if (frame.time <= tm) {
-          last = frame;
-          bi = i;
-        }
-      }
-      return {
-        frame: last,
-        index: bi
-      };
-    }
-
-    function saveFrame(fr) {
-      var ofr = getClosestFrameB4(fr.time);
-      if (fr.time - ofr.frame.time < 1 / 60.0) {
-        frames.splice(ofr.index, 1);
-      }
-      frames.push(fr);
-      updateframes();
-    }
-
-    function updateframes() {
-      frames.sort(function(a, b) {
-        return a.time - b.time;
-      });
-      var elm = document.getElementById("framelist");
-      elm.innerHTML = "";
-      for (var i in frames) {
-        elm.innerHTML += "<option value='" + i + "'>Frame:" + i + " at " + frames[i].time + "</option>\n";
-      }
-    }
-
-    function getPtsForTime(tm) {
-      tm += 1 / 24.0;
-      var last = null;
-      var next = null;
-      for (var i in frames) {
-        var frame = frames[i];
-        if (frame.time <= tm) {
-          last = frame;
-        }
-        if (next === null && frame.time > tm) {
-          next = frame;
-        }
-      }
-      if (next === null) {
-        next = last;
-      }
-      var dt = next.time - last.time;
-      var p;
-      if (dt === 0) {
-        p = 0;
-      } else {
-        p = (tm - last.time) / dt;
-      }
-      var npts = [];
-      for (i = 0; i < last.pts.length; i++) {
-        var p1 = last.pts[i];
-        var p2 = next.pts[i];
-        var dx = p2.x - p1.x;
-        var dy = p2.y - p1.y;
-        npts.push({
-          x: p1.x + dx * p,
-          y: p1.y + dy * p
-        });
-      }
-      if (last.hide || next.hide) {
-        return null;
-      }
-      return npts;
-    }
-
-    function stopVideo() {
-      player.pauseVideo();
-      pts = getPtsForTime(player.getCurrentTime());
-    }
-
-    function nextFrame() {
-      var tim = player.getCurrentTime() + 1 / 60.0;
-      player.seekTo(tim);
-      pts = getPtsForTime(tim);
-    }
-
-    function prevFrame() {
-      var tim = player.getCurrentTime() - 1 / 60.0;
-      player.seekTo(tim);
-      pts = getPtsForTime(tim);
-    }
-
-    function getPlaybackTime() {
-      if (player.getPlayerState() === 1) {
-        return playtime + player.getPlaybackRate() * ((new Date() - 0) - lastUpdate) / 1000;
-      } else {
-        return playtime;
-      }
-    }
-
-    function savePoly() {
-      var frm = {
-        time: player.getCurrentTime(),
-        pts: JSON.parse(JSON.stringify(pts))
-      };
-      saveFrame(frm);
-    }
-
-    var paused = false;
-	var readyimg1=null;
-	var readyimg2=null;
-	var lastTime=0;
-	var lastFrameTime=null;
-	
-    function render() {
-    var timeS=new Date()-0;
-      if (player.getPlayerState() === 1 && !paused) {
-        pts = getPtsForTime(getPlaybackTime()+lastTime/1000.0);
-      } else {
-        if (!interactive) {
-          pts = getPtsForTime(getPlaybackTime()+lastTime/1000.0);
-        }
-      }
-
-      if (getClosestFrameB4(getPlaybackTime() + 1 / 24. +lastTime/1000.0).frame.blur) {
-        //alert("OH SHIT");
-
-        document.getElementById("mine").className = "blury";
-        document.getElementById("mine2").className = "hide";
-      } else {
-		if(!simple){
-        	document.getElementById("mine").className = "outline";
-        	document.getElementById("mine2").style.display="";
-        }else{
-        	document.getElementById("mine").className = "";
-        	document.getElementById("mine2").style.display="none";
-    	}
-        document.getElementById("mine2").className = "";
-      }
-      var canvas = document.getElementById("over");
-      var context = canvas.getContext('2d');
-      context.clearRect(0, 0, 1000, 900);
-
-      if (pts === null) return;
-      if (outline) {
-        context.strokeStyle = '#ffffff';
-        context.fillStyle = 'rgba(255,255,255,.99)';
-
-        context.beginPath();
-
-        context.moveTo(pts[0].x, pts[0].y);
-        for (var i = 0; i < pts.length; i++) {
-          context.lineTo(pts[i].x, pts[i].y);
-        }
-        context.lineTo(pts[0].x, pts[0].y);
-
-        context.stroke();
-        context.fill();
-        for (i = 0; i < pts.length; i++) {
-          context.beginPath();
-          if (pts[i].hi) {
-            context.arc(pts[i].x,
-              pts[i].y,
-              5, 0, 2 * Math.PI, false);
-            context.fill();
-          }
-        }
-        if (cent) {
-          context.beginPath();
-          context.arc(center.x,
-            center.y,
-            5, 0, 2 * Math.PI, false);
-          context.fill();
-        }
-      }
-      var img = document.getElementById("mimg");
-
-      var nwidth = (distance(pts[3], pts[0]) + distance(pts[1], pts[2])) / 2;
-      var nheight = (distance(pts[0], pts[1]) + distance(pts[2], pts[3])) / 2;
-      var ang = (Math.atan2(pts[3].y - pts[0].y, pts[3].x - pts[0].x) + Math.atan2(pts[2].y - pts[1].y, pts[2].x - pts[1].x)) / 2;
-	  var c = calcCenter(pts);
-	  
-	  if (showimg){
-	  	cutoutFingers=false;
-	  	var timg = img;
-	  	if(!simple){
-	  		timg=getImageSized(img, nwidth);
-	  	}
-      	context.save();
-      	context.translate(c.x, c.y);
-      	context.rotate(ang);
-      	context.drawImage(timg, -nwidth / 2, -nheight / 2, nwidth, nheight);
-      	context.restore();
-      	cutoutFingers=true;
-      }
-      
-
-      if (showimg && !simple){
-      var canvas2 = document.getElementById("over2");
-      var context2 = canvas2.getContext('2d');
-      context2.clearRect(0, 0, 1000, 900);
-	  
-      var timg = getImageSized(img, nwidth);
-      context2.save();
-      context2.translate(c.x, c.y);
-      context2.rotate(ang);
-      context2.drawImage(timg, -nwidth / 2, -nheight / 2, nwidth, nheight);
-      context2.restore();
-      
-      }
-      
-      //for speed testing
-      
-      /*
-      for(var k=0;k<5;k++){
-	  for(var v=0;v<1000000;v++){
-	  	var t=Math.sqrt(v);
-	  	
-	  }
-	  }*/
-	  
-	  if(lastFrameTime!==null){
-		  lastTime=((new Date()-0)-lastFrameTime);
-	  }
-	  lastFrameTime=new Date()-0;
-      //context2.drawImage(canvas,0,0,1000,900);
-      //console.log(lastTime);
-	  if(lastTime>100){
-	  	simple=true;
-	  }
-	  //No idea why this seems to work
-	  lastTime=(lastTime-30)*2.5;
-	  
-	  
-
-    }
-    var oc1;
-    var oc2;
-
-    function getImageSized(img, targetWidth) {
-      var steps = Math.ceil(Math.log(img.width / targetWidth) / Math.log(2));
-      var img2 = img;
-      for (var i = 0; i < steps-1; i++) {
-        img2 = getHalfImg(img2);
-      }
-      img2=getImgAsCanv(img2);
-      if(cutoutFingers && img2.getContext){
-      	var ctx=img2.getContext('2d');
-      	ctx.clearRect(3*img2.width/4,0,img2.width/2,img2.width/20);
-      }
-      return img2;
-    }
-	function getImgAsCanv(img){
-	  if(img.getContext)return img;
-	  if (!oc1) oc1 = document.createElement('canvas');
-      if (!oc2) oc2 = document.createElement('canvas');
-      var oc = oc1;
-      if (img === oc) oc = oc2;
-      octx = oc.getContext('2d');
-      oc.width = img.width;
-      oc.height = img.height;
-      octx.drawImage(img, 0, 0, oc.width, oc.height);
-	  return oc;
-	}
-
-    function getHalfImg(img) {
-      if (!oc1) oc1 = document.createElement('canvas');
-      if (!oc2) oc2 = document.createElement('canvas');
-      var oc = oc1;
-      if (img === oc) oc = oc2;
-
-      octx = oc.getContext('2d');
-
-      oc.width = img.width * 0.5;
-      oc.height = img.height * 0.5;
-      octx.drawImage(img, 0, 0, oc.width, oc.height);
-      return oc;
-    }
-
-    function distance(pt1, pt2) {
-      var dx = pt1.x - pt2.x;
-      var dy = pt1.y - pt2.y;
-      return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    function calcCenter(pts) {
-      var cx = 0;
-      var cy = 0;
-      for (var i = 0; i < pts.length; i++) {
-        cx += pts[i].x;
-        cy += pts[i].y;
-      }
-      return {
-        x: cx / pts.length,
-        y: cy / pts.length
-      };
-    }
-
-    var m = null;
-    var cent = null;
-    var center = {};
-    var cselect = false;
-
-    if (interactive) {
-      document.getElementById('over').addEventListener('mousedown', function(evt) {
-        xy = {
-          x: evt.clientX,
-          y: evt.clientY
-        };
-        console.log("click");
-        for (var i = 0; i < pts.length; i++) {
-          if (pts[i].hi) {
-            m = pts[i];
-          }
-        }
-
-        if (cent === true) {
-          cselect = true;
-        }
-      }, true);
-      document.getElementById('over').addEventListener('mouseup', function(evt) {
-        xy = {
-          x: evt.clientX,
-          y: evt.clientY
-        };
-        m = null;
-        cselect = false;
-      }, true);
-
-      function isClose(pt1, pt2, t) {
-        var dx = pt2.x - pt1.x;
-        var dy = pt2.y - pt1.y;
-        //console.log((dx*dx + dy*dy));
-        return (dx * dx + dy * dy) < t * t;
-      }
-
-      document.getElementById('over').addEventListener('mousemove', function(evt) {
-        xy = {
-          x: evt.clientX,
-          y: evt.clientY - 40
-        };
-        //console.log(xy);
-        if (!m) {
-          var cx = 0;
-          var cy = 0;
-          cent = null;
-          for (var i = 0; i < pts.length; i++) {
-            cx += pts[i].x;
-            cy += pts[i].y;
-            var dx = xy.x - pts[i].x;
-            var dy = xy.y - pts[i].y;
-            pts[i].hi = false;
-            if (dx * dx + dy * dy < 200) {
-              //alert("close");
-              cent = false;
-              pts[i].hi = true; //pts[i].x+=Math.random()*5-2.5;   
-            }
-          }
-          center = {
-            x: cx / pts.length,
-            y: cy / pts.length
-          };
-
-          if (cent !== false) {
-            if (isClose(center, xy, 200)) {
-
-              //alert("T");
-              cent = true;
-            }
-          }
-
-        } else {
-          m.x = xy.x;
-          m.y = xy.y;
-
-        }
-        if (cselect) {
-          var dx = xy.x - center.x;
-          var dy = xy.y - center.y;
-          for (var i = 0; i < pts.length; i++) {
-            pts[i].x = pts[i].x + dx;
-            pts[i].y = pts[i].y + dy;
-          }
-        }
-
-      }, false);
-    } else {
-      document.getElementById('over').addEventListener('click', function(evt) {
-        if (player.getPlayerState() === 1) {
-          player.pauseVideo();
-          paused = true;
-        } else {
-          player.playVideo();
-          paused = false;
-        }
-        pts = getPtsForTime(player.getCurrentTime());
-      }, true);
-      document.getElementById('over2').addEventListener('click', function(evt) {
-        if (player.getPlayerState() === 1) {
-          player.pauseVideo();
-          paused = true;
-        } else {
-          player.playVideo();
-          paused = false;
-        }
-        pts = getPtsForTime(player.getCurrentTime());
-      }, true);
-    }
-
-
-
-    var playtime = 0;
-    var lastUpdate = 0;
-    var interactive = false;
-
-    setInterval(function() {
-      if (player.getCurrentTime) {
-        var ctime = player.getCurrentTime();
-        if (ctime != playtime) {
-          lastUpdate = new Date() - 0;
-        }
-        playtime = ctime;
-
-        document.getElementById("l").innerHTML = ctime;
-        //$("#l2").html(getPlaybackTime());
-        render();
-      }
-    }, 30);
-    updateframes();
-
-    function seekTime(tim) {
-      player.seekTo(tim);
-      pts = getPtsForTime(tim);
-    }
-
-    function gotoFrame() {
-      var elm = document.getElementById("framelist");
-      var i = elm.value;
-      var t = frames[i - 0].time;
-      seekTime(t);
-    }
-
-    function nickel(url, ignorehistory) {
-
-      document.getElementById('imgurl').value = url;
-      document.getElementById('mimg').src = url;
-      document.getElementById('perma').href = window.location.href.split("?")[0] + "?img=" + url;
-      if(!ignorehistory)
-      window.history.pushState(url, "Look at this graph", "/?img=" + url);
-      //document.getElementById('perma').innerHTML = window.location.href.split("?")[0] + "?img=" + url;
-      //player.playVideo();
-    }
-    if (QueryString.img) {
-      nickel(QueryString.img,true);
-      //player.playVideo();
-    }else{
-      nickel("http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png",true);
-    }
-    window.onpopstate = function(ev){
-    	if(ev.state){
-    		nickel(ev.state,true);
-    	}else{
-    		nickel("http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png",true);
-    	}
-    	player.playVideo();
-    };
-  </script>
-</body>
-
+   <head>
+      <title>Look at this Graph</title>
+      <meta charset="utf-8">
+      <style>
+         #mine {
+         position: absolute;
+         color: white;
+         top: 5px;
+         left: 5px;
+         width: 640px;
+         height: 380px;
+         overflow: hidden;
+         /* background:rgba(255, 1, 1, .1);*/
+         }
+         #mine.outline{
+         -webkit-filter: blur(6px);
+         }
+         #mine2 {
+         position: absolute;
+         color: white;
+         top: 5px;
+         left: 5px;
+         width: 640px;
+         height: 380px;
+         overflow: hidden;
+         -webkit-filter: blur(0px);
+         /* background:rgba(255, 1, 1, .1);*/
+         }
+         #mine2.hide {
+         display:none !important;
+         }
+         #mine.blury {
+         -webkit-filter: blur(20px) !important;
+         }
+         #framelist {
+         height: 300px;
+         display: none;
+         }
+         #hiddens {
+         display: none;
+         }
+         #imgurl {
+         width: 550px;
+         }
+         .wrapper {
+         width: 650px;
+         overflow-wrap: break-word;
+         }
+         #mimg{
+         width:100%;
+         }
+      </style>
+   </head>
+   <body>
+      <div class="wrapper">
+         <div id="hiddens">
+            <div> <span id="l"></span>
+               <span id="l2"></span>
+            </div>
+            <div>
+               <button onclick="start()">Play</button>
+               <button onclick="stopVideo()">Pause</button>
+               <button onclick="nextFrame()">Next Frame</button>
+               <button onclick="prevFrame()">Prev Frame</button>
+               <button onclick="savePoly()">Save Frame</button>
+            </div>
+         </div>
+         <div id="mine" class="outline" style="display:none;">
+            <canvas id="over" width=1000 height=900></canvas>
+         </div>
+         <div id="mine2" class="hide" >
+            <canvas id="over2" width=1000 height=900></canvas>
+         </div>
+         <div id="howToVideo"></div>
+         <br>
+         <select onchange="gotoFrame()" id="framelist" multiple></select>
+         <button onclick="look()">Look at that graph</button>
+         <br>
+         <br>
+         <div id="hiddenImg" style="display:none;">
+            <img id="mimg" src="http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png" />
+         </div>
+         Graph Image URL (input your own graph):
+         <br>
+         <input id="imgurl"></input>
+         <button onclick="nickel(document.getElementById('imgurl').value);player.playVideo();">Nickelize</button>
+         <br> 
+         <a id="perma" href="#">Link to this graph</a>
+         <br>
+      </div>
+      <script type="application/javascript">
+         var cutoutFingers = true;
+         var simple=false;
+         var QueryString = function() {
+           // This function is anonymous, is executed immediately and 
+           // the return value is assigned to QueryString!
+           var query_string = {};
+           var query = window.location.search.substring(1);
+           var vars = query.split("&");
+           for (var i = 0; i < vars.length; i++) {
+             var pair = vars[i].split("=");
+             // If first entry with this name
+             if (typeof query_string[pair[0]] === "undefined") {
+               query_string[pair[0]] = decodeURIComponent(pair[1]);
+               // If second entry with this name
+             } else if (typeof query_string[pair[0]] === "string") {
+               var arr = [query_string[pair[0]], decodeURIComponent(pair[1])];
+               query_string[pair[0]] = arr;
+               // If third or later entry with this name
+             } else {
+               query_string[pair[0]].push(decodeURIComponent(pair[1]));
+             }
+           }
+           return query_string;
+         }();
+         
+         function look() {
+           if (document.getElementById("hiddenImg").style.display === "block") {
+             document.getElementById("hiddenImg").style.display = "none";
+           } else {
+             document.getElementById("hiddenImg").style.display = "block";
+           }
+         }
+         
+         
+         
+         
+         // From http://apiblog.youtube.com/2011/01/introducing-javascript-player-api-for.html
+         
+         var ga = document.createElement('script');
+         ga.type = 'text/javascript';
+         ga.async = false;
+         ga.src = 'http://www.youtube.com/player_api';
+         var s = document.getElementsByTagName('script')[0];
+         s.parentNode.insertBefore(ga, s);
+         
+         var done = false;
+         var player;
+         
+         function onYouTubePlayerAPIReady() {
+           //try {
+           player = new YT.Player('howToVideo', {
+             height: '390',
+             width: '640',
+             videoId: 'sz2mmM-kN1I',
+             events: {
+               'onReady': onPlayerReady,
+               'onStateChange': onPlayerStateChange
+             },
+             playerVars: {
+               'autoplay': 0,
+               'controls': 0,
+               'rel': 0
+             }
+           });
+           //} catch (e) { console.log(e); }
+         }
+         
+         function onPlayerReady(evt) {
+           //                console.log('onPlayerReady', evt);
+           //              evt.target.playVideo();
+           start();
+         
+           //player.setPlaybackRate(0.01);
+         }
+         
+         function onPlayerStateChange(evt) {
+           if (evt.data == 0) {
+             document.getElementById("mine").style.display = "none";
+             document.getElementById("mine2").style.display = "none";
+             //setTimeout(stopVideo, 6000);
+             //done = true;
+           } else {
+             document.getElementById("mine").style.display = "";
+             if(simple){
+             	document.getElementById("mine2").style.display = "none";
+             }else{
+              document.getElementById("mine2").style.display = "";
+             }
+             lastFrameTime=null;
+         
+           }
+           if (evt.data == 1) {
+             paused = false;
+           }
+         
+         }
+         
+         function start() {
+           player.playVideo();
+           paused = false;
+         }
+      </script>
+      <script>
+         var cpts;
+         var outline = false;
+         var showimg = true;
+         
+         
+         var frames = [{
+           "time": 0,
+           "pts": [{
+             "x": 135.20240063690366,
+             "y": 403.65986894482205,
+             "hi": false
+           }, {
+             "x": 135.76287586502542,
+             "y": 501.07306019964483,
+             "hi": false
+           }, {
+             "x": 235.76287586502542,
+             "y": 501.07306019964483,
+             "hi": false
+           }, {
+             "x": 237.27184763304547,
+             "y": 402.1940106558883,
+             "hi": false
+           }]
+         }, {
+           "time": 0.043544,
+           "pts": [{
+             "x": 378.5,
+             "y": 448.5,
+             "hi": false
+           }, {
+             "x": 391.5,
+             "y": 488.5,
+             "hi": false
+           }, {
+             "x": 491.5,
+             "y": 488.5,
+             "hi": false
+           }, {
+             "x": 526.5,
+             "y": 414.5,
+             "hi": false
+           }]
+         }, {
+           "time": 0.999967,
+           "pts": [{
+             "x": 434.60554556997624,
+             "y": 446.46924925809486,
+             "hi": false
+           }, {
+             "x": 447.60554556997624,
+             "y": 519.0493493009093,
+             "hi": false
+           }, {
+             "x": 605.0998397631781,
+             "y": 489.343963967755,
+             "hi": false
+           }, {
+             "x": 580.6890690968694,
+             "y": 397.137437473241,
+             "hi": false
+           }]
+         }, {
+           "time": 1.04165,
+           "pts": [{
+             "x": 416,
+             "y": 405.25,
+             "hi": false
+           }, {
+             "x": 429,
+             "y": 479.25,
+             "hi": false
+           }, {
+             "x": 589,
+             "y": 448.25,
+             "hi": false
+           }, {
+             "x": 562,
+             "y": 355.25,
+             "hi": false
+           }]
+         }, {
+           "time": 1.166636,
+           "pts": [{
+             "x": 383,
+             "y": 360,
+             "hi": false
+           }, {
+             "x": 419,
+             "y": 466,
+             "hi": false
+           }, {
+             "x": 586,
+             "y": 400,
+             "hi": false
+           }, {
+             "x": 557,
+             "y": 290,
+             "hi": false
+           }]
+         }, {
+           "time": 1.208303,
+           "pts": [{
+             "x": 381,
+             "y": 343,
+             "hi": false
+           }, {
+             "x": 416,
+             "y": 446,
+             "hi": false
+           }, {
+             "x": 585,
+             "y": 392,
+             "hi": false
+           }, {
+             "x": 555,
+             "y": 273,
+             "hi": false
+           }]
+         }, {
+           "time": 1.24997,
+           "pts": [{
+             "x": 380,
+             "y": 329,
+             "hi": false
+           }, {
+             "x": 417,
+             "y": 433,
+             "hi": false
+           }, {
+             "x": 581,
+             "y": 369,
+             "hi": false
+           }, {
+             "x": 553,
+             "y": 262,
+             "hi": false
+           }]
+         }, {
+           "time": 1.291637,
+           "pts": [{
+             "x": 381,
+             "y": 319,
+             "hi": false
+           }, {
+             "x": 411.69051874033596,
+             "y": 413.32082589533877,
+             "hi": false
+           }, {
+             "x": 583,
+             "y": 366,
+             "hi": false
+           }, {
+             "x": 554,
+             "y": 252,
+             "hi": false
+           }]
+         }, {
+           "time": 1.333304,
+           "pts": [{
+             "x": 380,
+             "y": 310,
+             "hi": false
+           }, {
+             "x": 414.5555162215754,
+             "y": 412.77718285132676,
+             "hi": false
+           }, {
+             "x": 585,
+             "y": 358,
+             "hi": false
+           }, {
+             "x": 556,
+             "y": 243,
+             "hi": false
+           }]
+         }, {
+           "time": 1.374973,
+           "pts": [{
+             "x": 383.3335946708481,
+             "y": 303.69457822436266,
+             "hi": false
+           }, {
+             "x": 416.7777528884907,
+             "y": 414.13851243842123,
+             "hi": false
+           }, {
+             "x": 590,
+             "y": 356,
+             "hi": false
+           }, {
+             "x": 558,
+             "y": 238,
+             "hi": false
+           }]
+         }, {
+           "time": 1.499959,
+           "pts": [{
+             "x": 389,
+             "y": 292.5,
+             "hi": false
+           }, {
+             "x": 425,
+             "y": 407.5,
+             "hi": false
+           }, {
+             "x": 598,
+             "y": 350,
+             "hi": false
+           }, {
+             "x": 566,
+             "y": 230,
+             "hi": false
+           }]
+         }, {
+           "time": 1.708303,
+           "pts": [{
+             "x": 393,
+             "y": 263,
+             "hi": false
+           }, {
+             "x": 435,
+             "y": 392,
+             "hi": false
+           }, {
+             "x": 603,
+             "y": 324,
+             "hi": false
+           }, {
+             "x": 570,
+             "y": 200,
+             "hi": false
+           }]
+         }, {
+           "time": 1.727773,
+           "pts": [{
+             "x": 394,
+             "y": 249,
+             "hi": false
+           }, {
+             "x": 434.5932686101581,
+             "y": 374.72699717183383,
+             "hi": false
+           }, {
+             "x": 604.5094001635781,
+             "y": 310.9901095482572,
+             "hi": false
+           }, {
+             "x": 569.4874066584676,
+             "y": 191.18018768529024,
+             "hi": false
+           }]
+         }, {
+           "time": 1.791621,
+           "pts": [{
+             "x": 395.51075480823783,
+             "y": 236.56179111027214,
+             "hi": false
+           }, {
+             "x": 434.3921115120909,
+             "y": 362.34883722283115,
+             "hi": false
+           }, {
+             "x": 607.9286905480654,
+             "y": 300.1552851968854,
+             "hi": false
+           }, {
+             "x": 574.1684431316057,
+             "y": 176.9340864700113,
+             "hi": false
+           }]
+         }, {
+           "time": 1.811107,
+           "pts": [{
+             "x": 394,
+             "y": 226,
+             "hi": false
+           }, {
+             "x": 432,
+             "y": 351,
+             "hi": false
+           }, {
+             "x": 608.8910761227063,
+             "y": 290.92323279652294,
+             "hi": false
+           }, {
+             "x": 573.2354301316299,
+             "y": 166.69933567154192,
+             "hi": false
+           }]
+         }, {
+           "time": 1.894441,
+           "pts": [{
+             "x": 399,
+             "y": 203,
+             "hi": false
+           }, {
+             "x": 436.67675642802357,
+             "y": 331.05808682110285,
+             "hi": false
+           }, {
+             "x": 611,
+             "y": 269,
+             "hi": false
+           }, {
+             "x": 579,
+             "y": 144,
+             "hi": false
+           }]
+         }, {
+           "time": 1.936108,
+           "pts": [{
+             "x": 399,
+             "y": 193,
+             "hi": false
+           }, {
+             "x": 438,
+             "y": 325,
+             "hi": false
+           }, {
+             "x": 614.2090844510827,
+             "y": 259.0934727648766,
+             "hi": false
+           }, {
+             "x": 582,
+             "y": 136,
+             "hi": false
+           }]
+         }, {
+           "time": 1.977775,
+           "pts": [{
+             "x": 403,
+             "y": 188.25,
+             "hi": false
+           }, {
+             "x": 443,
+             "y": 321,
+             "hi": false
+           }, {
+             "x": 620,
+             "y": 255.25,
+             "hi": false
+           }, {
+             "x": 584,
+             "y": 132,
+             "hi": false
+           }]
+         }, {
+           "time": 2.019442,
+           "pts": [{
+             "x": 403.25,
+             "y": 188.25,
+             "hi": false
+           }, {
+             "x": 441.25,
+             "y": 320.25,
+             "hi": false
+           }, {
+             "x": 617.25,
+             "y": 259.25,
+             "hi": false
+           }, {
+             "x": 586.25,
+             "y": 132.25,
+             "hi": false
+           }]
+         }, {
+           "time": 2.124933,
+           "pts": [{
+             "x": 394.5625,
+             "y": 199,
+             "hi": false
+           }, {
+             "x": 429.5625,
+             "y": 329,
+             "hi": false
+           }, {
+             "x": 615.3125,
+             "y": 271,
+             "hi": false
+           }, {
+             "x": 580.5625,
+             "y": 145,
+             "hi": false
+           }]
+         }, {
+           "time": 2.352778,
+           "pts": [{
+             "x": 383.0522022270357,
+             "y": 216.30311921611516,
+             "hi": false
+           }, {
+             "x": 419,
+             "y": 346,
+             "hi": false
+           }, {
+             "x": 600,
+             "y": 290,
+             "hi": false
+           }, {
+             "x": 568.9148009135973,
+             "y": 163.38681299738738,
+             "hi": false
+           }]
+         }, {
+           "time": 2.505314,
+           "pts": [{
+             "x": 378.4145177707425,
+             "y": 206.9035991959601,
+             "hi": false
+           }, {
+             "x": 412.30981582743385,
+             "y": 339.12168616478846,
+             "hi": false
+           }, {
+             "x": 597.7511751730942,
+             "y": 285.34133866875175,
+             "hi": false
+           }, {
+             "x": 571.5244912287294,
+             "y": 160.63337597049969,
+             "hi": false
+           }]
+         }, {
+           "time": 2.522,
+           "pts": [{
+             "x": 338.2071251019445,
+             "y": 159.5232525693726,
+             "hi": false
+           }, {
+             "x": 371.8779040204688,
+             "y": 292.0171296078887,
+             "hi": false
+           }, {
+             "x": 557.8050954296718,
+             "y": 238.47958578352552,
+             "hi": false
+           }, {
+             "x": 532.1098754479149,
+             "y": 113.98003203921317,
+             "hi": false
+           }]
+         }, {
+           "time": 2.536456,
+           "pts": [{
+             "x": 337.85878075401234,
+             "y": 159.36907134352757,
+             "hi": false
+           }, {
+             "x": 371.2726729321463,
+             "y": 292.69035329339647,
+             "hi": false
+           }, {
+             "x": 558.218611859473,
+             "y": 239.1237680786295,
+             "hi": false
+           }, {
+             "x": 533,
+             "y": 115,
+             "hi": false
+           }]
+         }, {
+           "time": 2.541566,
+           "pts": [{
+             "x": 336,
+             "y": 162,
+             "hi": false
+           }, {
+             "x": 369,
+             "y": 296,
+             "hi": false
+           }, {
+             "x": 558,
+             "y": 242,
+             "hi": false
+           }, {
+             "x": 528,
+             "y": 111,
+             "hi": false
+           }]
+         }, {
+           "time": 3.208221,
+           "pts": [{
+             "x": 309,
+             "y": 157,
+             "hi": false
+           }, {
+             "x": 342,
+             "y": 291,
+             "hi": false
+           }, {
+             "x": 534,
+             "y": 243,
+             "hi": false
+           }, {
+             "x": 500.625,
+             "y": 110,
+             "hi": false
+           }]
+         }, {
+           "time": 3.83321,
+           "pts": [{
+             "x": 298,
+             "y": 173,
+             "hi": false
+           }, {
+             "x": 332,
+             "y": 309,
+             "hi": false
+           }, {
+             "x": 523,
+             "y": 259,
+             "hi": false
+           }, {
+             "x": 494,
+             "y": 125,
+             "hi": false
+           }]
+         }, {
+           "time": 4.124862,
+           "pts": [{
+             "x": 293.53125,
+             "y": 182.125,
+             "hi": false
+           }, {
+             "x": 324,
+             "y": 324,
+             "hi": false
+           }, {
+             "x": 519,
+             "y": 275,
+             "hi": false
+           }, {
+             "x": 495,
+             "y": 135,
+             "hi": false
+           }]
+         }, {
+           "time": 4.666493,
+           "pts": [{
+             "x": 298,
+             "y": 188,
+             "hi": false
+           }, {
+             "x": 329.3671875,
+             "y": 325.71875,
+             "hi": false
+           }, {
+             "x": 524,
+             "y": 280,
+             "hi": false
+           }, {
+             "x": 500,
+             "y": 140,
+             "hi": false
+           }]
+         }, {
+           "time": 5.833141,
+           "pts": [{
+             "x": 290.8984375,
+             "y": 186.84375,
+             "hi": false
+           }, {
+             "x": 322.3671875,
+             "y": 322.71875,
+             "hi": false
+           }, {
+             "x": 515,
+             "y": 278,
+             "hi": false
+           }, {
+             "x": 490,
+             "y": 141,
+             "hi": false
+           }]
+         }, {
+           "time": 6.442634666666667,
+           "pts": [{
+             "x": 293.9711015932767,
+             "y": 186.24926406264987,
+             "hi": false
+           }, {
+             "x": 323.2018702392913,
+             "y": 322.28116454588167,
+             "hi": false
+           }, {
+             "x": 516.0786498500036,
+             "y": 278.38534251232534,
+             "hi": false
+           }, {
+             "x": 490.7483783174285,
+             "y": 141.0842288791431,
+             "hi": false
+           }]
+         }, {
+           "time": 6.444156,
+           "blur": true,
+           "pts": [{
+             "x": 377.72832619495756,
+             "y": 263.93694804698737,
+             "hi": false
+           }, {
+             "x": 502,
+             "y": 545,
+             "hi": false
+           }, {
+             "x": 910,
+             "y": 379,
+             "hi": false
+           }, {
+             "x": 785,
+             "y": 106,
+             "hi": false
+           }]
+         }];
+         //{"time":6.45651+1/24,"hide":true,"pts":[{"x":67.08974969976123,"y":232.21641023118087,"hi":false},{"x":96.1585166043086,"y":368.2596683387625,"hi":false},{"x":289.0529563696623,"y":324.42341595417963,"hi":false},{"x":263.6987773262678,"y":187.10050547587701,"hi":false}]}];
+         var pts = frames[0].pts;
+         
+         function getClosestFrameB4(tm) {
+           var last = null;
+           var next = null;
+           var bi;
+           for (var i in frames) {
+             var frame = frames[i];
+             if (frame.time <= tm) {
+               last = frame;
+               bi = i;
+             }
+           }
+           return {
+             frame: last,
+             index: bi
+           };
+         }
+         
+         function saveFrame(fr) {
+           var ofr = getClosestFrameB4(fr.time);
+           if (fr.time - ofr.frame.time < 1 / 60.0) {
+             frames.splice(ofr.index, 1);
+           }
+           frames.push(fr);
+           updateframes();
+         }
+         
+         function updateframes() {
+           frames.sort(function(a, b) {
+             return a.time - b.time;
+           });
+           var elm = document.getElementById("framelist");
+           elm.innerHTML = "";
+           for (var i in frames) {
+             elm.innerHTML += "<option value='" + i + "'>Frame:" + i + " at " + frames[i].time + "</option>\n";
+           }
+         }
+         
+         function getPtsForTime(tm) {
+           tm += 1 / 24.0;
+           var last = null;
+           var next = null;
+           for (var i in frames) {
+             var frame = frames[i];
+             if (frame.time <= tm) {
+               last = frame;
+             }
+             if (next === null && frame.time > tm) {
+               next = frame;
+             }
+           }
+           if (next === null) {
+             next = last;
+           }
+           var dt = next.time - last.time;
+           var p;
+           if (dt === 0) {
+             p = 0;
+           } else {
+             p = (tm - last.time) / dt;
+           }
+           var npts = [];
+           for (i = 0; i < last.pts.length; i++) {
+             var p1 = last.pts[i];
+             var p2 = next.pts[i];
+             var dx = p2.x - p1.x;
+             var dy = p2.y - p1.y;
+             npts.push({
+               x: p1.x + dx * p,
+               y: p1.y + dy * p
+             });
+           }
+           if (last.hide || next.hide) {
+             return null;
+           }
+           return npts;
+         }
+         
+         function stopVideo() {
+           player.pauseVideo();
+           pts = getPtsForTime(player.getCurrentTime());
+         }
+         
+         function nextFrame() {
+           var tim = player.getCurrentTime() + 1 / 60.0;
+           player.seekTo(tim);
+           pts = getPtsForTime(tim);
+         }
+         
+         function prevFrame() {
+           var tim = player.getCurrentTime() - 1 / 60.0;
+           player.seekTo(tim);
+           pts = getPtsForTime(tim);
+         }
+         
+         function getPlaybackTime() {
+           if (player.getPlayerState() === 1) {
+             return playtime + player.getPlaybackRate() * ((new Date() - 0) - lastUpdate) / 1000;
+           } else {
+             return playtime;
+           }
+         }
+         
+         function savePoly() {
+           var frm = {
+             time: player.getCurrentTime(),
+             pts: JSON.parse(JSON.stringify(pts))
+           };
+           saveFrame(frm);
+         }
+         
+         var paused = false;
+         var readyimg1=null;
+         var readyimg2=null;
+         var lastTime=0;
+         var lastFrameTime=null;
+         
+         function render() {
+         var timeS=new Date()-0;
+           if (player.getPlayerState() === 1 && !paused) {
+             pts = getPtsForTime(getPlaybackTime()+lastTime/1000.0);
+           } else {
+             if (!interactive) {
+               pts = getPtsForTime(getPlaybackTime()+lastTime/1000.0);
+             }
+           }
+         
+           if (getClosestFrameB4(getPlaybackTime() + 1 / 24. +lastTime/1000.0).frame.blur) {
+             //alert("OH SHIT");
+         
+             document.getElementById("mine").className = "blury";
+             document.getElementById("mine2").className = "hide";
+           } else {
+         if(!simple){
+             	document.getElementById("mine").className = "outline";
+             	document.getElementById("mine2").style.display="";
+             }else{
+             	document.getElementById("mine").className = "";
+             	document.getElementById("mine2").style.display="none";
+         	}
+             document.getElementById("mine2").className = "";
+           }
+           var canvas = document.getElementById("over");
+           var context = canvas.getContext('2d');
+           context.clearRect(0, 0, 1000, 900);
+         
+           if (pts === null) return;
+           if (outline) {
+             context.strokeStyle = '#ffffff';
+             context.fillStyle = 'rgba(255,255,255,.99)';
+         
+             context.beginPath();
+         
+             context.moveTo(pts[0].x, pts[0].y);
+             for (var i = 0; i < pts.length; i++) {
+               context.lineTo(pts[i].x, pts[i].y);
+             }
+             context.lineTo(pts[0].x, pts[0].y);
+         
+             context.stroke();
+             context.fill();
+             for (i = 0; i < pts.length; i++) {
+               context.beginPath();
+               if (pts[i].hi) {
+                 context.arc(pts[i].x,
+                   pts[i].y,
+                   5, 0, 2 * Math.PI, false);
+                 context.fill();
+               }
+             }
+             if (cent) {
+               context.beginPath();
+               context.arc(center.x,
+                 center.y,
+                 5, 0, 2 * Math.PI, false);
+               context.fill();
+             }
+           }
+           var img = document.getElementById("mimg");
+         
+           var nwidth = (distance(pts[3], pts[0]) + distance(pts[1], pts[2])) / 2;
+           var nheight = (distance(pts[0], pts[1]) + distance(pts[2], pts[3])) / 2;
+           var ang = (Math.atan2(pts[3].y - pts[0].y, pts[3].x - pts[0].x) + Math.atan2(pts[2].y - pts[1].y, pts[2].x - pts[1].x)) / 2;
+         var c = calcCenter(pts);
+         
+         if (showimg){
+         cutoutFingers=false;
+         var timg = img;
+         if(!simple){
+         	timg=getImageSized(img, nwidth);
+         }
+           	context.save();
+           	context.translate(c.x, c.y);
+           	context.rotate(ang);
+           	context.drawImage(timg, -nwidth / 2, -nheight / 2, nwidth, nheight);
+           	context.restore();
+           	cutoutFingers=true;
+           }
+           
+         
+           if (showimg && !simple){
+           var canvas2 = document.getElementById("over2");
+           var context2 = canvas2.getContext('2d');
+           context2.clearRect(0, 0, 1000, 900);
+         
+           var timg = getImageSized(img, nwidth);
+           context2.save();
+           context2.translate(c.x, c.y);
+           context2.rotate(ang);
+           context2.drawImage(timg, -nwidth / 2, -nheight / 2, nwidth, nheight);
+           context2.restore();
+           
+           }
+           
+           //for speed testing
+           
+           /*
+           for(var k=0;k<5;k++){
+         for(var v=0;v<1000000;v++){
+         var t=Math.sqrt(v);
+         
+         }
+         }*/
+         
+         if(lastFrameTime!==null){
+         lastTime=((new Date()-0)-lastFrameTime);
+         }
+         lastFrameTime=new Date()-0;
+           //context2.drawImage(canvas,0,0,1000,900);
+           //console.log(lastTime);
+         if(lastTime>100){
+         simple=true;
+         }
+         //No idea why this seems to work
+         lastTime=(lastTime-30)*2.5;
+         
+         
+         
+         }
+         var oc1;
+         var oc2;
+         
+         function getImageSized(img, targetWidth) {
+           var steps = Math.ceil(Math.log(img.width / targetWidth) / Math.log(2));
+           var img2 = img;
+           for (var i = 0; i < steps-1; i++) {
+             img2 = getHalfImg(img2);
+           }
+           img2=getImgAsCanv(img2);
+           if(cutoutFingers && img2.getContext){
+           	var ctx=img2.getContext('2d');
+           	ctx.clearRect(3*img2.width/4,0,img2.width/2,img2.width/20);
+           }
+           return img2;
+         }
+         function getImgAsCanv(img){
+         if(img.getContext)return img;
+         if (!oc1) oc1 = document.createElement('canvas');
+           if (!oc2) oc2 = document.createElement('canvas');
+           var oc = oc1;
+           if (img === oc) oc = oc2;
+           octx = oc.getContext('2d');
+           oc.width = img.width;
+           oc.height = img.height;
+           octx.drawImage(img, 0, 0, oc.width, oc.height);
+         return oc;
+         }
+         
+         function getHalfImg(img) {
+           if (!oc1) oc1 = document.createElement('canvas');
+           if (!oc2) oc2 = document.createElement('canvas');
+           var oc = oc1;
+           if (img === oc) oc = oc2;
+         
+           octx = oc.getContext('2d');
+         
+           oc.width = img.width * 0.5;
+           oc.height = img.height * 0.5;
+           octx.drawImage(img, 0, 0, oc.width, oc.height);
+           return oc;
+         }
+         
+         function distance(pt1, pt2) {
+           var dx = pt1.x - pt2.x;
+           var dy = pt1.y - pt2.y;
+           return Math.sqrt(dx * dx + dy * dy);
+         }
+         
+         function calcCenter(pts) {
+           var cx = 0;
+           var cy = 0;
+           for (var i = 0; i < pts.length; i++) {
+             cx += pts[i].x;
+             cy += pts[i].y;
+           }
+           return {
+             x: cx / pts.length,
+             y: cy / pts.length
+           };
+         }
+         
+         var m = null;
+         var cent = null;
+         var center = {};
+         var cselect = false;
+         
+         if (interactive) {
+           document.getElementById('over').addEventListener('mousedown', function(evt) {
+             xy = {
+               x: evt.clientX,
+               y: evt.clientY
+             };
+             console.log("click");
+             for (var i = 0; i < pts.length; i++) {
+               if (pts[i].hi) {
+                 m = pts[i];
+               }
+             }
+         
+             if (cent === true) {
+               cselect = true;
+             }
+           }, true);
+           document.getElementById('over').addEventListener('mouseup', function(evt) {
+             xy = {
+               x: evt.clientX,
+               y: evt.clientY
+             };
+             m = null;
+             cselect = false;
+           }, true);
+         
+           function isClose(pt1, pt2, t) {
+             var dx = pt2.x - pt1.x;
+             var dy = pt2.y - pt1.y;
+             //console.log((dx*dx + dy*dy));
+             return (dx * dx + dy * dy) < t * t;
+           }
+         
+           document.getElementById('over').addEventListener('mousemove', function(evt) {
+             xy = {
+               x: evt.clientX,
+               y: evt.clientY - 40
+             };
+             //console.log(xy);
+             if (!m) {
+               var cx = 0;
+               var cy = 0;
+               cent = null;
+               for (var i = 0; i < pts.length; i++) {
+                 cx += pts[i].x;
+                 cy += pts[i].y;
+                 var dx = xy.x - pts[i].x;
+                 var dy = xy.y - pts[i].y;
+                 pts[i].hi = false;
+                 if (dx * dx + dy * dy < 200) {
+                   //alert("close");
+                   cent = false;
+                   pts[i].hi = true; //pts[i].x+=Math.random()*5-2.5;   
+                 }
+               }
+               center = {
+                 x: cx / pts.length,
+                 y: cy / pts.length
+               };
+         
+               if (cent !== false) {
+                 if (isClose(center, xy, 200)) {
+         
+                   //alert("T");
+                   cent = true;
+                 }
+               }
+         
+             } else {
+               m.x = xy.x;
+               m.y = xy.y;
+         
+             }
+             if (cselect) {
+               var dx = xy.x - center.x;
+               var dy = xy.y - center.y;
+               for (var i = 0; i < pts.length; i++) {
+                 pts[i].x = pts[i].x + dx;
+                 pts[i].y = pts[i].y + dy;
+               }
+             }
+         
+           }, false);
+         } else {
+           document.getElementById('over').addEventListener('click', function(evt) {
+             if (player.getPlayerState() === 1) {
+               player.pauseVideo();
+               paused = true;
+             } else {
+               player.playVideo();
+               paused = false;
+             }
+             pts = getPtsForTime(player.getCurrentTime());
+           }, true);
+           document.getElementById('over2').addEventListener('click', function(evt) {
+             if (player.getPlayerState() === 1) {
+               player.pauseVideo();
+               paused = true;
+             } else {
+               player.playVideo();
+               paused = false;
+             }
+             pts = getPtsForTime(player.getCurrentTime());
+           }, true);
+         }
+         
+         
+         
+         var playtime = 0;
+         var lastUpdate = 0;
+         var interactive = false;
+         
+         setInterval(function() {
+         
+           if (player && player.getCurrentTime) {
+             var ctime = player.getCurrentTime();
+             if (ctime != playtime) {
+               lastUpdate = new Date() - 0;
+             }
+             playtime = ctime;
+             
+             document.getElementById("l").innerHTML = ctime;
+             render();
+           }
+         }, 30);
+         updateframes();
+         
+         function seekTime(tim) {
+           player.seekTo(tim);
+           pts = getPtsForTime(tim);
+         }
+         
+         function gotoFrame() {
+           var elm = document.getElementById("framelist");
+           var i = elm.value;
+           var t = frames[i - 0].time;
+           seekTime(t);
+         }
+         
+         function nickel(url, ignorehistory) {
+         
+           document.getElementById('imgurl').value = url;
+           document.getElementById('mimg').src = url;
+           document.getElementById('perma').href = window.location.href.split("?")[0] + "?img=" + url;
+           if(!ignorehistory)
+           window.history.pushState(url, "Look at this graph", "/?img=" + url);
+           //document.getElementById('perma').innerHTML = window.location.href.split("?")[0] + "?img=" + url;
+           //player.playVideo();
+         }
+         if (QueryString.img) {
+           nickel(QueryString.img,true);
+           //player.playVideo();
+         }else{
+           nickel("http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png",true);
+         }
+         window.onpopstate = function(ev){
+         	if(ev.state){
+         		nickel(ev.state,true);
+         	}else{
+         		nickel("http://2.bp.blogspot.com/-SeoyPmcQAmE/TvDd1DabYxI/AAAAAAAAFjs/14Ni9bnzLSo/s1600/funny-graphs-graph.png",true);
+         	}
+         	player.playVideo();
+         };
+      </script>
+   </body>
 </html>
