@@ -997,16 +997,17 @@
 	  var c = calcCenter(pts);
 	  
 	  if (showimg){
-	  cutoutFingers=false;
-	  var timg = img;
-	  if(!simple)
-	  	getImageSized(img, nwidth);
-      context.save();
-      context.translate(c.x, c.y);
-      context.rotate(ang);
-      context.drawImage(timg, -nwidth / 2, -nheight / 2, nwidth, nheight);
-      context.restore();
-      cutoutFingers=true;
+	  	cutoutFingers=false;
+	  	var timg = img;
+	  	if(!simple){
+	  		timg=getImageSized(img, nwidth);
+	  	}
+      	context.save();
+      	context.translate(c.x, c.y);
+      	context.rotate(ang);
+      	context.drawImage(timg, -nwidth / 2, -nheight / 2, nwidth, nheight);
+      	context.restore();
+      	cutoutFingers=true;
       }
       
 
