@@ -209,20 +209,6 @@ M  END
                 scene.add(lightScene);
           }
            var molecule=parseSDF(sdf);
-           for(var i=0;i<molecule.atoms.length;i++){
-           if(molecule.atoms[i].symbol==="H")continue;
-                var sphere = new THREE.Mesh(
-                  new THREE.SphereGeometry(
-                    radius,
-                    segments,
-                    rings),
-                  sphereMaterial);
-                sphere.position.x=molecule.atoms[i].z+focus.x;
-                sphere.position.y=molecule.atoms[i].x+focus.y;
-                sphere.position.z=molecule.atoms[i].y+focus.z;
-                        scene.add(sphere);
-                        
-           }
            molmesh = new THREE.Mesh(
                   new THREE.SphereGeometry(
                     .1,
