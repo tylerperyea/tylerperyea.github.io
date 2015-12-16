@@ -28,7 +28,57 @@
     <script src="./js/helvetiker_regular.typeface.js"></script>
     <script src="https://timezonedb.googlecode.com/files/timezonedb.js" type="text/javascript"></script>
 
-    <script>
+    
+<textarea id="mol" style="display:none">
+2244
+  -OEChem-12151517373D
+
+ 21 21  0     0  0  0  0  0  0999 V2000
+    1.2333    0.5540    0.7792 O   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.6952   -2.7148   -0.7502 O   0  0  0  0  0  0  0  0  0  0  0  0
+    0.7958   -2.1843    0.8685 O   0  0  0  0  0  0  0  0  0  0  0  0
+    1.7813    0.8105   -1.4821 O   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.0857    0.6088    0.4403 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.7927   -0.5515    0.1244 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.7288    1.8464    0.4133 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.1426   -0.4741   -0.2184 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.0787    1.9238    0.0706 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.7855    0.7636   -0.2453 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.1409   -1.8536    0.1477 C   0  0  0  0  0  0  0  0  0  0  0  0
+    2.1094    0.6715   -0.3113 C   0  0  0  0  0  0  0  0  0  0  0  0
+    3.5305    0.5996    0.1635 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.1851    2.7545    0.6593 H   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.7247   -1.3605   -0.4564 H   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.5797    2.8872    0.0506 H   0  0  0  0  0  0  0  0  0  0  0  0
+   -3.8374    0.8238   -0.5090 H   0  0  0  0  0  0  0  0  0  0  0  0
+    3.7290    1.4184    0.8593 H   0  0  0  0  0  0  0  0  0  0  0  0
+    4.2045    0.6969   -0.6924 H   0  0  0  0  0  0  0  0  0  0  0  0
+    3.7105   -0.3659    0.6426 H   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.2555   -3.5916   -0.7337 H   0  0  0  0  0  0  0  0  0  0  0  0
+  1  5  1  0  0  0  0
+  1 12  1  0  0  0  0
+  2 11  1  0  0  0  0
+  2 21  1  0  0  0  0
+  3 11  2  0  0  0  0
+  4 12  2  0  0  0  0
+  5  6  1  0  0  0  0
+  5  7  2  0  0  0  0
+  6  8  2  0  0  0  0
+  6 11  1  0  0  0  0
+  7  9  1  0  0  0  0
+  7 14  1  0  0  0  0
+  8 10  1  0  0  0  0
+  8 15  1  0  0  0  0
+  9 10  2  0  0  0  0
+  9 16  1  0  0  0  0
+ 10 17  1  0  0  0  0
+ 12 13  1  0  0  0  0
+ 13 18  1  0  0  0  0
+ 13 19  1  0  0  0  0
+ 13 20  1  0  0  0  0
+M  END
+</textarea>
+<script>
       var scene,
           camera, 
           renderer,
@@ -36,8 +86,9 @@
           container,
           effect,
           controls,
-          clock,
-
+          clock;
+      var molmesh;
+/*
           // Particles
           particles = new THREE.Object3D(),
           totalParticles = 5,
@@ -53,7 +104,7 @@
           cityTimes = [],
           currentCity = 0,
           currentCityText = new THREE.TextGeometry(),
-          currentCityTextMesh = new THREE.Mesh();
+          currentCityTextMesh = new THREE.Mesh();*/
 
       init();
 
@@ -64,6 +115,7 @@
         scene.add(camera);
 
         renderer = new THREE.WebGLRenderer();
+        renderer.setClearColor( 0x00ff00, 0);
         element = renderer.domElement;
         container = document.getElementById('webglviewer');
         container.appendChild(element);
@@ -101,9 +153,7 @@
         light.position.set(50, 50, 50);
         scene.add(light);
 
-        var lightScene = new THREE.PointLight(0x999999, 2, 100);
-        lightScene.position.set(0, 5, 0);
-        scene.add(lightScene);
+      
 
         var floorTexture = THREE.ImageUtils.loadTexture('textures/wood.jpg');
         floorTexture.wrapS = THREE.RepeatWrapping;
@@ -125,25 +175,76 @@
         floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
 
-        var particleTexture = THREE.ImageUtils.loadTexture('textures/particle.png'),
-            spriteMaterial = new THREE.SpriteMaterial({
-            map: particleTexture,
-            color: 0xffffff
-          });
 
-        for (var i = 0; i < totalParticles; i++) {
-          var sprite = new THREE.Sprite(spriteMaterial);
-
-          sprite.scale.set(64, 64, 1.0);
-          sprite.position.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.75);
-          sprite.position.setLength(maxParticleSize * Math.random());
-
-          sprite.material.blending = THREE.AdditiveBlending;
+        // set up the sphere vars
+        var radius = .8,
+            segments = 16,
+            rings = 16;
+        var sphereMaterial =
+          new THREE.MeshLambertMaterial(
+            {
+              color: 0xCCCCCC
+            });
+            
+            var sdf="2244\n  -OEChem-12151517373D\n\n 21 21  0     0  0  0  0  0  0999 V2000\n    1.2333    0.5540    0.7792 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.6952   -2.7148   -0.7502 O   0  0  0  0  0  0  0  0  0  0  0  0\n    0.7958   -2.1843    0.8685 O   0  0  0  0  0  0  0  0  0  0  0  0\n    1.7813    0.8105   -1.4821 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.0857    0.6088    0.4403 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.7927   -0.5515    0.1244 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.7288    1.8464    0.4133 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.1426   -0.4741   -0.2184 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.0787    1.9238    0.0706 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.7855    0.7636   -0.2453 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.1409   -1.8536    0.1477 C   0  0  0  0  0  0  0  0  0  0  0  0\n    2.1094    0.6715   -0.3113 C   0  0  0  0  0  0  0  0  0  0  0  0\n    3.5305    0.5996    0.1635 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.1851    2.7545    0.6593 H   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.7247   -1.3605   -0.4564 H   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.5797    2.8872    0.0506 H   0  0  0  0  0  0  0  0  0  0  0  0\n   -3.8374    0.8238   -0.5090 H   0  0  0  0  0  0  0  0  0  0  0  0\n    3.7290    1.4184    0.8593 H   0  0  0  0  0  0  0  0  0  0  0  0\n    4.2045    0.6969   -0.6924 H   0  0  0  0  0  0  0  0  0  0  0  0\n    3.7105   -0.3659    0.6426 H   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.2555   -3.5916   -0.7337 H   0  0  0  0  0  0  0  0  0  0  0  0\n  1  5  1  0  0  0  0\n  1 12  1  0  0  0  0\n  2 11  1  0  0  0  0\n  2 21  1  0  0  0  0\n  3 11  2  0  0  0  0\n  4 12  2  0  0  0  0\n  5  6  1  0  0  0  0\n  5  7  2  0  0  0  0\n  6  8  2  0  0  0  0\n  6 11  1  0  0  0  0\n  7  9  1  0  0  0  0\n  7 14  1  0  0  0  0\n  8 10  1  0  0  0  0\n  8 15  1  0  0  0  0\n  9 10  2  0  0  0  0\n  9 16  1  0  0  0  0\n 10 17  1  0  0  0  0\n 12 13  1  0  0  0  0\n 13 18  1  0  0  0  0\n 13 19  1  0  0  0  0\n 13 20  1  0  0  0  0\nM  END\n&gt; &lt;PUBCHEM_COMPOUND_CID&gt;\n2244\n\n&gt; &lt;PUBCHEM_CONFORMER_RMSD&gt;\n0.6\n\n&gt; &lt;PUBCHEM_CONFORMER_DIVERSEORDER&gt;\n1\n11\n10\n3\n15\n17\n13\n5\n16\n7\n14\n9\n8\n4\n18\n6\n12\n2\n\n&gt; &lt;PUBCHEM_MMFF94_PARTIAL_CHARGES&gt;\n18\n1 -0.23\n10 -0.15\n11 0.63\n12 0.66\n13 0.06\n14 0.15\n15 0.15\n16 0.15\n17 0.15\n2 -0.65\n21 0.5\n3 -0.57\n4 -0.57\n5 0.08\n6 0.09\n7 -0.15\n8 -0.15\n9 -0.15\n\n&gt; &lt;PUBCHEM_EFFECTIVE_ROTOR_COUNT&gt;\n3\n\n&gt; &lt;PUBCHEM_PHARMACOPHORE_FEATURES&gt;\n5\n1 2 acceptor\n1 3 acceptor\n1 4 acceptor\n3 2 3 11 anion\n6 5 6 7 8 9 10 rings\n\n&gt; &lt;PUBCHEM_HEAVY_ATOM_COUNT&gt;\n13\n\n&gt; &lt;PUBCHEM_ATOM_DEF_STEREO_COUNT&gt;\n0\n\n&gt; &lt;PUBCHEM_ATOM_UDEF_STEREO_COUNT&gt;\n0\n\n&gt; &lt;PUBCHEM_BOND_DEF_STEREO_COUNT&gt;\n0\n\n&gt; &lt;PUBCHEM_BOND_UDEF_STEREO_COUNT&gt;\n0\n\n&gt; &lt;PUBCHEM_ISOTOPIC_ATOM_COUNT&gt;\n0\n\n&gt; &lt;PUBCHEM_COMPONENT_COUNT&gt;\n1\n\n&gt; &lt;PUBCHEM_CACTVS_TAUTO_COUNT&gt;\n1\n\n&gt; &lt;PUBCHEM_CONFORMER_ID&gt;\n000008C400000001\n\n&gt; &lt;PUBCHEM_MMFF94_ENERGY&gt;\n39.5952\n\n&gt; &lt;PUBCHEM_FEATURE_SELFOVERLAP&gt;\n25.432\n\n&gt; &lt;PUBCHEM_SHAPE_FINGERPRINT&gt;\n1 1 18265615372930943622\n100427 49 16967750034970055351\n12138202 97 18271247217817981012\n12423570 1 16692715976000295083\n12524768 44 16753525617747228747\n12716758 59 18341332292274886536\n13024252 1 17968377969333732145\n14181834 199 17830728755827362645\n14614273 12 18262232214645093005\n15207287 21 17703787037639964108\n15775835 57 18340488876329928641\n16945 1 18271533103414939405\n193761 8 17907860604865584321\n20645476 183 17677348215414174190\n20871998 184 18198632231250704846\n21040471 1 18411412921197846465\n21501502 16 18123463883164380929\n23402539 116 18271795865171824860\n23419403 2 13539898140662769886\n23552423 10 18048876295495619569\n23559900 14 18272369794190581304\n241688 4 16179044415907240795\n257057 1 17478316999871287486\n2748010 2 18339085878070479087\n305870 269 18263645056784260212\n528862 383 18117272558388284091\n53812653 8 18410289211719108569\n7364860 26 17910392788380644719\n81228 2 18050568744116491203\n\n&gt; &lt;PUBCHEM_SHAPE_MULTIPOLES&gt;\n244.06\n3.86\n2.45\n0.89\n1.95\n1.58\n0.15\n-1.85\n0.38\n-0.61\n-0.02\n0.29\n0.01\n-0.33\n\n&gt; &lt;PUBCHEM_SHAPE_SELFOVERLAP&gt;\n513.037\n\n&gt; &lt;PUBCHEM_SHAPE_VOLUME&gt;\n136\n\n&gt; &lt;PUBCHEM_COORDINATE_TYPE&gt;\n2\n5\n10\n\n$$$$\n";
+            
+            var focus={x:10,y:15,z:0};
+        
           
-          particles.add(sprite);
-        }
-        particles.position.y = 70;
-        scene.add(particles);
+          for(var k=0;k<5;k++){  
+                var lightScene = new THREE.PointLight(0x999999, 2, 50);
+                if(k==0){
+                        lightScene.position.set(focus.x,focus.y+10, focus.z);
+                }else if(k==1){
+                        lightScene.position.set(focus.x+10,focus.y, focus.z);
+                }else if(k==2){
+                        lightScene.position.set(focus.x,focus.y, focus.z+10);
+                }else if(k==3){
+                        lightScene.position.set(focus.x,focus.y-10, focus.z);
+                }else if(k==4){
+                        lightScene.position.set(focus.x-10,focus.y, focus.z);
+                }
+                
+                if(k!=3)
+                scene.add(lightScene);
+          }
+           var molecule=parseSDF(sdf);
+           molmesh = new THREE.Mesh(
+                  new THREE.SphereGeometry(
+                    .1,
+                    segments,
+                    rings),
+                  sphereMaterial);
+           for(var i=0;i<molecule.atoms.length;i++){
+           if(molecule.atoms[i].symbol==="H")continue;
+                var sphere = new THREE.Mesh(
+                  new THREE.SphereGeometry(
+                    radius,
+                    segments,
+                    rings),
+                  sphereMaterial);
+                sphere.position.x=molecule.atoms[i].z;
+                sphere.position.y=molecule.atoms[i].x;
+                sphere.position.z=molecule.atoms[i].y;
+                if(molmesh===null){
+                        molmesh=sphere;
+                }else{
+                        molmesh.add(sphere);
+                }
+                        
+           }
+           molmesh.position.set(0,0,-10);
+           camera.add(molmesh);
+            
+            // create the sphere's material
+
+
+        // create a new mesh with
+        // sphere geometry - we will cover
+        // the sphereMaterial next!
+        
+
+        // add the sphere to the scene
 
 
         clock = new THREE.Clock();
@@ -152,74 +253,12 @@
       }
 
 
-      function applyWeatherConditions() {
-        displayCurrentCityName(cities[currentCity][0]);
-
-        var info = cityWeather[currentCity];
-
-        particleRotationSpeed = info.wind.speed / 2; // dividing by 2 just to slow things down 
-        particleRotationDeg = info.wind.deg;
-
-        var timeThere = cityTimes[currentCity] ? cityTimes[currentCity].getUTCHours() : 0,
-            isDay = timeThere >= 6 && timeThere <= 18;
-
-        if (isDay) {
-          switch (info.weather[0].main) {
-            case 'Clouds':
-              currentColorRange = [0, 0.01];
-              break;
-            case 'Rain':
-              currentColorRange = [0.7, 0.1];
-              break;
-            case 'Clear':
-            default:
-              currentColorRange = [0.6, 0.7];
-              break;
-          }
-        } else {
-          currentColorRange = [0.69, 0.6];
-        }
-
-        if (currentCity < cities.length-1) currentCity++;
-        else currentCity = 0;
-
-        setTimeout(applyWeatherConditions, 5000);
-      }
-
-      function displayCurrentCityName(name) {
-        scene.remove(currentCityTextMesh);
-
-        currentCityText = new THREE.TextGeometry(name, {
-          size: 4,
-          height: 1
-        });
-        currentCityTextMesh = new THREE.Mesh(currentCityText, new THREE.MeshBasicMaterial({
-          color: 0xffffff, opacity: 1
-        }));
-
-        currentCityTextMesh.position.y = 10;
-        currentCityTextMesh.position.z = 20;
-        currentCityTextMesh.rotation.x = 0;
-        currentCityTextMesh.rotation.y = -180;
-
-        scene.add(currentCityTextMesh);
-      }
+    
 
       function animate() {
-        var elapsedSeconds = clock.getElapsedTime(),
-            particleRotationDirection = particleRotationDeg <= 180 ? -1 : 1;
+        var elapsedSeconds = clock.getElapsedTime();
 
-        particles.rotation.y = elapsedSeconds * particleRotationSpeed * particleRotationDirection;
-        
-        // We check if the color range has changed, if so, we'll change the colours
-        if (lastColorRange[0] != currentColorRange[0] && lastColorRange[1] != currentColorRange[1]) {
 
-          for (var i = 0; i < totalParticles; i++) {
-            particles.children[i].material.color.setHSL(currentColorRange[0], currentColorRange[1], (Math.random() * (0.7 - 0.2) + 0.2));
-          }
-
-          lastColorRange = currentColorRange;
-        }
 
         requestAnimationFrame(animate);
 
@@ -247,6 +286,17 @@
       }
 
       function render(dt) {
+      
+      //not sure if this is good
+        var rotObjectMatrix = new THREE.Matrix4();
+        rotObjectMatrix.makeRotationFromQuaternion(camera.quaternion);
+        molmesh.quaternion.setFromRotationMatrix(rotObjectMatrix);
+        
+        //molmesh.rotation.x=camera.rotation._x;
+        //molmesh.rotation.y=camera.rotation._y;
+        //molmesh.rotation.z=camera.rotation._z;
+        
+        if(Math.random()>.99)console.log(camera);
         effect.render(scene, camera);
       }
 
@@ -278,6 +328,32 @@
 
         xmlhttp.open('GET', url, true);
         xmlhttp.send();
+      }
+      function parseSDF(sdf){
+        var lines = sdf.split("\n");
+        var mol={atoms:[],bonds:[]};
+        
+        var parseAtomLine = function(line){
+                var atom={};
+                atom.x=line.substr(0,10)-0;
+                atom.y=line.substr(10,10)-0;
+                atom.z=line.substr(20,10)-0;
+                atom.symbol=line.substr(31,3).trim();
+                return atom;
+        }
+        
+        for(var i=3;i<lines.length;i++){
+                if(i==3){
+                        mol.atoms.length=lines[i].substr(0,3)-0;
+                        mol.bonds.length=lines[i].substr(3,3)-0;
+                        continue;
+                }
+                if(i-4<mol.atoms.length){
+                        mol.atoms[i-4]=parseAtomLine(lines[i]);
+                }
+                
+        }
+        return mol;
       }
     </script>
   </body>
