@@ -211,7 +211,11 @@
         clock = new THREE.Clock();
 
         animate();
-        getURL("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/12244/record/SDF/?record_type=3d&response_type=display",function(data){buildMoleculeFromSDF(data);});
+        var rcid=getParameterByName("cid");
+        if(rcid){
+                getURL("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/" +  rcid+ "/record/SDF/?record_type=3d&response_type=display",function(data){buildMoleculeFromSDF(data);});
+        }
+        
       }
 
       function buildMoleculeFromSDF(sdf){
