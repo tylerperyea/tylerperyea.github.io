@@ -1,0 +1,9 @@
+{
+  "name": "socket-molviewer",
+  "version": "0.0.1",
+  "description": "allow client server interaction with 3d mol viewer",
+  "dependencies": {
+    "express": "^4.10.2",
+    "socket.io": "1.2.0"
+  }
+}

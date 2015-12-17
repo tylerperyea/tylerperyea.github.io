@@ -1,0 +1,436 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Connecting up Google Cardboard to web APIs</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+      body {
+        margin: 0px;
+        overflow: hidden;
+        background-color:#DEDEDE;
+      }
+      #webglviewer {
+        bottom: 0;
+        left: 0;
+        position: absolute;
+        right: 0;
+        top: 0;
+      }
+      #qrcode{
+      	position:fixed;
+      	top:10px;
+      	left:10px;
+      	width:160px;
+      	height:160px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="webglviewer"></div>
+    <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-mousewheel/3.1.13/jquery.mousewheel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
+    <script>
+	function getParameterByName(name) {
+            name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+            var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+                results = regex.exec(location.search);
+            return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+        }
+	function makeid()
+	{
+		var text = "";
+		var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+		for( var i=0; i < 5; i++ )
+			text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+		return text;
+	}
+      var client=getParameterByName("sync");
+      if(client==="")client=makeid();
+      var type=getParameterByName("type");
+      var socket = io();
+      function sendinfo(pay){
+      
+        var message={};
+	    message.client=client;
+	    message.msg=pay;
+	    console.log("Sent:");
+	    console.log(message);
+        socket.emit('update', JSON.stringify(message));
+        
+        
+      }
+      socket.on(client, function(msg){
+        if(type==="server")return;
+        console.log("Received:");
+        console.log(msg);
+        var rot=msg;
+          
+        molmesh.quaternion.setFromRotationMatrix(rot.rotation);
+        mcontainer.position.z=rot.position.z;
+        console.log("Set");
+      });
+      var url=window.location.href.split("?")[0]+"?sync="+client + "&type=client";
+      var cid=getParameterByName("cid");
+      if(cid!==""){
+	url+="&cid="+cid;
+      }
+      console.log(url);
+    </script>
+    <script src="./js/three.min.js"></script>
+    <script src="./js/StereoEffect.js"></script>
+    <script src="./js/DeviceOrientationControls.js"></script>
+    <script src="./js/OrbitControls.js"></script>
+    <script src="./js/helvetiker_regular.typeface.js"></script>
+
+   
+<script>
+        
+      var scene,
+          camera, 
+          renderer,
+          element,
+          container,
+          mcontainer,
+          effect,
+          controls,
+          clock;
+      var molmesh;
+      
+      
+      var atomSymbols = [ "H", "He", "Li", "Be", "B",
+			"C", "N", "O", "F", "Ne", "Na", "Mg", "Al", "Si", "P", "S", "Cl",
+			"Ar", "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni",
+			"Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",
+			"Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn",
+			"Sb", "Te", "I", "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm",
+			"Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf",
+			"Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi",
+			"Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U", "Np", "Pu",
+			"Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr", "Rf", "Db",
+			"Sg", "Bh", "Hs", "Mt" ];
+      var atomRadius = [ 0.79, 0.49, 2.05,
+			1.4, 1.17, 0.91, 0.75, 0.65, 0.57, 0.51, 2.23, 1.72, 1.82, 1.46,
+			1.23, 1.09, 0.97, 0.88, 2.77, 2.23, 2.09, 2, 1.92, 1.85, 1.79,
+			1.72, 1.67, 1.62, 1.57, 1.53, 1.81, 1.52, 1.33, 1.22, 1.12, 1.03,
+			2.98, 2.45, 2.27, 2.16, 2.08, 2.01, 1.95, 1.89, 1.83, 1.79, 1.75,
+			1.71, 2, 1.72, 1.53, 1.42, 1.32, 1.24, 3.34, 2.78, 2.74, 2.7, 2.67,
+			2.64, 2.62, 2.59, 2.56, 2.54, 2.51, 2.49, 2.47, 2.45, 2.42, 2.4,
+			2.25, 2.16, 2.09, 2.02, 1.97, 1.92, 1.87, 1.83, 1.79, 1.76, 2.08,
+			1.81, 1.63, 1.53, 1.43, 1.34, 1.88 ];
+			
+      var atomRadius = [53,31,167,112,87,67,56,48,42,38,190,145,118,111,98,88,79,71,243,
+      194,184,176,171,166,161,156,152,149,145,142,136,125,114,103,94,88,265,219,212,206,
+      198,190,183,178,173,169,165,161,156,145,133,123,115,108,298,253,"NA","NA",247,
+      206,205,238,231,233,225,228,"NA",226,222,222,217,208,200,193,188,185,180,177,
+      174,171,156,154,143,135,"NA",120,"NA","NA","NA","NA","NA","NA","NA","NA","NA",
+      "NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA",
+      "NA","NA","NA","NA","NA","NA","NA"];
+			
+      var atomProps={};	
+	
+      for(var ai=0;ai<atomSymbols.length;ai++){
+        atomProps[atomSymbols[ai]]={radius:atomRadius[ai]};
+      }
+      
+                
+                atomProps["Cl"].color="rgb(54, 180, 73)";
+		atomProps["F"].color="rgb(54, 180, 73)";
+		atomProps["P"].color="rgb(230, 219, 69)";
+		atomProps["S"].color="rgb(143, 160, 48)";
+		atomProps["Br"].color="rgb(115, 84, 35)";
+		atomProps["C"].color="rgb(58, 58, 58)";
+		atomProps["N"].color="rgb(93, 69, 230)";
+		atomProps["O"].color="rgb(230, 93, 69)";
+		atomProps["H"].color="rgb(158, 158, 158)";
+		atomProps["Na"].color="rgb(48, 143, 160)";
+		atomProps["I"].color="rgb(230, 69, 205)";
+      init();
+      function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.001, 700);
+        camera.position.set(0, 15, 0);
+        scene.add(camera);
+
+        renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: true
+        });
+        
+        element = renderer.domElement;
+        container = document.getElementById('webglviewer');
+        container.appendChild(element);
+
+        effect = new THREE.StereoEffect(renderer);
+
+        // Our initial control fallback with mouse/touch events in case DeviceOrientation is not enabled
+        controls = new THREE.OrbitControls(camera, element);
+        controls.target.set(
+          camera.position.x + 0.15,
+          camera.position.y,
+          camera.position.z
+        );
+        controls.noPan = true;
+        controls.noZoom = true;
+
+        // Our preferred controls via DeviceOrientation
+        function setOrientationControls(e) {
+          if (!e.alpha) {
+            return;
+          }
+
+          controls = new THREE.DeviceOrientationControls(camera, true);
+          controls.connect();
+          controls.update();
+
+          element.addEventListener('click', fullscreen, false);
+
+          window.removeEventListener('deviceorientation', setOrientationControls, true);
+        }
+        window.addEventListener('deviceorientation', setOrientationControls, true);
+
+        // Lighting
+        var light = new THREE.PointLight(0x999999, 2, 100);
+        light.position.set(50, 50, 50);
+        scene.add(light);
+        
+       // scene.add(floor);
+
+
+        // set up the sphere vars
+        var radius = .8,
+            segments = 16,
+            rings = 16;
+        
+             var sdf="2244\n  -OEChem-12151517373D\n\n 21 21  0     0  0  0  0  0  0999 V2000\n    1.2333    0.5540    0.7792 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.6952   -2.7148   -0.7502 O   0  0  0  0  0  0  0  0  0  0  0  0\n    0.7958   -2.1843    0.8685 O   0  0  0  0  0  0  0  0  0  0  0  0\n    1.7813    0.8105   -1.4821 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.0857    0.6088    0.4403 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.7927   -0.5515    0.1244 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.7288    1.8464    0.4133 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.1426   -0.4741   -0.2184 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.0787    1.9238    0.0706 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.7855    0.7636   -0.2453 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.1409   -1.8536    0.1477 C   0  0  0  0  0  0  0  0  0  0  0  0\n    2.1094    0.6715   -0.3113 C   0  0  0  0  0  0  0  0  0  0  0  0\n    3.5305    0.5996    0.1635 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.1851    2.7545    0.6593 H   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.7247   -1.3605   -0.4564 H   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.5797    2.8872    0.0506 H   0  0  0  0  0  0  0  0  0  0  0  0\n   -3.8374    0.8238   -0.5090 H   0  0  0  0  0  0  0  0  0  0  0  0\n    3.7290    1.4184    0.8593 H   0  0  0  0  0  0  0  0  0  0  0  0\n    4.2045    0.6969   -0.6924 H   0  0  0  0  0  0  0  0  0  0  0  0\n    3.7105   -0.3659    0.6426 H   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.2555   -3.5916   -0.7337 H   0  0  0  0  0  0  0  0  0  0  0  0\n  1  5  1  0  0  0  0\n  1 12  1  0  0  0  0\n  2 11  1  0  0  0  0\n  2 21  1  0  0  0  0\n  3 11  2  0  0  0  0\n  4 12  2  0  0  0  0\n  5  6  1  0  0  0  0\n  5  7  2  0  0  0  0\n  6  8  2  0  0  0  0\n  6 11  1  0  0  0  0\n  7  9  1  0  0  0  0\n  7 14  1  0  0  0  0\n  8 10  1  0  0  0  0\n  8 15  1  0  0  0  0\n  9 10  2  0  0  0  0\n  9 16  1  0  0  0  0\n 10 17  1  0  0  0  0\n 12 13  1  0  0  0  0\n 13 18  1  0  0  0  0\n 13 19  1  0  0  0  0\n 13 20  1  0  0  0  0\nM  END\n&gt; &lt;PUBCHEM_COMPOUND_CID&gt;\n2244\n\n&gt; &lt;PUBCHEM_CONFORMER_RMSD&gt;\n0.6\n\n&gt; &lt;PUBCHEM_CONFORMER_DIVERSEORDER&gt;\n1\n11\n10\n3\n15\n17\n13\n5\n16\n7\n14\n9\n8\n4\n18\n6\n12\n2\n\n&gt; &lt;PUBCHEM_MMFF94_PARTIAL_CHARGES&gt;\n18\n1 -0.23\n10 -0.15\n11 0.63\n12 0.66\n13 0.06\n14 0.15\n15 0.15\n16 0.15\n17 0.15\n2 -0.65\n21 0.5\n3 -0.57\n4 -0.57\n5 0.08\n6 0.09\n7 -0.15\n8 -0.15\n9 -0.15\n\n&gt; &lt;PUBCHEM_EFFECTIVE_ROTOR_COUNT&gt;\n3\n\n&gt; &lt;PUBCHEM_PHARMACOPHORE_FEATURES&gt;\n5\n1 2 acceptor\n1 3 acceptor\n1 4 acceptor\n3 2 3 11 anion\n6 5 6 7 8 9 10 rings\n\n&gt; &lt;PUBCHEM_HEAVY_ATOM_COUNT&gt;\n13\n\n&gt; &lt;PUBCHEM_ATOM_DEF_STEREO_COUNT&gt;\n0\n\n&gt; &lt;PUBCHEM_ATOM_UDEF_STEREO_COUNT&gt;\n0\n\n&gt; &lt;PUBCHEM_BOND_DEF_STEREO_COUNT&gt;\n0\n\n&gt; &lt;PUBCHEM_BOND_UDEF_STEREO_COUNT&gt;\n0\n\n&gt; &lt;PUBCHEM_ISOTOPIC_ATOM_COUNT&gt;\n0\n\n&gt; &lt;PUBCHEM_COMPONENT_COUNT&gt;\n1\n\n&gt; &lt;PUBCHEM_CACTVS_TAUTO_COUNT&gt;\n1\n\n&gt; &lt;PUBCHEM_CONFORMER_ID&gt;\n000008C400000001\n\n&gt; &lt;PUBCHEM_MMFF94_ENERGY&gt;\n39.5952\n\n&gt; &lt;PUBCHEM_FEATURE_SELFOVERLAP&gt;\n25.432\n\n&gt; &lt;PUBCHEM_SHAPE_FINGERPRINT&gt;\n1 1 18265615372930943622\n100427 49 16967750034970055351\n12138202 97 18271247217817981012\n12423570 1 16692715976000295083\n12524768 44 16753525617747228747\n12716758 59 18341332292274886536\n13024252 1 17968377969333732145\n14181834 199 17830728755827362645\n14614273 12 18262232214645093005\n15207287 21 17703787037639964108\n15775835 57 18340488876329928641\n16945 1 18271533103414939405\n193761 8 17907860604865584321\n20645476 183 17677348215414174190\n20871998 184 18198632231250704846\n21040471 1 18411412921197846465\n21501502 16 18123463883164380929\n23402539 116 18271795865171824860\n23419403 2 13539898140662769886\n23552423 10 18048876295495619569\n23559900 14 18272369794190581304\n241688 4 16179044415907240795\n257057 1 17478316999871287486\n2748010 2 18339085878070479087\n305870 269 18263645056784260212\n528862 383 18117272558388284091\n53812653 8 18410289211719108569\n7364860 26 17910392788380644719\n81228 2 18050568744116491203\n\n&gt; &lt;PUBCHEM_SHAPE_MULTIPOLES&gt;\n244.06\n3.86\n2.45\n0.89\n1.95\n1.58\n0.15\n-1.85\n0.38\n-0.61\n-0.02\n0.29\n0.01\n-0.33\n\n&gt; &lt;PUBCHEM_SHAPE_SELFOVERLAP&gt;\n513.037\n\n&gt; &lt;PUBCHEM_SHAPE_VOLUME&gt;\n136\n\n&gt; &lt;PUBCHEM_COORDINATE_TYPE&gt;\n2\n5\n10\n\n$$$$\n";
+            
+           
+            var focus={x:10,y:15,z:0};
+        
+          
+          for(var k=0;k<1;k++){  
+                var lightScene = new THREE.PointLight(0x999999, 2, 50);
+                lightScene.position.set(focus.x,focus.y-10, focus.z);
+                scene.add(lightScene);
+          }
+          var sphereMaterial =
+                  new THREE.MeshLambertMaterial(
+                    {
+                      color: new THREE.Color("green")
+                    });
+           molmesh = new THREE.Mesh(
+                  new THREE.SphereGeometry(
+                    .1,
+                    segments,
+                    rings),
+                  sphereMaterial);
+           buildMoleculeFromSDF(sdf);
+	   mcontainer = new THREE.Mesh(
+                  new THREE.SphereGeometry(
+                    .1,
+                    segments,
+                    rings),
+                  sphereMaterial);
+
+           mcontainer.position.set(0,0,-20);
+           mcontainer.add(molmesh);
+           camera.add(mcontainer);
+            
+            // create the sphere's material
+
+
+        // create a new mesh with
+        // sphere geometry - we will cover
+        // the sphereMaterial next!
+        
+
+        // add the sphere to the scene
+
+
+        clock = new THREE.Clock();
+
+        animate();
+        var rcid=getParameterByName("cid");
+        if(rcid){
+                getURL("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/" +  rcid+ "/record/SDF/?record_type=3d&response_type=display",function(data){buildMoleculeFromSDF(data);});
+        }
+        
+      }
+
+      function buildMoleculeFromSDF(sdf){
+           var molecule=parseSDF(sdf);
+           var radius = .8,
+            segments = 16,
+            rings = 16;
+           for(var i = molmesh.children.length - 1; i >= 0; i--) {
+                molmesh.remove(molmesh.children[i]);     
+           }
+           for(var i=0;i<molecule.atoms.length;i++){
+                   //if(molecule.atoms[i].symbol==="H")continue;
+                   console.log(atomProps);
+                   var aprop=atomProps[molecule.atoms[i].symbol];
+                   if(!aprop){
+                        aprop={radius:67,color:"yellow"};
+                   }
+                   if(!aprop.color){
+                        aprop.color="yellow";
+                   }
+                   //https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/2244/record/SDF/?record_type=3d&response_type=display
+                   console.log(aprop);
+                   var sphereMaterial =
+                  new THREE.MeshLambertMaterial(
+                    {
+                      color: new THREE.Color(aprop.color)
+                    });
+                var sphere = new THREE.Mesh(
+                  new THREE.SphereGeometry(
+                    aprop.radius/67.,
+                    segments,
+                    rings),
+                  sphereMaterial);
+                sphere.position.x=molecule.atoms[i].z;
+                sphere.position.y=molecule.atoms[i].x;
+                sphere.position.z=molecule.atoms[i].y;
+                molmesh.add(sphere);
+           }
+           
+      }
+
+    
+
+      function animate() {
+        var elapsedSeconds = clock.getElapsedTime();
+
+
+
+        requestAnimationFrame(animate);
+
+        update(clock.getDelta());
+        render(clock.getDelta());
+      }
+
+      function resize() {
+        var width = container.offsetWidth;
+        var height = container.offsetHeight;
+
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(width, height);
+        effect.setSize(width, height);
+      }
+
+      function update(dt) {
+        resize();
+
+        camera.updateProjectionMatrix();
+
+        controls.update(dt);
+      }
+	  var lastRot=null;
+
+      function render(dt) {
+        
+        //not sure if this is good
+        var rotObjectMatrix = new THREE.Matrix4();
+        rotObjectMatrix.makeRotationFromQuaternion(camera.quaternion);
+        var rotMat=JSON.stringify(rotObjectMatrix);
+        if(rotMat!==lastRot){
+                if(type==="server"){
+                  sendinfo(getState());
+                }
+        	lastRot=rotMat;
+        }
+        mcontainer.quaternion.setFromRotationMatrix(rotObjectMatrix);
+        //molmesh.rotation.x=camera.rotation._x;
+        //molmesh.rotation.y=camera.rotation._y;
+        //molmesh.rotation.z=camera.rotation._z;
+        
+        effect.render(scene, camera);
+      }
+
+      function fullscreen() {
+        if (container.requestFullscreen) {
+          container.requestFullscreen();
+        } else if (container.msRequestFullscreen) {
+          container.msRequestFullscreen();
+        } else if (container.mozRequestFullScreen) {
+          container.mozRequestFullScreen();
+        } else if (container.webkitRequestFullscreen) {
+          container.webkitRequestFullscreen();
+        }
+      }
+
+      function getURL(url, callback) {
+        var xmlhttp = new XMLHttpRequest();
+
+        xmlhttp.onreadystatechange = function() {
+          if (xmlhttp.readyState == 4) {
+             if (xmlhttp.status == 200){
+                 callback(xmlhttp.responseText);
+             }
+             else {
+                 console.log('We had an error, status code: ', xmlhttp.status);
+             }
+          }
+        }
+
+        xmlhttp.open('GET', url, true);
+        xmlhttp.send();
+      }
+      function parseSDF(sdf){
+        var lines = sdf.split("\n");
+        var mol={atoms:[],bonds:[]};
+        
+        var parseAtomLine = function(line){
+                var atom={};
+                atom.x=line.substr(0,10)-0;
+                atom.y=line.substr(10,10)-0;
+                atom.z=line.substr(20,10)-0;
+                atom.symbol=line.substr(31,3).trim();
+                return atom;
+        }
+        
+        for(var i=3;i<lines.length;i++){
+                if(i==3){
+                        mol.atoms.length=lines[i].substr(0,3)-0;
+                        mol.bonds.length=lines[i].substr(3,3)-0;
+                        continue;
+                }
+                if(i-4<mol.atoms.length){
+                        mol.atoms[i-4]=parseAtomLine(lines[i]);
+                }
+                
+        }
+        return mol;
+      }
+function getState(){
+        var rotObjectMatrix = new THREE.Matrix4();
+        rotObjectMatrix.makeRotationFromQuaternion(camera.quaternion);
+        return {rotation:rotObjectMatrix,position:mcontainer.position};
+}
+        $(container).on('mousewheel', function(event) {
+    	  var sc=event.deltaY/3;
+//          console.log(event.deltaY + "," + sc);
+    	  mcontainer.position.set(0,0,mcontainer.position.z+sc);
+          sendinfo(getState());
+	});
+        $( document ).ready(function() {
+	    if(type==="server"){
+    		$('#qrcode').qrcode(url);
+$('#qrcode').append("<a target='_blank' href='" + url + "'>Client View</a>");
+            }else{
+                $('#qrcode').hide();
+            }
+	});
+    </script>
+    <div id="qrcode"></div>
+    </div>
+  </body>
+</html>
+
