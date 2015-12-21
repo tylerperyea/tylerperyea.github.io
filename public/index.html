@@ -1,11 +1,23 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Connecting up Google Cardboard to web APIs</title>
+    <title>Molviewer CardBoard</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
+      .cursoroverlay{
+	position: fixed;
+    width: 18px;
+    height: 18px;
+    top: 587px;
+    left: 434.942px;
+    background-image: url(http://blog.vjeux.com/wp-content/uploads/2012/07/opened.png);
+      }
+      .closed{
+    background-image: url(http://blog.vjeux.com/wp-content/uploads/2012/07/closed-mac.png);
+      }
       body {
         margin: 0px;
         overflow: hidden;
@@ -28,7 +40,11 @@
     </style>
   </head>
   <body>
-    <div id="webglviewer"></div>
+    <div id="webglviewer">
+    <div id="cursor1" class="cursoroverlay"></div>
+    <div id="cursor2" class="cursoroverlay"></div>
+
+</div>
     <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
     <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-mousewheel/3.1.13/jquery.mousewheel.min.js"></script>
@@ -54,8 +70,15 @@
       if(client==="")client=makeid();
       var type=getParameterByName("type");
       var socket = io();
+      var lastsend=0;
+      var timeres=30;
       function sendinfo(pay){
-      
+        var nt=new Date()-0;
+	if(nt-lastsend<timeres){
+	    return;
+	}else{
+	    lastsend=nt;
+	}
         var message={};
 	    message.client=client;
 	    message.msg=pay;
@@ -70,10 +93,28 @@
         console.log("Received:");
         console.log(msg);
         var rot=msg;
-          
+        if(rot.rotation)  
         molmesh.quaternion.setFromRotationMatrix(rot.rotation);
-        mcontainer.position.z=rot.position.z;
-        console.log("Set");
+        if(rot.position){
+	mcontainer.position.z=rot.position.z;
+        mcontainer.position.y=rot.position.y;
+        mcontainer.position.x=rot.position.x;
+	}
+	if(rot.mouse){
+	  var x=rot.mouse.x;
+	  var y=rot.mouse.y;
+
+          $("#cursor1").css('top', (window.innerHeight*y) + "px");
+          $("#cursor1").css('left', (window.innerWidth/2*x) + "px");
+          $("#cursor2").css('top', (window.innerHeight*y) + "px");
+          $("#cursor2").css('left', (window.innerWidth*(1+x)/2) + "px");
+	  if(rot.mouse.closed){
+		$(".cursoroverlay").addClass("closed");
+	  }else{
+		$(".cursoroverlay").removeClass("closed");
+	  }
+        }
+	console.log("Set");
       });
       var url=window.location.href.split("?")[0]+"?sync="+client + "&type=client";
       var cid=getParameterByName("cid");
@@ -198,8 +239,21 @@
         var light = new THREE.PointLight(0x999999, 2, 100);
         light.position.set(50, 50, 50);
         scene.add(light);
-        
-       // scene.add(floor);
+       
+
+
+var floorMaterial = new THREE.MeshPhongMaterial({
+    color: 0xffffff,
+    specular: 0xffffff,
+    shininess: 20,
+    shading: THREE.FlatShading
+  });
+var geometry = new THREE.PlaneBufferGeometry(1000, 1000);
+var floor = new THREE.Mesh(geometry, floorMaterial);
+  floor.rotation.x = -Math.PI / 2;
+  //scene.add(floor);
+ 
+//        scene.add(floor);
 
 
         // set up the sphere vars
@@ -270,6 +324,7 @@
            for(var i = molmesh.children.length - 1; i >= 0; i--) {
                 molmesh.remove(molmesh.children[i]);     
            }
+//	   molecule.atoms.push({"symbol":"N",x:0,y:0,z:-10});
            for(var i=0;i<molecule.atoms.length;i++){
                    //if(molecule.atoms[i].symbol==="H")continue;
                    console.log(atomProps);
@@ -293,9 +348,9 @@
                     segments,
                     rings),
                   sphereMaterial);
-                sphere.position.x=molecule.atoms[i].z;
-                sphere.position.y=molecule.atoms[i].x;
-                sphere.position.z=molecule.atoms[i].y;
+                sphere.position.z=molecule.atoms[i].z;
+                sphere.position.x=molecule.atoms[i].x;
+                sphere.position.y=molecule.atoms[i].y;
                 molmesh.add(sphere);
            }
            
@@ -329,10 +384,9 @@
         resize();
 
         camera.updateProjectionMatrix();
-
         controls.update(dt);
       }
-	  var lastRot=null;
+      var lastRot=null;
 
       function render(dt) {
         
@@ -346,11 +400,12 @@
                 }
         	lastRot=rotMat;
         }
-        mcontainer.quaternion.setFromRotationMatrix(rotObjectMatrix);
-        //molmesh.rotation.x=camera.rotation._x;
-        //molmesh.rotation.y=camera.rotation._y;
-        //molmesh.rotation.z=camera.rotation._z;
         
+        //mcontainer.quaternion.setFromRotationMatrix(rotObjectMatrix);
+        mcontainer.rotation.x=-camera.rotation.x;
+        mcontainer.rotation.y=camera.rotation.y;
+        mcontainer.rotation.z=-camera.rotation.z;
+	
         effect.render(scene, camera);
       }
 
@@ -409,16 +464,44 @@
         }
         return mol;
       }
-function getState(){
+function getState(inc){
         var rotObjectMatrix = new THREE.Matrix4();
         rotObjectMatrix.makeRotationFromQuaternion(camera.quaternion);
-        return {rotation:rotObjectMatrix,position:mcontainer.position};
+	var state={};
+
+	if(!inc){
+		state.rotation=rotObjectMatrix;
+		state.position=mcontainer.position;
+		state.mouse=mouseXY;
+	}else{
+		if(inc==="mouse"){
+			state.mouse=mouseXY;
+		}
+	}
+	return state;
 }
+        var mouseXY;
+	$(document).on('mousemove', function(event){
+            var x=event.pageX/(window.innerWidth-0.0);
+            var y=event.pageY/(window.innerHeight-0.0);
+            //$("#cursor").css('top', (window.innerHeight*y) + "px");
+            //$("#cursor").css('left', (window.innerWidth*x) + "px");
+            //console.log(x +"," + y); 
+	    mouseXY={};
+	    mouseXY.x=x;
+	    mouseXY.y=y;
+	    mouseXY.closed=(event.buttons==1);
+            if(type==="server"){
+		sendinfo(getState());
+	    }
+        });
+
         $(container).on('mousewheel', function(event) {
     	  var sc=event.deltaY/3;
 //          console.log(event.deltaY + "," + sc);
     	  mcontainer.position.set(0,0,mcontainer.position.z+sc);
-          sendinfo(getState());
+          
+	  sendinfo(getState());
 	});
         $( document ).ready(function() {
 	    if(type==="server"){
@@ -428,9 +511,12 @@ $('#qrcode').append("<a target='_blank' href='" + url + "'>Client View</a>");
                 $('#qrcode').hide();
             }
 	});
+
+
     </script>
     <div id="qrcode"></div>
     </div>
   </body>
 </html>
+
 
