@@ -404,6 +404,7 @@ function setup() {
     mouseIsDown = false;
   }
 
+  
   canvas.onmousemove = function(e) {
     if (!mouseIsDown) {
       mainLayer.trans=getMousePos(screen,e);
@@ -414,6 +415,7 @@ function setup() {
     }
     return false;
   }
+  canvas.ontouchmove = canvas.onmousemove;
 }
 
 function mouseClick() {
