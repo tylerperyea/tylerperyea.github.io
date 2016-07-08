@@ -417,8 +417,16 @@ function setup() {
     return false;
   }
   canvas.ontouchmove = function(e){
-  	alert("MOVED");
+  	//alert("MOVED");
   	return canvas.onmousemove(e);
+  }
+  canvas.ontouchstart = function(e){
+  	//alert("MOVED");
+  	return canvas.onmousedown(e);
+  }
+  canvas.ontouchend = function(e){
+  	//alert("MOVED");
+  	return canvas.onmouseup(e);
   }
 }
 
