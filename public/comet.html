@@ -413,9 +413,13 @@ function setup() {
       dragOffset.x = p1.x - mainLayer.trans.x;
       dragOffset.y = p1.y - mainLayer.trans.y;
     }
+    
     return false;
   }
-  canvas.ontouchmove = canvas.onmousemove;
+  canvas.ontouchmove = function(e){
+  	alert("MOVED");
+  	return canvas.onmousemove(e);
+  }
 }
 
 function mouseClick() {
