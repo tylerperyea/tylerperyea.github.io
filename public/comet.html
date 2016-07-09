@@ -2,23 +2,6 @@
 <html>
 <head>
   <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-  
-  
-
-  
-  
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-
   <style type="text/css">
     #screen{
   background-color:black;
@@ -377,7 +360,7 @@ function setup() {
   var canvas = document.getElementById('screen');
 	 bstars=stars(1000,canvas.width,canvas.height);
 
-  canvas.onmousedown = function(e) {
+  canvas.ontouchstart = function(e) {
   dragOffset = {
     x: 0,
     y: 0
@@ -395,14 +378,14 @@ function setup() {
     //mainLayer.trans.y = e.y;
     mouseIsDown = true;
   }
-  canvas.onmouseup = function(e) {
+  canvas.ontouchend = function(e) {
     if (mouseIsDown) mouseClick(e);
 
     mouseIsDown = false;
   }
 
   
-  canvas.onmousemove = function(e) {
+   canvas.ontouchmove = function(e) {
     if (!mouseIsDown) {
       mainLayer.trans=getMousePos(screen,e);
     } else {
@@ -413,6 +396,7 @@ function setup() {
     
     return false;
   }
+  /*
   canvas.ontouchmove = function(e){
   	//alert("MOVED");
   	document.getElementById("screen").style="background-color:rgb(" + Math.floor(Math.random()*255) + ",0,0);";
@@ -425,7 +409,7 @@ function setup() {
   canvas.ontouchend = function(e){
   	//alert("end");
   	return canvas.onmouseup(e);
-  }
+  }*/
 }
 
 function mouseClick() {
