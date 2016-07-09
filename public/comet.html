@@ -30,7 +30,7 @@ import
 </button>
 
 
-    <textarea id="exp">{"startarea":{"x":223,"y":199,"vx":0,"vy":0,"enabled":true,"mass":1,"static":false,"_rad":16,"collide":true},"things":[{"x":266.875,"y":318.6500030517578,"vx":0,"vy":0,"enabled":true,"mass":40,"static":true,"_rad":17.09975946676697,"collide":true},{"x":246.53958001338947,"y":352.3443715715075,"vx":-0.45874874367522045,"vy":-1.1248004822319684,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":596,"y":87.80000305175781,"vx":0,"vy":0,"enabled":true,"mass":1,"static":true,"_rad":5,"collide":true,"earth":true},{"x":30419.981579673495,"y":-18352.70033572374,"vx":2.4321751145541723,"vy":-1.5091466584324094,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":18544.019858741536,"y":-8486.300031934963,"vx":1.686136610272649,"vy":-0.8070400880401033,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":286,"y":22.75,"vx":0,"vy":0,"enabled":true,"mass":4,"static":true,"_rad":7.937005259840997,"collide":true},{"x":614,"y":52,"vx":0,"vy":0,"enabled":true,"mass":5,"static":true,"_rad":8.549879733383484,"collide":true},{"x":565,"y":95,"vx":0,"vy":0,"enabled":true,"mass":1,"static":true,"_rad":5,"collide":true}]}</textarea>
+    <textarea id="exp">{"startarea":{"x":223,"y":199,"vx":0,"vy":0,"enabled":true,"mass":1,"static":false,"_rad":16,"collide":true},"things":[{"x":652,"y":79,"vx":0,"vy":0,"enabled":true,"mass":1,"static":true,"_rad":5,"collide":true,"earth":true},{"x":613,"y":98,"vx":0,"vy":0,"enabled":true,"mass":16,"static":true,"_rad":12.599210498948732,"collide":true},{"x":344,"y":339,"vx":0,"vy":0,"enabled":true,"mass":21,"static":true,"_rad":13.794620881905601,"collide":true},{"x":303.1448469637043,"y":388.9152588764934,"vx":-0.20774249001487555,"vy":-0.4021988482617,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":false}]}</textarea>
 
     <img id="slingshot" src="http://icons.iconarchive.com/icons/etherbrian/toys/32/sling-shot-icon.png">
 
@@ -44,8 +44,8 @@ import
         var things = [];
         var gravc = 1.0;
         var maxv = 1000.0;
-        var calcspeed = 10;
-        var defdt = 0.1;
+        var calcspeed = 8;
+        var defdt = .2;
         var colrad = .9;
         var mouseIsDown = false;
         var dragOffset = {
@@ -141,6 +141,15 @@ import
             var canvas = document.getElementById('screen');
             canvas.width = canvas.width;
             var context = canvas.getContext('2d');
+            
+            if (state < 0) {
+            	renderCircle(context,
+                    canvas.width/2,
+                    canvas.height/2,
+                    50,
+                    "red");
+            	return;
+            }
             var earth = getEarth();
             if (actionshot && earth) {
                 var scale = 4;
@@ -165,7 +174,7 @@ import
                 renderCircle(context, mainLayer.trans.x, mainLayer.trans.y, 6, "blue");
             } else if (state == 3) {
                 renderCircle(context, mainLayer.trans.x, mainLayer.trans.y, 16, "grey");
-            }
+            } 
 
             if (mouseIsDown) {
                 renderCircle(context, mainLayer.trans.x, mainLayer.trans.y, 6, "yellow");
@@ -324,6 +333,7 @@ import
         function applyAcc(t1, t2, dt) {
             if (t1.static) return;
             var d2 = distSq(t1, t2) + 0.01;
+            if(d2<Math.pow(t1.rad()+t2.rad(),2))return;
             var d = Math.sqrt(d2);
             var dx = (t1.x - t2.x);
             var dy = (t1.y - t2.y);
@@ -391,7 +401,6 @@ import
                     var p = getMousePos(screen, e);
                     var d2 = distSq(p, startarea);
                     if (d2 > startarea._rad * startarea._rad) {
-
                         return;
                     }
                     setstate();
@@ -416,29 +425,37 @@ import
 
                 return false;
             }
-
+			var touchonly=false;
 
             canvas.ontouchmove = function(e) {
+	            touchonly=true;
                 var touchobj = e.changedTouches[0];
                 return move(touchobj);
             }
             canvas.ontouchstart = function(e) {
+                touchonly=true;
                 var touchobj = e.changedTouches[0];
                 return start(touchobj);
             }
             canvas.ontouchend = function(e) {
+                touchonly=true;
                 var touchobj = e.changedTouches[0];
                 return end(touchobj);
             }
+            
             canvas.onmousemove = function(e) {
+            	if(touchonly)return;
                 return move(e);
             }
             canvas.onmousedown = function(e) {
+            	if(touchonly)return;
                 return start(e);
             }
             canvas.onmouseup = function(e) {
+	            if(touchonly)return;
                 return end(e);
             }
+            
         }
 
         function mouseClick() {
@@ -483,10 +500,11 @@ import
         window.onkeydown = function(e) {
             if (e.keyCode == 16) {
                 state = (state + 1) % 5;
+                if (state === 0) {
+                	getstate();
+            	}
             }
-            if (state === 0) {
-                getstate();
-            }
+            
         }
 
 
