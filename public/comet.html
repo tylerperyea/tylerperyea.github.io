@@ -170,6 +170,12 @@ function render() {
   
 	if(mouseIsDown){
   	renderCircle(context,mainLayer.trans.x, mainLayer.trans.y,6,"yellow");
+    context.beginPath();
+     context.moveTo(mainLayer.trans.x, mainLayer.trans.y);
+     context.lineTo(mainLayer.trans.x+dragOffset.x, mainLayer.trans.y+dragOffset.y);
+     context.strokeStyle = '#00FF00';
+    
+     context.stroke();
     renderCircle(context,
     mainLayer.trans.x+dragOffset.x, 
     mainLayer.trans.y+dragOffset.y,
