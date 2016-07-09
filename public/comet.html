@@ -418,6 +418,7 @@ function setup() {
   }
   canvas.ontouchmove = function(e){
   	//alert("MOVED");
+  	document.getElementById("screen").style="background-color:rgb(" + Math.floor(Math.random()*255) + ",0,0);";
   	return canvas.onmousemove(e);
   }
   canvas.ontouchstart = function(e){
@@ -425,7 +426,7 @@ function setup() {
   	return canvas.onmousedown(e);
   }
   canvas.ontouchend = function(e){
-  	alert("end");
+  	//alert("end");
   	return canvas.onmouseup(e);
   }
 }
