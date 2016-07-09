@@ -17,7 +17,7 @@
 <body>
     Launch from the grey pad, destroy earth (blue). Don't hit the other planets (green).
     <br>
-    <canvas id="screen" width=800 height=600>
+    <canvas id="screen" width=800 height=400>
 </canvas>
     <button onclick="fs()">
 fullscreen
@@ -30,8 +30,7 @@ import
 </button>
 
 
-    <textarea id="exp">{"startarea":{"x":96,"y":392,"vx":0,"vy":0,"enabled":true,"mass":1,"_rad":16,"static":false,"collide":true},"things":[{"x":266.875,"y":318.6500030517578,"vx":0,"vy":0,"enabled":true,"mass":40,"static":true,"_rad":17.09975946676697,"collide":true},{"x":342.62401546118787,"y":332.7105165810246,"vx":0.040209423990087624,"vy":0.698542816740558,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":596,"y":87.80000305175781,"vx":0,"vy":0,"enabled":true,"mass":1,"static":true,"_rad":5,"collide":true,"earth":true},{"x":10105.603857402852,"y":-5747.752231703127,"vx":2.4330034465405737,"vy":-1.5096675818620167,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":4454.268387188304,"y":-1742.5087553556402,"vx":1.6895456157713833,"vy":-0.8086798464615282,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true}]}
-</textarea>
+    <textarea id="exp">{"startarea":{"x":223,"y":199,"vx":0,"vy":0,"enabled":true,"mass":1,"static":false,"_rad":16,"collide":true},"things":[{"x":266.875,"y":318.6500030517578,"vx":0,"vy":0,"enabled":true,"mass":40,"static":true,"_rad":17.09975946676697,"collide":true},{"x":246.53958001338947,"y":352.3443715715075,"vx":-0.45874874367522045,"vy":-1.1248004822319684,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":596,"y":87.80000305175781,"vx":0,"vy":0,"enabled":true,"mass":1,"static":true,"_rad":5,"collide":true,"earth":true},{"x":30419.981579673495,"y":-18352.70033572374,"vx":2.4321751145541723,"vy":-1.5091466584324094,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":18544.019858741536,"y":-8486.300031934963,"vx":1.686136610272649,"vy":-0.8070400880401033,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":286,"y":22.75,"vx":0,"vy":0,"enabled":true,"mass":4,"static":true,"_rad":7.937005259840997,"collide":true},{"x":614,"y":52,"vx":0,"vy":0,"enabled":true,"mass":5,"static":true,"_rad":8.549879733383484,"collide":true},{"x":565,"y":95,"vx":0,"vy":0,"enabled":true,"mass":1,"static":true,"_rad":5,"collide":true}]}</textarea>
 
     <img id="slingshot" src="http://icons.iconarchive.com/icons/etherbrian/toys/32/sling-shot-icon.png">
 
@@ -45,9 +44,9 @@ import
         var things = [];
         var gravc = 1.0;
         var maxv = 1000.0;
-        var calcspeed = 100;
-        var defdt = 0.01;
-        var colrad = 1.2;
+        var calcspeed = 10;
+        var defdt = 0.1;
+        var colrad = .9;
         var mouseIsDown = false;
         var dragOffset = {
             x: 0,
@@ -268,11 +267,15 @@ import
                 }
             }
             var e = getEarth();
-            if (anycollide(e, things, .1)) {
-                actionshot = true;
-            } else {
-                actionshot = false;
-            }
+            
+            actionshot = false;
+            anycollide(e, things, 3, function(cthing){
+            	if(!cthing.static){
+            		actionshot=true;
+            		return true;
+            	}
+            	return false;
+            });
         }
 
         function calcVelocities(things, dt) {
@@ -343,12 +346,12 @@ import
             }
         }
 
-        function anycollide(thing1, things, colrad) {
+        function anycollide(thing1, things, colrad, callback) {
             for (var j = 0; j < things.length; j++) {
                 if (!things[j].enabled) continue;
                 if (things[j] === thing1) continue;
                 if (iscollide(thing1, things[j], colrad)) {
-                    return true;
+                    if(callback(things[j]))return true;
                 }
             }
         }
@@ -356,7 +359,7 @@ import
         function iscollide(t1, t2, colrad) {
             var d = distSq(t1, t2);
             var d2 = t1.rad() + t2.rad();
-            if (d2 * d2 > d * colrad * colrad) {
+            if (d2 * d2 * colrad * colrad> d ) {
                 return true;
             }
         }
