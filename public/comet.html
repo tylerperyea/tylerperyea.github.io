@@ -460,9 +460,10 @@ setup();
 
 function getMousePos(canvas, evt) {
         var rect = canvas.getBoundingClientRect();
+        var touchobj = evt.changedTouches[0];
         return {
-          x: evt.clientX - rect.left,
-          y: evt.clientY - rect.top
+          x: touchobj.clientX - rect.left,
+          y: touchobj.clientY - rect.top
         };
 }
 var state=-1;
