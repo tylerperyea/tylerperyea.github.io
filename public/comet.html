@@ -1,522 +1,551 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-  <style type="text/css">
-    #screen{
-  background-color:black;
-}
-  </style>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <style type="text/css">
+        #screen {
+            background-color: black;
+        }
+    </style>
 
-  <title>Grav</title>
+    <title>Grav</title>
 
-  
+
 </head>
 
 <body>
-  Launch from the grey pad, destroy earth (blue). Don't hit the other planets (green).
-<br>
-<canvas id="screen" width=800 height=600>
+    Launch from the grey pad, destroy earth (blue). Don't hit the other planets (green).
+    <br>
+    <canvas id="screen" width=800 height=600>
 </canvas>
-<button onclick="fs()">
+    <button onclick="fs()">
 fullscreen
 </button>
-<button onclick="getstate()">
+    <button onclick="getstate()">
 export
 </button>
-<button onclick="setstate()">
+    <button onclick="setstate()">
 import
 </button>
 
 
-<textarea id="exp">{"startarea":{"x":96,"y":392,"vx":0,"vy":0,"enabled":true,"mass":1,"_rad":16,"static":false,"collide":true},"things":[{"x":266.875,"y":318.6500030517578,"vx":0,"vy":0,"enabled":true,"mass":40,"static":true,"_rad":17.09975946676697,"collide":true},{"x":342.62401546118787,"y":332.7105165810246,"vx":0.040209423990087624,"vy":0.698542816740558,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":596,"y":87.80000305175781,"vx":0,"vy":0,"enabled":true,"mass":1,"static":true,"_rad":5,"collide":true,"earth":true},{"x":10105.603857402852,"y":-5747.752231703127,"vx":2.4330034465405737,"vy":-1.5096675818620167,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":4454.268387188304,"y":-1742.5087553556402,"vx":1.6895456157713833,"vy":-0.8086798464615282,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true}]}
+    <textarea id="exp">{"startarea":{"x":96,"y":392,"vx":0,"vy":0,"enabled":true,"mass":1,"_rad":16,"static":false,"collide":true},"things":[{"x":266.875,"y":318.6500030517578,"vx":0,"vy":0,"enabled":true,"mass":40,"static":true,"_rad":17.09975946676697,"collide":true},{"x":342.62401546118787,"y":332.7105165810246,"vx":0.040209423990087624,"vy":0.698542816740558,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":596,"y":87.80000305175781,"vx":0,"vy":0,"enabled":true,"mass":1,"static":true,"_rad":5,"collide":true,"earth":true},{"x":10105.603857402852,"y":-5747.752231703127,"vx":2.4330034465405737,"vy":-1.5096675818620167,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true},{"x":4454.268387188304,"y":-1742.5087553556402,"vx":1.6895456157713833,"vy":-0.8086798464615282,"enabled":true,"mass":1,"static":false,"_rad":5,"collide":true}]}
 </textarea>
 
-<img id="slingshot" src="http://icons.iconarchive.com/icons/etherbrian/toys/32/sling-shot-icon.png">
-  
+    <img id="slingshot" src="http://icons.iconarchive.com/icons/etherbrian/toys/32/sling-shot-icon.png">
 
 
 
 
-<script type='text/javascript'>//<![CDATA[
 
-var things = [];
-var gravc = 1.0;
-var maxv = 1000.0;
-var calcspeed=100;
-var defdt=0.01;
-var colrad=1.2;
-var mouseIsDown = false;
-var dragOffset = {
-  x: 0,
-  y: 0
-};
-var mainLayer = {
-  trans: {x:0,y:0}
-};
-var screen=document.getElementById('screen');
-var startarea = {x:0,y:0,_rad:10};
-var predict=[];
-var k = -0.05;
-var bstars=[];
+    <script type='text/javascript'>
+        //<![CDATA[
 
-var actionshot=false;
-
-function stars(n,width, height){
-	stars=[];
-  for(var i=0;i<n;i++){
-  	var bright=(Math.random());
-    var c="rgba(255,255,255," + bright +")"
-  	star={x:Math.random()*width,y:Math.random()*width,c:c};
-  	stars.push(star);
-  }
-  return stars;
-
-}
-function toThing(t){
-	t.setMass=function(mass){
-    	t.mass=mass;
-      t._rad=Math.pow(this.mass,1/3.) * 5;
-    };
-  t.rad=function(){
-    	return this._rad;
-    };
-  t.setMass(t.mass);
-  return t;
-}
-function makeThing(rad, x, y, vx, vy, mass) {
-  var thing = {
-    x: x,
-    y: y,
-    vx: vx,
-    vy: vy,
-    enabled:true,
-    mass: mass,
-    static:false
-  };
-  return toThing(thing);
-}
-function load(game){
-	var start=game.startarea;
-	var loadThings=enhance(game.things);
-  
-  things=loadThings;
-  startarea=start;
-}
-function enhance(loadThings){
-	for(var i=0;i<loadThings.length;i++){
-		loadThings[i]=toThing(loadThings[i]);
-  }
-  return loadThings;
-}
-
-function makeRandomThing() {
-  var mass = Math.random();
-  var k = 0.01;
-  return makeThing(Math.sqrt(mass) * 10, Math.random() * 100, Math.random() * 100, Math.random() * k, Math.random() * k, mass);
-}
-
-function win(){
-	alert("you win!");
-}
-
-function render() {
-
-  var canvas = document.getElementById('screen');
-  canvas.width = canvas.width;
-  var context = canvas.getContext('2d');
-  var earth=getEarth();
-  if(actionshot && earth){
-  	var scale=4;
-    context.translate(canvas.width/2,canvas.height/2);
-    context.scale(scale,scale);
-		context.translate(-earth.x, -earth.y);
-  }
-  for(var i=0;i<bstars.length;i++){
-  renderCircle(context,bstars[i].x, bstars[i].y,1,bstars[i].c);	
-  }
-  context.lineWidth = 1;
-  renderCircle(context,startarea.x, startarea.y,startarea._rad,"grey");
-  
-  context.lineWidth = 2;
-  renderthings(context,things);
-  if(state==0){
-    var img=document.getElementById("slingshot");
-    context.drawImage(img,mainLayer.trans.x-20, mainLayer.trans.y-20);
-  }else if(state==1){
-  	renderCircle(context,mainLayer.trans.x, mainLayer.trans.y,6,"green");
-  }else if(state==2){
-  	renderCircle(context,mainLayer.trans.x, mainLayer.trans.y,6,"blue");
-  }else if(state==3){
-  	renderCircle(context,mainLayer.trans.x, mainLayer.trans.y,16,"grey");
-  }
-  
-	if(mouseIsDown){
-  	renderCircle(context,mainLayer.trans.x, mainLayer.trans.y,6,"yellow");
-    context.beginPath();
-     context.moveTo(mainLayer.trans.x, mainLayer.trans.y);
-     context.lineTo(mainLayer.trans.x+dragOffset.x, mainLayer.trans.y+dragOffset.y);
-     context.strokeStyle = '#00FF00';
-    
-     context.stroke();
-    renderCircle(context,
-    mainLayer.trans.x+dragOffset.x, 
-    mainLayer.trans.y+dragOffset.y,
-    6,
-    "blue");
-    var t = makeThing(2, mainLayer.trans.x, mainLayer.trans.y, k * dragOffset.x, k * dragOffset.y, 1.0);
-    var predict=predictObj(t,0.1,30,50);
-    
-    renderthings(context,predict,true);
-    
-  }
-  
-
-}
-
-function getEarth(){
-	for (var i=0;i<things.length;i++) {
-  	if(things[i].earth)return things[i];
-  }
-  return null;
-}
-function renderthings(context,things, predict){
-for (var i=0;i<things.length;i++) {
-    var t = things[i];
-    if(!t.enabled)continue;
-    if(!t.static){
-    	if(predict){
-    		renderCircle(context,t.x,t.y,t.rad(),"rgba(255,0,0," + (1-(i+0.0)/things.length)+ ")");
-      }else{
-      renderCircle(context,t.x,t.y,t.rad(),"red");
-      }
-    }else{
-    	if(t.earth===true){
-    		renderCircle(context,t.x,t.y,t.rad(),"blue");
-      }else{
-        renderCircle(context,t.x,t.y,t.rad(),"green");
-      }
-    }
-  }
-}
-render();
-
-function renderCircle(context, x,y,rad, color){
-		context.fillStyle = color;
-    context.beginPath();
-    context.arc(x, y, rad, 0, 2 * Math.PI, false);
-    context.fill();
-    //context.strokeStyle = '#003300';
-    //context.stroke();
-}
-
-function nextStep(dt) {
-  calcVelocities(things, dt);
-  applyVelocities(things, dt);
-  forCollision(things,function(t1,t2){
-  	if(t1.collide===false || t2.collide===false){
-    	//alert("no colide");
-      return;
-    }
-  	if(!t1.static || !t2.static){
-    	if(
-      	 (!t1.static && t2.earth) ||
-	       (!t2.static && t1.earth) 
-      ){
-      	win();
-				setstate();
-      }else{
-      	if(!t1.static && !t2.static){
-        
-        }else{
-      		//setstate();
-        	//return;
-        }
-      }
-            
-    }
-  	t1.x=(t1.x*t1.mass+t2.x*t2.mass)/(t1.mass+t2.mass);
-    t1.y=(t1.y*t1.mass+t2.y*t2.mass)/(t1.mass+t2.mass);
-    t1.vx=(t1.vx*t1.mass+t2.vx*t2.mass)/(t1.mass+t2.mass);
-    t1.vy=(t1.vy*t1.mass+t2.vy*t2.mass)/(t1.mass+t2.mass);
-    t1.setMass(t1.mass+t2.mass);
-    t2.enabled=false;
-    
-  });
-  for(var i=things.length-1;i>=0;i--){
-  	var t=things[i];
-  	if(!t.enabled){
-  		things.splice(i,1);
-    }
-  }
-  var e=getEarth();
-  if(anycollide(e,things,.1)){
-  	actionshot=true;
-  }else{
-  	actionshot=false;
-  }
-}
-
-function calcVelocities(things, dt) {
-  for (var i=0;i<things.length;i++) {
-  	if(!things[i].enabled)continue;
-    for (var j=0;j<things.length;j++) {
-      if (i == j) continue;
-      applyAcc(things[i], things[j], dt);
-    }
-  }
-}
-
-function predictObj(obj, dt, instances, subt){
-  var ret=[];
-  var things2=enhance(JSON.parse(JSON.stringify(things)));
-  things2.push(obj);
-  var obji=things2.length-1;
-  for(var j=0;j<instances;j++){
-    for(var i=0;i<subt;i++){
-			 calcVelocities(things2, dt);
-  		 applyVelocities(things2, dt);
-    }
-    ret.push(toThing(JSON.parse(JSON.stringify(things2[obji]))));
-  }
-  return ret;
-
-}
-
-function applyVelocities(things, dt) {
-  for (var i=0;i<things.length;i++) {
-  	if(!things[i].enabled)continue;
-    applyVel(things[i], dt);
-  }
-}
-
-function applyVel(t1, dt) {
-	var speed=(t1.vx*t1.vx+t1.vy*t1.vy);
-  if (speed > maxv) {
-    t1.vx = (t1.vx) * maxv/speed;
-    t1.vy = (t1.vy) * maxv/speed;
-  }
-  t1.x += t1.vx*dt;
-  t1.y += t1.vy*dt;
-}
-
-function applyAcc(t1, t2, dt) {
-	if(t1.static)return;
-  var d2 = distSq(t1, t2) +0.01;
-  var d = Math.sqrt(d2);
-  var dx = (t1.x - t2.x);
-  var dy = (t1.y - t2.y);
-  var acc1 = gravc * t2.mass / d2;
-  var dx1 = -acc1 * dx * dt / d;
-  var dy1 = -acc1 * dy * dt / d;
-  t1.vx += dx1;
-  t1.vy += dy1;
-}
-
-function forCollision(things, onCollide){
-	for(var i=0;i<things.length;i++){
-  	if(!things[i].enabled)continue;
-  	for(var j=i+1;j<things.length;j++){
-    	if(!things[j].enabled)continue;
-      if(iscollide(things[i],things[j], colrad)){
-      	onCollide(things[i],things[j]);
-      }
-    }
-  }
-}
-function anycollide(thing1, things, colrad){
-		for(var j=0;j<things.length;j++){
-    	if(!things[j].enabled)continue;
-      if(things[j] === thing1)continue;
-      if(iscollide(thing1,things[j], colrad)){
-      	return true;
-      }
-    }
-}
-
-function iscollide(t1,t2, colrad){
-			var d=distSq(t1,t2);
-			var d2=t1.rad()+t2.rad();     
-      if(d2*d2>d*colrad*colrad){
-      	return true;
-      }
-}
-
-
-function distSq(t1, t2) {
-  var dx = (t1.x - t2.x);
-  var dy = (t1.y - t2.y);
-  return dx * dx + dy * dy;
-}
-
-function next() {
-  nextStep(100);
-  render();
-  console.log("tes");
-}
-
-
-function setup() {
-  var canvas = document.getElementById('screen');
-	 bstars=stars(1000,canvas.width,canvas.height);
-
-  canvas.ontouchstart = function(e) {
-  dragOffset = {
-    x: 0,
-    y: 0
-  };
-  	if(state===0){
-    	var p=getMousePos(screen,e);
-      var d2=distSq(p,startarea);
-      if(d2>startarea._rad*startarea._rad){
-      	
-      	return;
-      }
-      setstate();
-    }
-    //mainLayer.trans.x = e.x;
-    //mainLayer.trans.y = e.y;
-    mouseIsDown = true;
-  }
-  canvas.ontouchend = function(e) {
-    if (mouseIsDown) mouseClick(e);
-
-    mouseIsDown = false;
-  }
-
-  
-   canvas.ontouchmove = function(e) {
-    if (!mouseIsDown) {
-      mainLayer.trans=getMousePos(screen,e);
-    } else {
-    	var p1=getMousePos(screen,e);
-      dragOffset.x = p1.x - mainLayer.trans.x;
-      dragOffset.y = p1.y - mainLayer.trans.y;
-    }
-    
-    return false;
-  }
-  /*
-  canvas.ontouchmove = function(e){
-  	//alert("MOVED");
-  	document.getElementById("screen").style="background-color:rgb(" + Math.floor(Math.random()*255) + ",0,0);";
-  	return canvas.onmousemove(e);
-  }
-  canvas.ontouchstart = function(e){
-  	//alert("MOVED");
-  	return canvas.onmousedown(e);
-  }
-  canvas.ontouchend = function(e){
-  	//alert("end");
-  	return canvas.onmouseup(e);
-  }*/
-}
-
-function mouseClick() {
-	if(state<0){
-  	state=0;
-  	return;
-  }
-  console.log("Clicked");
-  
-  var t = makeThing(2, mainLayer.trans.x, mainLayer.trans.y, k * dragOffset.x, k * dragOffset.y, 1.0);
-  t["collide"]=true;
-  if(state==1){
-  	t.static=true;
-  }else if(state==2){
-  	t.earth=true;
-    t.static=true;
-  }else if(state==3){
-  	startarea=t;
-    t._rad=16;
-    return;
-  }else if(state==0){
-  	
-    //getstate();
-  }else if(state==4){
-  	t.collide=false;
-  }
-  
-  things.push(t);
-}
-
-setup();
-
-function getMousePos(canvas, evt) {
-        var rect = canvas.getBoundingClientRect();
-        var touchobj = evt.changedTouches[0];
-        return {
-          x: touchobj.clientX - rect.left,
-          y: touchobj.clientY - rect.top
+        var things = [];
+        var gravc = 1.0;
+        var maxv = 1000.0;
+        var calcspeed = 100;
+        var defdt = 0.01;
+        var colrad = 1.2;
+        var mouseIsDown = false;
+        var dragOffset = {
+            x: 0,
+            y: 0
         };
-}
-var state=-1;
-window.onkeydown = function(e) {
-	if(e.keyCode==16){
-		state=(state+1)%5;
-	}
-  if(state===0){
-  	getstate();
-  }
-}
+        var mainLayer = {
+            trans: {
+                x: 0,
+                y: 0
+            }
+        };
+        var screen = document.getElementById('screen');
+        var startarea = {
+            x: 0,
+            y: 0,
+            _rad: 10
+        };
+        var predict = [];
+        var k = -0.05;
+        var bstars = [];
+
+        var actionshot = false;
+
+        function stars(n, width, height) {
+            stars = [];
+            for (var i = 0; i < n; i++) {
+                var bright = (Math.random());
+                var c = "rgba(255,255,255," + bright + ")"
+                star = {
+                    x: Math.random() * width,
+                    y: Math.random() * width,
+                    c: c
+                };
+                stars.push(star);
+            }
+            return stars;
+
+        }
+
+        function toThing(t) {
+            t.setMass = function(mass) {
+                t.mass = mass;
+                t._rad = Math.pow(this.mass, 1 / 3.) * 5;
+            };
+            t.rad = function() {
+                return this._rad;
+            };
+            t.setMass(t.mass);
+            return t;
+        }
+
+        function makeThing(rad, x, y, vx, vy, mass) {
+            var thing = {
+                x: x,
+                y: y,
+                vx: vx,
+                vy: vy,
+                enabled: true,
+                mass: mass,
+                static: false
+            };
+            return toThing(thing);
+        }
+
+        function load(game) {
+            var start = game.startarea;
+            var loadThings = enhance(game.things);
+
+            things = loadThings;
+            startarea = start;
+        }
+
+        function enhance(loadThings) {
+            for (var i = 0; i < loadThings.length; i++) {
+                loadThings[i] = toThing(loadThings[i]);
+            }
+            return loadThings;
+        }
+
+        function makeRandomThing() {
+            var mass = Math.random();
+            var k = 0.01;
+            return makeThing(Math.sqrt(mass) * 10, Math.random() * 100, Math.random() * 100, Math.random() * k, Math.random() * k, mass);
+        }
+
+        function win() {
+            alert("you win!");
+        }
+
+        function render() {
+
+            var canvas = document.getElementById('screen');
+            canvas.width = canvas.width;
+            var context = canvas.getContext('2d');
+            var earth = getEarth();
+            if (actionshot && earth) {
+                var scale = 4;
+                context.translate(canvas.width / 2, canvas.height / 2);
+                context.scale(scale, scale);
+                context.translate(-earth.x, -earth.y);
+            }
+            for (var i = 0; i < bstars.length; i++) {
+                renderCircle(context, bstars[i].x, bstars[i].y, 1, bstars[i].c);
+            }
+            context.lineWidth = 1;
+            renderCircle(context, startarea.x, startarea.y, startarea._rad, "grey");
+
+            context.lineWidth = 2;
+            renderthings(context, things);
+            if (state == 0) {
+                var img = document.getElementById("slingshot");
+                context.drawImage(img, mainLayer.trans.x - 20, mainLayer.trans.y - 20);
+            } else if (state == 1) {
+                renderCircle(context, mainLayer.trans.x, mainLayer.trans.y, 6, "green");
+            } else if (state == 2) {
+                renderCircle(context, mainLayer.trans.x, mainLayer.trans.y, 6, "blue");
+            } else if (state == 3) {
+                renderCircle(context, mainLayer.trans.x, mainLayer.trans.y, 16, "grey");
+            }
+
+            if (mouseIsDown) {
+                renderCircle(context, mainLayer.trans.x, mainLayer.trans.y, 6, "yellow");
+                context.beginPath();
+                context.moveTo(mainLayer.trans.x, mainLayer.trans.y);
+                context.lineTo(mainLayer.trans.x + dragOffset.x, mainLayer.trans.y + dragOffset.y);
+                context.strokeStyle = '#00FF00';
+
+                context.stroke();
+                renderCircle(context,
+                    mainLayer.trans.x + dragOffset.x,
+                    mainLayer.trans.y + dragOffset.y,
+                    6,
+                    "blue");
+                var t = makeThing(2, mainLayer.trans.x, mainLayer.trans.y, k * dragOffset.x, k * dragOffset.y, 1.0);
+                var predict = predictObj(t, 0.1, 30, 50);
+
+                renderthings(context, predict, true);
+
+            }
 
 
-//worker threads
-//Should work with threads. Can work like this:
-setInterval(function() {
-	var calcs=calcspeed;
-  if(mouseIsDown){
-  	calcs=calcs/3;
-  }
-	for(var i=0;i<calcs;i++){
-  if(actionshot){
-  nextStep(defdt/4);
-  }else{
-  nextStep(defdt);
-  }
-  
-  }
-}, 10);
-setInterval(function() {
-  render();
-}, 20);
+        }
+
+        function getEarth() {
+            for (var i = 0; i < things.length; i++) {
+                if (things[i].earth) return things[i];
+            }
+            return null;
+        }
+
+        function renderthings(context, things, predict) {
+            for (var i = 0; i < things.length; i++) {
+                var t = things[i];
+                if (!t.enabled) continue;
+                if (!t.static) {
+                    if (predict) {
+                        renderCircle(context, t.x, t.y, t.rad(), "rgba(255,0,0," + (1 - (i + 0.0) / things.length) + ")");
+                    } else {
+                        renderCircle(context, t.x, t.y, t.rad(), "red");
+                    }
+                } else {
+                    if (t.earth === true) {
+                        renderCircle(context, t.x, t.y, t.rad(), "blue");
+                    } else {
+                        renderCircle(context, t.x, t.y, t.rad(), "green");
+                    }
+                }
+            }
+        }
+        render();
+
+        function renderCircle(context, x, y, rad, color) {
+            context.fillStyle = color;
+            context.beginPath();
+            context.arc(x, y, rad, 0, 2 * Math.PI, false);
+            context.fill();
+            //context.strokeStyle = '#003300';
+            //context.stroke();
+        }
+
+        function nextStep(dt) {
+            calcVelocities(things, dt);
+            applyVelocities(things, dt);
+            forCollision(things, function(t1, t2) {
+                if (t1.collide === false || t2.collide === false) {
+                    //alert("no colide");
+                    return;
+                }
+                if (!t1.static || !t2.static) {
+                    if (
+                        (!t1.static && t2.earth) ||
+                        (!t2.static && t1.earth)
+                    ) {
+                        win();
+                        setstate();
+                    } else {
+                        if (!t1.static && !t2.static) {
+
+                        } else {
+                            //setstate();
+                            //return;
+                        }
+                    }
+
+                }
+                t1.x = (t1.x * t1.mass + t2.x * t2.mass) / (t1.mass + t2.mass);
+                t1.y = (t1.y * t1.mass + t2.y * t2.mass) / (t1.mass + t2.mass);
+                t1.vx = (t1.vx * t1.mass + t2.vx * t2.mass) / (t1.mass + t2.mass);
+                t1.vy = (t1.vy * t1.mass + t2.vy * t2.mass) / (t1.mass + t2.mass);
+                t1.setMass(t1.mass + t2.mass);
+                t2.enabled = false;
+
+            });
+            for (var i = things.length - 1; i >= 0; i--) {
+                var t = things[i];
+                if (!t.enabled) {
+                    things.splice(i, 1);
+                }
+            }
+            var e = getEarth();
+            if (anycollide(e, things, .1)) {
+                actionshot = true;
+            } else {
+                actionshot = false;
+            }
+        }
+
+        function calcVelocities(things, dt) {
+            for (var i = 0; i < things.length; i++) {
+                if (!things[i].enabled) continue;
+                for (var j = 0; j < things.length; j++) {
+                    if (i == j) continue;
+                    applyAcc(things[i], things[j], dt);
+                }
+            }
+        }
+
+        function predictObj(obj, dt, instances, subt) {
+            var ret = [];
+            var things2 = enhance(JSON.parse(JSON.stringify(things)));
+            things2.push(obj);
+            var obji = things2.length - 1;
+            for (var j = 0; j < instances; j++) {
+                for (var i = 0; i < subt; i++) {
+                    calcVelocities(things2, dt);
+                    applyVelocities(things2, dt);
+                }
+                ret.push(toThing(JSON.parse(JSON.stringify(things2[obji]))));
+            }
+            return ret;
+
+        }
+
+        function applyVelocities(things, dt) {
+            for (var i = 0; i < things.length; i++) {
+                if (!things[i].enabled) continue;
+                applyVel(things[i], dt);
+            }
+        }
+
+        function applyVel(t1, dt) {
+            var speed = (t1.vx * t1.vx + t1.vy * t1.vy);
+            if (speed > maxv) {
+                t1.vx = (t1.vx) * maxv / speed;
+                t1.vy = (t1.vy) * maxv / speed;
+            }
+            t1.x += t1.vx * dt;
+            t1.y += t1.vy * dt;
+        }
+
+        function applyAcc(t1, t2, dt) {
+            if (t1.static) return;
+            var d2 = distSq(t1, t2) + 0.01;
+            var d = Math.sqrt(d2);
+            var dx = (t1.x - t2.x);
+            var dy = (t1.y - t2.y);
+            var acc1 = gravc * t2.mass / d2;
+            var dx1 = -acc1 * dx * dt / d;
+            var dy1 = -acc1 * dy * dt / d;
+            t1.vx += dx1;
+            t1.vy += dy1;
+        }
+
+        function forCollision(things, onCollide) {
+            for (var i = 0; i < things.length; i++) {
+                if (!things[i].enabled) continue;
+                for (var j = i + 1; j < things.length; j++) {
+                    if (!things[j].enabled) continue;
+                    if (iscollide(things[i], things[j], colrad)) {
+                        onCollide(things[i], things[j]);
+                    }
+                }
+            }
+        }
+
+        function anycollide(thing1, things, colrad) {
+            for (var j = 0; j < things.length; j++) {
+                if (!things[j].enabled) continue;
+                if (things[j] === thing1) continue;
+                if (iscollide(thing1, things[j], colrad)) {
+                    return true;
+                }
+            }
+        }
+
+        function iscollide(t1, t2, colrad) {
+            var d = distSq(t1, t2);
+            var d2 = t1.rad() + t2.rad();
+            if (d2 * d2 > d * colrad * colrad) {
+                return true;
+            }
+        }
 
 
-//Fullscreen stuff
-function launchIntoFullscreen(element) {
-  if(element.requestFullscreen) {
-    element.requestFullscreen();
-  } else if(element.mozRequestFullScreen) {
-    element.mozRequestFullScreen();
-  } else if(element.webkitRequestFullscreen) {
-    element.webkitRequestFullscreen();
-  } else if(element.msRequestFullscreen) {
-    element.msRequestFullscreen();
-  }
-}
-function fs(){
-  var el = document.getElementById('screen');
-  launchIntoFullscreen(el);
-}
+        function distSq(t1, t2) {
+            var dx = (t1.x - t2.x);
+            var dy = (t1.y - t2.y);
+            return dx * dx + dy * dy;
+        }
+
+        function next() {
+            nextStep(100);
+            render();
+            console.log("tes");
+        }
 
 
-function getstate(){
-console.log("AD");
-var game={startarea:startarea,things:things};
-document.getElementById("exp").value=JSON.stringify(game);
-}
-function setstate(){
+        function setup() {
+            var canvas = document.getElementById('screen');
+            bstars = stars(1000, canvas.width, canvas.height);
 
-load(JSON.parse(document.getElementById("exp").value));
-}
+            var start = function(e) {
+                dragOffset = {
+                    x: 0,
+                    y: 0
+                };
+                if (state === 0) {
+                    var p = getMousePos(screen, e);
+                    var d2 = distSq(p, startarea);
+                    if (d2 > startarea._rad * startarea._rad) {
 
-setstate();
+                        return;
+                    }
+                    setstate();
+                }
+                //mainLayer.trans.x = e.x;
+                //mainLayer.trans.y = e.y;
+                mouseIsDown = true;
+            };
+            var end = function(e) {
+                if (mouseIsDown) mouseClick(e);
+                mouseIsDown = false;
+            };
 
-//]]> 
+            var move = function(e) {
+                if (!mouseIsDown) {
+                    mainLayer.trans = getMousePos(screen, e);
+                } else {
+                    var p1 = getMousePos(screen, e);
+                    dragOffset.x = p1.x - mainLayer.trans.x;
+                    dragOffset.y = p1.y - mainLayer.trans.y;
+                }
 
-</script>
+                return false;
+            }
+
+
+            canvas.ontouchmove = function(e) {
+                var touchobj = e.changedTouches[0];
+                return move(touchobj);
+            }
+            canvas.ontouchstart = function(e) {
+                var touchobj = e.changedTouches[0];
+                return start(touchobj);
+            }
+            canvas.ontouchend = function(e) {
+                var touchobj = e.changedTouches[0];
+                return end(touchobj);
+            }
+            canvas.onmousemove = function(e) {
+                return move(e);
+            }
+            canvas.onmousedown = function(e) {
+                return start(e);
+            }
+            canvas.onmouseup = function(e) {
+                return end(e);
+            }
+        }
+
+        function mouseClick() {
+            if (state < 0) {
+                state = 0;
+                return;
+            }
+            console.log("Clicked");
+
+            var t = makeThing(2, mainLayer.trans.x, mainLayer.trans.y, k * dragOffset.x, k * dragOffset.y, 1.0);
+            t["collide"] = true;
+            if (state == 1) {
+                t.static = true;
+            } else if (state == 2) {
+                t.earth = true;
+                t.static = true;
+            } else if (state == 3) {
+                startarea = t;
+                t._rad = 16;
+                return;
+            } else if (state == 0) {
+
+                //getstate();
+            } else if (state == 4) {
+                t.collide = false;
+            }
+
+            things.push(t);
+        }
+
+        setup();
+
+        function getMousePos(canvas, evt) {
+            var rect = canvas.getBoundingClientRect();
+
+            return {
+                x: evt.clientX - rect.left,
+                y: evt.clientY - rect.top
+            };
+        }
+        var state = -1;
+        window.onkeydown = function(e) {
+            if (e.keyCode == 16) {
+                state = (state + 1) % 5;
+            }
+            if (state === 0) {
+                getstate();
+            }
+        }
+
+
+        //worker threads
+        //Should work with threads. Can work like this:
+        setInterval(function() {
+            var calcs = calcspeed;
+            if (mouseIsDown) {
+                calcs = calcs / 3;
+            }
+            for (var i = 0; i < calcs; i++) {
+                if (actionshot) {
+                    nextStep(defdt / 4);
+                } else {
+                    nextStep(defdt);
+                }
+
+            }
+        }, 10);
+        setInterval(function() {
+            render();
+        }, 20);
+
+
+        //Fullscreen stuff
+        function launchIntoFullscreen(element) {
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.mozRequestFullScreen) {
+                element.mozRequestFullScreen();
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen();
+            }
+        }
+
+        function fs() {
+            var el = document.getElementById('screen');
+            launchIntoFullscreen(el);
+        }
+
+
+        function getstate() {
+            console.log("AD");
+            var game = {
+                startarea: startarea,
+                things: things
+            };
+            document.getElementById("exp").value = JSON.stringify(game);
+        }
+
+        function setstate() {
+
+            load(JSON.parse(document.getElementById("exp").value));
+        }
+
+        setstate();
+
+        //]]>
+    </script>
 
 </body>
 
 </html>
-
