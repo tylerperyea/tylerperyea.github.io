@@ -1,0 +1,517 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#canvas {
+    
+}
+#background {
+    display: none;
+}
+#ballon {
+    position: absolute;
+    top: 50px;
+    left: 50px;
+    cursor: move;
+    opacity: 0.5;
+}
+</style>
+<script>
+
+var convexhull = new function() {
+	
+	// Returns a new array of points representing the convex hull of
+	// the given set of points. The convex hull excludes collinear points.
+	// This algorithm runs in O(n log n) time.
+	this.makeHull = function(points) {
+		var newPoints = points.slice();
+		newPoints.sort(this.POINT_COMPARATOR);
+		return this.makeHullPresorted(newPoints);
+	};
+	
+	
+	// Returns the convex hull, assuming that each points[i] <= points[i + 1]. Runs in O(n) time.
+	this.makeHullPresorted = function(points) {
+		if (points.length <= 1)
+			return points.slice();
+		
+		// Andrew's monotone chain algorithm. Positive y coordinates correspond to "up"
+		// as per the mathematical convention, instead of "down" as per the computer
+		// graphics convention. This doesn't affect the correctness of the result.
+		
+		var upperHull = [];
+		for (var i = 0; i < points.length; i++) {
+			var p = points[i];
+			while (upperHull.length >= 2) {
+				var q = upperHull[upperHull.length - 1];
+				var r = upperHull[upperHull.length - 2];
+				if ((q.x - r.x) * (p.y - r.y) >= (q.y - r.y) * (p.x - r.x))
+					upperHull.pop();
+				else
+					break;
+			}
+			upperHull.push(p);
+		}
+		upperHull.pop();
+		
+		var lowerHull = [];
+		for (var i = points.length - 1; i >= 0; i--) {
+			var p = points[i];
+			while (lowerHull.length >= 2) {
+				var q = lowerHull[lowerHull.length - 1];
+				var r = lowerHull[lowerHull.length - 2];
+				if ((q.x - r.x) * (p.y - r.y) >= (q.y - r.y) * (p.x - r.x))
+					lowerHull.pop();
+				else
+					break;
+			}
+			lowerHull.push(p);
+		}
+		lowerHull.pop();
+		
+		if (upperHull.length == 1 && lowerHull.length == 1 && upperHull[0].x == lowerHull[0].x && upperHull[0].y == lowerHull[0].y)
+			return upperHull;
+		else
+			return upperHull.concat(lowerHull);
+	};
+	
+	
+	this.POINT_COMPARATOR = function(a, b) {
+		if (a.x < b.x)
+			return -1;
+		else if (a.x > b.x)
+			return +1;
+		else if (a.y < b.y)
+			return -1;
+		else if (a.y > b.y)
+			return +1;
+		else
+			return 0;
+	};
+	
+};
+
+    
+ var Transform = function(){
+ 	var t={};
+  
+  t._pre=Point(0,0);
+  t._post=Point(0,0);
+  t._mat=[1,0,0,1];
+  
+  t.setMatrix=function(a,b,c,d){
+  	t._mat[0]=a;
+    t._mat[1]=b;
+    t._mat[2]=c;
+    t._mat[3]=d;
+    return t;
+  };
+  
+  t.preTranslate=function(x,y){
+  	if(x._isPoint) return t.preTranslate(x.x,x.y);
+  	t._pre=Point(x,y);
+    return t;
+  };
+  
+  t.postTranslate=function(x,y){
+    if(x._isPoint) return t.postTranslate(x.x,x.y);
+  	t._post=Point(x,y);
+    return t;
+  };
+  
+  t.apply=function(pto){
+    var pt=pto.add(t._pre);
+  	var px=pt.x*t._mat[0]+pt.y*t._mat[1];
+    var py=pt.x*t._mat[2]+pt.y*t._mat[3];
+    return Point(px,py).add(t._post);
+  };
+  
+  //The transform necessary to go from _AB to _CD
+  t.from=function(a,b,c,d){
+  	var ab=a.add(b.negate());
+    var cd=c.add(d.negate());
+    var dot=ab.dot(cd);
+    var rot=ab.dotRot(cd);
+    var rCip=1/Math.pow(cd.distanceTo(Point(0,0)),2);
+    
+    return t.preTranslate(c.negate())
+     			  .setMatrix(dot*rCip,rot*rCip,-rot*rCip,dot*rCip)
+            .postTranslate(a);
+  };
+  
+  return t;
+ };
+ var Point=function(x,y){
+    	var pt={};
+      pt._isPoint=true;
+      pt.x=(x)?x:0;
+      pt.y=(y)?y:y;
+      pt.distanceTo=function(pt2){
+      	var dx=(pt.x-pt2.x);
+        var dy=(pt.y-pt2.y);
+      	return Math.sqrt(dx*dx+dy*dy);
+      };
+      pt.mult=function(r){
+      	var pt2=Point(pt.x*r,pt.y*r);
+        return pt2;
+      };
+      pt.negate=function(){
+      	return pt.mult(-1);
+      };
+      pt.add=function(pt2){
+      	var pt3=Point(pt.x+pt2.x,pt.y+pt2.y);
+        return pt3;
+      };
+      pt.setX=function(x){
+      	pt.x=x;
+        return pt;
+      };
+      pt.setY=function(y){
+      	pt.y=y;
+        return pt;
+      };
+      //distance to line defined by 
+      pt.rejection=function(a,b){
+      	var v1=Point(pt.x-b.x,pt.y-b.y);
+        var v2=Point(a.x-b.x,a.y-b.y);
+        //the scalar "rejection", positive if "above", negative if "below"
+        var r=v1.x*v2.y-v1.y*v2.x;
+        
+        //then normalize
+        return r/v2.distanceTo(Point(0,0));
+      };
+      
+      pt.dot=function(a){
+      	return pt.x*a.x+pt.y*a.y;
+      };
+      
+      pt.dotRot=function(a){
+      	return pt.dot(a.rotLeft());
+      };
+      
+      pt.rotLeft=function(){
+      	return Point(pt.y,-pt.x);
+      };
+      
+      pt.transform=function(m){
+      	return m.apply(pt);
+      };
+      
+      pt.rejectionPlus=function(a,b){
+      	var v1=Point(pt.x-b.x,pt.y-b.y);
+        var v2=Point(a.x-b.x,a.y-b.y);
+        //the scalar "rejection", positive if "above", negative if "below"
+        var r=v1.x*v2.y-v1.y*v2.x;
+        var p=v1.x*v2.x+v1.y*v2.y;
+        var v2mag=v2.distanceTo(Point(0,0));
+        
+        var rn=r/v2mag;
+        var pn=p/v2mag;
+        
+        var line=true;
+        if(pn>v2mag)line=false;
+        if(pn<0)line=false;
+        if(line===false){
+        	var d1=pt.distanceTo(a);
+          var d2=pt.distanceTo(b);
+          if(d2<d1){
+          	d1=d2;
+          }
+          if(rn<0)d1=-d1;
+          rn=d1;
+        }
+        
+        //then normalize
+        return {"r":rn, "l":line, "p":pn};
+      };
+      return pt;
+    };
+    
+    
+    var Path=function(){
+    	var p={};
+      p._paths=[];
+      
+      p._convex=null;
+      
+      //if there's negative space
+      p._negativeSpace=null;
+      
+      p.convexHull=function(){
+        if(p._convex==null){
+        	p.calculateConvexHullAndNegativeSpace();
+        }
+        return p._convex;
+      };
+      
+      p.calculateConvexHullAndNegativeSpace=function(){
+      	
+        var pt2= convexhull.makeHull(p._paths);
+        
+        p._convex=Path();
+      
+      	for(var i=0;i<pt2.length;i++){
+        	var l=pt2[i];
+          p._convex.addPt(l);
+        }
+        return p;
+      };
+      
+      
+      p.add=function(x,y){
+      	p._paths.push(Point(x,y));
+        return p;
+      };
+      p.addPt=function(pt){
+      	return p.add(pt.x,pt.y);
+      }
+      p.getTotalDistance=function(){
+      	var t=0;
+        for(var i=0;i<p._paths.length;i++){
+        	t=t+p.pathAt(i).distanceTo(p.pathAt(i+1));
+        }
+        return t;
+      };
+      
+      p.distanceInside=function(pt){
+      	var inside=true;
+        var min=99999999;
+      	for(var i=0;i<p._paths.length;i++){
+        	var r=pt.rejectionPlus(p.pathAt(i), p.pathAt(i+1));
+          //this might only work for convex hull?
+          if(r.r>0){
+            	inside=false;
+          }
+          if(Math.abs(r.r)<Math.abs(min)){
+            	min=r.r;
+          }
+        }
+        return [min,inside];
+      };
+      
+      p.transform=function(tr){
+      	var np=Path();
+      
+      	for(var i=0;i<p._paths.length;i++){
+        	var l=p._paths[i];
+          np.addPt(l.transform(tr));
+        }
+        return np;
+      };
+      
+      p.pathAt=function(i){
+      	return p._paths[i%p._paths.length];
+      };
+      p.get=function(pc){
+      	if(pc<0){
+        	pc=-Math.floor(pc)+pc;
+        }
+        if(pc>=1){
+        	pc=pc-Math.floor(pc);
+        }
+      	var d=p.getTotalDistance();
+        var e=pc*d;
+        var t=0;
+      	for(var i=0;i<p._paths.length;i++){
+        	var pt1=p.pathAt(i);
+          var pt2=p.pathAt(i+1);
+        	var tn=pt1.distanceTo(pt2);
+          if(tn+t>e){
+          	var sec=(tn+t)-e; //left-over remainder
+            var frac=(1-sec/tn); //ratio of the line left
+            var dx=pt2.x-pt1.x;
+            var dy=pt2.y-pt1.y;
+            return Point(pt1.x+dx*frac,pt1.y+dy*frac);
+          	//you're on the right segment
+            
+          }
+          t=tn+t;          
+        }
+      	throw "What!? This shouldn't be possible!:" + pc;
+      };
+      
+      p.render=function(ctx){
+        ctx.beginPath();
+        var pt1=p.pathAt(0);
+
+        ctx.moveTo(pt1.x,pt1.y);
+        for(var i=1;i<=p._paths.length;i++){
+          pt1=p.pathAt(i);
+          ctx.lineTo(pt1.x,pt1.y);
+        }
+        ctx.stroke();
+        return p;
+      };
+      
+      return p;
+    };
+var POINT_RADIUS=2000;
+    
+    
+    
+(function(){    
+
+
+    var d_canvas = document.getElementById('canvas');
+    var ctx = d_canvas.getContext('2d');
+    var path = Path();
+   
+    for(var k=0;k<10;k++){
+   	   path=path.add(Math.random()*600,Math.random()*600);
+    }
+   	path=path.transform(Transform().setMatrix(0,1,1,0).postTranslate(100,100))
+                   .convexHull();
+                   
+    d_canvas.onmousedown = function(ev) { handleMouse(ev, "down"); };
+	d_canvas.onmousemove = function(ev) { handleMouse(ev, "move"); };
+	d_canvas.onmouseup   = function(ev) { handleMouse(ev, "up"  ); };
+	d_canvas.onselectstart = function(ev) { ev.preventDefault(); };
+	var draggingPointIndex=-1;
+  
+	function handleMouse(ev, type) {
+		// Calculate SVG coordinates
+		var bounds = d_canvas.getBoundingClientRect();
+		var width  = bounds.width;//  / Math.min(bounds.width, bounds.height);
+		var height = bounds.height;// / Math.min(bounds.width, bounds.height);
+		var evX = (ev.clientX - bounds.left) 
+		var evY = (ev.clientY - bounds.top ) ;
+		
+		if (type == "down") {
+			// Find nearest existing point
+			var nearestIndex = -1;
+			var nearestDist = Infinity;
+			path._paths.forEach(function(point, index) {
+				var dist = Math.hypot(point.x - evX, point.y - evY);
+        console.log(point.x + "," + point.y + " -> " + evX + "," + evY);
+				if (dist < nearestDist) {
+					nearestDist = dist;
+					nearestIndex = index;
+				}
+			});
+			
+			if (ev.button == 0) {
+				if (nearestIndex != -1 && nearestDist < POINT_RADIUS * 1.5){
+					draggingPointIndex = nearestIndex;
+					path._paths[draggingPointIndex] = Point(evX, evY);
+          }
+			} 
+				return;
+		} else if (type == "move" || type == "up") {
+			if (draggingPointIndex == -1)
+				return;
+			path._paths[draggingPointIndex] = Point(evX, evY);
+			if (type == "up")
+				draggingPointIndex = -1;
+		} else
+			throw "Assertion error";
+		render();
+	};
+    /*
+    var path=Path().add(20,20)
+                   .add(175,40)
+                   .add(350,0)
+                   .add(600,200)
+                   .add(350,400)
+                   .add(0,400)
+                   .transform(Transform().setMatrix(0,1,1,0).postTranslate(100,100))
+                   .convexHull();
+                   */
+                   
+   
+function render(){
+ ctx.strokeStyle="rgba(0, 0, 0, " + 1 + ")";
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+                   path.render(ctx);
+    
+    window["t"]=path;
+    
+    var squarePath=Path().add(0,0)
+                   .add(1,0)
+                   .add(1,1)
+                   .add(0,1);
+    var doLater=[];
+    for(var j=0;j<100;j++){
+    
+      var di=j/100.0;
+      
+      
+      var dmax=0.5;
+      var dmin=0;
+      
+      
+      while(true){
+      var dx=(dmax+dmin)/2;
+      
+      var pt1=path.get(di+dx);
+      var pt2=path.get(di-dx);
+      var trans = Transform().from(pt1,pt2,squarePath.pathAt(0),squarePath.pathAt(1));
+      //console.log(trans._mat);
+      //trans = Transform().setMatrix(100,0,0,100);
+      var nsq=squarePath.transform(trans);
+      var dist=path.distanceInside(nsq.pathAt(2));
+      if(dist[0]>0){
+      	dmax=dx;
+      }else{
+      	dmin=dx;
+      }
+      
+      if(Math.abs(dist[0])<1 || Math.abs(dmin-dmax)<0.00001){
+      
+      
+        var od=path.distanceInside(nsq.pathAt(3));
+        if(Math.abs(dist[0])<1){
+       // 	console.log(j+"\t" + od[0]);
+        }else{
+       // 	console.log(j+"\t" + 0.0000);
+        }
+        var b=Math.max(1-Math.abs(od[0])/100.0,0);
+        //console.log(b);
+       
+        if(Math.abs(od[0])<1){
+        var nsq2=nsq;
+        doLater.push(()=>{
+        	
+          ctx.strokeStyle="rgba(0, 255, 0, " + 1 + ")";
+          nsq2.render(ctx);
+          });
+        }else{
+        	ctx.strokeStyle="rgba(122, 122, 122, " + b + ")";
+          nsq.render(ctx);
+        }
+        if(od[0]<0){
+        	ctx.strokeStyle="rgba(255, 0, 0, " + 1 + ")";
+        }else{
+        	ctx.strokeStyle="rgba(0, 0, 255, " + 1 + ")";
+        }
+        //nsq.render(ctx);
+        var cp=path.get(di);
+        //doLater.push(()=>{
+      	ctx.beginPath();
+      	ctx.arc(cp.x, cp.y, 4, 0, 2 * Math.PI, false);
+      	ctx.stroke();
+        //});
+      	break;
+      }
+      }
+     
+      
+    
+    }
+     doLater.map(r=>{
+      r();
+      });
+}
+render();
+    
+})();
+
+</script>
+</head>
+<body>
+
+<canvas id="canvas" width="1000" height="1000"></canvas>
+
+
+</body>
+</html>
