@@ -371,6 +371,9 @@ var POINT_RADIUS=2000;
                    .convexHull();
                    
     d_canvas.onmousedown = function(ev) { handleMouse(ev, "down"); };
+	d_canvas.ontouchmove = function(ev) { handleMouse(ev, "move"); };
+	
+	d_canvas.ontouchstart = function(ev) { handleMouse(ev, "down"); };
 	d_canvas.onmousemove = function(ev) { handleMouse(ev, "move"); };
 	d_canvas.onmouseup   = function(ev) { handleMouse(ev, "up"  ); };
 	d_canvas.onselectstart = function(ev) { ev.preventDefault(); };
