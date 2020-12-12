@@ -21,11 +21,11 @@
 </head>
 <body>
 
-<canvas id="canvas" width="1000" height="1000"></canvas>
+<canvas id="canvas" width="700" height="700"></canvas>
 
+<meta name="viewport" content="width=device-width,user-scalable=no">
 
 	<script>
-
 var convexhull = new function() {
 	
 	// Returns a new array of points representing the convex hull of
@@ -371,21 +371,28 @@ var POINT_RADIUS=2000;
                    .convexHull();
                    
     d_canvas.onmousedown = function(ev) { handleMouse(ev, "down"); };
-	d_canvas.ontouchmove = function(ev) { handleMouse(ev, "move"); };
-	
-	d_canvas.ontouchstart = function(ev) { handleMouse(ev, "down"); };
+    // React to touch events on the canvas
+            d_canvas.addEventListener('touchstart', (e)=>handleMouse(e,"down"), false);
+            d_canvas.addEventListener('touchmove', (e)=>handleMouse(e,"move"), false);
 	d_canvas.onmousemove = function(ev) { handleMouse(ev, "move"); };
 	d_canvas.onmouseup   = function(ev) { handleMouse(ev, "up"  ); };
 	d_canvas.onselectstart = function(ev) { ev.preventDefault(); };
 	var draggingPointIndex=-1;
   
 	function handleMouse(ev, type) {
+  if(ev.touches && ev.touches.length==1){
+  ev.clientX=ev.touches[0].clientX;
+  ev.clientY=ev.touches[0].clientY;
+  
+  }
+  ev.preventDefault();
 		// Calculate SVG coordinates
 		var bounds = d_canvas.getBoundingClientRect();
 		var width  = bounds.width;//  / Math.min(bounds.width, bounds.height);
 		var height = bounds.height;// / Math.min(bounds.width, bounds.height);
 		var evX = (ev.clientX - bounds.left) 
 		var evY = (ev.clientY - bounds.top ) ;
+    console.log(ev);
 		
 		if (type == "down") {
 			// Find nearest existing point
@@ -393,14 +400,13 @@ var POINT_RADIUS=2000;
 			var nearestDist = Infinity;
 			path._paths.forEach(function(point, index) {
 				var dist = Math.hypot(point.x - evX, point.y - evY);
-        console.log(point.x + "," + point.y + " -> " + evX + "," + evY);
 				if (dist < nearestDist) {
 					nearestDist = dist;
 					nearestIndex = index;
 				}
 			});
 			
-			if (ev.button == 0) {
+			if (ev.button == 0 || (ev.touches && ev.touches.length==1)) {
 				if (nearestIndex != -1 && nearestDist < POINT_RADIUS * 1.5){
 					draggingPointIndex = nearestIndex;
 					path._paths[draggingPointIndex] = Point(evX, evY);
@@ -515,7 +521,6 @@ ctx.clearRect(0, 0, canvas.width, canvas.height);
 render();
     
 })();
-
 </script>
 </body>
 </html>
