@@ -9,13 +9,6 @@
 #background {
     display: none;
 }
-#ballon {
-    position: absolute;
-    top: 50px;
-    left: 50px;
-    cursor: move;
-    opacity: 0.5;
-}
 </style>
 
 </head>
@@ -432,8 +425,46 @@ var POINT_RADIUS=2000;
                    .transform(Transform().setMatrix(0,1,1,0).postTranslate(100,100))
                    .convexHull();
                    */
-                   
-   
+
+function findBestSquare(path, di){
+
+    var squarePath=Path().add(0,0)
+                   .add(1,0)
+                   .add(1,1)
+                   .add(0,1);
+      var dmax=0.5;
+      var dmin=0;
+      var CUTOFF_DIST=1;
+      var CUTOFF_SEP=0.0001;
+     
+      while(true){
+        var dx=(dmax+dmin)/2;
+
+        var pt1=path.get(di+dx);
+        var pt2=path.get(di-dx);
+        var trans = Transform().from(pt1,pt2,squarePath.pathAt(0),squarePath.pathAt(1));
+        var nsq=squarePath.transform(trans);
+        var dist=path.distanceInside(nsq.pathAt(2));
+        
+        if(dist[0]>0){
+          dmax=dx;
+        }else{
+          dmin=dx;
+        }
+
+        if(Math.abs(dist[0])<CUTOFF_DIST || Math.abs(dmin-dmax)<CUTOFF_SEP){
+          var od=path.distanceInside(nsq.pathAt(3));
+          var cp=path.get(di);
+          return {
+            "square":nsq,
+            "v3Dist":od[0],
+            "pnt":cp,
+            "di":di
+          };
+        }
+      }
+}
+
 function render(){
  ctx.strokeStyle="rgba(0, 0, 0, " + 1 + ")";
 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -446,73 +477,67 @@ ctx.clearRect(0, 0, canvas.width, canvas.height);
                    .add(1,1)
                    .add(0,1);
     var doLater=[];
+    
+    var transitions=[];
+    
+    var lastRet=null;
     for(var j=0;j<100;j++){
     
       var di=j/100.0;
       
-      
-      var dmax=0.5;
-      var dmin=0;
-      
-      
-      while(true){
-      var dx=(dmax+dmin)/2;
-      
-      var pt1=path.get(di+dx);
-      var pt2=path.get(di-dx);
-      var trans = Transform().from(pt1,pt2,squarePath.pathAt(0),squarePath.pathAt(1));
-      //console.log(trans._mat);
-      //trans = Transform().setMatrix(100,0,0,100);
-      var nsq=squarePath.transform(trans);
-      var dist=path.distanceInside(nsq.pathAt(2));
-      if(dist[0]>0){
-      	dmax=dx;
-      }else{
-      	dmin=dx;
-      }
-      
-      if(Math.abs(dist[0])<1 || Math.abs(dmin-dmax)<0.00001){
+      var ret=findBestSquare(path, di);
+      var b=Math.max(1-Math.abs(ret.v3Dist)/100.0,0);
       
       
-        var od=path.distanceInside(nsq.pathAt(3));
-        if(Math.abs(dist[0])<1){
-       // 	console.log(j+"\t" + od[0]);
-        }else{
-       // 	console.log(j+"\t" + 0.0000);
-        }
-        var b=Math.max(1-Math.abs(od[0])/100.0,0);
-        //console.log(b);
-       
-        if(Math.abs(od[0])<1){
-        var nsq2=nsq;
-        doLater.push(()=>{
-        	
-          ctx.strokeStyle="rgba(0, 255, 0, " + 1 + ")";
-          nsq2.render(ctx);
-          });
-        }else{
-        	ctx.strokeStyle="rgba(122, 122, 122, " + b + ")";
-          nsq.render(ctx);
-        }
-        if(od[0]<0){
-        	ctx.strokeStyle="rgba(255, 0, 0, " + 1 + ")";
-        }else{
+      
+        if(ret.v3Dist<0){
+          if(lastRet && lastRet.v3Dist>0){
+          	transitions.push([lastRet,ret]);
+          }
         	ctx.strokeStyle="rgba(0, 0, 255, " + 1 + ")";
+        }else{
+          if(lastRet && lastRet.v3Dist<0){
+          	transitions.push([lastRet,ret]);
+          }
+        	ctx.strokeStyle="rgba(255, 0, 0, " + 1 + ")";
         }
-        //nsq.render(ctx);
-        var cp=path.get(di);
-        //doLater.push(()=>{
-      	ctx.beginPath();
+        var cp= ret.pnt;
+        ctx.beginPath();
       	ctx.arc(cp.x, cp.y, 4, 0, 2 * Math.PI, false);
       	ctx.stroke();
-        //});
-      	break;
-      }
-      }
-     
       
-    
+        lastRet=ret;
     }
+    
+    
+    transitions.map(p=>{
+    		 var imax=p[1].di;
+         var imin=p[0].di;
+         var ret;
+         for(var ii=0;ii<10;ii++){
+           var ndi=(imax+imin)/2;
+           ret=findBestSquare(path, ndi);
+           if(Math.sign(ret.v3Dist) === Math.sign(p[0].v3Dist)){
+              imin=ret.di;
+              p[0]=ret;
+           } else if(Math.sign(ret.v3Dist) === Math.sign(p[1].v3Dist)){
+              imax=ret.di;
+              p[1]=ret;
+           }
+         }
+         if(Math.abs(ret.v3Dist)<1){
+           var nsq2=ret.square;
+           ctx.strokeStyle="rgba(0, 255, 0, " + 1 + ")";
+           nsq2.render(ctx);
+         }
+         var cp= ret.pnt;
+         ctx.strokeStyle="rgba(255, 0, 255, " + 1 + ")";
+         ctx.beginPath();
+      	 ctx.arc(cp.x, cp.y, 10, 0, 2 * Math.PI, false);
+      	 ctx.stroke();
+    });
+    
+    
      doLater.map(r=>{
       r();
       });
