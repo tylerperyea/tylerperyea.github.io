@@ -1,0 +1,26 @@
+<html>
+<head>
+</head>
+<body>
+<textarea id="name"></textarea>
+<button onclick="doit()">Fix
+</button>
+<textarea id="nameFixed"></textarea>
+<script>
+function fixName(name){
+
+    var nn= name.replace(/​/g,"");
+    if(nn !== name){
+    	alert("Replaced " + (name.length -nn.length) + " zero width spaces");
+    }
+    return nn;
+}
+function doit(){
+var n=document.getElementById("name");
+var fn=document.getElementById("nameFixed");
+fn.value=fixName(n.value);
+
+}
+</script>
+</body>
+</html>
