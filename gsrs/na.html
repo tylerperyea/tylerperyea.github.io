@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <style>
+      textarea{
+  width:500px;
+  height:300px;
+}
+    </style>
+  </head>
+  <body>
+    
+    <div>
+DNA/RNA Sequence
+<textarea id="input"></textarea>
+</div>
+<button onclick="dotrans()">
+Translate
+</button>
+
+<div>
+READING FRAME 1
+<textarea id="rf1">
+</textarea>
+</div>
+<div>
+READING FRAME 2
+<textarea id="rf2">
+</textarea>
+</div>
+<div>
+READING FRAME 3
+<textarea id="rf3">
+</textarea>
+</div>
+<div>
+READING FRAME 4 (reverse complement)
+<textarea id="rf4">
+</textarea>
+</div>
+
+<div>
+READING FRAME 5 (reverse complement)
+<textarea id="rf5">
+</textarea>
+</div>
+
+<div>
+READING FRAME 6 (reverse complement)
+<textarea id="rf6">
+</textarea>
+</div>
+    <script>
+      // your original data renamed to aminoDict
+const aminoDict = {
+  'A': ['GCA', 'GCC', 'GCG', 'GCT'],
+  'C': ['TGC', 'TGT'],
+  'D': ['GAC', 'GAT'],
+  'E': ['GAA', 'GAG'],
+  'F': ['TTC', 'TTT'],
+  'G': ['GGA', 'GGC', 'GGG', 'GGT'],
+  'H': ['CAC', 'CAT'],
+  'I': ['ATA', 'ATC', 'ATT'],
+  'K': ['AAA', 'AAG'],
+  'L': ['CTA', 'CTC', 'CTG', 'CTT', 'TTA', 'TTG'],
+  'M': ['ATG'],
+  'N': ['AAC', 'AAT'],
+  'P': ['CCA', 'CCC', 'CCG', 'CCT'],
+  'Q': ['CAA', 'CAG'],
+  'R': ['AGA', 'AGG', 'CGA', 'CGC', 'CGG', 'CGT'],
+  'S': ['AGC', 'AGT', 'TCA', 'TCC', 'TCG', 'TCT'],
+  'T': ['ACA', 'ACC', 'ACG', 'ACT'],
+  'V': ['GTA', 'GTC', 'GTG', 'GTT'],
+  'W': ['TGG'],
+  'Y': ['TAC', 'TAT'],
+  "|": ["TAG", "TAA", "TGA"]
+};
+
+// codon dictionary derived from aminoDict
+const codonDict =
+  Object.keys(aminoDict).reduce((dict, a) =>
+    Object.assign(dict, ...aminoDict[a].map(c => ({
+      [c]: a
+    }))), {})
+
+// slide :: (Int, Int) -> [a] -> [[a]]
+const slide = (n, m) => xs => {
+  if (n > xs.length)
+    return []
+  else
+    return [xs.slice(0, n), ...slide(n, m)(xs.slice(m))]
+}
+
+// slideStr :: (Int, Int) -> String -> [String]
+const slideStr = (n, m) => str =>
+  slide(n, m)(Array.from(str)).map(s => s.join(''))
+
+// codon2amino :: String -> String
+const codon2amino = str =>
+  slideStr(3, 3)(str)
+  .map(c => codonDict[c])
+  .join('')
+
+function translate(seq) {
+
+  if (seq.indexOf("U") > 0) {
+    seq = seq.replace(/U/g, "T");
+  }
+  return codon2amino(seq).replace("M", ">M");
+}
+
+function translateAll(seq) {
+
+  var all = [];
+
+  all.push(translate(seq));
+  all.push(translate("." + seq));
+  all.push(translate(".." + seq));
+  all.push(translate(reverseComplement(seq)));
+  all.push(translate(reverseComplement("." + seq)));
+  all.push(translate(reverseComplement(".." + seq)));
+
+  return all;
+
+}
+
+function reverseComplement(seq) {
+  if (seq.indexOf("U") > 0) {
+    seq = seq.replace(/U/g, "T");
+  }
+  var map = {
+    'A': 'T',
+    'T': 'A',
+    'G': 'C',
+    'C': 'G'
+  };
+  return seq.replace(/[ATCG]/g, (c) => map[c]).split("").reverse().join("");
+}
+
+function dotrans(){
+var all=translateAll(document.getElementById("input").value);
+console.log(all);
+document.getElementById("rf1").value=all[0];
+document.getElementById("rf2").value=all[1];
+document.getElementById("rf3").value=all[2];
+document.getElementById("rf4").value=all[3];
+document.getElementById("rf5").value=all[4];
+document.getElementById("rf6").value=all[5];
+}
+    </script>
+  </body>
+  
+</html>
