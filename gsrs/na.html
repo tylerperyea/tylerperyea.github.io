@@ -121,8 +121,8 @@ function translateAll(seq) {
   all.push(translate("." + seq));
   all.push(translate(".." + seq));
   all.push(translate(reverseComplement(seq)));
-  all.push(translate(reverseComplement("." + seq)));
-  all.push(translate(reverseComplement(".." + seq)));
+  all.push(translate("." + reverseComplement(seq)));
+  all.push(translate(".." + reverseComplement(seq)));
 
   return all;
 
