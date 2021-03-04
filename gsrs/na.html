@@ -18,6 +18,9 @@ DNA/RNA Sequence
 <button onclick="dotrans()">
 Translate
 </button>
+<button onclick="clear()">
+Clear Results
+</button>
 
 <div>
 READING FRAME 1
@@ -148,6 +151,15 @@ document.getElementById("rf4").value=all[3];
 document.getElementById("rf5").value=all[4];
 document.getElementById("rf6").value=all[5];
 }
+      
+      function clear(){
+        document.getElementById("rf1").value="";
+        document.getElementById("rf2").value="";
+        document.getElementById("rf3").value="";
+        document.getElementById("rf4").value="";
+        document.getElementById("rf5").value="";
+        document.getElementById("rf6").value="";
+      }
     </script>
   </body>
   
