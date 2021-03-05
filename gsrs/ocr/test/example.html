@@ -1,17 +1,25 @@
-<html>
-  <head>
+<html><head>
      <script src="../node_modules/tesseract.js/dist/tesseract.min.js"></script>
   </head>
   <body>
-    <div><h2>Peptide OCR Parser - Demo Version 4</h2></div>
-    <div>This uses tessereact in a local browser-only way to try to detect amino acid sequences.</div>
+    <div><h2>Peptide OCR Parser - Demo Version 5</h2></div>
+    <div>This is a simple serverless tool that uses tessereact in a local browser-only way to try to detect amino acid sequences from images.</div>
+    <div style="
+    border: 1px solid;
+">
+    <div>Load an image file here and it will automatically be processed</div>
     <div>
     <input type="file" id="uploader">
+    </div>
     </div>
     <script>
       function test1(f){
       const worker = Tesseract.createWorker({
-  logger: m => console.log(m), // Add logger here
+  logger: m => {
+    console.log(m), // Add logger here
+    document.getElementById("status").innerHTML = m.status + " " + (m.progress*100).toFixed(2)+"%";
+  }
+        
 });
 
 (async () => {
@@ -24,6 +32,7 @@
   const { data: { text } } = await worker.recognize(f);
   console.log(text);
   document.getElementById("out").value=text;
+   document.getElementById("status").innerHTML= "Complete";
   await worker.terminate();
 })();
       }
@@ -50,14 +59,44 @@
       const elm = document.getElementById('uploader');
       elm.addEventListener('change', recognize);
     </script>
+    <div id="container-all" style="
+    border: 1px solid black;
+    min-height: 600px;
+"><div style="
+    color: orange;
+    /* border: 1px solid; */
+">Status:<span id="status">Waiting</span></div>
+    
+    <div id="left-side" style="
+    max-width: 45%;
+    display: inline-block;
+    /* float: left; */
+    padding: 10px;
+    clear: both;
+">
+    <div><h3>Image Preview</h3></div>
     <div>
-      <canvas id= "myCanvas" width="1000" height="700"></canvas>
+      <canvas id="myCanvas" width="938" height="314" style="
+    max-width: 100%;
+"></canvas>
     </div>
-    <div>
-      Results
     </div>
-    <div>
-    <textarea id="out"></textarea>
+    <div id="right-side" style="
+    min-width: 45%;
+    display: inline-block;
+    float: right;
+    padding: 10px;
+">
+    <div><h3>OCR Results</h3></div>
+    <div style="
+    width: 100%;
+">
+    <textarea id="out" style="margin: 0px; width: 611px; min-height: 400px;"></textarea>
     </div>
-  </body>
-</html>
+    </div>
+</div>
+    
+    
+  
+
+</body></html>
