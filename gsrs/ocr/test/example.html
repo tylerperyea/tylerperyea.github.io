@@ -3,9 +3,10 @@
      <script src="../node_modules/tesseract.js/dist/tesseract.min.js"></script>
   </head>
   <body>
-    <div>Version 2</div>
+    <div>Version 3</div>
     <input type="file" id="uploader">
     <script>
+      function test1(f){
       const worker = Tesseract.createWorker({
   logger: m => console.log(m), // Add logger here
 });
@@ -17,12 +18,18 @@
   await worker.setParameters({
     tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '
   });
-  const { data: { text } } = await worker.recognize('https://tesseract.projectnaptha.com/img/eng_bw.png');
+  const { data: { text } } = await worker.recognize(f);
   console.log(text);
   document.getElementById("out").value=text;
   await worker.terminate();
 })();
+      }
       
+      const recognize = async ({ target: { files }  }) => {
+        test1(files[0]);
+      }
+      const elm = document.getElementById('uploader');
+      elm.addEventListener('change', recognize);
     </script>
     <textarea id="out"></textarea>
   </body>
