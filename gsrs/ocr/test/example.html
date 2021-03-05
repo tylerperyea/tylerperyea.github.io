@@ -5,19 +5,21 @@
   <body>
     <input type="file" id="uploader">
     <script>
-      const recognize = async ({ target: { files }  }) => {
-        Tesseract.setParameters({
-          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-        });
-        const { data: { text } } = await Tesseract.recognize(files[0], 'eng', {
-          corePath: '../node_modules/tesseract.js-core/tesseract-core.wasm.js',
-          logger: m => console.log(m),
-        });
-        console.log(text);
-        document.getElementById("out").value=text;
-      }
-      const elm = document.getElementById('uploader');
-      elm.addEventListener('change', recognize);
+      const worker = Tesseract.createWorker();
+
+(async () => {
+  await worker.load();
+  await worker.loadLanguage('eng');
+  await worker.initialize('eng');
+  await worker.setParameters({
+    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  });
+  const { data: { text } } = await worker.recognize('https://tesseract.projectnaptha.com/img/eng_bw.png');
+  console.log(text);
+  document.getElementById("out").value=text;
+  await worker.terminate();
+})();
+      
     </script>
     <textarea id="out"></textarea>
   </body>
