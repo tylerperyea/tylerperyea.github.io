@@ -1,0 +1,24 @@
+<html>
+  <head>
+     <script src="../node_modules/tesseract.js/dist/tesseract.min.js"></script>
+  </head>
+  <body>
+    <input type="file" id="uploader">
+    <script>
+      const recognize = async ({ target: { files }  }) => {
+        Tesseract.setParameters({
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+        });
+        const { data: { text } } = await Tesseract.recognize(files[0], 'eng', {
+          corePath: '../node_modules/tesseract.js-core/tesseract-core.wasm.js',
+          logger: m => console.log(m),
+        });
+        console.log(text);
+        document.getElementById("out").value=text;
+      }
+      const elm = document.getElementById('uploader');
+      elm.addEventListener('change', recognize);
+    </script>
+    <textarea id="out"></textarea>
+  </body>
+</html>
