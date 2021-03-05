@@ -3,17 +3,19 @@
      <script src="../node_modules/tesseract.js/dist/tesseract.min.js"></script>
   </head>
   <body>
-    Version 1
+    <div>Version 2</div>
     <input type="file" id="uploader">
     <script>
-      const worker = Tesseract.createWorker();
+      const worker = Tesseract.createWorker({
+  logger: m => console.log(m), // Add logger here
+});
 
 (async () => {
   await worker.load();
   await worker.loadLanguage('eng');
   await worker.initialize('eng');
   await worker.setParameters({
-    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '
   });
   const { data: { text } } = await worker.recognize('https://tesseract.projectnaptha.com/img/eng_bw.png');
   console.log(text);
