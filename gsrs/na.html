@@ -20,8 +20,11 @@ Translate
 </button>
 <button onclick="clearit()">
 Clear Results
+</button>   
+<button onclick="douppercase()">
+To Uppercase
 </button>
-
+    
 <div>
 READING FRAME 1
 <textarea id="rf1">
@@ -150,6 +153,12 @@ document.getElementById("rf3").value=all[2];
 document.getElementById("rf4").value=all[3];
 document.getElementById("rf5").value=all[4];
 document.getElementById("rf6").value=all[5];
+}
+      
+function douppercase(){
+  var all=translateAll(document.getElementById("input").value);
+  document.getElementById("input").value=all.toUpperCase();
+  
 }
       
       function clearit(){
