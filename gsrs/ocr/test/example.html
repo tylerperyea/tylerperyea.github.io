@@ -7,58 +7,71 @@
      </style>
   </head>
   <body>
-    <div><h2>Peptide OCR Parser - Demo Version 7</h2></div>
+    <div><h2>Peptide/DNA/RNA OCR Parser - Demo Version 8</h2></div>
     <div>This is a simple serverless tool that uses <a href="https://github.com/naptha/tesseract.js#tesseractjs">tesseract js</a> in a local browser-only way to try to detect amino acid sequences from images.</div>
     <div style="
     border: 1px solid;
 ">
     <div>Load an image file here and it will automatically be processed</div>
-    <div>
-    <input type="file" id="uploader">
-    </div>
+   <div>
+<span style="
+    margin-right: 20px;
+">
+Sequence Type:<select id="stype"><option value="AA">Amino Acids</option><option value="NA">Nucleic Acids</option></select>
+    </span><input type="file" id="uploader">  
+      
+</div>
     </div>
     <script>
+      var WHITE_LIST_AA = "ACDEFGHIKLMNPQRSTVWXY ";
+      var WHITE_LIST_NA = "ATCGU ";
+      var whitelist = WHITE_LIST_AA;
       function test1(f){
-      const worker = Tesseract.createWorker({
-  logger: m => {
-    console.log(m), // Add logger here
-    document.getElementById("status").innerHTML = m.status + " " + (m.progress*100).toFixed(2)+"%";
-  }
-        
-});
+          var t=document.getElementById("stype").value;
+           if(t==="NA"){
+                whitelist=WHITE_LIST_NA;
+           }else{
+                whitelist=WHITE_LIST_AA;
+           }
+          const worker = Tesseract.createWorker({
+            logger: m => {
+              console.log(m), // Add logger here
+              document.getElementById("status").innerHTML = m.status + " " + (m.progress*100).toFixed(2)+"%";
+            }
+          });
 
-(async () => {
-  await worker.load();
-  await worker.loadLanguage('eng');
-  await worker.initialize('eng');
-  await worker.setParameters({
-    tessedit_char_whitelist: 'ACDEFGHIKLMNPQRSTVWXY '
-  });
-  const { data: { text } } = await worker.recognize(f);
-  console.log(text);
-  document.getElementById("out").value=text;
-   document.getElementById("status").innerHTML= "Complete";
-  await worker.terminate();
-})();
+          (async () => {
+            await worker.load();
+            await worker.loadLanguage('eng');
+            await worker.initialize('eng');
+            await worker.setParameters({
+              tessedit_char_whitelist: whitelist
+            });
+            const { data: { text } } = await worker.recognize(f);
+            console.log(text);
+            document.getElementById("out").value=text;
+             document.getElementById("status").innerHTML= "Complete";
+            await worker.terminate();
+          })();
       }
       
       const recognize = async ({ target: { files }  }) => {
-         var reader = new FileReader();
-         let imageFile=files[0];
-      reader.readAsDataURL(imageFile);
-      reader.onloadend = function (e) {
-        var myImage = new Image(); // Creates image object
-        myImage.src = e.target.result; // Assigns converted image to image object
-        myImage.onload = function(ev) {
-          var myCanvas = document.getElementById("myCanvas"); // Creates a canvas object
-          var myContext = myCanvas.getContext("2d"); // Creates a contect object
-          myCanvas.width = myImage.width; // Assigns image's width to canvas
-          myCanvas.height = myImage.height; // Assigns image's height to canvas
-          myContext.drawImage(myImage,0,0); // Draws the image on canvas
-          let imgData = myCanvas.toDataURL("image/jpeg",0.75); // Assigns image base64 string in jpeg format to a variable
-        }
-      }
-        test1(files[0]);
+           var reader = new FileReader();
+           let imageFile=files[0];
+           reader.readAsDataURL(imageFile);
+           reader.onloadend = function (e) {
+             var myImage = new Image(); // Creates image object
+             myImage.src = e.target.result; // Assigns converted image to image object
+             myImage.onload = function(ev) {
+               var myCanvas = document.getElementById("myCanvas"); // Creates a canvas object
+               var myContext = myCanvas.getContext("2d"); // Creates a contect object
+               myCanvas.width = myImage.width; // Assigns image's width to canvas
+               myCanvas.height = myImage.height; // Assigns image's height to canvas
+               myContext.drawImage(myImage,0,0); // Draws the image on canvas
+               let imgData = myCanvas.toDataURL("image/jpeg",0.75); // Assigns image base64 string in jpeg format to a variable
+             }
+           }
+           test1(files[0]);
         
       }
       const elm = document.getElementById('uploader');
