@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head>
   <head>
-    <script type= src="https://rawgit.com/nodeca/pako/master/dist/pako.js" />
+    <script src="https://rawgit.com/nodeca/pako/master/dist/pako.js" />
     <script>
       var handleFileSelect = function(evt) {
     var files = evt.target.files;
@@ -58,14 +58,6 @@ function download(file, name){
   var blob = new Blob([file], {type: "application/gzip"});
 	saveAs(blob, name);
 }
-function str2bytes (str) {
-    var bytes = new Uint8Array(str.length);
-    for (var i=0; i<str.length; i++) {
-        bytes[i] = str.charCodeAt(i);
-    }
-    return bytes;
-}
-
 
 //////////////////////////////// POLYFILL ///////////////////////////////////////
 
@@ -81,7 +73,7 @@ var saveAs=saveAs||function(e){"use strict";if(typeof e==="undefined"||typeof na
     </div>
     <br>
     <div>
-        <h3>Base64 encoded version</h3>
+        <h3>Raw Text</h3>
         <textarea id="base64textarea" placeholder="Base64 will appear here" cols="50" rows="15"></textarea>
     </div>
 </div>
