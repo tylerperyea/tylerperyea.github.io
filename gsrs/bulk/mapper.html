@@ -4,10 +4,27 @@
   </head>
   <body>
   <div>
+  <div>
     <div>
-        <label for="filePicker">Choose file:</label><br>
-        <input type="file" id="filePicker" onchange="handleFileSelect(event)">
+      <input name="copy-app-id" id="copy-app-id" type="checkbox" />
+      <label for="copy-app-id">Copy ApprovalID to Code System</label>
+
+      <input name="app-id-code-system" id="app-id-code-system">
     </div>
+    <div>
+
+
+      <input name="remove-app-id" id="remove-app-id" type="checkbox" /><label for="remove-app-id">Remove ApprovalID</label>
+
+      <input name="set-status-pending" id="set-status-pending" type="checkbox" /><label for="set-status-pending">Set status to pending</label>
+
+      <input name="remove-protected-data" id="remove-protected-data" type="checkbox" /><label for="remove-protected-data">Remove protected data</label>
+
+
+    </div>
+
+
+  </div>
     <br>
     <div>
         <h3>Raw Text v5</h3>
@@ -17,15 +34,146 @@
 	  <script src="https://rawgit.com/nodeca/pako/master/dist/pako.js"></script>
 	  <script src="https://cdnjs.cloudflare.com/ajax/libs/defiant.js/2.2.7/defiant.min.js" integrity="sha512-NGO4j72BGA93I7tE7Viu11RX8oRWSPSuCQfvSbxlf9TJi9KVHjr2vWSAnh2m9/YZZ9FBUz+PztmwBD7040iYOA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
+	    
+function findStack(parent, crit){
+	if(crit(parent)){
+		return [{"obj":parent, "key":null}];
+	}else{
+		if(Array.isArray(parent)){
+			for(var i=parent.length-1;i>=0;i--){
+				if(crit(parent[i])){
+					return [
+						{"obj":parent,"key":i},
+						{"obj":parent[i],"key":null}
+					       ];
+				}else{
+					var tt=findStack(parent[i],crit);
+					if(tt.length>0){
+						var arr=[{"obj":parent,"key":i}];
+						for(var k=0;k<tt.length;k++){
+							arr.push(tt[k]);
+						}
+						return arr;
+					} 
+				}
+			}
+		}else if(typeof parent === "object"){
+			var keys=Object.keys(parent);
+			for(var i=keys.length-1;i>=0;i--){
+                                var k=keys[i];
+				if(crit(parent[k])){
+					return [
+						{"obj":parent,"key":k},
+						{"obj":parent[k],"key":null}
+					       ];
+				}else{
+					var tt=findStack(parent[k],crit);
+					if(tt.length>0){
+						var arr=[{"obj":parent,"key":k}];
+						for(var k=0;k<tt.length;k++){
+							arr.push(tt[k]);
+						}
+						return arr;
+					} 
+				}
+			}
+			
+		}
+	}
+	return [];
+}
+
+function removeUnderscore(t){
+	JSON.search( t, "//*[contains(name(), '_')]/.." ).map(tt=>{
+	   Object.keys(tt).filter(kk=>kk.indexOf("_")==0).map(kk=>delete tt[kk]);
+	});
+	return t;
+}
+
+function removeProtected(t){
+	defiant.search(t, '//*[access]').filter(it=>it.access.length>0).map(it=>it["_delete"]=true);
+
+	var rem=defiant.search(t, '//*[_delete]')
+       		       .map(vv=>findStack(t,vt => vt===vv));
+	
+	var ll=rem.filter(rr=>rr.length<=1).length;
+	//totally protected
+	if(ll>=1){
+		return null;
+	}
+	var definitions=["structure",
+			 "protein",
+			 "structurallyDiverse",
+			 "nucleicAcid",
+			 "polymer",
+			 "specifiedSubstance",
+			 "mixture"
+			];
+	var definitionalElements = ["structure",
+			 "protein",
+			 "structurallyDiverse",
+			 "nucleicAcid",
+			 "polymer",
+			 "specifiedSubstance",
+			 "mixture",
+		         "properties",
+		         "modifications",
+			 "moieties"
+			];
+        var remDef=false;
+	if( rem.filter(rr=>rr.length>1)
+	   .filter(rr=>definitions.indexOf(rr[0].key)>=0)
+	   .length > 0 ){
+		console.log("removing defs");
+		remDef=true;
+	}
+
+	rem.map(vv=>{
+		var parts=vv[vv.length-2];
+		if(Array.isArray(parts.obj)){
+			if(parts.obj[parts.key] === vv[vv.length-1].obj){
+				parts.obj.splice(parts.key,1);
+			}else{
+				var nk=parts.obj.map((pp,k)=>[pp,k]).filter(app=>app[0]==vv[vv.length-1].obj).map(a=>a[1])[0];
+				parts.obj.splice(nk,1);
+			}
+		
+		}else{
+			delete parts.obj[parts.key];
+		}
+	});
+	if(remDef){
+		definitionalElements.map(de=>{
+			delete t[de];	
+		});
+	}
+	return t;
+}
+
       function scrub(old){
-	      
-	//delete ApprovalID
-	defiant.json.search(old, '//*[approvalID]').map(h=>delete h.approvalID);
-	
-	//set to pending
-	old.status='pending';
-	
-	      
+	if(document.querySelector("#copy-app-id").checked){
+		var codeSystem = document.querySelector("#app-id-code-system").value.trim();
+		if(old.approvalID){
+			var matchCount=old.codes
+			.filter(cd=>cd.codeSystem === codeSystem)
+			.filter(cd=>cd.code === old.approvalID)
+			.length;
+			if(matchCount<=0){
+				old.codes.push({"code":old.approvalID, "codeSystem":codeSystem});	
+			}
+		}
+	}
+	if(document.querySelector("#remove-app-id").checked){
+		//delete ApprovalID
+		defiant.json.search(old, '//*[approvalID]').map(h=>delete h.approvalID);
+	}
+	if(document.querySelector("#set-status-pending").checked){
+		old.status='pending';
+	}
+	if(document.querySelector("#remove-protected-data").checked){
+		old=removeProtected(old);
+	}
+	old=removeUnderscore(old);     
 	return old;
       }
 	    
