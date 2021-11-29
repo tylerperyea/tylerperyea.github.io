@@ -7,7 +7,7 @@
      </style>
   </head>
   <body>
-    <div><h2>Peptide/DNA/RNA OCR Parser - Demo Version 8</h2></div>
+    <div><h2>Peptide/DNA/RNA OCR Parser - Demo Version 9</h2></div>
     <div>This is a simple serverless tool that uses <a href="https://github.com/naptha/tesseract.js#tesseractjs">tesseract js</a> in a local browser-only way to try to detect amino acid sequences from images.</div>
     <div style="
     border: 1px solid;
@@ -24,7 +24,7 @@ Sequence Type:<select id="stype"><option value="AA">Amino Acids</option><option 
     </div>
     <script>
       var WHITE_LIST_AA = "ACDEFGHIKLMNPQRSTVWXY ";
-      var WHITE_LIST_NA = "ATCGU ";
+      var WHITE_LIST_NA = "atcguATCGU ";
       var whitelist = WHITE_LIST_AA;
       function test1(f){
           var t=document.getElementById("stype").value;
