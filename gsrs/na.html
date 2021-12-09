@@ -57,6 +57,12 @@ READING FRAME 6 (reverse complement)
 <textarea id="rf6">
 </textarea>
 </div>
+    
+<div>
+DNA (reverse complement)
+<textarea id="rc1">
+</textarea>
+</div>
     <script>
       // your original data renamed to aminoDict
 const aminoDict = {
@@ -126,6 +132,8 @@ function translateAll(seq) {
   all.push(translate(reverseComplement(seq)));
   all.push(translate("." + reverseComplement(seq)));
   all.push(translate(".." + reverseComplement(seq)));
+  
+  all.push(reverseComplement(seq));
 
   return all;
 
@@ -153,6 +161,8 @@ document.getElementById("rf3").value=all[2];
 document.getElementById("rf4").value=all[3];
 document.getElementById("rf5").value=all[4];
 document.getElementById("rf6").value=all[5];
+  
+document.getElementById("rc1").value=all[6];
 }
       
 function douppercase(){
@@ -168,6 +178,8 @@ function douppercase(){
         document.getElementById("rf4").value="";
         document.getElementById("rf5").value="";
         document.getElementById("rf6").value="";
+        
+        document.getElementById("rc1").value="";
       }
     </script>
   </body>
