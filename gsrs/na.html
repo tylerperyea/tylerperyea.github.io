@@ -166,8 +166,9 @@ document.getElementById("rc1").value=all[6];
 }
       
 function douppercase(){
-  var all=translateAll(document.getElementById("input").value);
-  document.getElementById("input").value=all.toUpperCase();
+  var temp=document.getElementById("input").value;
+  var all=translateAll(temp);
+  document.getElementById("input").value=temp.toUpperCase();
   
 }
       
