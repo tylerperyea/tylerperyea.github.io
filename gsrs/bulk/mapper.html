@@ -6,7 +6,13 @@
     <head>
       <style>
         @import url(https://fonts.googleapis.com/css?family=Roboto);
-
+        
+ul.tab-bar {
+    width: 800px;
+}
+        .paddiv{
+         padding: 20px; 
+        }
         .hide {
           display: none;
         }
@@ -132,11 +138,17 @@
     <div>
       <div>
         <h2>GSRS Example Scrubber</h2>
+        <div class="paddiv">
         This is a very rudimentary example of scrubbing/modifying JSON from a GSRS system for use in simple exchange.
+        </div>
       </div>
 
       <div>
-        <div>
+        
+        <div class="paddiv">
+          <div>
+          Settings:
+          </div>
           <input name="copy-app-id" id="copy-app-id" type="checkbox" />
           <label for="copy-app-id">Copy ApprovalID to Code System</label>
           <input name="app-id-code-system" id="app-id-code-system">
