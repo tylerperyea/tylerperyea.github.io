@@ -1,247 +1,613 @@
-<!DOCTYPE html><html lang="en"><head>
+<!DOCTYPE html>
+<html lang="en">
+
   <head>
-  
-  </head>
-  <body>
-  <div>
-  <div>
-    <div>
-      <input name="copy-app-id" id="copy-app-id" type="checkbox" />
-      <label for="copy-app-id">Copy ApprovalID to Code System</label>
 
-      <input name="app-id-code-system" id="app-id-code-system">
-    </div>
-    <div>
+    <head>
+      <style>
+        @import url(https://fonts.googleapis.com/css?family=Roboto);
 
+        .hide {
+          display: none;
+        }
 
-      <input name="remove-app-id" id="remove-app-id" type="checkbox" /><label for="remove-app-id">Remove ApprovalID</label>
+        .inp-block {
+          display: inline-block;
+        }
 
-      <input name="set-status-pending" id="set-status-pending" type="checkbox" /><label for="set-status-pending">Set status to pending</label>
+        body {
+          height: 100%;
+          background: #FAFAFA;
+          font-family: 'Roboto', sans-serif;
 
-      <input name="remove-protected-data" id="remove-protected-data" type="checkbox" /><label for="remove-protected-data">Remove protected data</label>
+          display: -webkit-box;
+          display: -ms-flexbox;
+          display: flex;
+          -webkit-box-orient: vertical;
+          -webkit-box-direction: normal;
+          -ms-flex-direction: column;
+          flex-direction: column;
+        }
 
+        .tab-bar {
+          margin: 30px auto;
+          display: -webkit-box;
+          display: -ms-flexbox;
+          display: flex;
+          list-style-type: none;
+          -webkit-padding-start: 0;
 
-    </div>
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+        }
 
+        .tab {
+          width: 400px;
+          padding: 20px 0;
+          background: white;
+          color: #607D8B;
+          overflow: hidden;
+          text-align: center;
+          -webkit-box-flex: 1;
+          -ms-flex-positive: 1;
+          flex-grow: 1;
+          cursor: pointer;
+          position: relative;
 
-  </div>
-	  <div>
-        <label for="filePicker">Choose file:</label><br>
-        <input type="file" id="filePicker" onchange="handleFileSelect(event)">
-    </div>
-    <br>
-    <div>
-        <h3>Raw Text v6</h3>
-        <textarea id="base64textarea" placeholder="Base64 will appear here" cols="50" rows="15"></textarea>
-    </div>
-</div>
-	  <script src="https://rawgit.com/nodeca/pako/master/dist/pako.js"></script>
-	  <script src="https://cdnjs.cloudflare.com/ajax/libs/defiant.js/2.2.7/defiant.min.js" integrity="sha512-NGO4j72BGA93I7tE7Viu11RX8oRWSPSuCQfvSbxlf9TJi9KVHjr2vWSAnh2m9/YZZ9FBUz+PztmwBD7040iYOA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script>
-	    
-function findStack(parent, crit){
-	if(crit(parent)){
-		return [{"obj":parent, "key":null}];
-	}else{
-		if(Array.isArray(parent)){
-			for(var i=parent.length-1;i>=0;i--){
-				if(crit(parent[i])){
-					return [
-						{"obj":parent,"key":i},
-						{"obj":parent[i],"key":null}
-					       ];
-				}else{
-					var tt=findStack(parent[i],crit);
-					if(tt.length>0){
-						var arr=[{"obj":parent,"key":i}];
-						for(var k=0;k<tt.length;k++){
-							arr.push(tt[k]);
-						}
-						return arr;
-					} 
-				}
-			}
-		}else if(typeof parent === "object"){
-			var keys=Object.keys(parent);
-			for(var i=keys.length-1;i>=0;i--){
-                                var k=keys[i];
-				if(crit(parent[k])){
-					return [
-						{"obj":parent,"key":k},
-						{"obj":parent[k],"key":null}
-					       ];
-				}else{
-					var tt=findStack(parent[k],crit);
-					if(tt.length>0){
-						var arr=[{"obj":parent,"key":k}];
-						for(var k=0;k<tt.length;k++){
-							arr.push(tt[k]);
-						}
-						return arr;
-					} 
-				}
-			}
-			
-		}
-	}
-	return [];
-}
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          -o-user-select: none;
+          user-select: none;
+        }
 
-function removeUnderscore(t){
-	JSON.search( t, "//*[contains(name(), '_')]/.." ).map(tt=>{
-	   Object.keys(tt).filter(kk=>kk.indexOf("_")==0).map(kk=>delete tt[kk]);
-	});
-	return t;
-}
+        .indicator {
+          width: 400px;
+          height: 3px;
+          background: #2196F3;
+          position: absolute;
+          margin-top: 58px;
+          margin-left: 0;
 
-function removeProtected(t){
-	defiant.search(t, '//*[access]').filter(it=>it.access.length>0).map(it=>it["_delete"]=true);
+          -webkit-transition: margin 0.5s ease;
 
-	var rem=defiant.search(t, '//*[_delete]')
-       		       .map(vv=>findStack(t,vt => vt===vv));
-	
-	var ll=rem.filter(rr=>rr.length<=1).length;
-	//totally protected
-	if(ll>=1){
-		return null;
-	}
-	var definitions=["structure",
-			 "protein",
-			 "structurallyDiverse",
-			 "nucleicAcid",
-			 "polymer",
-			 "specifiedSubstance",
-			 "mixture"
-			];
-	var definitionalElements = ["structure",
-			 "protein",
-			 "structurallyDiverse",
-			 "nucleicAcid",
-			 "polymer",
-			 "specifiedSubstance",
-			 "mixture",
-		         "properties",
-		         "modifications",
-			 "moieties"
-			];
-        var remDef=false;
-	if( rem.filter(rr=>rr.length>1)
-	   .filter(rr=>definitions.indexOf(rr[0].key)>=0)
-	   .length > 0 ){
-		console.log("removing defs");
-		remDef=true;
-	}
+          transition: margin 0.5s ease;
+        }
 
-	rem.map(vv=>{
-		var parts=vv[vv.length-2];
-		if(Array.isArray(parts.obj)){
-			if(parts.obj[parts.key] === vv[vv.length-1].obj){
-				parts.obj.splice(parts.key,1);
-			}else{
-				var nk=parts.obj.map((pp,k)=>[pp,k]).filter(app=>app[0]==vv[vv.length-1].obj).map(a=>a[1])[0];
-				parts.obj.splice(nk,1);
-			}
-		
-		}else{
-			delete parts.obj[parts.key];
-		}
-	});
-	if(remDef){
-		definitionalElements.map(de=>{
-			delete t[de];	
-		});
-	}
-	return t;
-}
+        .butt {
+          height: 500px;
+          text-align: center;
+          vertical-align: top;
+          padding-top: 200px;
+        }
 
-      function scrub(old){
-	if(document.querySelector("#copy-app-id").checked){
-		var codeSystem = document.querySelector("#app-id-code-system").value.trim();
-		if(old.approvalID){
-			var matchCount=old.codes
-			.filter(cd=>cd.codeSystem === codeSystem)
-			.filter(cd=>cd.code === old.approvalID)
-			.length;
-			if(matchCount<=0){
-				old.codes.push({"code":old.approvalID, "codeSystem":codeSystem});	
-			}
-		}
-	}
-	if(document.querySelector("#remove-app-id").checked){
-		//delete ApprovalID
-		defiant.json.search(old, '//*[approvalID]').map(h=>delete h.approvalID);
-	}
-	if(document.querySelector("#set-status-pending").checked){
-		old.status='pending';
-	}
-	if(document.querySelector("#remove-protected-data").checked){
-		old=removeProtected(old);
-	}
-	old=removeUnderscore(old);     
-	return old;
-      }
-	    
-      var handleFileSelect = function(evt) {
-    var files = evt.target.files;
-    var file = files[0];
-    if (files && file) {
-        var fname=file.name;
-        fname= fname.split(".").map((f,i)=>{
-        	if(i==0){
-          	return f+".mod";
+        .cercle {
+          width: 0px;
+          height: 0px;
+          position: absolute;
+        }
+
+        .light .cercle {
+          background: white
+        }
+
+        .dark .cercle {
+          background: black
+        }
+
+        .anim {
+          opacity: 0.2;
+          -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=20)";
+          -webkit-animation: touch 1.2s ease-out;
+          animation: touch 1.2s ease-out;
+        }
+
+        @-webkit-keyframes touch {
+          100% {
+            width: 600px;
+            height: 600px;
+            border-radius: 600px;
+            opacity: 0;
+            -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=0)";
+            margin: -300px;
           }
-          return f;
-        })
-        .join(".");
-        
-        var reader = new FileReader();
-        reader.onload = function(readerEvt) {
+        }
+
+        @keyframes touch {
+          100% {
+            width: 600px;
+            height: 600px;
+            border-radius: 600px;
+            opacity: 0;
+            -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=0)";
+            margin: -300px;
+          }
+        }
+
+      </style>
+
+    </head>
+
+  <body>
+
+    <div>
+      <div>
+        <h2>GSRS Example Scrubber</h2>
+        This is a very rudimentary example of scrubbing/modifying JSON from a GSRS system for use in simple exchange.
+      </div>
+
+      <div>
+        <div>
+          <input name="copy-app-id" id="copy-app-id" type="checkbox" />
+          <label for="copy-app-id">Copy ApprovalID to Code System</label>
+          <input name="app-id-code-system" id="app-id-code-system">
+        </div>
+        <div>
+
+
+          <input name="remove-app-id" id="remove-app-id" type="checkbox" /><label for="remove-app-id">Remove ApprovalID</label>
+
+          <input name="set-status-pending" id="set-status-pending" type="checkbox" /><label for="set-status-pending">Set status to pending</label>
+
+          <input name="remove-protected-data" id="remove-protected-data" type="checkbox" /><label for="remove-protected-data">Remove protected data</label>
+
+
+        </div>
+
+
+      </div>
+      <ul class="tab-bar">
+        <li data-num="1" class="tab wave dark">SINGLE JSON</li>
+        <li data-num="2" class="tab wave dark">BULK JSON</li>
+        <div class="indicator"></div>
+      </ul>
+      <div class="real-tab" id="tab-1">
+        <div class="inp-block">
+          <h3>Single JSON INPUT</h3>
+          <textarea id="jsondataINP" placeholder="Place Single Record Data here" cols="50" rows="15"></textarea>
+        </div>
+        <div class="inp-block butt">
+          <button onclick="singleScrub()">
+            Scrub ->
+          </button>
+        </div>
+        <div class="inp-block">
+          <h3>Single JSON SCRUBBED</h3>
+          <textarea id="jsondataOUT" placeholder="Output will result here" cols="50" rows="15"></textarea>
+        </div>
+      </div>
+      <div class="real-tab" id="tab-2">
+        <div>
+          <label for="filePicker">Choose file:</label><br>
+          <input type="file" id="filePicker" onchange="handleFileSelect(event)">
+        </div>
+        <br>
+        <div>
+          <h3>Raw JSON data</h3>
+          <textarea id="jsondata" placeholder="JSON data will appear here" cols="50" rows="15"></textarea>
+        </div>
+      </div>
+
+    </div>
+    <script src="https://rawgit.com/nodeca/pako/master/dist/pako.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/defiant.js/2.2.7/defiant.min.js" integrity="sha512-NGO4j72BGA93I7tE7Viu11RX8oRWSPSuCQfvSbxlf9TJi9KVHjr2vWSAnh2m9/YZZ9FBUz+PztmwBD7040iYOA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      function findStack(parent, crit) {
+        if (crit(parent)) {
+          return [{
+            "obj": parent,
+            "key": null
+          }];
+        } else {
+          if (Array.isArray(parent)) {
+            for (var i = parent.length - 1; i >= 0; i--) {
+              if (crit(parent[i])) {
+                return [{
+                    "obj": parent,
+                    "key": i
+                  },
+                  {
+                    "obj": parent[i],
+                    "key": null
+                  }
+                ];
+              } else {
+                var tt = findStack(parent[i], crit);
+                if (tt.length > 0) {
+                  var arr = [{
+                    "obj": parent,
+                    "key": i
+                  }];
+                  for (var k = 0; k < tt.length; k++) {
+                    arr.push(tt[k]);
+                  }
+                  return arr;
+                }
+              }
+            }
+          } else if (typeof parent === "object") {
+            var keys = Object.keys(parent);
+            for (var i = keys.length - 1; i >= 0; i--) {
+              var k = keys[i];
+              if (crit(parent[k])) {
+                return [{
+                    "obj": parent,
+                    "key": k
+                  },
+                  {
+                    "obj": parent[k],
+                    "key": null
+                  }
+                ];
+              } else {
+                var tt = findStack(parent[k], crit);
+                if (tt.length > 0) {
+                  var arr = [{
+                    "obj": parent,
+                    "key": k
+                  }];
+                  for (var k = 0; k < tt.length; k++) {
+                    arr.push(tt[k]);
+                  }
+                  return arr;
+                }
+              }
+            }
+
+          }
+        }
+        return [];
+      }
+
+      function removeUnderscore(t) {
+        JSON.search(t, "//*[contains(name(), '_')]/..").map(tt => {
+          Object.keys(tt).filter(kk => kk.indexOf("_") == 0).map(kk => delete tt[kk]);
+        });
+        return t;
+      }
+
+      function removeProtected(t) {
+        defiant.search(t, '//*[access]').filter(it => it.access.length > 0).map(it => it["_delete"] = true);
+
+        var rem = defiant.search(t, '//*[_delete]')
+          .map(vv => findStack(t, vt => vt === vv));
+
+        var ll = rem.filter(rr => rr.length <= 1).length;
+        //totally protected
+        if (ll >= 1) {
+          return null;
+        }
+        var definitions = ["structure",
+          "protein",
+          "structurallyDiverse",
+          "nucleicAcid",
+          "polymer",
+          "specifiedSubstance",
+          "mixture"
+        ];
+        var definitionalElements = ["structure",
+          "protein",
+          "structurallyDiverse",
+          "nucleicAcid",
+          "polymer",
+          "specifiedSubstance",
+          "mixture",
+          "properties",
+          "modifications",
+          "moieties"
+        ];
+        var remDef = false;
+        if (rem.filter(rr => rr.length > 1)
+          .filter(rr => definitions.indexOf(rr[0].key) >= 0)
+          .length > 0) {
+          console.log("removing defs");
+          remDef = true;
+        }
+
+        rem.map(vv => {
+          var parts = vv[vv.length - 2];
+          if (Array.isArray(parts.obj)) {
+            if (parts.obj[parts.key] === vv[vv.length - 1].obj) {
+              parts.obj.splice(parts.key, 1);
+            } else {
+              var nk = parts.obj.map((pp, k) => [pp, k]).filter(app => app[0] == vv[vv.length - 1].obj).map(a => a[1])[0];
+              parts.obj.splice(nk, 1);
+            }
+
+          } else {
+            delete parts.obj[parts.key];
+          }
+        });
+        if (remDef) {
+          definitionalElements.map(de => {
+            delete t[de];
+          });
+        }
+        return t;
+      }
+
+      function scrub(old) {
+        if (document.querySelector("#copy-app-id").checked) {
+          var codeSystem = document.querySelector("#app-id-code-system").value.trim();
+          if (old.approvalID) {
+            var matchCount = old.codes
+              .filter(cd => cd.codeSystem === codeSystem)
+              .filter(cd => cd.code === old.approvalID)
+              .length;
+            if (matchCount <= 0) {
+              old.codes.push({
+                "code": old.approvalID,
+                "codeSystem": codeSystem
+              });
+            }
+          }
+        }
+        if (document.querySelector("#remove-app-id").checked) {
+          //delete ApprovalID
+          defiant.json.search(old, '//*[approvalID]').map(h => delete h.approvalID);
+        }
+        if (document.querySelector("#set-status-pending").checked) {
+          old.status = 'pending';
+        }
+        if (document.querySelector("#remove-protected-data").checked) {
+          old = removeProtected(old);
+        }
+        old = removeUnderscore(old);
+        return old;
+      }
+
+      var handleFileSelect = function(evt) {
+        var files = evt.target.files;
+        var file = files[0];
+        if (files && file) {
+          var fname = file.name;
+          fname = fname.split(".").map((f, i) => {
+              if (i == 0) {
+                return f + ".mod";
+              }
+              return f;
+            })
+            .join(".");
+
+          var reader = new FileReader();
+          reader.onload = function(readerEvt) {
             var binaryString = readerEvt.target.result;
-					  var dd= binaryString.split('').map(function(x){return x.charCodeAt(0);});
+            var dd = binaryString.split('').map(function(x) {
+              return x.charCodeAt(0);
+            });
 
-// Turn number array into byte-array
-var binData     = new Uint8Array(dd);
+            // Turn number array into byte-array
+            var binData = new Uint8Array(dd);
 
-// Pako magic
-var data        = pako.inflate(binData);
+            // Pako magic
+            var data = pako.inflate(binData);
 
-// Convert gunzipped byteArray back to ascii string:
-var strData     = new TextDecoder("utf-8").decode(new Uint8Array(data));
+            // Convert gunzipped byteArray back to ascii string:
+            var strData = new TextDecoder("utf-8").decode(new Uint8Array(data));
 
-						var rows= strData.split("\n");
-						
-            rows=rows.map(line=>{
-            	var cols=line.split("\t");
-              if(cols.length>=3){
-                var mjson=JSON.parse(cols[2]);
-                
-                cols[2]= JSON.stringify(scrub(mjson));
+            var rows = strData.split("\n");
+
+            rows = rows.map(line => {
+              var cols = line.split("\t");
+              if (cols.length >= 3) {
+                var mjson = JSON.parse(cols[2]);
+
+                cols[2] = JSON.stringify(scrub(mjson));
                 return cols.join("\t");
               }
               return null;
-            }).filter(l=>l);
-            
-           // console.log(rows);
-	          var allDat=rows.join("\n");
-            var rawNew=new TextEncoder("utf-8").encode(allDat);
-            var gzippedRaw=pako.gzip(rawNew);
-            
-            document.getElementById("base64textarea").value = allDat;
+            }).filter(l => l);
+
+            // console.log(rows);
+            var allDat = rows.join("\n");
+            var rawNew = new TextEncoder("utf-8").encode(allDat);
+            var gzippedRaw = pako.gzip(rawNew);
+
+            document.getElementById("jsondata").value = allDat;
             //console.log(gzippedRaw);
-            download(gzippedRaw,fname);
-        };
-        reader.readAsBinaryString(file);
-    }
-};
-function download(file, name){
-  var blob = new Blob([file], {type: "application/gzip"});
-	saveAs(blob, name);
-}
+            download(gzippedRaw, fname);
+          };
+          reader.readAsBinaryString(file);
+        }
+      };
 
-//////////////////////////////// POLYFILL ///////////////////////////////////////
+      function download(file, name) {
+        var blob = new Blob([file], {
+          type: "application/gzip"
+        });
+        saveAs(blob, name);
+      }
 
-/*! @source http://purl.eligrey.com/github/FileSaver.js/blob/master/FileSaver.js */
-var saveAs=saveAs||function(e){"use strict";if(typeof e==="undefined"||typeof navigator!=="undefined"&&/MSIE [1-9]\./.test(navigator.userAgent)){return}var t=e.document,n=function(){return e.URL||e.webkitURL||e},r=t.createElementNS("http://www.w3.org/1999/xhtml","a"),o="download"in r,a=function(e){var t=new MouseEvent("click");e.dispatchEvent(t)},i=/constructor/i.test(e.HTMLElement)||e.safari,f=/CriOS\/[\d]+/.test(navigator.userAgent),u=function(t){(e.setImmediate||e.setTimeout)(function(){throw t},0)},s="application/octet-stream",d=1e3*40,c=function(e){var t=function(){if(typeof e==="string"){n().revokeObjectURL(e)}else{e.remove()}};setTimeout(t,d)},l=function(e,t,n){t=[].concat(t);var r=t.length;while(r--){var o=e["on"+t[r]];if(typeof o==="function"){try{o.call(e,n||e)}catch(a){u(a)}}}},p=function(e){if(/^\s*(?:text\/\S*|application\/xml|\S*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(e.type)){return new Blob([String.fromCharCode(65279),e],{type:e.type})}return e},v=function(t,u,d){if(!d){t=p(t)}var v=this,w=t.type,m=w===s,y,h=function(){l(v,"writestart progress write writeend".split(" "))},S=function(){if((f||m&&i)&&e.FileReader){var r=new FileReader;r.onloadend=function(){var t=f?r.result:r.result.replace(/^data:[^;]*;/,"data:attachment/file;");var n=e.open(t,"_blank");if(!n)e.location.href=t;t=undefined;v.readyState=v.DONE;h()};r.readAsDataURL(t);v.readyState=v.INIT;return}if(!y){y=n().createObjectURL(t)}if(m){e.location.href=y}else{var o=e.open(y,"_blank");if(!o){e.location.href=y}}v.readyState=v.DONE;h();c(y)};v.readyState=v.INIT;if(o){y=n().createObjectURL(t);setTimeout(function(){r.href=y;r.download=u;a(r);h();c(y);v.readyState=v.DONE});return}S()},w=v.prototype,m=function(e,t,n){return new v(e,t||e.name||"download",n)};if(typeof navigator!=="undefined"&&navigator.msSaveOrOpenBlob){return function(e,t,n){t=t||e.name||"download";if(!n){e=p(e)}return navigator.msSaveOrOpenBlob(e,t)}}w.abort=function(){};w.readyState=w.INIT=0;w.WRITING=1;w.DONE=2;w.error=w.onwritestart=w.onprogress=w.onwrite=w.onabort=w.onerror=w.onwriteend=null;return m}(typeof self!=="undefined"&&self||typeof window!=="undefined"&&window||this.content);if(typeof module!=="undefined"&&module.exports){module.exports.saveAs=saveAs}else if(typeof define!=="undefined"&&define!==null&&define.amd!==null){define("FileSaver.js",function(){return saveAs})}
+      function singleScrub() {
+        var ival = document.getElementById("jsondataINP").value;
+        var oval = JSON.stringify(scrub(JSON.parse(ival)));
+        document.getElementById("jsondataOUT").value = oval;
+      }
+
+
+
+      //////////////////////////////// POLYFILL ///////////////////////////////////////
+
+      /*! @source http://purl.eligrey.com/github/FileSaver.js/blob/master/FileSaver.js */
+      var saveAs = saveAs || function(e) {
+        "use strict";
+        if (typeof e === "undefined" || typeof navigator !== "undefined" && /MSIE [1-9]\./.test(navigator.userAgent)) {
+          return
+        }
+        var t = e.document,
+          n = function() {
+            return e.URL || e.webkitURL || e
+          },
+          r = t.createElementNS("http://www.w3.org/1999/xhtml", "a"),
+          o = "download" in r,
+          a = function(e) {
+            var t = new MouseEvent("click");
+            e.dispatchEvent(t)
+          },
+          i = /constructor/i.test(e.HTMLElement) || e.safari,
+          f = /CriOS\/[\d]+/.test(navigator.userAgent),
+          u = function(t) {
+            (e.setImmediate || e.setTimeout)(function() {
+              throw t
+            }, 0)
+          },
+          s = "application/octet-stream",
+          d = 1e3 * 40,
+          c = function(e) {
+            var t = function() {
+              if (typeof e === "string") {
+                n().revokeObjectURL(e)
+              } else {
+                e.remove()
+              }
+            };
+            setTimeout(t, d)
+          },
+          l = function(e, t, n) {
+            t = [].concat(t);
+            var r = t.length;
+            while (r--) {
+              var o = e["on" + t[r]];
+              if (typeof o === "function") {
+                try {
+                  o.call(e, n || e)
+                } catch (a) {
+                  u(a)
+                }
+              }
+            }
+          },
+          p = function(e) {
+            if (/^\s*(?:text\/\S*|application\/xml|\S*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(e.type)) {
+              return new Blob([String.fromCharCode(65279), e], {
+                type: e.type
+              })
+            }
+            return e
+          },
+          v = function(t, u, d) {
+            if (!d) {
+              t = p(t)
+            }
+            var v = this,
+              w = t.type,
+              m = w === s,
+              y, h = function() {
+                l(v, "writestart progress write writeend".split(" "))
+              },
+              S = function() {
+                if ((f || m && i) && e.FileReader) {
+                  var r = new FileReader;
+                  r.onloadend = function() {
+                    var t = f ? r.result : r.result.replace(/^data:[^;]*;/, "data:attachment/file;");
+                    var n = e.open(t, "_blank");
+                    if (!n) e.location.href = t;
+                    t = undefined;
+                    v.readyState = v.DONE;
+                    h()
+                  };
+                  r.readAsDataURL(t);
+                  v.readyState = v.INIT;
+                  return
+                }
+                if (!y) {
+                  y = n().createObjectURL(t)
+                }
+                if (m) {
+                  e.location.href = y
+                } else {
+                  var o = e.open(y, "_blank");
+                  if (!o) {
+                    e.location.href = y
+                  }
+                }
+                v.readyState = v.DONE;
+                h();
+                c(y)
+              };
+            v.readyState = v.INIT;
+            if (o) {
+              y = n().createObjectURL(t);
+              setTimeout(function() {
+                r.href = y;
+                r.download = u;
+                a(r);
+                h();
+                c(y);
+                v.readyState = v.DONE
+              });
+              return
+            }
+            S()
+          },
+          w = v.prototype,
+          m = function(e, t, n) {
+            return new v(e, t || e.name || "download", n)
+          };
+        if (typeof navigator !== "undefined" && navigator.msSaveOrOpenBlob) {
+          return function(e, t, n) {
+            t = t || e.name || "download";
+            if (!n) {
+              e = p(e)
+            }
+            return navigator.msSaveOrOpenBlob(e, t)
+          }
+        }
+        w.abort = function() {};
+        w.readyState = w.INIT = 0;
+        w.WRITING = 1;
+        w.DONE = 2;
+        w.error = w.onwritestart = w.onprogress = w.onwrite = w.onabort = w.onerror = w.onwriteend = null;
+        return m
+      }(typeof self !== "undefined" && self || typeof window !== "undefined" && window || this.content);
+      if (typeof module !== "undefined" && module.exports) {
+        module.exports.saveAs = saveAs
+      } else if (typeof define !== "undefined" && define !== null && define.amd !== null) {
+        define("FileSaver.js", function() {
+          return saveAs
+        })
+      }
+      var waveBtn = (function() {
+        'use strict';
+        var btn = document.querySelectorAll('.wave'),
+          tab = document.querySelector('.tab-bar'),
+          indicator = document.querySelector('.indicator'),
+          indi = 0;
+        indicator.style.marginLeft = indi + 'px';
+
+        for (var i = 0; i < btn.length; i++) {
+          btn[i].onmousedown = function(e) {
+            document.querySelectorAll('.real-tab').forEach(t => {
+              if (t.className.indexOf("hide") < 0) {
+                t.className = t.className + " hide";
+              }
+            });
+            var newRound = document.createElement('div'),
+              x, y;
+
+            newRound.className = 'cercle';
+            this.appendChild(newRound);
+
+            x = e.pageX - this.offsetLeft;
+            y = e.pageY - this.offsetTop;
+
+            newRound.style.left = x + "px";
+            newRound.style.top = y + "px";
+            newRound.className += " anim";
+
+            indicator.style.marginLeft = indi + (this.dataset.num - 1) * 400 + 'px';
+            var tt = document.querySelector('#tab-' + (this.dataset.num - 0));
+            if (tt.className.indexOf("hide") > 0) {
+              tt.className = tt.className.replace(" hide", "");
+            }
+
+            setTimeout(function() {
+              newRound.remove();
+            }, 1200);
+          };
+        }
+      }());
+
     </script>
   </body>
+
 </html>
