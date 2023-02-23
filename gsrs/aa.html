@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <style>
+      textarea {
+        width: 500px;
+        height: 300px;
+      }
+
+    </style>
+  </head>
+
+  <body>
+
+    <div>
+      <div>
+        1 letter codes
+      </div>
+
+      <textarea id="input"></textarea>
+    </div>
+    <button onclick="do1to3()">
+      1-to-3
+    </button>
+    <button onclick="do3to1()">
+      3-to-1
+    </button>
+
+    <div>
+      <div>
+        3 letter codes
+      </div>
+
+      <textarea id="output">
+</textarea>
+    </div>
+    <script>
+      const aminoLookups = {
+        "A": "ALA",
+        "C": "CYS",
+        "D": "ASP",
+        "E": "GLU",
+        "F": "PHE",
+        "G": "GLY",
+        "H": "HIS",
+        "I": "ILE",
+        "K": "LYS",
+        "L": "LEU",
+        "M": "MET",
+        "N": "ASN",
+        "P": "PRO",
+        "Q": "GLN",
+        "R": "ARG",
+        "S": "SER",
+        "T": "THR",
+        "V": "VAL",
+        "W": "TRP",
+        "Y": "TYR"
+      };
+
+      Object.keys(aminoLookups)
+        .map(k => {
+          aminoLookups[aminoLookups[k]] = k;
+        });
+
+
+      function convert1to3(inp) {
+        return inp.split("")
+          .map(aa => aminoLookups[aa.toUpperCase()])
+          .map(aa => (aa) ? aa : "UNK")
+          .map(aa => aa[0] + (aa[1] + aa[2]).toLowerCase())
+          .join("-");
+
+      }
+
+      function convert3to1(inp) {
+        return inp.split("-")
+          .map(aa => aminoLookups[aa.toUpperCase()])
+          .map(aa => (aa) ? aa : "X")
+          .join("");
+
+      }
+
+
+      function do1to3() {
+        var l3 = convert1to3(document.getElementById("input").value.trim());
+        document.getElementById("output").value = l3;
+      }
+
+      function do3to1() {
+        var l3 = convert3to1(document.getElementById("output").value.trim());
+        document.getElementById("input").value = l3;
+      }
+
+      function clearit() {
+
+      }
+
+    </script>
+  </body>
+
+</html>
