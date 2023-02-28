@@ -328,15 +328,14 @@ ul.tab-bar {
         }
       }
 
-      const nrefs = _.chain(old.references)
+      const nrefs = old.references
         .filter(function(ref) {
           if (refSet[ref.uuid]) {
             return true;
           } else {
             return false;
           }
-        })
-        .value();
+        });
 
       old.references = nrefs;
 
