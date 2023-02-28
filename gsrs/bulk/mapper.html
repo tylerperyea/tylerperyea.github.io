@@ -157,6 +157,7 @@ ul.tab-bar {
 
 
           <input name="remove-app-id" id="remove-app-id" type="checkbox" /><label for="remove-app-id">Remove ApprovalID</label>
+          <input name="regen-uuids" id="regen-uuids" type="checkbox" /><label for="regen-uuids">Regenerate UUIDs</label>
 
           <input name="set-status-pending" id="set-status-pending" type="checkbox" /><label for="set-status-pending">Set status to pending</label>
 
@@ -270,6 +271,81 @@ ul.tab-bar {
         return [];
       }
 
+      function regenUUIDs(old) {
+    function guid() {
+      function s4() {
+        return Math.floor((1 + Math.random()) * 0x10000)
+          .toString(16)
+          .substring(1);
+      }
+      return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+        s4() + '-' + s4() + s4() + s4();
+    }
+    const uuidHolders = defiant.json.search(old, '//*[uuid]');
+    const map = {};
+    for (let i = 0; i < uuidHolders.length; i++) {
+      const ouuid = uuidHolders[i].uuid;
+      if (map[ouuid]) {
+        uuidHolders[i].uuid = map[ouuid];
+        if (uuidHolders[i].id) {
+          uuidHolders[i].id = map[ouuid];
+        }
+      } else {
+        const nid = guid();
+        uuidHolders[i].uuid = nid;
+        map[ouuid] = nid;
+        if (uuidHolders[i].id) {
+          uuidHolders[i].id = nid;
+        }
+      }
+    }
+    const refHolders = defiant.json.search(old, '//*[references]');
+    for (let i = 0; i < refHolders.length; i++) {
+      const refs = refHolders[i].references;
+      for (let j = 0; j < refs.length; j++) {
+        const or = refs[j];
+        if (typeof or === 'object') { continue; }
+        refs[j] = map[or];
+      }
+    }
+
+    const originHolders = defiant.json.search(old, '//*[originatorUuid]');
+    for (let i = 0; i < originHolders.length; i++) {
+      const rec = originHolders[i];
+      delete rec['originatorUuid'];
+    }
+
+    if (true) {
+      const refSet = {};
+
+      const refHolders2 = defiant.json.search(old, '//*[references]');
+      for (let i = 0; i < refHolders2.length; i++) {
+        const refs = refHolders2[i].references;
+        for (let j = 0; j < refs.length; j++) {
+          const or = refs[j];
+          if (typeof or === 'object') { continue; }
+          refSet[or] = true;
+        }
+      }
+
+      const nrefs = _.chain(old.references)
+        .filter(function(ref) {
+          if (refSet[ref.uuid]) {
+            return true;
+          } else {
+            return false;
+          }
+        })
+        .value();
+
+      old.references = nrefs;
+
+    }
+
+
+    return old;
+      }
+      
       function removeUnderscore(t) {
         JSON.search(t, "//*[contains(name(), '_')]/..").map(tt => {
           Object.keys(tt).filter(kk => kk.indexOf("_") == 0).map(kk => delete tt[kk]);
@@ -352,6 +428,9 @@ ul.tab-bar {
               });
             }
           }
+        }
+        if (document.querySelector("#regen-uuids").checked) {
+            old = regenUUIDs(old);
         }
         if (document.querySelector("#remove-app-id").checked) {
           //delete ApprovalID
