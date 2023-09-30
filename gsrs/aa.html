@@ -8,6 +8,9 @@
         width: 500px;
         height: 300px;
       }
+      .outdivs{
+        display:inline-block;
+      }
 
     </style>
   </head>
@@ -27,14 +30,23 @@
     <button onclick="do3to1()">
       3-to-1
     </button>
+     <button onclick="do1toSmiles()">
+      1-to-SMILES
+    </button>
 
-    <div>
+    <div class="outdivs">
       <div>
         3 letter codes
       </div>
-
       <textarea id="output">
 </textarea>
+    </div>
+     <div class="outdivs">
+      <div>
+        SMILES
+      </div>
+      <textarea id="outputsmiles">
+    </textarea>
     </div>
     <script>
       const aminoLookups = {
@@ -60,12 +72,67 @@
         "Y": "TYR"
       };
 
+      
+      const aaSmilesLookup={
+          "A": "N[C@@H](C)C(=O)",
+          "a": "N[C@H](C)C(=O)",
+          "C": "N[C@@H](CS)C(=O)",
+          "c": "N[C@H](CS)C(=O)",
+          "E": "N[C@@H](CC(=O)O)C(=O)",
+          "e": "N[C@H](CC(=O)O)C(=O)",
+          "F": "N[C@@H](CC$1C=CC=CC=$1)C(=O)",
+          "f": "N[C@H](CC$1C=CC=CC=$1)C(=O)",
+          "G": "NCC(=O)",
+          "g": "NCC(=O)",
+          "H": "N[C@@H](CC$1=CNC=N$1)C(=O)",
+          "h": "N[C@H](CC$1=CNC=N$1)C(=O)",
+          "I": "N[C@@H]([C@@H](C)CC)C(=O)",
+          "i": "N[C@H]([C@@H](C)CC)C(=O)",
+          "K": "N[C@@H](CCCCN)C(=O)",
+          "k": "N[C@H](CCCCN)C(=O)",
+          "L": "N[C@@H](CC(C)C)C(=O)",
+          "l": "N[C@H](CC(C)C)C(=O)",
+          "M": "N[C@@H](CCSC)C(=O)",
+          "m": "N[C@H](CCSC)C(=O)",
+          "N": "N[C@@H](CC(=O)N)C(=O)",
+          "n": "N[C@H](CC(=O)N)C(=O)",
+          "P": "N$1[C@@H](CCC$1)C(=O)",
+          "p": "N$1[C@H](CCC$1)C(=O)",
+          "Q": "N[C@@H](CCC(=O)N)C(=O)",
+          "q": "N[C@H](CCC(=O)N)C(=O)",
+          "R": "N[C@@H](CCCNC(=N)N)C(=O)",
+          "r": "N[C@H](CCCNC(=N)N)C(=O)",
+          "S": "N[C@@H](CO)C(=O)",
+          "s": "N[C@H](CO)C(=O)",
+          "T": "N[C@@H]([C@H](O)C)C(=O)",
+          "t": "N[C@H]([C@H](O)C)C(=O)",
+          "V": "N[C@@H](C(C)C)C(=O)",
+          "v": "N[C@H](C(C)C)C(=O)",
+          "W": "N[C@@H](CC$1=CNC$2=C$1C=CC=C$2)C(=O)",
+          "w": "N[C@H](CC$1=CNC$2=C$1C=CC=C$2)C(=O)",
+          "Y": "N[C@@H](CC$1C=CC(O)=CC=$1)C(=O)",
+          "y": "N[C@H](CC$1C=CC(O)=CC=$1)C(=O)",
+          ".": "O.",
+          ";": "O."
+      };
+
+
+
+
       Object.keys(aminoLookups)
         .map(k => {
           aminoLookups[aminoLookups[k]] = k;
         });
 
-
+      function toSmiles(aa){
+      
+        var smi = aa.split("")
+              .map(am=>aaSmilesLookup[am].replace(/[$]/g,""))
+              .join("") + "O";
+      
+        return smi;
+      }
+      
       function convert1to3(inp) {
         return inp.split("")
           .map(aa => aminoLookups[aa.toUpperCase()])
@@ -92,6 +159,11 @@
       function do3to1() {
         var l3 = convert3to1(document.getElementById("output").value.trim());
         document.getElementById("input").value = l3;
+      }
+
+      function do1toSmiles() {
+        var l3 = toSmiles(document.getElementById("input").value.trim());
+        document.getElementById("outputsmiles").value = l3;
       }
 
       function clearit() {
