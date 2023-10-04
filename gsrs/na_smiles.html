@@ -194,7 +194,8 @@ function doNAtoSmiles(){
     var lin=document.getElementById("deflinkage").value;
     var baseArr=inp.split("");
     var sugArr =inp.split("").fill(sug);
-    var linArr =inp.split("").filter((ll,i)=>i<sugArr.length-1).fill(lin);
+    var linArr =inp.split("").fill(lin);
+    linArr[linArr.length-1]="";
     var smi = naListsToSmiles(baseArr,sugArr,linArr);
     document.getElementById("outputsmiles").value=smi;
     
