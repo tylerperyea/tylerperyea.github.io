@@ -16,6 +16,11 @@ You can drag and drop the links here to your bookmarks bar, and click them when 
 <br>
 <br>
 
+<p>
+<a href="javascript:(function()%7B%2F%2F This can go on the main script tag%0A%2F%2F of the main document for the page%0A%0A%2F%2F%0A%2F%2F This function will look for the JSME iframe context%2C%0A%2F%2F if present%2C and then set up an HTTP intercept which will%0A%2F%2F adjust the URL to be the actual on server path %0A%2F%2F (JSME thinks it is executing within the full JSME script%0A%2F%2F directory%2C but is actuall executing one step higher%0A%2F%2F%0Afunction fixHTTPRequests()%7B%0A%09var iframes %3D document.getElementsByTagName("iframe")%3B%0A%09if(iframes.length%3D%3D%3D0)%7B%0A%09%09return false%3B%0A%09%7Delse%7B%0A%09%09var contextWIND %3D iframes%5B0%5D.contentWindow%3B%0A%09%09if(contextWIND.gq %26%26 !contextWIND%5B"nIntercept"%5D)%7B%0A%09%09%09contextWIND%5B"nIntercept"%5D%3DcontextWIND.gq%3B%0A%09%09%09contextWIND.gq%3Dfunction(aa)%7B%0A%09%09%09%09console.log(aa)%3B%0A%09%09%09%09aa.c%3Daa.c.replace(%2Fgov.deferredjs%2Fg%2C"gov%2Fjsme%2Fdeferredjs")%3B%0A%09%09%09%09contextWIND%5B"nIntercept"%5D(aa)%3B%0A%09%09%09%7D%0A%09%09%09return true%3B%0A%09%09%7Delse%7B%0A%09%09%09return false%3B%0A%09%09%7D%0A%09%7D%0A%7D%0A%0A%2F%2F%0A%2F%2F Timing ...%0A%2F%2F%0A%2F%2F ... is everything.%0A%2F%2F%0A%2F%2F And depending on what order and what scope things get executed in%2C %0A%2F%2F a fix like the above function may not work. This simple approach below just%0A%2F%2F polls for the correct context every 500ms and%2C if it can't find it%2C%0A%2F%2F it waits again. But if it can find it%2C it fixes the intercept as desired.%0A%2F%2F%0A%2F%2F Note that this method will be okay if called several times. It won't do%0A%2F%2F any harm.%0A%2F%2F%0Afunction pollAndFixHTTP()%7B%0A%09if(!fixHTTPRequests())%7B%0A%09%09setTimeout(()%3D>pollAndFixHTTP()%2C500)%3B%0A%09%7Delse%7B%0A%09%09console.log("fixed")%3B%0A%09%7D%0A%7D%0ApollAndFixHTTP()%3B%7D)()%3B">
+Fix JSME editor
+</a>
+</p>
 
 <p>
 <a href="javascript:(function(){eval(decodeURIComponent(atob('YW5ndWxhci5lbGVtZW50KGRvY3VtZW50LmJvZHkpLnNjb3BlKCkuc3Vic3RhbmNlLnN0YXR1cyUzRCUyMmFwcHJvdmVkJTIyJTNCJTBBYWxlcnQoJTIyU2V0JTIwc3Vic3RhbmNlJTIwdG8lMjBhcHByb3ZlZCUyQyUyMHBsZWFzZSUyMHN1Ym1pdCUyMGNoYW5nZSUyMiklM0IlMEE=')));})();">Set Status To Approved</a>
@@ -133,5 +138,9 @@ Add and upload image to references
 </a>
 </p>
 
+
+
+
+  
 </body>
 </html>
