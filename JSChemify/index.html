@@ -7,28 +7,34 @@
   <script>
     
 function testRender(chem, ctx, width, height){
-	JSChemify.Renderer().render(chem,ctx,10,10,30);
+    var scale=30;
+    var bbox=chem.getBoundingBox();
+    var cheight=bbox[3]-bbox[1];
+    var cwidth=bbox[2]-bbox[0];
+    
+    var nwidth=cwidth*scale;
+    var nheight=cheight*scale;
+    //rescale to fit
+    if(nwidth>width || nheight>height){
+        scale=Math.min(width/nwidth,height/nheight);
+    }
+    
+	JSChemify.Renderer().render(chem,ctx,10,10,scale);
 }
 
 function render(){
-	const canvas = document.getElementById("testCanvas");
-	const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  var c=document.getElementById("query").value.trim().split("\n")
-  				.map(l=>l.trim())
-          .filter(l=>l.length>0)
-          .slice(0,1)
-  				.map(l=>JSChemify.Chemical().fromSmiles(l).aromatize())[0];
-  c.generateCoordinates().dearomatize();  
-  /*
-  var c = JSChemify.Chemical("CC[C@H](C)[C@H]1C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@@H](CSSC[C@@H](C(=O)N[C@H](C(=O)N1)CC2=CC=C(C=C2)O)N)C(=O)N3CCC[C@H]3C(=O)N[C@@H](CC(C)C)C(=O)NCC(=O)N)CC(=O)N)CCC(=O)NC#CC").generateCoordinates();
-  //var c = JSChemify.Chemical("C1=CC=C([P+](C2C=CC=CC=2)(CCCC#N)C2C=CC=CC=2)C=C1").generateCoordinates();
-  var c = JSChemify.Chemical("C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2O)CCC4=CC(=O)CC[C@]34C").generateCoordinates();
-  //C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2O)CCC4=CC(=O)CC[C@]34C
-  //C1=CC=C([P+](C2C=CC=CC=2)(CCCC#N)C2C=CC=CC=2)C=C1
-  */
- 	testRender(c,ctx,canvas.width,canvas.height);
+      const canvas = document.getElementById("testCanvas");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      var c=document.getElementById("query").value.trim().split("\n")
+                    .map(l=>l.trim())
+              .filter(l=>l.length>0)
+              .slice(0,1)
+                    .map(l=>JSChemify.Chemical().fromSmiles(l).aromatize())[0];
+       c.generateCoordinates().dearomatize();  
+ 
+ 	   testRender(c,ctx,canvas.width,canvas.height);
 }
 
 function doSearch(){
@@ -101,6 +107,10 @@ function doSearch(){
      textarea{
         width:100%;
         min-height:200px;
+      }
+      div.panel{
+          display:inline-block;
+          padding:10px;
       }
    </style>
 </head>  
@@ -219,7 +229,7 @@ COc1ccc(CCN(C)CCCC(C#N)(C(C)C)c2ccc(OC)c(OC)c2)cc1OC	104.7
 CC(=O)CC(c1ccccc1)c1c(O)c2ccccc2oc1=O	407.9
 
 </textarea>
-<div class="left-side">
+<div class="panel">
     <span>
         <div>
         Query
@@ -255,8 +265,8 @@ CC(=O)CC(c1ccccc1)c1c(O)c2ccccc2oc1=O	407.9
     Render Query
     </button>
 </div>
-<div class="right-side">
-    <canvas id="testCanvas" width=300 height=400></canvas>
+<div class="panel">
+    <canvas id="testCanvas" width=400 height=150></canvas>
 </div>
 
 <label for="results">Results</label>
