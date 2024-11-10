@@ -4093,7 +4093,7 @@ JSChemify.Renderer=function(){
             const dseg=[seg[0][0]-seg[1][0],seg[0][1]-seg[1][1]];
             const rej=[-ret._dblWidth*dseg[1],
                       ret._dblWidth*dseg[0]];
-            const short=ret._dblShort;
+            let short=ret._dblShort;
             //If there's stereo, draw dash or wedge
             if(b.getBondStereo()){
                   const affWedge=JSChemify.Util
