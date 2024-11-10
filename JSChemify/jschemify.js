@@ -4177,7 +4177,7 @@ JSChemify.Renderer=function(){
               nv[1]=-nv[1];
         
         
-              const loc=affine.transform(nv);
+              let loc=affine.transform(nv);
         
               ctx.fillStyle = "white";
               ctx.beginPath();
