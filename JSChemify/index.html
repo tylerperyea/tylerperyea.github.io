@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
   <script src="jschemify.js" />
 
    <style>
@@ -10,165 +11,10 @@
       }
    </style>
 </head>  
+
+     
 <body>
-<label for="input">Targets</label>
-<textarea id="input">
-SMILES	Kinetic Solubility (mM)
-c1ccc2c(cccc2O)c1	18026
-Brc1cc(C(O)=O)c(N)cc1	2562
-c1cc(ccc1O)I	25091
-Oc1c(Br)cc(C(O)=O)c(O)c1	8726
-Fc1c(=O)[nH]c(=O)[nH]c1	
-O=C(Nc1ccc(cc1)O)C	161744
-S(=O)(=O)(N)c1sc(NC(=O)C)nn1	6098
-CC(C)NCC(O)COc1ccccc1CC=C	5079
-C1C2CC3CC(CC1C3)(N)C2	17333
-C(=O)(c1cc(c(c(I)c1)OCCN(CC)CC)I)c1c(oc2c1cccc2)CCCC	
-CN(C)CC\C=C1\c2ccccc2CCc2ccccc12	29.5
-c1(c(CN(CC)CC)cc(cc1)Nc1ccnc2c1ccc(c2)Cl)O	24.01
-O=C(O)c1ccccc1OC(C)=O	
-CN1[C@H]2CC[C@@H]1C[C@@H](C2)OC(=O)C(CO)C1=CC=CC=C1	12373
-S(c1n(cnc1N(=O)=O)C)c1ncnc2nc[nH]c12	6668
-n1(Cc2ccccc2)cncc1	48472
-Brc1cc2c(CN(C)C)c[nH]c2cc1	391.5
-CCCCN1CCCCC1C(=O)Nc1c(C)cccc1C	1969
-CC(C(O)=O)c1ccc2c(c1)[nH]c1ccc(Cl)cc21	49.58
-COc1ccccc1OCCNCC(O)COc1cccc2[nH]c3ccccc3c12	63.3
-C1(=C(COC(C)=O)CS[C@@H]2[C@H](NC(=O)Cc3cccs3)C(N12)=O)C(O)=O	5624
-C([C@H](c1ccccn1)c1ccc(cc1)Cl)CN(C)C	2505
-c1c(Cl)ccc2Sc3ccccc3N(CCCN(C)C)c12	8.885
-Clc1ccc(S(=O)(NC(=O)NCCC)=O)cc1	1710
-CN(C)CC\C=C1\c2ccccc2Sc2ccc(cc12)Cl	1.554
-CN(C)CC\C=C1\c2ccccc2Sc2ccc(cc12)Cl	1.562
-c1cc2c(cc1Cl)[nH]c(=O)o2	5210
-Cc1c(nc[nH]1)CSCCN\C(=N\C)NC#N	86342
-O=C(c1cn(C2CC2)c2c(cc(F)c(N3CCNCC3)c2)c1=O)O	2226
-C[N@]1C[C@@H]2C[C@H]1CN2c1c(cc2c(n(cc(C(=O)O)c2=O)C2CC2)c1)F	1935
-C[C@H](CC1=CC=CC=C1)N(C)CC#C	3207
-N1(c2c(CCc3ccccc13)cccc2)CCCNC	255.2
-Clc1cc2S(=O)(=O)N=C(Nc2cc1)C	2289
-c1(c(Nc2c(cccc2Cl)Cl)cccc1)CC(=O)O	148.4
-CN1CCN(CC1)c1c(cc2c(n(cc(C(=O)O)c2=O)c2ccc(cc2)F)c1)F	820
-O=C1[C@H](OC(C)=O)[C@H](c2ccc(OC)cc2)Sc2ccccc2N1CCN(C)C	881.6
-CN(C)CCOC(c1ccccc1)c1ccccc1	1241
-O=C1NC(=O)NC1(c1ccccc1)c1ccccc1	477.2
-CCN1CCN(CC1)c1c(cc2c(n(cc(C(=O)O)c2=O)C2CC2)c1)F	5054
-N\C(CCSCc1csc(\N=C(\N)N)n1)=N\S(=O)(N)=O	18007
-CC(C(O)=O)c1cccc(Oc2ccccc2)c1	270.1
-C(c1c(Nc2cc(ccc2)C(F)(F)F)cccc1)(=O)O	45.22
-CC1CCc2cc(F)cc3c2n1cc(C(O)=O)c3=O	675.9
-CC(C(O)=O)c1ccc(c(F)c1)-c1ccccc1	207.2
-O=C(NC1CCCCC1)NS(=O)(c1ccc(CCNC(c2cnc(cn2)C)=O)cc1)=O	94.07
-[nH]1cnc2nc(N)[nH]c(=O)c12	673.1
-CN1C(=O)NC(=O)C(C)(C1=O)C1=CCCCC1	5982
-S1(=O)(=O)NCNc2c1cc(S(=O)(N)=O)c(c2)C(F)(F)F	8333
-C(c1ccc(cc1)O)(=O)O	52775
-CC(C)Cc1ccc(cc1)C(C)C(O)=O	947.5
-O=C(c1cn2[C@@H](C)COc3c(N4CCN(C)CC4)c(F)cc(c1=O)c23)O	
-CCn1cc(C(O)=O)c(=O)c2cc(F)c(N3CCNC(C)C3)c(F)c12	55550
-CN(C)C(=O)C(CCN1CCC(CC1)(c1ccc(cc1)Cl)O)(c1ccccc1)c1ccccc1	
-C([C@H]1NCCC1)(=O)O	
-N(C)CCCC12c3c(C(c4ccccc14)CC2)cccc3	747
-Cc1cccc(CN2CCN(CC2)C(c2ccccc2)c2ccc(Cl)cc2)c1	
-C(c1c(Nc2c(c(ccc2)C)C)cccc1)(=O)O	0.5959
-CCN(CC)CCNC(=O)c1cc(c(cc1OC)N)Cl	1193
-OCCn1c(ncc1N(=O)=O)C	92832
-Clc1ccc(COC(Cn2ccnc2)c2ccc(Cl)cc2Cl)c(Cl)c1	27.14
-CCn1cc(c(=O)c2ccc(nc12)C)C(=O)O	526.1
-O[C@]1([C@H](N(CC=C)CC2)C3)[C@@]42C5=C3C=CC(O)=C5O[C@H]4C(CC1)=O	6366
-O=C(O)[C@@H](C)c1ccc2cc(ccc2c1)OC	85.56
-C(c1cccnc1Nc1cc(ccc1)C(F)(F)F)(=O)O	159.3
-O=C1NC(CN1\N=C\c1ccc(N(=O)=O)o1)=O	1655
-CCn1cc(c(=O)c2cc(c(cc12)N1CCNCC1)F)C(=O)O	10640
-N(CC\C=C1\c2c(CCc3c1cccc3)cccc2)C	101.7
-CC1COc2c(N3CCN(C)CC3)c(F)cc3c2n1cc(C(O)=O)c3=O	80000
-C[C@H]1CN(C[C@@H](C)N1)c1c(F)c(F)c2c(c1F)n(cc(C(O)=O)c2=O)C1CC1	
-OC1=C(C(O)=C(C([C@@](C(C(C(N)=O)=C(O)[C@H]2N(C)C)=O)(O)[C@@]2([H])[C@H]3O)=O)[C@@]3([H])[C@@]4(O)C)C4=CC=C1	19770
-c1(nccc2cc(c(OC)cc12)OC)Cc1cc(c(cc1)OC)OC	2553
-CC1(C)S[C@@H]2[C@H](NC(=O)Cc3ccccc3)C(=O)N2[C@H]1C(O)=O	
-c12c(ccc3cccnc13)cccn2	112000
-c1ccc(cc1)\N=N\c1c(nc(cc1)N)N	400
-C1(NC(C(c2ccccc2)(C(=O)N1)CC)=O)=O	10274
-N1(N(c2ccccc2)C(C(CCCC)C1=O)=O)c1ccccc1	161.6
-C(c1c(C(=O)O)cccc1)(=O)O	52659
-C(c1c(C(=O)O)cccc1)(=O)O	52659
-CC(C)NCC(O)COc1cccc2[nH]ccc12	1933
-S1(=O)(=O)N(C)C(=C(c2ccccc12)O)C(Nc1ccccn1)=O	590.5
-Nc1ccc(C(NCCN(CC)CC)=O)cc1	
-Nc1ccc(C(OCCN(CC)CC)=O)cc1	19787
-CC(C)NCC(O)COc1cccc2ccccc12	1127
-[H]C1(CN2CCC1C[C@@]2([H])[C@H](O)C1=CC=NC2=C1C=C(OC)C=C2)C=C	1446
-S(Cc1oc(CN(C)C)cc1)CCN\C(NC)=C\N(=O)=O	52200
-C1CN(CCN1)c1c(cc2c(n(cc(C(=O)O)c2=O)c2ccc(cc2)F)c1)F	2051
-CN[C@H]1CC[C@@H](c2ccc(Cl)c(Cl)c2)c2ccccc12	
-C[C@H]1CN(C[C@@H](C)N1)C1=C(F)C2=C(C(=O)C(=CN2C2CC2)C(O)=O)C(N)=C1F	14199
-C(=O)(NS(=O)(c1ccc(cc1)N)=O)C	46582
-S(=O)(=O)(Nc1nc(C)cc(n1)C)c1ccc(N)cc1	23727
-C(=O)(O)c1cc(ccc1O)\N=N\c1ccc(cc1)S(=O)(Nc1ccccn1)=O	34.22
-Nc1ccc(cc1)S(=O)(Nc1nccs1)=O	2400
-CC1=C(CC(O)=O)c2cc(F)ccc2C\1=C\c1ccc(cc1)S(C)=O	231.5
-CC1=C(CC(O)=O)c2cc(F)ccc2C\1=C\c1ccc(cc1)S(C)=O	234.7
-C(c1ccc(cc1)NCCCC)(=O)OCCN(C)C	1071
-OC1=C(C(C2=C(O)[C@@](C(C(C(N)=O)=C(O)[C@H]3N(C)C)=O)(O)[C@@]3([H])C[C@]2([H])[C@@]4(O)C)=O)C4=CC=C1	25389
-c1(cc(ccc1C(C)C)C)O	9000
-Cc1ccc(cc1)C(=O)c1ccc(CC(=O)O)n1C	395.3
-NS(=O)(=O)c1cc2c(NC(NS2(=O)=O)C(Cl)Cl)cc1Cl	4530
-NS(=O)(=O)c1cc2c(NC(NS2(=O)=O)C(Cl)Cl)cc1Cl	4530
-c1(nc(c(cn1)Cc1cc(c(c(OC)c1)OC)OC)N)N	5841
-CC(CN(C)C)CN1c2ccccc2CCc2ccccc12	17.3
-NCCc1c[nH]c2ccccc12	20650
-COc1ccc(CCN(C)CCCC(C#N)(C(C)C)c2ccc(OC)c(OC)c2)cc1OC	104.7
-CC(=O)CC(c1ccccc1)c1c(O)c2ccccc2oc1=O	407.9
+     test
 
-</textarea>
-<div>
-
-<span>
-<div>
-Query
-</div>
-<div>
-<input id="query" value="C1CC(Cl)CCC1">
-</div>
-</span>
-<span>
-<div>
-E-State Vector Depth
-</div>
-<input id="depth" value="2">
-</span>
-<span>
-<div>
-Feature
-</div>
-<input id="feature" value="dsN">
-</span>
-<div>
-Search Type
-</div>
-<select id="stype" >
-<option value="cos">Cosine</option>
-<option value="euc">Euclidean</option>
-</select>
-</span>
-
-<button id="search" onclick="doSearch()">
-Search
-</button>
-<button id="search" onclick="doKNN()">
-Do KNN
-</button>
-</div>
-
-
-<label for="results">Results</label>
-<textarea id="results">
-  
-</textarea>
-<canvas id="testCanvas" width=300 height=400></canvas>
-<button onclick="render()">
-Render
-</button>
-
- </body> 
+</body> 
 </html>
