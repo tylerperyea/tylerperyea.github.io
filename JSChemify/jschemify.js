@@ -17,11 +17,13 @@ Basic I/O:
 3. InChI parser
 4. [just for fun] WLN parser 
 5. Simplify Smiles
+   5.1. There's a bug where closing parentheses aren't always added
 6. [done?] Clone molecule
 7. Split components
 8. Make ring&chain network
 9. SMARTS/query support
 10. [done] Molform and weight
+
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
