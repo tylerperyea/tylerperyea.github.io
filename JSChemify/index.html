@@ -4,7 +4,7 @@
   <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
   <style>
       body{
-	      font-family:monospace;
+	font-family:monospace;
       }
       textarea{
         width:100%;
@@ -13,6 +13,9 @@
       div.panel{
           display:inline-block;
           padding:10px;
+      }
+      div.panel.full{
+          display:block;
       }
    </style>
   <script src="jschemify.js"></script>
@@ -48,14 +51,14 @@ function render(){
                     .map(l=>JSChemify.Chemical().fromSmiles(l).aromatize())[0];
        c.generateCoordinates().dearomatize();  
  
- 	   testRender(c,ctx,canvas.width,canvas.height);
+       testRender(c,ctx,canvas.width,canvas.height);
 }
 
 function doSearch(){
   var DEPTH=document.getElementById("depth").value-0;
   var met=document.getElementById("stype").value;
   
-	var inputList=document.getElementById("input").value.trim()
+  var inputList=document.getElementById("input").value.trim()
   .split("\n")
   .map(l=>l.trim())
   .filter(l=>l.length>0);
@@ -68,7 +71,7 @@ function doSearch(){
         .map((l,i)=>{
           //Header line
           if(i==0){
-						header=l;
+	    header=l;
             header.map((v,i)=>headerIndex[v.toLowerCase()]=i);
             return null;
           }
@@ -120,13 +123,13 @@ function doSearch(){
   
 </head>  
 <body>
-<div class="panel">
+<div class="panel full">
 <h1>JSChemfiy Example</h1>
 <p>
   This is an interactive example of JSChemify, a "pretty good" basic cheminformatics library written in native javascript.
 </p>
 </div>	
-<div class="panel">
+<div class="panel full">
 <label for="input">Supplied Molecule Set (to be queried) </label>
 <textarea id="input">
 SMILES	Kinetic Solubility (mM)
@@ -277,7 +280,7 @@ CC(=O)CC(c1ccccc1)c1c(O)c2ccccc2oc1=O	407.9
 <div class="panel">
     <canvas id="testCanvas" width=400 height=150></canvas>
 </div>
-<div class="panel">
+<div class="panel full">
 <label for="results">Search Results</label>
 
 <textarea id="results">
