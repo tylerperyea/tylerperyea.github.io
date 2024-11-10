@@ -32,7 +32,7 @@ function testRender(chem, ctx, width, height){
     if(nwidth>(width-pad*2) || nheight>(height-pad*2)){
         scale=Math.min((width-pad*2)/cwidth,(height-pad*2)/cheight);
     }
-    
+    console.log(scale);
     JSChemify.Renderer().render(chem,ctx,pad,pad,scale);
 }
 
