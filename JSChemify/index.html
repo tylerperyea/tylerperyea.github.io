@@ -93,6 +93,7 @@ function doSearch(){
    .map(r=>r.c.toSmiles() + "\t" + r.c.getName()+"\t" + r.c.getProperties(headerProps).join("\t") +"\t"+ r.d)
    .join("\n");
   document.getElementById("results").value=out;
+  render();
 }
 //NCCc1(cnc2(ccccc12))
   </script>
@@ -218,53 +219,51 @@ COc1ccc(CCN(C)CCCC(C#N)(C(C)C)c2ccc(OC)c(OC)c2)cc1OC	104.7
 CC(=O)CC(c1ccccc1)c1c(O)c2ccccc2oc1=O	407.9
 
 </textarea>
-<div>
-<span>
-<div>
-Query
-</div>
-<div>
-<input id="query" value="C1CC(Cl)CCC1">
-</div>
-</span>
-<span>
-<div>
-E-State Vector Depth
-</div>
-<input id="depth" value="2">
-</span>
-<span>
-<div>
-Feature
-</div>
-<input id="feature" value="dsN">
-</span>
-<div>
-Search Type
-</div>
-<select id="stype" >
-<option value="cos">Cosine</option>
-<option value="euc">Euclidean</option>
-</select>
-</span>
+<div class="left-side">
+    <span>
+        <div>
+        Query
+        </div>
+        <div>
+        <input id="query" value="C1CC(Cl)CCC1">
+        </div>
+    </span>
+    <span>
+        <div>
+        E-State Vector Depth
+        </div>
+        <input id="depth" value="2">
+    </span>
+    <span>
+        <div>
+        Feature
+        </div>
+        <input id="feature" value="dsN">
+    </span>
+    <div>
+        Search Type
+    </div>
+    <select id="stype" >
+        <option value="cos">Cosine</option>
+        <option value="euc">Euclidean</option>
+    </select>
 
-<button id="search" onclick="doSearch()">
-Search
-</button>
-<button id="search" onclick="doKNN()">
-Do KNN
-</button>
+    <button id="search" onclick="doSearch()">
+    Search
+    </button>
+    <button onclick="render()">
+    Render Query
+    </button>
 </div>
-
+<div class="right-side">
+    <canvas id="testCanvas" width=300 height=400></canvas>
+</div>
 
 <label for="results">Results</label>
 <textarea id="results">
   
 </textarea>
-<canvas id="testCanvas" width=300 height=400></canvas>
-<button onclick="render()">
-Render
-</button>
+
 
 </body> 
 </html>
