@@ -14,11 +14,11 @@ Refactoring:
 Basic I/O:
 1. CIP designations (R/S)
 2. Read double bond geometry from smiles
-3. InChI parser
+3. [started] InChI parser
 4. [just for fun] WLN parser 
 5. Simplify Smiles
-   5.1. There's a bug where closing parentheses aren't always added
-   5.2. And some exports corrupt the smiles like
+   5.1. [done] There's a bug where closing parentheses aren't always added
+   5.2. [done] And some exports corrupt the smiles like
          CCn1cc(c(=O)c2ccc(nc12)C)C(=O)O
          CCn1(cc(c(=O)c2(ccc(nc(12)C))C(=O)O) 
          CCn1cc(c(=O)c2ccc(nc12)C)C(=O)O 
@@ -36,7 +36,7 @@ Coordinates and Rendering:
  4. Highlight atoms in render
  5. Show atom map numbers in render
  6. Add colors to render
- 8. Get SVG or PNG directly
+ 8. [PNG done] Get SVG or PNG directly
  9. Coordinates: Add explicit hydrogens when 
     it makes sense for stereo
 10. Coordinates: Extend/wiggle colliding atoms 
@@ -45,6 +45,9 @@ Coordinates and Rendering:
 12. Coordinates: Multiple components
 13. Brackets
 14. Coordinates: hex grid rings alignment
+15. Coordinates: bug when 3 substituents follow 
+    4 substituents
+
 
 
 **/
@@ -2160,6 +2163,17 @@ JSChemify.Chemical = function(arg){
     //TODO: consider this, error?
     return -1;
   };
+  //TODO: cache somehow
+  ret.hasCoordinates=function(){
+   return ret.getAtoms().findIndex(a=>(a.getX()||a.getY()))>=0;
+  };
+
+  ret.getPNGPromise=function(width,height,renderer){
+     if(!renderer){
+        renderer=JSChemify.Renderer();
+     }
+     return renderer.getPNGPromise(ret,width,height);
+  };
   ret.getBoundingBox=function(){
     return ret.getAtoms()
           .map(at=>[at.getX(),at.getY(),at.getX(),at.getY()])
@@ -4073,10 +4087,64 @@ JSChemify.Renderer=function(){
     return ret.$dash;
   };
   /**
+     Create a promise of the BAS64 PNG data URL useful for a src tag. Accepts
+     a chemical object, a smiles, a molfile etc. Will generate coordinates
+     if none are present.
+     
+     example usage:
+     JSChemify.Renderer()
+              .getPNGPromise(JSChemify.Chemical("COc1ccccc1OCCNCC(O)COc1cccc2[nH]c3ccccc3c12")
+                             ,150,150).then(u=>{
+                             document.getElementById("myImg").src=u;
+                             });
+  **/ 
+  ret.getPNGPromise = function(chem, maxWidth, maxHeight){
+     //just in case it's not a chemical yet
+     chem=JSChemify.Chemical(chem);
+     if(!chem.hasCoordinates()){
+         chem.generateCoordinates();
+     }
+     
+     const toDataURL = (data) =>
+        new Promise(ok => {
+          const reader = new FileReader();
+          reader.addEventListener('load', () => ok(reader.result));
+          reader.readAsDataURL(data);
+        });
+     const offscreen = new OffscreenCanvas(maxWidth, maxHeight);
+     const ctx=offscreen.getContext("2d");
+     
+     let scale=30; //average bond width in pixels
+     var pad=10;
+     const bbox=chem.getBoundingBox();
+     var cheight=bbox[3]-bbox[1];
+     var cwidth=bbox[2]-bbox[0];
+       
+     var nwidth=cwidth*scale;
+     var nheight=cheight*scale;
+     //rescale to fit
+     if(nwidth>(maxWidth-pad*2) || nheight>(maxHeight-pad*2)){
+         scale=Math.min((maxWidth-pad*2)/cwidth,(maxHeight-pad*2)/cheight);
+     }
+     ret.render(chem,ctx,pad,pad,scale);
+     const blob = offscreen.convertToBlob();
+     return (new Promise(ok=>{
+        blob.then(b=>{
+           toDataURL(b).then(u=>ok(u));
+        });
+     }));
+  };
+  /**
   Render the supplied chem object on the specified context
   at the X,Y coordinates, and scale it by "scale"
   **/
   ret.render = function(chem,ctx,startx,starty,scale){
+         chem=JSChemify.Chemical(chem);
+         //Should we clone first? Maybe better
+         //not to mutate ... IDK
+         if(!chem.hasCoordinates()){
+            chem.generateCoordinates();
+         }
          const rect=chem.getBoundingBox();
          const affine=JSChemify.AffineTransformation()
               .translate(startx,(rect[3]-rect[1])*scale+starty)
@@ -4319,7 +4387,14 @@ JSChemify.Tests=function(){
     console.log("Tests failed:"+failed);
   };
   ret.tests.push(()=>{
-      var chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C");
+    var chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C");
+    ret.assertTrue(!chem1.hasCoordinates(),"first read smiles shouldn't hae coordinates");
+    chem1.generateCoordinates();
+    ret.assertTrue(chem1.hasCoordinates(),"recently generated chem should have coordinates");
+    
+  });
+  ret.tests.push(()=>{
+    var chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C");
     chem1.setProperty("Test",123);
     chem1.setName("test");
     chem1.generateCoordinates();
@@ -4329,7 +4404,6 @@ JSChemify.Tests=function(){
     chem1.aromatize();
     chem1.setProperty("Another", 2);
     ret.assertEquals(oldMol,chem2.toSd());
-    
   });
   ret.tests.push(()=>{
       var wt=JSChemify.Chemical("C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2O)CCC4=CC(=O)CC[C@]34C").getMolWeight();
