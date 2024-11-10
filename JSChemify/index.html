@@ -19,7 +19,7 @@ function testRender(chem, ctx, width, height){
         scale=Math.min(width/nwidth,height/nheight);
     }
     
-	JSChemify.Renderer().render(chem,ctx,10,10,scale);
+    JSChemify.Renderer().render(chem,ctx,10,10,scale);
 }
 
 function render(){
@@ -268,8 +268,9 @@ CC(=O)CC(c1ccccc1)c1c(O)c2ccccc2oc1=O	407.9
 <div class="panel">
     <canvas id="testCanvas" width=400 height=150></canvas>
 </div>
-
+<div>
 <label for="results">Results</label>
+</div>
 <textarea id="results">
   
 </textarea>
