@@ -18,6 +18,10 @@ Basic I/O:
 4. [just for fun] WLN parser 
 5. Simplify Smiles
    5.1. There's a bug where closing parentheses aren't always added
+   5.2. And some exports corrupt the smiles like
+         CCn1cc(c(=O)c2ccc(nc12)C)C(=O)O
+         CCn1(cc(c(=O)c2(ccc(nc(12)C))C(=O)O) 
+         CCn1cc(c(=O)c2ccc(nc12)C)C(=O)O 
 6. [done?] Clone molecule
 7. Split components
 8. Make ring&chain network
@@ -1075,7 +1079,8 @@ JSChemify.Atom = function(){
   };
   
   //will call cb for each subPart
-  ret.$allPathsDepthFirst=function(cb,sofar,verbose,order){
+  ret.$allPathsDepthFirst=function(cb,sofar,verbose,order, forcePop){
+     
     if(!sofar){
         sofar=[{"atom":ret,"bond":null}];
     }
@@ -1095,10 +1100,12 @@ JSChemify.Atom = function(){
       //STOP if return true
       var eva=!cb(sofar,type);
       if(eva){
-        checkBond.atom.$allPathsDepthFirst(cb,sofar,verbose,order);
+        checkBond.atom.$allPathsDepthFirst(cb,sofar,verbose,order,forcePop);
       }
       sofar.pop();
-      if(verbose&&type==="BRANCH"&&eva){
+      if(verbose && type==="BRANCH"
+         && (eva ||forcePop)
+        ){
           cb(sofar,"POP");
       }
     }
@@ -2814,10 +2821,10 @@ JSChemify.Chemical = function(arg){
               });
             }
             //Might be silly
-            if(pBranch===chain.length-3 && (chain[chain.length-2].closeLocant)){
-                chain[chain.length-3]="";
-              chain[chain.length-1]="";
-            }
+            //if(pBranch===chain.length-3 && (chain[chain.length-2].closeLocant)){
+            //    chain[chain.length-3]="";
+            //    chain[chain.length-1]="";
+            //}
             return;
           }
           if(type==="BRANCH"){
@@ -2844,9 +2851,9 @@ JSChemify.Chemical = function(arg){
               chain.push(newAtom);
           }
 
-        },null,true);
+        },null,true,null,true);
         }
-        
+        /*
         for(var li=chain.length-1;li>=0;li--){
           var last = chain[li];
           if((last+"").startsWith("BRANCH_END")){
@@ -2856,7 +2863,7 @@ JSChemify.Chemical = function(arg){
           }else{
               break;
           }
-        }
+        }*/
         chain.filter(cc=>cc.atom).map(ca=>atomsGot[ca.atom.getIndexInParent()]=true);
         
           var ni = atomsGot.findIndex(g=>!g);
@@ -3760,8 +3767,8 @@ JSChemify.SmilesReader=function(){
     return ret;
   };
   ret.addCloseLocant=function(l){
-      if(ret._locantIndex[l-0]){
-            var l1=ret._locantIndex[l-0];
+      if(ret._locantIndex[l-0]>=0){
+        var l1=ret._locantIndex[l-0];
         if(ret._locantBond[l]!=="!!"){
             ret._bondOnDeck=ret._locantBond[l];
             ret._locantBond[l]="!!";
@@ -3940,8 +3947,8 @@ JSChemify.SmilesReader=function(){
       return ret;
   };
   ret.parseCloseLocants=function(){
-          var got1=true;
-          while(got1){
+      var got1=true;
+      while(got1){
         got1=false;
         var m=ret.readNext(/^[%][0-9][0-9]/);
         if(m){
@@ -3994,7 +4001,8 @@ JSChemify.SmilesReader=function(){
   ret.parse=function(smiles, chem){
           ret.setInput(smiles);
       while(!ret.isEnd()){
-      
+         
+         if(ret.isEnd())break;
           //TODO: Handle E/Z
           ret.readNext(/^\\/);
           ret.readNext(/^\//);
@@ -4004,14 +4012,16 @@ JSChemify.SmilesReader=function(){
           ret.readNext(/^\\/);
           ret.readNext(/^\//);
           ret.parseBond();
-        ret.parseLocants();
+          ret.parseLocants();
         
           //TODO: Handle E/Z
           ret.readNext(/^\\/);
           ret.readNext(/^\//);
-        ret.parseBranchOrComponent();
-        ret.parseCloseLocants();
-        ret.parseBranchOrComponent();
+         ret.parseBranchOrComponent();
+         ret.parseCloseLocants();
+         ret.parseBranchOrComponent();
+         ret.parseCloseLocants();
+         ret.parseBranchOrComponent();
       };
       return ret.build(chem);
   };
@@ -4259,8 +4269,16 @@ JSChemify.Tests=function(){
     }
         ret.assertTrue(a.toString()!==b.toString(),msg);
     };
-  
-    ret.assertSameSmiles=function(a,b,msg){
+  ret.assertSameGraphIvariant=function(a,b,msg){
+      if(!msg){
+          msg = "'" + a + "' is not the same graph invariant as " + "'" + b + "'";
+      }
+      let ginv1=JSChemify.Chemical(a).getGraphInvariant();
+      let ginv2=JSChemify.Chemical(b).getGraphInvariant();
+      
+      ret.assertToStringEquals(ginv1,ginv2,msg);
+  };
+  ret.assertSameSmiles=function(a,b,msg){
       if(!msg){
           msg = "'" + a + "' != " + "'" + b + "'";
       }
@@ -4272,7 +4290,7 @@ JSChemify.Tests=function(){
       }
     a=JSChemify.Chemical(a).aromatize();
     b=JSChemify.Chemical(b).aromatize();
-      ret.assertTrue(ret.sameSmiles(a,b),msg);
+    ret.assertTrue(ret.sameSmiles(a,b),msg);
   };
   ret.sameSmiles=function(a,b){
       return JSChemify.Chemical(a).toSmiles()===JSChemify.Chemical(b).toSmiles();
@@ -4324,7 +4342,12 @@ JSChemify.Tests=function(){
     form=JSChemify.Chemical("C").getMolFormula();
       ret.assertEquals("CH4",form);
   });
-  this
+   
+  ret.tests.push(()=>{
+      ret.assertSameGraphIvariant(JSChemify.Chemical("CCn1(cc(c(=O)c2(ccc(nc(1)2)C))C(=O)O)").toSmiles(),
+                         "CCn1(cc(c(=O)c2(ccc(nc(1)2)C))C(=O)O)");
+  });
+   
   ret.tests.push(()=>{
       ret.assertSameSmiles("C(=CC=C1)C(=C1N=2)N(C2)C",
                          "C(=CC=C1)C(=C1N=2)N(C2)C");
