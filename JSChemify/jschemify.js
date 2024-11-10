@@ -4192,7 +4192,7 @@ JSChemify.Renderer=function(){
                 const vec=at.getLeastOccupiedCardinalDirection();
                 nv[0]=nv[0]-vec[0]*ret._letterSpace;
                 nv[1]=nv[1]-vec[1]*ret._letterSpace;
-                const ntext="H";
+                let ntext="H";
                 if(h>1){
                     ntext+=String.fromCodePoint(8320+h);
                   if(vec[0]>0){
