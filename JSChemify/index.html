@@ -21,6 +21,7 @@
     
 function testRender(chem, ctx, width, height){
     var scale=30;
+    var pad=10;
     var bbox=chem.getBoundingBox();
     var cheight=bbox[3]-bbox[1];
     var cwidth=bbox[2]-bbox[0];
@@ -28,11 +29,11 @@ function testRender(chem, ctx, width, height){
     var nwidth=cwidth*scale;
     var nheight=cheight*scale;
     //rescale to fit
-    if(nwidth>width || nheight>height){
-        scale=Math.min(width/nwidth,height/nheight);
+    if(nwidth>(width-pad*2) || nheight>(height-pad*2)){
+        scale=Math.min((width-pad*2)/cwidth,(height-pad*2)/cheight);
     }
     
-    JSChemify.Renderer().render(chem,ctx,10,10,scale);
+    JSChemify.Renderer().render(chem,ctx,pad,pad,scale);
 }
 
 function render(){
