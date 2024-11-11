@@ -98,7 +98,7 @@ function doSearch(){
            .sort((a,b)=>a.d-b.d)
            .map((r,i)=>{
         	   if(i===0){
-        		   r.c.getPNGPromise().then(u=>{
+        		   r.c.clone().dearomatize().getPNGPromise().then(u=>{
         		 	document.getElementById("nearestImg").src=u;
         	       	   });
         	   }
@@ -117,7 +117,7 @@ function doSearch(){
 <div class="panel full">
 <h1>JSChemfiy Example</h1>
 <p>
-  This is an interactive example of JSChemify, a "pretty good" basic cheminformatics library written in native javascript.
+  This is an interactive example of JSChemify, a "pretty okay" basic cheminformatics library written in native javascript.
 </p>
 </div>	
 <div class="panel full">
