@@ -1145,6 +1145,9 @@ JSChemify.Atom = function(){
     var z= line.substr(20,10).trim()-0;
     var symbol= line.substr(31,3).trim();
     var charge= line.substr(37,3).trim();
+
+     //TODO: read parity, isotope, atom map, radical
+     
     if(charge && charge!=="0"){
         ret.setCharge(-(charge-4));
     }
@@ -1422,11 +1425,11 @@ JSChemify.Chemical = function(arg){
   };
   
   ret.getPropertiesSD=function(keys){
-      if(!keys){
+    if(!keys){
         keys=ret.getPropertyKeys().sort();
     }
     if(!keys)return "";
-    return keys.map(k=>"> <" + k + ">\n" +ret.getProperty(k) + "\n");
+    return keys.map(k=>"> <" + k + ">\n" +ret.getProperty(k) + "\n").join("\n");
     
   };
   ret.$$doRings=function(){
@@ -2755,17 +2758,72 @@ JSChemify.Chemical = function(arg){
   };
   
   ret.fromMol=function(line){
-      var lines= line.split("\n");
+    var lines= line.split("\n");
     var acount=lines[3].substr(0,3).trim()-0;
     var bcount=lines[3].substr(3,3).trim()-0;
-    for(var i=0;i<acount;i++){
+    let cursor=0;
+    for(let i=0;i<acount;i++){
         ret.addNewAtom("A").fromMolLine(lines[3+i+1]);
     }
-    for(var i=0;i<bcount;i++){
+    for(let i=0;i<bcount;i++){
         ret.addNewBond(0,0,0,0).fromMolLine(lines[3+acount+i+1]);
     }
+    cursor=3+acount+bcount+1;
+    for(;cursor<lines.length;cursor++){
+      let line=lines[cursor];
+      let m=/M[ ][ ]END/y.exec(line);
+      if(m){
+         cursor++;
+         break;
+      }
+      //"M  CHG  2  11  -1  21   1"
+      let mline=/M[ ][ ]([A-Z][A-Z][A-Z])[ ]*([0-9][0-9]*)(.*)/y.exec(line);
+      if(mline){
+            let mtype=mline[1];
+            let mcount=mline[2];
+            let mvals=mline[3];
+            for(let k=0;k<mvals.length;k+=8){
+               var at=mvals.substr(k,4).trim()-0;
+               var val=mvals.substr(k+4,4).trim()-0;
+               if(mtype==="CHG"){
+                  ret.getAtom(at-1).setCharge(val);
+               }else if(mtype==="ISO"){
+                  ret.getAtom(at-1).setIsotope(val);
+               }
+            }
+      }
+    }
+    ret.readSDProperties(lines,cursor);
     return ret;
     
+  };
+  ret.readSDProperties=function(lines, start){
+    let cprop=null;
+    let cvals=[];
+    if(!start)start=0;
+    for(let i=start;i<lines.length;i++){
+         let line=lines[i].trim();
+         let m = />([^<]*)[<]([^>]*)[>]/y.exec(line); 
+         if(m){
+            if(cprop){
+               ret.setProperty(cprop,cvals.join("\n"));
+            }
+            cprop=m[2];
+            cvals=[];
+         }else{
+            let m = /$$$$/y.exec(line);
+            if(!m){
+               if(line.length>0){
+                  cvals.push(line);
+               }
+            }else{
+               if(cprop){
+                  ret.setProperty(cprop,cvals.join("\n"));
+               }
+            }
+         }
+    }
+    return ret;
   };
   
   ret.toMol=function(){
@@ -4090,6 +4148,92 @@ JSChemify.SmilesReader=function(){
   return ret;
   
 };
+
+
+/*******************************
+/* ChemicalCollection
+/*******************************
+Status: NOT IMPLEMENTED
+   
+   
+*******************************/
+JSChemify.ChemicalCollection=function(){
+   const ret={};
+   ret._chems=[];
+   ret._properties={};
+
+   ret.addChemical=function(c){
+      c=JSChemify.Chemical(c);
+      c.getPropertyKeys().map(k=>{
+        var old=ret._properties[k];
+        if(!old){
+           old={count:0}; 
+           ret._properties[k]=old;
+        }
+        old.count++;
+      });
+      ret._chems.push(c);
+      return ret;
+   };
+   ret.getChems=function(){
+      return ret._chems;
+   };
+   ret.toSDFBuilder=function(){
+      let builder={};
+      builder._generateCoordinates=false;
+      builder._map=null;
+      builder.map=function(m){
+         if(m)builder._map=m;
+         return builder;
+      };
+      builder.generateCoordinates=function(b){
+         if(typeof b === "undefined"){
+            b=true;
+         }
+         builder._generateCoordinates=b;
+         return builder;
+      };
+      builder.build=function(){
+         var chems= ret.getChems()
+         if(builder._map){
+            chems=chems.map(builder._map);
+         }
+         return chems.map(c=>{
+            if(builder._map){
+               c=builder._map(c);
+            }
+            return c.toSd();
+         }).join("");
+      };
+      return builder;
+   };
+   ret.toSDF=function(){
+      return ret.toSDFBuilder().build();
+   };
+   ret.search=function(q){
+      //TODO
+   };
+   
+   
+
+   return ret;
+};
+
+/*******************************
+/* SVGContext
+/*******************************
+Status: Working
+
+Emulates a 2D context for a canvas
+so that we can make an SVG directly
+
+TODO: 
+1. Compress with
+   1.1. CSS
+   1.2. Consolidated paths
+   
+   
+*******************************/
 JSChemify.SVGContext=function(width, height){
    let ret={};
    ret._width=width;
@@ -4187,8 +4331,24 @@ JSChemify.SVGContext=function(width, height){
 */
    return ret;
 };
+
+/*******************************
+/* Renderer
+/*******************************
+Status: Working
+
+Renders a chemical onto a context/canvas
+based on certain parameters.
+
+TODO: 
+1. Highlight support
+2. Fix sizing issue
+3. Improve how you can modify
+   the display settings
+   
+*******************************/
 JSChemify.Renderer=function(){
-    var ret={};
+  var ret={};
   
   ret._labelSize=0.50;
   ret._cleareRad=1.9;
@@ -4562,6 +4722,23 @@ JSChemify.Tests=function(){
     console.log("Tests passed:"+passed);
     console.log("Tests failed:"+failed);
   };
+   //JSChemify.Chemical(JSChemify.Chemical("C").setProperty("abc", "val1\nval2").toSd()).toSd()
+   
+  ret.tests.push(()=>{
+    
+    let propChem=JSChemify.Chemical(JSChemify.Chemical("C")
+                                             .setProperty("abc", "val1\nval2")
+                                             .setProperty("def", "okay")
+                                             .toSd());
+     
+    ret.assertEquals(propChem.getProperty("abc"),"val1\nval2");
+    ret.assertEquals(propChem.getProperty("def"),"okay");
+  });
+  ret.tests.push(()=>{
+    var osmi= "[11CH2+2]";
+    var nsmi=JSChemify.Chemical(JSChemify.Chemical(osmi).toSd()).toSmiles();
+    ret.assertEquals(osmi,nsmi);
+  });
   ret.tests.push(()=>{
     var chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C.CCCC.O");
     var split=chem1.getComponents();
