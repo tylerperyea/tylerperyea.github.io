@@ -36,7 +36,7 @@ Coordinates and Rendering:
  4. Highlight atoms in render
  5. Show atom map numbers in render
  6. Add colors to render
- 8. [PNG done] Get SVG or PNG directly
+ 8. [done] Get SVG or PNG directly
  9. Coordinates: Add explicit hydrogens when 
     it makes sense for stereo
 10. Coordinates: Extend/wiggle colliding atoms 
