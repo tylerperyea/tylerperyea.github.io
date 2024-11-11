@@ -1395,9 +1395,10 @@ JSChemify.Chemical = function(arg){
   ret._atoms=[];
   ret._bonds=[];
   ret._name=null;
-  ret._bondTypes=null;
+  ret.$bondTypes=null;
+  ret.$atomComponentTypes=null;
   ret._rings=null;
-  ret._atomDistances=null;
+  ret.$atomDistances=null;
   ret._properties={};
   
   
@@ -2185,6 +2186,42 @@ JSChemify.Chemical = function(arg){
         return a;
           });
   };
+  ret.getComponents=function(){
+      let cats= ret.getAtomsInComponents();
+      return cats.map(carr=>{
+         let bonds=JSChemify.Util.distinct(carr.flatMap(at=>at.getBonds()));
+         let chem =JSChemify.Chemical();
+         var oAmap=[];
+         carr.map(at=>{
+            var natom= chem.addAtom(at.clone());
+            oAmap[at.getIndexInParent()]=natom;
+         });
+         bonds.map(bd=>{
+            var bbond= bd.clone();
+            bbond._atom1=oAmap[bd._atom1.getIndexInParent()];
+            bbond._atom2=oAmap[bd._atom2.getIndexInParent()];
+            
+            chem.addBond(bbond);
+         });
+         return chem;
+      });
+  };
+  ret.getAtomsInComponents=function(){
+      if(!ret.$atomComponentTypes){
+         //force the generation of
+         //stuff
+         ret.getRings();
+      }
+     var cAtoms=[];
+     ret.$atomComponentTypes.map((c,i)=>{
+         var cInd=c-1;
+         if(!cAtoms[cInd]){
+            cAtoms[cInd]=[];
+         }
+         cAtoms[cInd].push(ret.getAtom(i));
+     });
+     return cAtoms;
+  };
   ret.getBonds=function(){
       return ret._bonds;
   };
@@ -2237,29 +2274,10 @@ JSChemify.Chemical = function(arg){
     return {"index": ib, "bond":b};
   };
   
-  //TODO: Experimental labelling algo
-  ret._removeAllFoliage=function(stopList){
-          var removedBonds = [];
-      var nbonds =[];
-      if(!stopList){
-          stopList=[];
-      }
-      
-      var tbonds = ret.getBonds().filter(b=>b.isTerminal()&&stopList.indexOf(b)<0);
-      while(tbonds.length>0){
-        var nbonds = tbonds.flatMap(tb=>tb.getNeighborAtomsAndBonds())
-                            .map(tb=>tb.bond)
-                            .filter(tb=>tbonds.indexOf(tb)<0);                
-
-        tbonds.map(b=>ret.removeBond(b)).map(tb=>removedBonds.push(tb));
-        tbonds=nbonds.filter(nb=>nb.isTerminal() && stopList.indexOf(b)<0);
-        tbonds=JSChemify.distinct(tbonds);
-      }
-      return removedBonds;
-  };
   ret.$markDirty=function(){
-      ret._bondTypes=null;
-    ret._atomDistances=null;
+    ret.$bondTypes=null;
+    ret.$atomComponentTypes=null;
+    ret.$atomDistances=null;
     ret._rings=null;
     ret.$graphInvarient=null;
     ret.$$dirty++;
@@ -2415,7 +2433,7 @@ JSChemify.Chemical = function(arg){
   ret.isRingBond=function(bd){
       var bidx=bd.getIndexInParent();
     ret.$detectRings();
-    if(ret._bondTypes[bidx]==="RING"){
+    if(ret.$bondTypes[bidx]==="RING"){
         return true;
     }
     return false;
@@ -2425,14 +2443,14 @@ JSChemify.Chemical = function(arg){
       var ai2=atom1.getIndexInParent();
       ret.$calculateDistances();
      
-      var sDist= ret._atomDistances[ai1][ai2];
+      var sDist= ret.$atomDistances[ai1][ai2];
       if(sDist>=0)return sDist;
       return -1;
   };
   ret.getNeighborAtomsAtDistance=function(atom,d){
       var ai1=atom.getIndexInParent();
     ret.$calculateDistances();
-    return ret._atomDistances[ai1].map((d,i)=>[d,i]).filter(dd=>dd[0]===d).map(di=>ret.getAtom(di[1]));
+    return ret.$atomDistances[ai1].map((d,i)=>[d,i]).filter(dd=>dd[0]===d).map(di=>ret.getAtom(di[1]));
     
   }
   ret.getConnectivityIndexSGeo = function(order){
@@ -2537,7 +2555,7 @@ JSChemify.Chemical = function(arg){
   };
   ret.$calculateDistances = function(){
     var MAX_DISTANCE=20;
-      if(ret._atomDistances)return ret;
+      if(ret.$atomDistances)return ret;
     var soFar=[];
     var shortest=[];
     for(var i=0;i<ret._atoms.length;i++){
@@ -2557,21 +2575,23 @@ JSChemify.Chemical = function(arg){
         soFar[i][d+1]=newIndexes;
       }
     }
-    ret._atomDistances=shortest;
+    ret.$atomDistances=shortest;
     return ret;
     
   };
   ret.$detectRings = function(){
-          if(ret._bondTypes)return ret;
+          if(ret.$bondTypes)return ret;
       
           for(var i=0;i<ret._bonds.length;i++){
           ret._bonds[i]._idx=i;
       }
-          var bTypes=[];
+      var bTypes=[];
+      var aTypes=[];
       var assigned=0;
       var rings={};
       
       var remainingBonds = ret._bonds.filter(b=>!bTypes[b._idx]);
+      var comp=1;
       while(remainingBonds.length>0){
         var startAtom = remainingBonds[0].getAtoms()[0];
         
@@ -2588,6 +2608,8 @@ JSChemify.Chemical = function(arg){
               }
               nring.push(pnode);
               bTypes[pnode._idx]="RING";
+              aTypes[pnode._atom1.getIndexInParent()]=comp;
+              aTypes[pnode._atom2.getIndexInParent()]=comp;
             }
             var cRing=JSChemify.Ring(nring).canonicalize();
             rings[cRing.toString()]=cRing;
@@ -2596,13 +2618,23 @@ JSChemify.Chemical = function(arg){
           }else{
                if(!bTypes[lbond.bond._idx]){
                 bTypes[lbond.bond._idx]="CHAIN";
+                aTypes[lbond.bond._atom1.getIndexInParent()]=comp;
+                aTypes[lbond.bond._atom2.getIndexInParent()]=comp;
               assigned++;
             }
           }
         });
-          remainingBonds = ret._bonds.filter(b=>!bTypes[b._idx]);
+        remainingBonds = ret._bonds.filter(b=>!bTypes[b._idx]);
+        comp++;
       }
-      ret._bondTypes=bTypes;
+      ret.getAtoms().map((a,i)=>{
+         if(!aTypes[i]){
+            aTypes[i]=comp;
+            comp++;
+         }
+      });
+      ret.$bondTypes=bTypes;
+      ret.$atomComponentTypes=aTypes;
       ret._rings=Object.values(rings);
       return ret;
       
@@ -2645,7 +2677,7 @@ JSChemify.Chemical = function(arg){
   };
   ret.isBondInRing=function(bd){
          ret.$detectRings();
-    return ret._bondTypes[bd.getIndexInParent()]==="RING"; 
+    return ret.$bondTypes[bd.getIndexInParent()]==="RING"; 
   };
   
   ret.addAtom = function(at){
@@ -2659,8 +2691,8 @@ JSChemify.Chemical = function(arg){
   };
   
   ret.addBond = function(bd){
-      if(JSChemify.Util.isBond(bd)){
-        ret._bonds.push(bd);
+    if(JSChemify.Util.isBond(bd)){
+      ret._bonds.push(bd);
       bd.setParent(ret);
     }
     ret.$markDirty();
@@ -4111,21 +4143,38 @@ JSChemify.Renderer=function(){
           reader.addEventListener('load', () => ok(reader.result));
           reader.readAsDataURL(data);
         });
-     const offscreen = new OffscreenCanvas(maxWidth, maxHeight);
-     const ctx=offscreen.getContext("2d");
      
      let scale=30; //average bond width in pixels
      var pad=10;
      const bbox=chem.getBoundingBox();
+     //make room for some letters and 
+     //stuff
+     //TODO: improve this
+     bbox[0]=bbox[0]-1;
+     bbox[1]=bbox[1]-1;
+     bbox[2]=bbox[2]+1;
+     bbox[3]=bbox[3]+1;
      var cheight=bbox[3]-bbox[1];
      var cwidth=bbox[2]-bbox[0];
        
      var nwidth=cwidth*scale;
      var nheight=cheight*scale;
+     
+     if(!maxWidth){
+        maxWidth=Math.ceil(nwidth+pad*2);
+     }
+     
+     if(!maxHeight){
+        maxHeight=Math.ceil(nheight+pad*2);
+     }
      //rescale to fit
      if(nwidth>(maxWidth-pad*2) || nheight>(maxHeight-pad*2)){
          scale=Math.min((maxWidth-pad*2)/cwidth,(maxHeight-pad*2)/cheight);
      }
+     
+     
+     const offscreen = new OffscreenCanvas(maxWidth, maxHeight);
+     const ctx=offscreen.getContext("2d");
      ret.render(chem,ctx,pad,pad,scale);
      const blob = offscreen.convertToBlob();
      return (new Promise(ok=>{
@@ -4386,6 +4435,14 @@ JSChemify.Tests=function(){
     console.log("Tests passed:"+passed);
     console.log("Tests failed:"+failed);
   };
+  ret.tests.push(()=>{
+    var chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C.CCCC.O");
+    var split=chem1.getComponents();
+    ret.assertTrue(split.length===3,"split components should have 3 chemicals if 3 molecules");
+    var splitSmiles=split.map(cc=>cc.toSmiles()).join(".");
+    var oSmiles=chem1.toSmiles();
+    ret.assertEquals(splitSmiles,oSmiles);
+  });
   ret.tests.push(()=>{
     var chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C");
     ret.assertTrue(!chem1.hasCoordinates(),"first read smiles shouldn't hae coordinates");
