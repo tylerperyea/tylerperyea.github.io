@@ -678,7 +678,7 @@ JSChemify.Atom = function(){
   ret._x=0;
   ret._y=0;
   ret._z=0;
-  ret.parity=0; //for these purposes, 
+  ret._parity=0; //for these purposes, 
                              //1 means that the constituents, travelling
                 //in entered bond sequence, if CCW, for the first
                 //3, would receive a wedge bond to the second
@@ -691,7 +691,7 @@ JSChemify.Atom = function(){
   
   
   ret.clone=function(){
-      var nat=JSChemify.Atom();
+    var nat=JSChemify.Atom();
     nat._symbol=ret._symbol;
     nat._charge=ret._charge;
     nat._isotope=ret._isotope;
@@ -701,12 +701,12 @@ JSChemify.Atom = function(){
     nat._x=ret._x;
     nat._y=ret._y;
     nat._z=ret._z;
-    nat._parity=ret._parity;this
+    nat._parity=ret._parity;
     return nat;
   };
   
   ret.setSymbol=function(s){
-      ret._symbol=s;
+    ret._symbol=s;
     return ret;
   },
   ret.setMap=function(m){
@@ -720,17 +720,17 @@ JSChemify.Atom = function(){
       return ret._charge;
   };
   ret.setParity=function(s){
-    ret.parity=s;
+    ret._parity=s;
     return ret;
   };
   ret.swapParity=function(){
-      if(ret.parity>0){
-          ret.parity=ret.parity%2+1;
+      if(ret._parity>0){
+          ret._parity=ret._parity%2+1;
       }
     return ret;
   };
   ret.getParity=function(){
-    return ret.parity;
+    return ret._parity;
   };
   ret.getGraphInvariantMarker=function(){
       return ret.getParent().getGraphInvariant()[ret.getIndexInParent()];
