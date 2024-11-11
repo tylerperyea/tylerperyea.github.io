@@ -23,11 +23,12 @@ Basic I/O:
          CCn1(cc(c(=O)c2(ccc(nc(12)C))C(=O)O) 
          CCn1cc(c(=O)c2ccc(nc12)C)C(=O)O 
 6. [done?] Clone molecule
-7. Split components
+7. [done] Split components
 8. Make ring&chain network
 9. SMARTS/query support
 10. [done] Molform and weight
-
+11. [done] Basic SDF/Smiles file reader into collection
+12. Spreadsheet support?
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -47,6 +48,8 @@ Coordinates and Rendering:
 14. Coordinates: hex grid rings alignment
 15. Coordinates: bug when 3 substituents follow 
     4 substituents
+16. Coordinates: overlapping bonds issue
+
 
 
 
