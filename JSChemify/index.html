@@ -31,8 +31,8 @@ function render(){
               .slice(0,1)
                     .map(l=>JSChemify.Chemical().fromSmiles(l).aromatize())[0];
        c.generateCoordinates().dearomatize();  
-       c.getPNGPromise().then(u=>{
-	 document.getElementById("queryImg").src=u;
+       c.getSVGPromise().then(u=>{
+	 document.getElementById("queryImg").innerHTML=u;
        });
 }
 
@@ -98,8 +98,8 @@ function doSearch(){
            .sort((a,b)=>a.d-b.d)
            .map((r,i)=>{
         	   if(i===0){
-        		   r.c.dearomatize().getPNGPromise().then(u=>{
-        		 	document.getElementById("nearestImg").src=u;
+        		   r.c.dearomatize().getSVGPromise().then(u=>{
+        		 	document.getElementById("nearestImg").innerHTML=u;
         	       	   });
         	   }
         	   return r;
@@ -270,14 +270,12 @@ CC(=O)CC(c1ccccc1)c1c(O)c2ccccc2oc1=O	407.9
 </div>
 <div class="panel">
     <div>Query</div>
-    <div>
-    	<img id="queryImg">
+    <div id="queryImg">
     </div>
 </div>
 <div class="panel">
     <div>Nearest Neighbor</div>
-    <div>
-    	<img id="nearestImg">
+    <div id="nearestImg">
     </div>
 </div>
 <div class="panel full">
