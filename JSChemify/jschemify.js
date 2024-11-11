@@ -69,7 +69,7 @@ TODO:
    
 *******************************/
 JSChemify.BaseVectors=function(){
-    const ret={};
+  const ret={};
   ret.upDiag=[Math.cos(Math.PI/4),Math.sin(Math.PI/4)];
   ret.downDiag=[ret.upDiag[0],-ret.upDiag[1]];
   ret.up=[Math.cos(Math.PI/3),Math.sin(Math.PI/3)];
@@ -2756,19 +2756,25 @@ JSChemify.Chemical = function(arg){
     });
     return JSChemify.EState(vec);
   };
-  
-  ret.fromMol=function(line){
-    var lines= line.split("\n");
+  ret.fromMol=function(lines,start){
+      return ret.readNextMol(lines,start).chem;
+  };
+  ret.readNextMol=function(lines,start){
+    if(!Array.isArray(lines)){
+         lines= lines.split("\n");
+    }
+    if(!start)start=0;
+    
     var acount=lines[3].substr(0,3).trim()-0;
     var bcount=lines[3].substr(3,3).trim()-0;
-    let cursor=0;
+    let cursor=start;
     for(let i=0;i<acount;i++){
-        ret.addNewAtom("A").fromMolLine(lines[3+i+1]);
+        ret.addNewAtom("A").fromMolLine(lines[3+i+1+cursor]);
     }
     for(let i=0;i<bcount;i++){
-        ret.addNewBond(0,0,0,0).fromMolLine(lines[3+acount+i+1]);
+        ret.addNewBond(0,0,0,0).fromMolLine(lines[3+acount+i+1+cursor]);
     }
-    cursor=3+acount+bcount+1;
+    cursor=3+acount+bcount+1+cursor;
     for(;cursor<lines.length;cursor++){
       let line=lines[cursor];
       let m=/M[ ][ ]END/y.exec(line);
@@ -2793,14 +2799,14 @@ JSChemify.Chemical = function(arg){
             }
       }
     }
-    ret.readSDProperties(lines,cursor);
-    return ret;
-    
+    let cend= ret.readSDProperties(lines,cursor).cursor;
+    return {cursor:cend,chem:ret};
   };
   ret.readSDProperties=function(lines, start){
     let cprop=null;
     let cvals=[];
     if(!start)start=0;
+    let cursor=lines.length;
     for(let i=start;i<lines.length;i++){
          let line=lines[i].trim();
          let m = />([^<]*)[<]([^>]*)[>]/y.exec(line); 
@@ -2811,7 +2817,7 @@ JSChemify.Chemical = function(arg){
             cprop=m[2];
             cvals=[];
          }else{
-            let m = /$$$$/y.exec(line);
+            let m = /\$\$\$\$/y.exec(line);
             if(!m){
                if(line.length>0){
                   cvals.push(line);
@@ -2820,10 +2826,12 @@ JSChemify.Chemical = function(arg){
                if(cprop){
                   ret.setProperty(cprop,cvals.join("\n"));
                }
+               cursor=i+1;
+               break;
             }
          }
     }
-    return ret;
+    return {"cursor": cursor, "chem": ret};
   };
   
   ret.toMol=function(){
@@ -4161,15 +4169,23 @@ JSChemify.ChemicalCollection=function(){
    const ret={};
    ret._chems=[];
    ret._properties={};
+   ret._propertyOrder=[];
+   ret._inputStandardizer=null;
+   
 
    ret.addChemical=function(c){
       c=JSChemify.Chemical(c);
+      if(ret._inputStandardizer){
+         c=ret._inputStandardizer(c);
+      }
       c.getPropertyKeys().map(k=>{
         var old=ret._properties[k];
         if(!old){
-           old={count:0}; 
+           old={count:0, order:ret._propertyOrder.length};
+           ret._propertyOrder.push(k);
            ret._properties[k]=old;
         }
+        //TODO:some stats
         old.count++;
       });
       ret._chems.push(c);
@@ -4178,12 +4194,107 @@ JSChemify.ChemicalCollection=function(){
    ret.getChems=function(){
       return ret._chems;
    };
+   
+   ret.setInputStandardizer=function(s){
+      ret._inputStandardizer=s;
+      return ret;
+   };
+   ret.fromSD=function(inputList){
+      if(!Array.isArray(inputList)){
+         inputList=inputList.split("\n");
+      }
+      let cursor=0;
+      while(cursor<inputList.length){
+         let parsed = JSChemify.Chemical()
+                             .readNextMol(inputList,cursor);
+         ret.addChemical(parsed.chem);
+         cursor=parsed.cursor;
+      }
+      return ret;
+   };
+   ret.fromSmilesFile=function(inputList){
+       if(!Array.isArray(inputList)){
+         inputList=inputList.split("\n");
+       }
+       let header=null;
+       let headerIndex={};
+       inputList
+        .map(l=>l.split("\t"))
+        .map((l,i)=>{
+          //Header line
+          if(i==0){
+	         header=l;
+            header.map((v,i)=>headerIndex[v.toLowerCase()]=i);
+            return null;
+          }
+          var name=i;
+          var smiles=l[0];
+          if(headerIndex["name"]>=0){
+          	name=l[headerIndex["name"]];
+          }
+          if(headerIndex["smiles"]>=0){
+          	smiles=l[headerIndex["smiles"]];
+          }
+          var chem= JSChemify.Chemical().fromSmiles(smiles).setName(name);
+          
+          for(var i=0;i<header.length;i++){
+          	if(header[i].toLowerCase()==="smiles" || header[i].toLowerCase()==="name")continue;
+            chem.setProperty(header[i],l[i]);
+          }
+          ret.addChemical(chem);
+          return chem;
+        })
+        .filter(f=>f!=null);
+      
+      return ret;
+   };
+   ret.computeNewProperty=function(prop, calc){
+      ret.getChems().map(c=>{
+         c.setProperty(prop,calc(c));
+      });
+      return ret;
+   };
+   ret.toSmilesFileBuilder=function(){
+      let builder={};
+      builder._map=null;
+      builder.map=function(m){
+         if(m){
+            if(builder._map){
+               let omap=builder._map;
+               builder._map=((c)=>m(omap(c)));
+            }else{
+               builder._map=m;
+            }
+         }
+         return builder;
+      };
+      builder.build=function(){
+         
+         var chems= ret.getChems();
+         if(builder._map){
+            chems=chems.map(builder._map);
+         }
+         //TODO: need to think about computed properties
+         var header="SMILES\tName\t"+ret._propertyOrder.join("\t");
+         return header + "\n" + chems.map(c=>{
+            return c.toSmiles()  + "\t" + c.getName()+"\t" + c.getProperties(ret._propertyOrder).join("\t");
+         }).join("\n");
+      };
+      return builder;
+   };
    ret.toSDFBuilder=function(){
       let builder={};
       builder._generateCoordinates=false;
       builder._map=null;
       builder.map=function(m){
-         if(m)builder._map=m;
+         if(m){
+            if(builder._map){
+               let omap=builder._map;
+               builder._map=((c)=>m(omap(c)));
+            }else{
+               builder._map=m;
+            }
+         }
          return builder;
       };
       builder.generateCoordinates=function(b){
@@ -4194,22 +4305,26 @@ JSChemify.ChemicalCollection=function(){
          return builder;
       };
       builder.build=function(){
-         var chems= ret.getChems()
+         var chems= ret.getChems();
          if(builder._map){
             chems=chems.map(builder._map);
          }
          return chems.map(c=>{
-            if(builder._map){
-               c=builder._map(c);
+            if(builder._generateCoordinates){
+              c.generateCoordinates();
             }
             return c.toSd();
-         }).join("");
+         }).join("\n");
       };
       return builder;
    };
    ret.toSDF=function(){
       return ret.toSDFBuilder().build();
    };
+   ret.toSmilesFile=function(){
+      return ret.toSmilesFileBuilder().build();
+   };
+   
    ret.search=function(q){
       //TODO
    };
