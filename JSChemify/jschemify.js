@@ -2175,6 +2175,13 @@ JSChemify.Chemical = function(arg){
      }
      return renderer.getPNGPromise(ret,width,height);
   };
+  ret.getSVGPromise=function(width,height,renderer){
+     if(!renderer){
+        renderer=JSChemify.Renderer();
+     }
+     return renderer.getSVGPromise(ret,width,height);
+  };
+   
   ret.getSVG=function(width,height,renderer){
      if(!renderer){
         renderer=JSChemify.Renderer();
