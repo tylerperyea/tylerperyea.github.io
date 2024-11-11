@@ -68,7 +68,7 @@ function doSearch(){
           var chem= JSChemify.Chemical().fromSmiles(smiles).aromatize().setName(name);
           for(var i=0;i<header.length;i++){
           	if(header[i].toLowerCase()==="smiles" || header[i].toLowerCase()==="name")continue;
-            chem.setProperty(header[i],l[i]);
+            	chem.setProperty(header[i],l[i]);
           }
           return chem;
         })
@@ -98,7 +98,7 @@ function doSearch(){
            .sort((a,b)=>a.d-b.d)
            .map((r,i)=>{
         	   if(i===0){
-        		   r.c.clone().dearomatize().getPNGPromise().then(u=>{
+        		   r.c.dearomatize().getPNGPromise().then(u=>{
         		 	document.getElementById("nearestImg").src=u;
         	       	   });
         	   }
