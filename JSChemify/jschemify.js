@@ -2175,6 +2175,12 @@ JSChemify.Chemical = function(arg){
      }
      return renderer.getPNGPromise(ret,width,height);
   };
+  ret.getSVG=function(width,height,renderer){
+     if(!renderer){
+        renderer=JSChemify.Renderer();
+     }
+     return renderer.getSVG(ret,width,height);
+  };
   ret.getBoundingBox=function(){
     return ret.getAtoms()
           .map(at=>[at.getX(),at.getY(),at.getX(),at.getY()])
@@ -4075,7 +4081,104 @@ JSChemify.SmilesReader=function(){
   return ret;
   
 };
+JSChemify.SVGContext=function(width, height){
+   let ret={};
+   ret._width=width;
+   ret._height=height;
+   ret._components=[];
+   ret._path=[];
+   ret._cursor=["M",0,0];
+   ret._closed=false;
 
+   ret.lineWidth=1;
+   ret.font = "8pt sans";
+   ret.fillStyle = "black";
+   ret.strokeStyle = "black";
+
+   ret.measureText=function(v){
+      //Hacky
+      var size= (/[0-9]*/y.exec(ret.font.trim())[0])-0;
+      return {width:(size)*10.8/15};
+   };
+   ret.beginPath=function(){
+      //TODO: what do we do here?
+      ret._path=[];
+      ret._closed=false;
+      return ret;
+   };
+   ret.closePath=function(){
+      ret._closed=true;
+      return ret;
+   };
+   ret.moveTo=function(x,y){
+      //I think it should just make a new
+      //path?
+      ret._cursor=[x,y];
+      ret._path.push(["M",x,y]);
+      return ret;
+   };
+   ret.lineTo=function(x,y){
+      let line=["L",x,y];
+      ret._cursor=[x,y];
+      ret._path.push(line);
+      return ret;
+   };
+   ret.stroke=function(){
+      //<path d="M150 0 L75 200 L225 200 Z" style="fill:none;stroke:green;stroke-width:3" />
+      var p = ret._path.map(pp=>pp.join(" ")).join(" ");
+      if(ret._closed){
+         p+=" Z";
+      }
+      p="<path d=\"" + p + "\" style=\"fill:none;stroke:" + ret.strokeStyle +
+            ";stroke-width:" + ret.lineWidth + "\" />";
+          
+      ret._components.push(p);
+      return ret;
+   };
+   ret.arc=function(cx,cy,rad,startAng,endAng){
+      //ret.fillStyle="red";
+      //
+      //        ctx.arc(loc[0], loc[1], cleareRad, 0, 2 * Math.PI);
+      cx=cx-rad*0.7;
+      cy=cy-rad*0.7;
+      ret.moveTo(cx,cy);
+      //A 100 100 0 1 0 100 122
+      var nudge=rad/1000;
+      ret._path.push(["A", rad,rad,0,1,0,cx+nudge,cy-nudge, "Z"]);
+      return ret;
+   };
+   
+   ret.fill=function(){
+      //<path d="M150 0 L75 200 L225 200 Z" style="fill:none;stroke:green;stroke-width:3" />
+      var p = ret._path.map(pp=>pp.join(" ")).join(" ");
+      if(ret._closed){
+         p+=" Z";
+      }
+      p="<path d=\"" + p + "\" style=\"fill:" + ret.fillStyle + ";stroke:none\" />";
+          
+      ret._components.push(p);
+      return ret;
+   };
+   ret.fillText=function(txt,x,y){
+      var pelm = '<text x="' + x + '" y="' + y + '" style="font: ' + ret.font +';fill: ' +ret.fillStyle + ';">' + txt + '</text>';
+      ret._components.push(pelm);
+      return ret;
+   };
+   ret.toSVG=function(){
+      var insert=ret._components.join("\n");
+      console.log(insert);
+      return `<svg height="` + ret._width + `" width="`+ ret._height +`" xmlns="http://www.w3.org/2000/svg">` 
+         + insert
+         +`</svg>`;
+   };
+/*
+<svg height="200" width="300" xmlns="http://www.w3.org/2000/svg">
+  <line x1="0" y1="0" x2="300" y2="200" style="stroke:red;stroke-width:2" />
+  <polygon points="100,10 150,190 50,190" style="fill:lime;stroke:purple;stroke-width:3" />
+</svg>
+*/
+   return ret;
+};
 JSChemify.Renderer=function(){
     var ret={};
   
@@ -4118,32 +4221,11 @@ JSChemify.Renderer=function(){
     }
     return ret.$dash;
   };
-  /**
-     Create a promise of the BAS64 PNG data URL useful for a src tag. Accepts
-     a chemical object, a smiles, a molfile etc. Will generate coordinates
-     if none are present.
-     
-     example usage:
-     JSChemify.Renderer()
-              .getPNGPromise(JSChemify.Chemical("COc1ccccc1OCCNCC(O)COc1cccc2[nH]c3ccccc3c12")
-                             ,150,150).then(u=>{
-                             document.getElementById("myImg").src=u;
-                             });
-  **/ 
-  ret.getPNGPromise = function(chem, maxWidth, maxHeight){
-     //just in case it's not a chemical yet
+  ret.getImageDimensions=function(chem,maxWidth,maxHeight){
      chem=JSChemify.Chemical(chem);
      if(!chem.hasCoordinates()){
          chem.generateCoordinates();
      }
-     
-     const toDataURL = (data) =>
-        new Promise(ok => {
-          const reader = new FileReader();
-          reader.addEventListener('load', () => ok(reader.result));
-          reader.readAsDataURL(data);
-        });
-     
      let scale=30; //average bond width in pixels
      var pad=10;
      const bbox=chem.getBoundingBox();
@@ -4171,17 +4253,54 @@ JSChemify.Renderer=function(){
      if(nwidth>(maxWidth-pad*2) || nheight>(maxHeight-pad*2)){
          scale=Math.min((maxWidth-pad*2)/cwidth,(maxHeight-pad*2)/cheight);
      }
+
+     return {chem:chem, scale:scale, maxWidth:maxWidth, maxHeight:maxHeight, pad:pad};
+  };
+  /**
+     Create a promise of the BAS64 PNG data URL useful for a src tag. Accepts
+     a chemical object, a smiles, a molfile etc. Will generate coordinates
+     if none are present.
      
+     example usage:
+     JSChemify.Renderer()
+              .getPNGPromise(JSChemify.Chemical("COc1ccccc1OCCNCC(O)COc1cccc2[nH]c3ccccc3c12")
+                             ,150,150).then(u=>{
+                             document.getElementById("myImg").src=u;
+                             });
+  **/ 
+  ret.getPNGPromise = function(chem, maxWidth, maxHeight){
      
-     const offscreen = new OffscreenCanvas(maxWidth, maxHeight);
+     const toDataURL = (data) =>
+        new Promise(ok => {
+          const reader = new FileReader();
+          reader.addEventListener('load', () => ok(reader.result));
+          reader.readAsDataURL(data);
+        });
+     let imgDim=ret.getImageDimensions(chem,maxWidth,maxHeight);
+     
+     const offscreen = new OffscreenCanvas(imgDim.maxWidth, imgDim.maxHeight);
      const ctx=offscreen.getContext("2d");
-     ret.render(chem,ctx,pad,pad,scale);
+     ret.render(imgDim.chem,ctx,imgDim.pad,imgDim.pad,imgDim.scale);
      const blob = offscreen.convertToBlob();
      return (new Promise(ok=>{
         blob.then(b=>{
            toDataURL(b).then(u=>ok(u));
         });
      }));
+  };
+  ret.getSVGPromise = function(chem, maxWidth, maxHeight){
+     return (new Promise(ok=>{
+        ok(ret.getSVG(chem,maxWidth,maxHeight));
+     }));
+  };
+  ret.getSVG = function(chem, maxWidth, maxHeight){
+     //just in case it's not a chemical yet
+     let imgDim=ret.getImageDimensions(chem,maxWidth,maxHeight);
+     
+     
+     const ctx = JSChemify.SVGContext(imgDim.maxWidth, imgDim.maxHeight);
+     ret.render(imgDim.chem,ctx,imgDim.pad,imgDim.pad,imgDim.scale);
+     return ctx.toSVG();
   };
   /**
   Render the supplied chem object on the specified context
@@ -4243,7 +4362,7 @@ JSChemify.Renderer=function(){
                         ctx.moveTo(dl[0][0],dl[0][1]);
                         ctx.lineTo(dl[1][0],dl[1][1]);
                       });
-                      ctx.closePath();
+                      //ctx.closePath();
                       ctx.stroke();
                    }
                    return;
@@ -4277,7 +4396,7 @@ JSChemify.Renderer=function(){
             ctx.beginPath();
             ctx.moveTo(seg[0][0], seg[0][1]);
             ctx.lineTo(seg[1][0], seg[1][1]);
-            ctx.closePath();
+            //ctx.closePath();
             ctx.stroke();
             
             //Draw double bond
@@ -4285,7 +4404,7 @@ JSChemify.Renderer=function(){
               ctx.beginPath();
               ctx.moveTo(seg[0][0]+rej[0]-dseg[0]*short, seg[0][1]+rej[1]-dseg[1]*short);
               ctx.lineTo(seg[1][0]+rej[0]+dseg[0]*short, seg[1][1]+rej[1]+dseg[1]*short);
-              ctx.closePath();
+              //ctx.closePath();
               ctx.stroke();
             }
             //Draw triple bond
@@ -4293,7 +4412,7 @@ JSChemify.Renderer=function(){
               ctx.beginPath();
               ctx.moveTo(seg[0][0]-rej[0]-dseg[0]*short, seg[0][1]-rej[1]-dseg[1]*short);
               ctx.lineTo(seg[1][0]-rej[0]+dseg[0]*short, seg[1][1]-rej[1]+dseg[1]*short);
-              ctx.closePath();
+              //ctx.closePath();
               ctx.stroke();
             }
       });
