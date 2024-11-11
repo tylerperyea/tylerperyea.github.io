@@ -4173,8 +4173,7 @@ JSChemify.SVGContext=function(width, height){
    };
    ret.toSVG=function(){
       var insert=ret._components.join("\n");
-      console.log(insert);
-      return `<svg height="` + ret._width + `" width="`+ ret._height +`" xmlns="http://www.w3.org/2000/svg">` 
+      return `<svg width="` + ret._width + `" height="`+ ret._height +`" xmlns="http://www.w3.org/2000/svg">` 
          + insert
          +`</svg>`;
    };
@@ -4260,8 +4259,8 @@ JSChemify.Renderer=function(){
      if(nwidth>(maxWidth-pad*2) || nheight>(maxHeight-pad*2)){
          scale=Math.min((maxWidth-pad*2)/cwidth,(maxHeight-pad*2)/cheight);
      }
-
-     return {chem:chem, scale:scale, maxWidth:maxWidth, maxHeight:maxHeight, pad:pad};
+     var nret={chem:chem, scale:scale, maxWidth:maxWidth, maxHeight:maxHeight, pad:pad, bbox:bbox};
+     return nret;
   };
   /**
      Create a promise of the BAS64 PNG data URL useful for a src tag. Accepts
