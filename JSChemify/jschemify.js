@@ -1704,7 +1704,7 @@ JSChemify.Chemical = function(arg){
     var emptyOrigin=false;
     //var delta=[Math.cos(Math.PI/6),-Math.sin(Math.PI/6)];
     if(!delta){
-        delta=[0,1];
+      delta=[-BASIS.up[1],BASIS.up[0]];
       emptyOrigin=true;
     }
     
@@ -1900,8 +1900,8 @@ JSChemify.Chemical = function(arg){
     
     //Now do final adjustments
     if(lRingSystem){
-        var fused =lRingSystem.getRingBonds()
-                                             .filter(rb=>rb.getBonds().length===1);
+      var fused =lRingSystem.getRingBonds()
+                            .filter(rb=>rb.getBonds().length===1);
       var centerPt=lRingSystem.getCenterPoint();
         
       if(fused.length>1){
@@ -1914,28 +1914,28 @@ JSChemify.Chemical = function(arg){
                        return b;
                        });
           //get closest to the center
-        //bond
+          //bond
           fused = [fused
-        .filter(f=>f.getRings()
-                         .map(r=>r.getSize())
-                         .reduce((a,b)=>a+b)>=sumR
-                         )
-        .map(f=>{
-                var bb = f.getBonds()[0];
-            var bpt=bb.getCenterPoint();
-            var dd=JSChemify.Util.sqDist(bpt,centerPt);
-            return [dd,f];
-        }).reduce((a,b)=>{
-            if(a[0]<b[0]){
-              return b;
-          }else{
-              return a;
-          }
-        })[1]];
+                 .filter(f=>f.getRings()
+                                  .map(r=>r.getSize())
+                                  .reduce((a,b)=>a+b)>=sumR
+                                  )
+                 .map(f=>{
+                         var bb = f.getBonds()[0];
+                     var bpt=bb.getCenterPoint();
+                     var dd=JSChemify.Util.sqDist(bpt,centerPt);
+                     return [dd,f];
+                 }).reduce((a,b)=>{
+                     if(a[0]<b[0]){
+                       return b;
+                   }else{
+                       return a;
+                   }
+                 })[1]];
       }    
                              
       if(fused.length===1){
-          var bb=fused[0].getBonds()[0];
+        var bb=fused[0].getBonds()[0];
         var vec=bb.getAtoms()[1].getVectorTo(bb.getAtoms()[0]);
         var dot1=vec[0];
         var dot2=vec[1];
@@ -1964,7 +1964,7 @@ JSChemify.Chemical = function(arg){
         }).getCenterPoint();
       if(smallestRingCenter[0]<centerPt[0])flipHorizontal=-1;
       if(smallestRingCenter[1]<centerPt[1])flipVertical=-1;
-      if(flipHorizontal+ flipVertical<2){
+      if(flipHorizontal + flipVertical<2){
         var trans=[
           [flipHorizontal,0],
           [0,flipVertical]
@@ -1974,10 +1974,12 @@ JSChemify.Chemical = function(arg){
         //TODO do better with dirtiness
         lRingSystem.$center=null;
         lRingSystem.getRings().map(rr=>rr.$center=null);
-      }
-      
-                             
+      }                   
+    }else{
+      //get longest continual chain, rotare it to be
+      //horizontal
     }
+    
     
     //This will look if some atoms are too close
     var clusters=ret.$getCloseClustersOfAtoms();
