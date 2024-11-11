@@ -22,36 +22,18 @@
 
   <script>
     
-function testRender(chem, ctx, width, height){
-    var scale=30;
-    var pad=10;
-    var bbox=chem.getBoundingBox();
-    var cheight=bbox[3]-bbox[1];
-    var cwidth=bbox[2]-bbox[0];
-    
-    var nwidth=cwidth*scale;
-    var nheight=cheight*scale;
-    //rescale to fit
-    if(nwidth>(width-pad*2) || nheight>(height-pad*2)){
-        scale=Math.min((width-pad*2)/cwidth,(height-pad*2)/cheight);
-    }
-    console.log(scale);
-    JSChemify.Renderer().render(chem,ctx,pad,pad,scale);
-}
 
 function render(){
-      const canvas = document.getElementById("testCanvas");
-      const ctx = canvas.getContext("2d");
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+     
       var c=document.getElementById("query").value.trim().split("\n")
                     .map(l=>l.trim())
               .filter(l=>l.length>0)
               .slice(0,1)
                     .map(l=>JSChemify.Chemical().fromSmiles(l).aromatize())[0];
        c.generateCoordinates().dearomatize();  
- 
-       testRender(c,ctx,canvas.width,canvas.height);
+       c.getPNGPromise().then(u=>{
+	 document.getElementById("queryImg").src=u;
+       });
 }
 
 function doSearch(){
@@ -95,26 +77,35 @@ function doSearch(){
         
   var q=document.getElementById("query").value.trim().split("\n")
   				.map(l=>l.trim())
-          .filter(l=>l.length>0)
-          .slice(0,1)
+                                .filter(l=>l.length>0)
+                                .slice(0,1) //get first
   				.map(l=>JSChemify.Chemical().fromSmiles(l).aromatize())[0];
   var qEstate = q.getEStateVector(DEPTH);
   
   var out="SMILES\tName\t"+headerProps.join("\t")+"\t"+"Distance\n"+
-  db.map(tc=>{
-      var dist=0;
-  		if(met=="cos"){
-      	dist=1-qEstate.cosineTo(tc.getEStateVector(DEPTH));
-      }else if(met==="euc"){
-      	dist=qEstate.distanceTo(tc.getEStateVector(DEPTH));
-      }
-      return {
-        "d":dist,
-        "c":tc
-      };
-  }).sort((a,b)=>a.d-b.d)
-   .map(r=>r.c.toSmiles() + "\t" + r.c.getName()+"\t" + r.c.getProperties(headerProps).join("\t") +"\t"+ r.d)
-   .join("\n");
+          db.map(tc=>{
+              var dist=0;
+              if(met=="cos"){
+              	dist=1-qEstate.cosineTo(tc.getEStateVector(DEPTH));
+              }else if(met==="euc"){
+              	dist=qEstate.distanceTo(tc.getEStateVector(DEPTH));
+              }
+              return {
+                "d":dist,
+                "c":tc
+              };
+           })
+           .sort((a,b)=>a.d-b.d)
+           .map((r,i)=>{
+        	   if(i===0){
+        		   r.c.getPNGPromise().then(u=>{
+        		 	document.getElementById("nearestImg").src=u;
+        	       	   });
+        	   }
+        	   return r;
+           })
+           .map(r=>r.c.toSmiles() + "\t" + r.c.getName()+"\t" + r.c.getProperties(headerProps).join("\t") +"\t"+ r.d)
+           .join("\n");
   document.getElementById("results").value=out;
   render();
 }
@@ -278,7 +269,16 @@ CC(=O)CC(c1ccccc1)c1c(O)c2ccccc2oc1=O	407.9
     </button>
 </div>
 <div class="panel">
-    <canvas id="testCanvas" width=400 height=150></canvas>
+    <div>Query</div>
+    <div>
+    	<img id="queryImg">
+    </div>
+</div>
+<div class="panel">
+    <div>Nearest Neighbot</div>
+    <div>
+    	<img id="nearestImg">
+    </div>
 </div>
 <div class="panel full">
 <label for="results">Search Results</label>
