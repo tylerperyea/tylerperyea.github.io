@@ -4564,6 +4564,14 @@ JSChemify.Renderer=function(){
   ret._ang=Math.PI/24;
   ret._swid=0.02;
   ret._dcount=6;
+  ret._colorScheme={
+	"symbols":{
+		"C":"black",
+		"O":"red",
+		"N":"blue",
+		"S":"yellow",
+	}
+  };
   
   ret.$dash=null;
   ret.$wedge=null;
@@ -4675,6 +4683,15 @@ JSChemify.Renderer=function(){
      ret.render(imgDim.chem,ctx,imgDim.pad,imgDim.pad,imgDim.scale);
      return ctx.toSVG();
   };
+
+  ret.getStyleFor=function(at){
+	var sym= at.getSymbol();
+	var style=ret._colorScheme.symbols[sym];
+	if(style){
+		return style;
+	}
+	return "black";
+  };
   /**
   Render the supplied chem object on the specified context
   at the X,Y coordinates, and scale it by "scale"
@@ -4706,6 +4723,32 @@ JSChemify.Renderer=function(){
          const dash=ret._getDash();
          // Set line width
          ctx.lineWidth = scale*ret._lineWidth;  
+
+	 const ppoint=[];
+	 const moveTo=(x,y,color)=>{
+		ppoint[0]=[x,y];
+		ctx.moveTo(x,y);
+	 };
+	 const lineTo=(x,y, color1, color2)=>{
+		if(color1 && color2 && color1!==color2){
+		    var oldX=ppoint[0][0];
+		    var oldY=ppoint[0][1];
+		    var mid=[oldX+(x-oldX)/2,oldY+(y-oldY)/2];
+		    
+		    ctx.strokeStyle=color1;
+		    ctx.lineTo(mid[0],mid[1]);
+		    ctx.stroke();
+		    ctx.strokeStyle=color2;
+		    ctx.beginPath();
+		    ctx.moveTo(mid[0],mid[1]);
+		    ctx.lineTo(x,y);
+		    
+		}else{
+		    ctx.lineTo(x,y);
+		}
+		ppoint[0]=[x,y];
+	 };
+	 
     
          //draw bonds
          chem.getBonds().map(b=>{
@@ -4715,6 +4758,8 @@ JSChemify.Renderer=function(){
             const rej=[-ret._dblWidth*dseg[1],
                       ret._dblWidth*dseg[0]];
             let short=ret._dblShort;
+	    let styles=b.getAtoms().map(at=>ret.getStyleFor(at));
+	    ctx.strokeStyle="black";
             //If there's stereo, draw dash or wedge
             if(b.getBondStereo()){
                   const affWedge=JSChemify.Util
@@ -4767,24 +4812,24 @@ JSChemify.Renderer=function(){
             }
         
             ctx.beginPath();
-            ctx.moveTo(seg[0][0], seg[0][1]);
-            ctx.lineTo(seg[1][0], seg[1][1]);
+            moveTo(seg[0][0], seg[0][1],styles[0],styles[1]);
+            lineTo(seg[1][0], seg[1][1],styles[0],styles[1]);
             //ctx.closePath();
             ctx.stroke();
             
             //Draw double bond
             if(bo===2 || bo===3){
               ctx.beginPath();
-              ctx.moveTo(seg[0][0]+rej[0]-dseg[0]*short, seg[0][1]+rej[1]-dseg[1]*short);
-              ctx.lineTo(seg[1][0]+rej[0]+dseg[0]*short, seg[1][1]+rej[1]+dseg[1]*short);
+              moveTo(seg[0][0]+rej[0]-dseg[0]*short, seg[0][1]+rej[1]-dseg[1]*short,styles[0],styles[1]);
+              lineTo(seg[1][0]+rej[0]+dseg[0]*short, seg[1][1]+rej[1]+dseg[1]*short,styles[0],styles[1]);
               //ctx.closePath();
               ctx.stroke();
             }
             //Draw triple bond
             if(bo===3){
               ctx.beginPath();
-              ctx.moveTo(seg[0][0]-rej[0]-dseg[0]*short, seg[0][1]-rej[1]-dseg[1]*short);
-              ctx.lineTo(seg[1][0]-rej[0]+dseg[0]*short, seg[1][1]-rej[1]+dseg[1]*short);
+              moveTo(seg[0][0]-rej[0]-dseg[0]*short, seg[0][1]-rej[1]-dseg[1]*short,styles[0],styles[1]);
+              lineTo(seg[1][0]-rej[0]+dseg[0]*short, seg[1][1]-rej[1]+dseg[1]*short,styles[0],styles[1]);
               //ctx.closePath();
               ctx.stroke();
             }
@@ -4805,7 +4850,7 @@ JSChemify.Renderer=function(){
               ctx.arc(loc[0], loc[1], cleareRad, 0, 2 * Math.PI);
               ctx.fill();
         
-              ctx.fillStyle = "black";
+              ctx.fillStyle = ret.getStyleFor(at);
               ctx.fillText(at.getSymbol(),loc[0]-offx,loc[1]-offy);
               
               if(at.getImplicitHydrogens()>0){
