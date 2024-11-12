@@ -4174,6 +4174,7 @@ JSChemify.ChemicalCollection=function(){
    ret._properties={};
    ret._propertyOrder=[];
    ret._inputStandardizer=null;
+   ret._filteredChems=[];
    
 
    ret.addChemical=function(c){
@@ -4193,6 +4194,81 @@ JSChemify.ChemicalCollection=function(){
       });
       ret._chems.push(c);
       return ret;
+   };
+
+   ret.$getHeaderHTML=function(){
+	var headHTML = "<thead><tr><th>Structure</th><th>Name</th>"
+	   		+ ret._propertyOrder.map(p=>"<th>" + p + "</th>").join("") 
+		        + "</tr></thead>";
+	return headHTML;
+   };
+   ret.$getRowHTML=function(ri){
+	var chem=ret.getChemical(ri);
+	chem.generateCoordinates();
+	var cchem=chem.clone().dearomatize();  
+	var rowHTML = "<tr><td><div>" + cchem.getSVG(100,75) + "</div></td><td>" + chem.getName() + "</td>"
+	   		+ ret._propertyOrder.map(p=>"<td>" + chem.getProperty(p) + "</td>").join("") 
+		        + "</tr>";
+	return rowHTML;
+   };
+   ret.$getTableHTML=function(maxRows){
+//Some ideas
+/*
+<div id="table-test">
+<div class="jschemify-table-controls">
+
+Show Structures
+<select>
+<option>Smiles</option>
+<option>Image</option>
+<option>Both</option>
+</select>
+
+<button>Edit Raw Data</button>
+<button>Import</button>
+<button>Download SDF</button>
+<button>Download TXT</button>
+<div>
+Structure Size
+<input type="range" min="1" max="100" value="50">
+</div>
+<span>
+Display Rows
+<select>
+<option>10</option>
+<option>20</option>
+<option>50</option>
+<option>All</option>
+</select>
+Showing <span>1-10</span> of <span>100</span>
+<button disabled="">previous</button>
+<button>next</button>   </span><div class="jschemify-table-query">
+Query Smiles
+<input value="CCCCCC">
+<select>
+<option>E-State</option>
+<option>Fingerprint</option>
+<option>Edit Distance</option>
+</select>
+</div>
+
+</div>
+*/
+	   
+	let htmlSections = [];
+	htmlSections.push("<table class='jschemify-table'>");
+	htmlSections.push(ret.$getHeaderHTML());
+	htmlSections.push("<tbody>");
+	for(let i=0;i<maxRows;i++){
+		htmlSections.push(ret.$getRowHTML(i));
+	}
+	htmlSections.push("</tbody>");
+	htmlSections.push("</table>");
+	return htmlSections.join("\n");
+	   
+   };
+   ret.getChemical=function(i){
+	return ret._chems[i];
    };
    ret.getChems=function(){
       return ret._chems;
@@ -4349,6 +4425,7 @@ TODO:
 1. Compress with
    1.1. CSS
    1.2. Consolidated paths
+   1.3. [done] Rounded floats
    
    
 *******************************/
@@ -4396,7 +4473,12 @@ JSChemify.SVGContext=function(width, height){
    };
    ret.stroke=function(){
       //<path d="M150 0 L75 200 L225 200 Z" style="fill:none;stroke:green;stroke-width:3" />
-      var p = ret._path.map(pp=>pp.join(" ")).join(" ");
+      var p = ret._path.map(pp=>pp.map(f=>{
+	      if(typeof f === "number" && Math.round(f)!==f){
+		      return f.toFixed(2);
+	      }
+	      return f;
+      }).join(" ")).join(" ");
       if(ret._closed){
          p+=" Z";
       }
@@ -4421,7 +4503,12 @@ JSChemify.SVGContext=function(width, height){
    
    ret.fill=function(){
       //<path d="M150 0 L75 200 L225 200 Z" style="fill:none;stroke:green;stroke-width:3" />
-      var p = ret._path.map(pp=>pp.join(" ")).join(" ");
+      var p = ret._path.map(pp=>pp.map(f=>{
+	      if(typeof f === "number" && Math.round(f)!==f){
+		      return f.toFixed(2);
+	      }
+	      return f;
+      }).join(" ")).join(" ");
       if(ret._closed){
          p+=" Z";
       }
