@@ -37,6 +37,7 @@ Basic I/O:
 18. Molfile Chiral flag support
 19. Rgroup decomposition
 20. Edit distance
+21. [done] fix ++ and -- reading of smiles
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -66,7 +67,7 @@ Coordinates and Rendering:
 21. Partial clean
 22. Coordinates: Multiple components
 23. Path Notation:  Multiple components
-24. 
+24. Place subscripts down
 
 
 **/
@@ -4273,20 +4274,20 @@ JSChemify.SmilesReader=function(){
       }
       m=ret.readNext(/^\[([0-9]{0,3})([A-Z][a-z]{0,2})([@]{1,2})?(H[0-9]*)?([+|-]{1,}[0-9]*)?([:][0-9]{1,3})?\]/);
       if(m){
-          if(m[5] && (m[5].startsWith("++") || m[5].startsWith("--"))){
-                m[5]=[...m[5]].map(d=>(d+"1")-0).reduce((a,b)=>a+b,0);
-        }
+          if(m[5] && (m[5].startsWith("++") || m[5].startsWith("--"))){ 
+                m[5]=m[5][0]+[...m[5]].map(d=>Math.abs((d+"1")-0)).reduce((a,b)=>a+b,0);
+          }
           return ret.addAtom({"atom":m[2],
-        "isotope":m[1],
-        "stereo":m[3],
-        "HCount":m[4],
-        "charge":m[5],
-        "map":m[6]});
+                  			      "isotope":m[1],
+                			        "stereo":m[3],
+                			        "HCount":m[4],
+                			        "charge":m[5],
+                			        "map":m[6]});
       }
       m=ret.readNext(/^\[([0-9]{0,3})([a-z]{1})([@]{1,2})?(H[0-9]*)?([+|-]{1,}[0-9]*)?([:][0-9]{1,3})?\]/);
       if(m){
           if(m[5] && (m[5].startsWith("++") || m[5].startsWith("--"))){
-                m[5]=[...m[5]].map(d=>(d+"1")-0).reduce((a,b)=>a+b,0);
+                m[5]=m[5][0]+[...m[5]].map(d=>Math.abs((d+"1")-0)).reduce((a,b)=>a+b,0);
         }
           return ret.addAtom({"atom":m[2].toUpperCase(),
         "isotope":m[1],
@@ -4799,11 +4800,13 @@ JSChemify.Renderer=function(){
   ret._cleareRad=1.9;
   ret._dblWidth=0.15;
   ret._dblShort=1/6;
-  ret._letterSpace=0.35;
+  ret._letterSpace=0.4;
   ret._lineWidth=1/35;
   ret._ang=Math.PI/24;
   ret._swid=0.02;
   ret._dcount=6;
+  ret._colorScheme={symbols:{}};
+    /*
   ret._colorScheme={
 	"symbols":{
 		"C":"black",
@@ -4812,7 +4815,7 @@ JSChemify.Renderer=function(){
 		"S":"yellow",
 	}
   };
-  
+  */
   ret.$dash=null;
   ret.$wedge=null;
   
@@ -5085,6 +5088,22 @@ JSChemify.Renderer=function(){
         
         
               let loc=affine.transform(nv);
+              let append="";
+              let chg=at.getCharge();
+              if(Math.abs(chg)>0){
+                    if(chg>0){
+                      append+=String.fromCodePoint(0x207A);
+                    }else{
+                      append+=String.fromCodePoint(0x207B);
+                    }
+                    if(Math.abs(chg)>1){
+                        if(Math.abs(chg)<=3){
+                             append+=String.fromCodePoint(0x00B0+Math.abs(chg));
+                        }else{
+                            append+=String.fromCodePoint(0x2070+Math.abs(chg));
+                        }
+                    }
+                }
         
               ctx.fillStyle = "white";
               ctx.beginPath();
@@ -5092,7 +5111,13 @@ JSChemify.Renderer=function(){
               ctx.fill();
         
               ctx.fillStyle = ret.getStyleFor(at);
-              ctx.fillText(at.getSymbol(),loc[0]-offx,loc[1]-offy);
+        
+              if(at.getImplicitHydrogens()===0){
+                  ctx.fillText(at.getSymbol()+append,loc[0]-offx,loc[1]-offy);
+              }else{
+                  ctx.fillText(at.getSymbol(),loc[0]-offx,loc[1]-offy);
+              }
+              
               
               if(at.getImplicitHydrogens()>0){
                 const h=at.getImplicitHydrogens();
@@ -5101,14 +5126,23 @@ JSChemify.Renderer=function(){
                 nv[1]=nv[1]-vec[1]*ret._letterSpace;
                 let ntext="H";
                 if(h>1){
-                    ntext+=String.fromCodePoint(8320+h);
+                  ntext+=String.fromCodePoint(8320+h);
                   if(vec[0]>0){
-                      nv[0]=nv[0]-vec[0]*ret._letterSpace*0.5;
+                    nv[0]=nv[0]-vec[0]*ret._letterSpace*0.5;
                   }
                 }
-                loc=affine.transform(nv);
-                ctx.fillText(ntext,loc[0]-offx,loc[1]-offy);
-          }
+                  
+                if(vec[0]>0){
+                    nv[0]=nv[0]-vec[0]*ret._letterSpace*(0.4*append.length);
+                    append=[...append].reverse().join("");
+                    loc=affine.transform(nv);
+                    ctx.fillText(append+ntext,loc[0]-offx,loc[1]-offy);
+                }else{
+                    loc=affine.transform(nv);
+                    ctx.fillText(ntext+append,loc[0]-offx,loc[1]-offy);
+                }
+             }
+              
         }
       });     
             
