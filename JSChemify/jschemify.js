@@ -1237,11 +1237,47 @@ JSChemify.Bond = function(){
   ret.hasAtom=function(a){
      return ret.getAtoms().indexOf(a)>=0;
   };
-
-  ret.pathNotationDirectionFrom=function(dx,dy,a){
-	let vec1=[dx,dy];
-	  //----
-	let vec2=a.getVectorTo(ret.getOtherAtom(a));
+  ret.setCoordinatesFromPathNotation=function(path,ovec,a){
+	var nvec=ret.$getDeltaVectorFromPathNotation(path);
+	
+	var nat=ret.getOtherAtom(a);
+	var oldpt=a.getPoint();
+	var pvec=[-ovec[1],ovec[0]];
+	  
+	var nnvec=[ovec[0]*nvec[0]+pvec[0]*nvec[1],ovec[1]*nvec[0]+pvec[1]*nvec[1]];
+	nat.setXYZ(oldpt[0]+nnvec[0],oldpt[1]+nnvec[1]);
+	return ret;
+  };
+  ret.$getDeltaVectorFromPathNotation=function(path){
+	var d=path[0];
+	var m=path[1];
+	var ang=0;
+	if(d==="R"){
+		ang=Math.PI/3;
+	}else if(d==="L"){
+		ang=-Math.PI/3;
+	}else if(d==="F"){
+		ang=0;
+	}else if(d.startsWith("D") || d.startsWith("S")){
+		let div=d.substr(1)-0;
+		ang=2*Math.PI/div;
+		if(d[0]==="S"){
+			ang=-ang;
+		}
+	}
+	if(!m){
+		m=1;
+	}else{
+		let mm=(m.substr(1)-0)/100;
+		if(m[0]==="M"){
+			m=1/mm;
+		}else{
+			m=mm;
+		}
+	}
+	return [m*Math.cos(ang),m*Math.sin(ang)];
+  };
+  ret.$pathNotationDirectionFromVec=function(vec1,vec2){
      var dot=vec1[0]*vec2[0] + vec1[1]*vec2[1];
      var rej=vec1[0]*vec2[1] - vec1[1]*vec2[0];
      var theta=Math.atan2(rej,dot);
@@ -1260,11 +1296,25 @@ JSChemify.Bond = function(){
 	     dnm="S";
 	     c=-c;
      }
-	  
+     if(c>50){
+	
+     }
      c=Math.round(c*10)/10;
      magN=Math.round(magN);
-     return [dnm + c, nm + magN];
-	  
+     var sig=dnm+c;
+     if(c>50){
+	sig="F";
+     }
+     if(c<-50){
+	sig="B";
+     }
+     return [sig, nm + magN];
+  };
+  ret.pathNotationDirectionFrom=function(dx,dy,a){
+     let vec1=[dx,dy];
+	  //----
+     let vec2=a.getVectorTo(ret.getOtherAtom(a));
+     return ret.$pathNotationDirectionFromVec(vec1,vec2);
   };
   ret.pathNotationDirectionTo=function(b,a){
      if(!a){
@@ -1272,28 +1322,7 @@ JSChemify.Bond = function(){
      }
      let vec1=ret.getOtherAtom(a).getVectorTo(a);
      let vec2=a.getVectorTo(b.getOtherAtom(a));
-     var dot=vec1[0]*vec2[0] + vec1[1]*vec2[1];
-     var rej=vec1[0]*vec2[1] - vec1[1]*vec2[0];
-     var theta=Math.atan2(rej,dot);
-     var c=(Math.PI*2)/theta;
-     var mag1=JSChemify.Util.magVector(vec1);
-     var mag2=JSChemify.Util.magVector(vec2);
-     var magN=mag1/mag2;
-     var nm="M";
-     if(magN>1){
-	     nm="m";
-	     magN=1/magN;
-     }
-     magN=magN*100;
-     var dnm="D";
-     if(c<0){
-	     dnm="S";
-	     c=-c;
-     }
-     c=Math.round(c*10)/10;
-     magN=Math.round(magN);
-     
-     return [dnm + c, nm + magN];
+     return ret.$pathNotationDirectionFromVec(vec1,vec2);
   };
   
   ret.swap=function(){
@@ -1878,6 +1907,54 @@ JSChemify.Chemical = function(arg){
     return ret;
   };
   // ret.pathNotationDirectionTo
+  ret.getShortPathNotation=function(){
+      return ret.getPathNotation().map(v=>{
+	if(v[0]==="D6"){
+		v[0]="R";
+	}else if(v[0]==="S6"){
+		v[0]="L";
+	}
+	if(v[1]==="M100" || v[1]==="m100"){
+		v[1]="";
+	}
+	return v[0]+v[1];
+      }).join("");
+  };
+  ret.setPathNotation=function(pn){
+     if(!Array.isArray(pn)){
+	//parse
+     }
+     //TODO: need a 
+     var startAtom=ret.getAtom(0);
+     var got={};
+     var pthIndex=0;
+     startAtom.$allPathsDepthFirst((path)=>{
+	if(got[path[path.length-1].bond.getIndexInParent()]){
+		return true;
+	}	
+	if(path.length>2){
+		var pth=pn[pthIndex];
+		pthIndex++;
+		var obond=path[path.length-2].bond;
+		var nbond=path[path.length-1].bond;
+		var satom=path[path.length-2].atom;
+		var ovec = obond.getOtherAtom(satom).getVectorTo(satom);
+		nbond.setCoordinatesFromPathNotation(pth,ovec,satom);
+		
+	}else if(path.length===2){
+		var pth=pn[pthIndex];
+		pthIndex++;
+		var bond=path[path.length-1].bond;
+		var satom=path[path.length-1].atom;
+		var datom=bond.getOtherAtom(satom);
+		bond.setCoordinatesFromPathNotation(pth,[1,0],datom);
+	}
+	got[path[path.length-1].bond.getIndexInParent()]=true;
+     });
+
+     return ret;
+     
+  };
   ret.getPathNotation=function(){
      //TODO: need a 
      var startAtom=ret.getAtom(0);
