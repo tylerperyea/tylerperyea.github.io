@@ -30,6 +30,13 @@ Basic I/O:
 11. [done] Basic SDF/Smiles file reader into collection
 12. Spreadsheet support?
 13. Basic ECFP implementation
+14. MCS support
+15. Scaffold support
+16. Substructure support
+17. Molfile parity support
+18. Molfile Chiral flag support
+19. Rgroup decomposition
+20. Edit distance
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -55,7 +62,11 @@ Coordinates and Rendering:
 17. SVG Bug: clearing background
 18. [done] Path Encoding wedge and hash support
 19. Path encoding smiles bond order discrepency?
-20. 
+20. Path encoding extended angles (complements)
+21. Partial clean
+22. Coordinates: Multiple components
+23. Path Notation:  Multiple components
+24. 
 
 
 **/
@@ -5384,7 +5395,7 @@ JSChemify.Tests=function(){
     ret.assertToStringEquals(npoint,npointExp);
   });
   ret.tests.push(()=>{
-      var affine=JSChemify.AffineTransformation();
+    var affine=JSChemify.AffineTransformation();
     affine=affine.translate(10,2);
     var point=[1,2];
     var npoint=affine.transform(point);
@@ -5470,9 +5481,6 @@ JSChemify.Tests=function(){
   });
   
   
-  //Bad dearomatization (works now, add test)
-  //C(=O)(O)c1cc(ccc1O)\N=N\c1ccc(cc1)S(=O)(Nc1ccccn1)=O
-  
   //Double bond on wrong side in rendering
   //C(=O)(c1cc(c(c(I)c1)OCCN(CC)CC)I)c1c(oc2c1cccc2)CCCCCN(C)CC\C=C1\c2ccccc2CCc2ccccc12
   
@@ -5480,6 +5488,9 @@ JSChemify.Tests=function(){
   
   //bad bridgehead layout
   //[H]C1(CN2CCC1C[C@@]2([H])[C@H](O)C1=CC=NC2=C1C=C(OC)C=C2)C=C
+  
+  //Bad 3 fused rings case
+  //OC14(C3(C(C(C1)F)=C(OC2(=CC(C#N)=CC(F)=C2))C=CC(=3)C(F)(F)C(F)(F)4)))
   
   //TODO
   //These generate weird but okay coordinates
@@ -5495,6 +5506,3 @@ JSChemify.Tests=function(){
   //
   return ret;
 };
-
-
-
