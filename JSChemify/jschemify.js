@@ -29,6 +29,7 @@ Basic I/O:
 10. [done] Molform and weight
 11. [done] Basic SDF/Smiles file reader into collection
 12. Spreadsheet support?
+13. Basic ECFP implementation
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -36,7 +37,7 @@ Coordinates and Rendering:
  3. Isotopes/charges in render
  4. Highlight atoms in render
  5. Show atom map numbers in render
- 6. Add colors to render
+ 6. [in progress] Add colors to render
  8. [done] Get SVG or PNG directly
  9. Coordinates: Add explicit hydrogens when 
     it makes sense for stereo
@@ -49,8 +50,12 @@ Coordinates and Rendering:
 15. Coordinates: bug when 3 substituents follow 
     4 substituents
 16. Coordinates: overlapping bonds issue
-
-
+17. [done] Path Encoding
+18. Parse simplified path encoding
+17. SVG Bug: clearing background
+18. [done] Path Encoding wedge and hash support
+19. Path encoding smiles bond order discrepency?
+20. 
 
 
 **/
@@ -1238,44 +1243,57 @@ JSChemify.Bond = function(){
      return ret.getAtoms().indexOf(a)>=0;
   };
   ret.setCoordinatesFromPathNotation=function(path,ovec,a){
-	var nvec=ret.$getDeltaVectorFromPathNotation(path);
-	
-	var nat=ret.getOtherAtom(a);
-	var oldpt=a.getPoint();
-	var pvec=[-ovec[1],ovec[0]];
-	  
-	var nnvec=[ovec[0]*nvec[0]+pvec[0]*nvec[1],ovec[1]*nvec[0]+pvec[1]*nvec[1]];
-	nat.setXYZ(oldpt[0]+nnvec[0],oldpt[1]+nnvec[1]);
-	return ret;
+    	var nvec=ret.$getDeltaVectorFromPathNotation(path);
+    	
+    	var nat=ret.getOtherAtom(a);
+    	var oldpt=a.getPoint();
+    	var pvec=[-ovec[1],ovec[0]];
+      var wedge=path[2];
+      if(wedge){
+        var wlow=wedge.toLowerCase();
+        if(wedge===wedge.toLowerCase()){
+          ret.swap();
+        }
+        
+        if(wlow==="h"){
+          ret.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_DASH);
+        }else  if(wlow==="w"){
+          ret.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_WEDGE);
+        }
+      }
+    	  
+    	var nnvec=[ovec[0]*nvec[0]+pvec[0]*nvec[1],ovec[1]*nvec[0]+pvec[1]*nvec[1]];
+    	nat.setXYZ(oldpt[0]+nnvec[0],oldpt[1]+nnvec[1]);
+    	return ret;
   };
   ret.$getDeltaVectorFromPathNotation=function(path){
-	var d=path[0];
-	var m=path[1];
-	var ang=0;
-	if(d==="R"){
-		ang=Math.PI/3;
-	}else if(d==="L"){
-		ang=-Math.PI/3;
-	}else if(d==="F"){
-		ang=0;
-	}else if(d.startsWith("D") || d.startsWith("S")){
-		let div=d.substr(1)-0;
-		ang=2*Math.PI/div;
-		if(d[0]==="S"){
-			ang=-ang;
-		}
-	}
-	if(!m){
-		m=1;
-	}else{
-		let mm=(m.substr(1)-0)/100;
-		if(m[0]==="M"){
-			m=1/mm;
-		}else{
-			m=mm;
-		}
-	}
-	return [m*Math.cos(ang),m*Math.sin(ang)];
+    	var d=path[0];
+    	var m=path[1];
+    	var ang=0;
+    	if(d==="R"){
+    		ang=Math.PI/3;
+    	}else if(d==="L"){
+    		ang=-Math.PI/3;
+    	}else if(d==="F"){
+    		ang=0;
+    	}else if(d.startsWith("D") || d.startsWith("S")){
+    		let div=d.substr(1)-0;
+    		ang=2*Math.PI/div;
+    		if(d[0]==="S"){
+    			ang=-ang;
+    		}
+    	}
+    	if(!m){
+    		m=1;
+    	}else{
+    		let mm=(m.substr(1)-0)/100;
+    		if(m[0]==="M"){
+    			m=1/mm;
+    		}else{
+    			m=mm;
+    		}
+    	}
+    	return [m*Math.cos(ang),m*Math.sin(ang)];
   };
   ret.$pathNotationDirectionFromVec=function(vec1,vec2){
      var dot=vec1[0]*vec2[0] + vec1[1]*vec2[1];
@@ -1303,18 +1321,36 @@ JSChemify.Bond = function(){
      magN=Math.round(magN);
      var sig=dnm+c;
      if(c>50){
-	sig="F";
+	      sig="F";
      }
      if(c<-50){
-	sig="B";
+	      sig="B";
      }
+
+    
      return [sig, nm + magN];
   };
   ret.pathNotationDirectionFrom=function(dx,dy,a){
      let vec1=[dx,dy];
 	  //----
      let vec2=a.getVectorTo(ret.getOtherAtom(a));
-     return ret.$pathNotationDirectionFromVec(vec1,vec2);
+     let bs=ret.getBondStereo();
+     let wedge="";
+     if(bs){
+      	if(bs===JSChemify.CONSTANTS.BOND_STEREO_WEDGE){
+      		wedge="W";
+      	}else if(bs===JSChemify.CONSTANTS.BOND_STEREO_DASH){
+      		wedge="H";
+      	}
+      	if(ret._atom1!==a){
+      		wedge=wedge.toLowerCase();
+      	}
+     }
+     var pn= ret.$pathNotationDirectionFromVec(vec1,vec2);
+     if(wedge){
+        pn.push(wedge);
+     }
+     return pn;
   };
   ret.pathNotationDirectionTo=function(b,a){
      if(!a){
@@ -1322,7 +1358,23 @@ JSChemify.Bond = function(){
      }
      let vec1=ret.getOtherAtom(a).getVectorTo(a);
      let vec2=a.getVectorTo(b.getOtherAtom(a));
-     return ret.$pathNotationDirectionFromVec(vec1,vec2);
+     let bs=b.getBondStereo();
+     let wedge="";
+     if(bs){
+      	if(bs===JSChemify.CONSTANTS.BOND_STEREO_WEDGE){
+      		wedge="W";
+      	}else if(bs===JSChemify.CONSTANTS.BOND_STEREO_DASH){
+      		wedge="H";
+      	}
+      	if(ret._atom2!==a){
+      		wedge=wedge.toLowerCase();
+      	}
+     }
+     var pn= ret.$pathNotationDirectionFromVec(vec1,vec2);
+     if(wedge){
+        pn.push(wedge);
+     }
+     return pn;
   };
   
   ret.swap=function(){
@@ -1334,7 +1386,7 @@ JSChemify.Bond = function(){
   ret.getSmallestRingSize=function(){
       if(ret.$smallestRingSize==null || 
        ret.getParent().$dirtyNumber()!==ret.$dirty){
-        var rings=ret.getParent().getRings();
+      var rings=ret.getParent().getRings();
       ret.$smallestRingSize=rings.filter(r=>r.hasBond(ret))
        .map(r=>r.getSize())
        .reduce((a,b)=>{
@@ -1909,15 +1961,18 @@ JSChemify.Chemical = function(arg){
   // ret.pathNotationDirectionTo
   ret.getShortPathNotation=function(){
       return ret.getPathNotation().map(v=>{
-	if(v[0]==="D6"){
-		v[0]="R";
-	}else if(v[0]==="S6"){
-		v[0]="L";
-	}
-	if(v[1]==="M100" || v[1]==="m100"){
-		v[1]="";
-	}
-	return v[0]+v[1];
+        	if(v[0]==="D6"){
+        		v[0]="R";
+        	}else if(v[0]==="S6"){
+        		v[0]="L";
+        	}
+        	if(v[1]==="M100" || v[1]==="m100"){
+        		v[1]="";
+        	}
+          if(!v[2]){
+            v[2]="";
+          }
+        	return v[0]+v[1]+v[2];
       }).join("");
   };
   ret.setPathNotation=function(pn){
@@ -4897,7 +4952,7 @@ JSChemify.Renderer=function(){
          const dash=ret._getDash();
          // Set line width
          ctx.lineWidth = scale*ret._lineWidth;  
-
+         
 	 const ppoint=[];
 	 const moveTo=(x,y,color)=>{
 		ppoint[0]=[x,y];
@@ -4932,8 +4987,8 @@ JSChemify.Renderer=function(){
             const rej=[-ret._dblWidth*dseg[1],
                       ret._dblWidth*dseg[0]];
             let short=ret._dblShort;
-	    let styles=b.getAtoms().map(at=>ret.getStyleFor(at));
-	    ctx.strokeStyle="black";
+      	    let styles=b.getAtoms().map(at=>ret.getStyleFor(at));
+      	    ctx.strokeStyle="black";
             //If there's stereo, draw dash or wedge
             if(b.getBondStereo()){
                   const affWedge=JSChemify.Util
@@ -4950,6 +5005,7 @@ JSChemify.Renderer=function(){
                    }else if(b.getBondStereo()===
                       JSChemify.CONSTANTS.BOND_STEREO_DASH){
                       const ndash=affWedge.transform(dash);
+                      ctx.beginPath();
                       ndash.map(dl=>{
                         ctx.moveTo(dl[0][0],dl[0][1]);
                         ctx.lineTo(dl[1][0],dl[1][1]);
