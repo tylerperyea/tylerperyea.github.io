@@ -338,6 +338,9 @@ JSChemify.Util = {
     }
     return sumSq;
   },
+  magVector:function(a){
+     return Math.sqrt(JSChemify.Util.sqMagVector(a));
+  },
   sqMagVector:function(a){
       var sumSq=0;
       for(var i=0;i<a.length;i++){
@@ -1220,8 +1223,77 @@ JSChemify.Bond = function(){
     return bnd;
   };
   ret.setParent=function(p){
-      ret._parent=p;
+    ret._parent=p;
     return ret;
+  };
+  ret.getSharedAtom=function(b){
+    if(b.hasAtom(ret._atom1)){
+	return ret._atom1;
+    }else if(b.hasAtom(ret._atom2)){
+	return ret._atom2;
+    }
+    return null;
+  };
+  ret.hasAtom=function(a){
+     return ret.getAtoms().indexOf(a)>=0;
+  };
+
+  ret.pathNotationDirectionFrom=function(dx,dy,a){
+	let vec1=[dx,dy];
+	  //----
+	let vec2=a.getVectorTo(ret.getOtherAtom(a));
+     var dot=vec1[0]*vec2[0] + vec1[1]*vec2[1];
+     var rej=vec1[0]*vec2[1] - vec1[1]*vec2[0];
+     var theta=Math.atan2(rej,dot);
+     var c=(Math.PI*2)/theta;
+     var mag1=JSChemify.Util.magVector(vec1);
+     var mag2=JSChemify.Util.magVector(vec2);
+     var magN=mag1/mag2;
+     var nm="M";
+     if(magN>1){
+	     nm="m";
+	     magN=1/magN;
+     }
+     magN=magN*100;
+     var dnm="D";
+     if(c<0){
+	     dnm="S";
+	     c=-c;
+     }
+	  
+     c=Math.round(c*10)/10;
+     magN=Math.round(magN);
+     return [dnm + c, nm + magN];
+	  
+  };
+  ret.pathNotationDirectionTo=function(b,a){
+     if(!a){
+         a=ret.getSharedAtom(b);
+     }
+     let vec1=ret.getOtherAtom(a).getVectorTo(a);
+     let vec2=a.getVectorTo(b.getOtherAtom(a));
+     var dot=vec1[0]*vec2[0] + vec1[1]*vec2[1];
+     var rej=vec1[0]*vec2[1] - vec1[1]*vec2[0];
+     var theta=Math.atan2(rej,dot);
+     var c=(Math.PI*2)/theta;
+     var mag1=JSChemify.Util.magVector(vec1);
+     var mag2=JSChemify.Util.magVector(vec2);
+     var magN=mag1/mag2;
+     var nm="M";
+     if(magN>1){
+	     nm="m";
+	     magN=1/magN;
+     }
+     magN=magN*100;
+     var dnm="D";
+     if(c<0){
+	     dnm="S";
+	     c=-c;
+     }
+     c=Math.round(c*10)/10;
+     magN=Math.round(magN);
+     
+     return [dnm + c, nm + magN];
   };
   
   ret.swap=function(){
@@ -1805,9 +1877,34 @@ JSChemify.Chemical = function(arg){
     });
     return ret;
   };
-  
+  // ret.pathNotationDirectionTo
+  ret.getPathNotation=function(){
+     //TODO: need a 
+     var startAtom=ret.getAtom(0);
+     var dpath=[];
+     var got={};
+     startAtom.$allPathsDepthFirst((path)=>{
+	if(got[path[path.length-1].bond.getIndexInParent()]){
+		return true;
+	}	
+	if(path.length>2){
+		var obond=path[path.length-2].bond;
+		var nbond=path[path.length-1].bond;
+		var satom=path[path.length-2].atom;
+		dpath.push(obond.pathNotationDirectionTo(nbond,satom));
+	}else if(path.length===2){
+		var nn=path[path.length-1].bond.pathNotationDirectionFrom(1,0,path[0].atom);
+		dpath.push(nn);
+	}
+	got[path[path.length-1].bond.getIndexInParent()]=true;
+     });
+
+     return dpath;
+     
+  };
+  	
   ret.generateCoordinates=function(){
-      var atomSet=[];
+    var atomSet=[];
     var natoms=[];
     var ringSystems=ret.getRingSystems();
     var lRingSystem=null;
@@ -2601,9 +2698,9 @@ JSChemify.Chemical = function(arg){
     
   };
   ret.$detectRings = function(){
-          if(ret.$bondTypes)return ret;
+      if(ret.$bondTypes)return ret;
       
-          for(var i=0;i<ret._bonds.length;i++){
+      for(var i=0;i<ret._bonds.length;i++){
           ret._bonds[i]._idx=i;
       }
       var bTypes=[];
@@ -2617,7 +2714,7 @@ JSChemify.Chemical = function(arg){
         var startAtom = remainingBonds[0].getAtoms()[0];
         
         startAtom.$allPathsDepthFirst((path)=>{
-            var lbond=path[path.length-1];
+          var lbond=path[path.length-1];
           var first=path.findIndex(p=>p.atom===lbond.atom);
         
           if(first<path.length-1){
@@ -2638,11 +2735,11 @@ JSChemify.Chemical = function(arg){
             return true;
           }else{
                if(!bTypes[lbond.bond._idx]){
-                bTypes[lbond.bond._idx]="CHAIN";
-                aTypes[lbond.bond._atom1.getIndexInParent()]=comp;
-                aTypes[lbond.bond._atom2.getIndexInParent()]=comp;
-              assigned++;
-            }
+                 bTypes[lbond.bond._idx]="CHAIN";
+                 aTypes[lbond.bond._atom1.getIndexInParent()]=comp;
+                 aTypes[lbond.bond._atom2.getIndexInParent()]=comp;
+                 assigned++;
+               }
           }
         });
         remainingBonds = ret._bonds.filter(b=>!bTypes[b._idx]);
@@ -4439,7 +4536,7 @@ JSChemify.SVGContext=function(width, height){
    ret._closed=false;
 
    ret.lineWidth=1;
-   ret.font = "8pt sans";
+   ret.font = "8pt sans-serif";
    ret.fillStyle = "black";
    ret.strokeStyle = "black";
 
@@ -4714,7 +4811,7 @@ JSChemify.Renderer=function(){
          const deltSeg=[lseg[0][1]-lseg[0][0],
                        lseg[1][1]-lseg[1][0]];
          const fsize=scale*ret._labelSize;
-         ctx.font = fsize+"px sans";
+         ctx.font = fsize+"px sans-serif";
          const text = ctx.measureText("C");
          const offx=text.width/2;
          const offy=-offx;
