@@ -145,6 +145,22 @@ JSChemify.PathNotation=function(){
   	  }
   	  return fpath;
     };
+    ret.collapse=function(pth){
+      		return pth.map(v=>{
+      	        	if(v[0]==="D6"){
+      	        		v[0]="R";
+      	        	}else if(v[0]==="S6"){
+      	        		v[0]="L";
+      	        	}
+      	        	if(v[1]==="M100" || v[1]==="m100"){
+      	        		v[1]="";
+      	        	}
+      	          if(!v[2]){
+      	            v[2]="";
+      	          }
+      	        	return v[0]+v[1]+v[2];
+      	      }).join("");
+    };
     ret.deltaVectorFromPath=function(path){
         if(!Array.isArray(path)){
           path=ret.expand(path);
@@ -161,11 +177,11 @@ JSChemify.PathNotation=function(){
       	}else if(d.startsWith("D") || d.startsWith("S") || d.startsWith("d") || d.startsWith("s")){
       		let div=d.substr(1)-0;
       		ang=2*Math.PI/div;
-      		if(d[0]==="S" || d[0]==="s"){
+      		if(d[0]==="S" || d[0] ==="s"){
       			ang=-ang;
       		}
           if(d.toLowerCase()==d){
-            ang=Math.PI-(ang+Math.PI)/2;
+            ang=-Math.sign(ang)*(Math.PI-Math.abs(ang))/2;
           }
       	}
         //
@@ -189,6 +205,9 @@ JSChemify.PathNotation=function(){
        var rej=vec1[0]*vec2[1] - vec1[1]*vec2[0];
        var theta=Math.atan2(rej,dot);
        var theta2=2*theta-Math.PI;
+       if(theta<0){
+          theta2=2*theta+Math.PI;
+       }
        
        var c=(Math.PI*2)/theta;
        var c2=(Math.PI*2)/theta2;
@@ -202,23 +221,24 @@ JSChemify.PathNotation=function(){
        }
        magN=magN*100;
        var dnm="D";
-       var dnm2="s";
+       var dnm2="d";
        if(c<0){
   	     dnm="S";
   	     c=-c;
        }
-       if(c2<0){
-         dnm2="d";
-         c2=-c2;
-       }
+        if(c2<0){
+          c2=-c2;
+          dnm2="s";
+        }
        var rc=Math.round(c*10)/10;
-       var rc2=Math.round(c2*10)/10;
+       var rc2=Math.round(c2*1);
        
        if(Math.abs(rc2-c2) < Math.abs(rc-c)){
          //TODO: there's something wrong here
-          console.log("Prime version");
-          //dnm=dnm2;
-          //c=rc2;
+          //console.log("Prime version");
+          dnm=dnm2;
+          c=rc2;
+          //c=rc;
        }else{
           c=rc;
        }
@@ -2057,20 +2077,7 @@ JSChemify.Chemical = function(arg){
   
   // ret.pathNotationDirectionTo
   ret.getShortPathNotation=function(){
-      return ret.getPathNotation().map(v=>{
-        	if(v[0]==="D6"){
-        		v[0]="R";
-        	}else if(v[0]==="S6"){
-        		v[0]="L";
-        	}
-        	if(v[1]==="M100" || v[1]==="m100"){
-        		v[1]="";
-        	}
-          if(!v[2]){
-            v[2]="";
-          }
-        	return v[0]+v[1]+v[2];
-      }).join("");
+      return JSChemify.PathNotation().collapse(ret.getPathNotation());
   };
   ret.setPathNotation=function(pn){
      if(!Array.isArray(pn)){
