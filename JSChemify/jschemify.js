@@ -112,6 +112,24 @@ JSChemify.BaseVectors=function(){
                     ret.backward],
                                     [ret.downDiag,ret.upDiag,ret.forward,
                     ret.backward]]; 
+
+  ret.expandShortPathNotation=function(pth){
+	  var fpath=[];
+	  let regex=/([LRDSF][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
+	  //regex.lastIndex=0;
+	  while(regex.lastIndex<pth.length){
+		  let m=regex.exec(pth);
+		  
+		  if(!m) throw "Unexpected Path Notation:" + pth;
+		  let parr=[];
+		  parr.push(m[1]);
+		  if(m[2])parr.push(m[2]);
+		  if(m[3])parr.push(m[3]);
+		  fpath.push(parr);
+		  //regex.lastIndex+=m[0].length;
+	  }
+	  return fpath;
+  };
   return ret;
 };
 
@@ -1970,6 +1988,7 @@ JSChemify.Chemical = function(arg){
     });
     return ret;
   };
+  
   // ret.pathNotationDirectionTo
   ret.getShortPathNotation=function(){
       return ret.getPathNotation().map(v=>{
@@ -1990,6 +2009,7 @@ JSChemify.Chemical = function(arg){
   ret.setPathNotation=function(pn){
      if(!Array.isArray(pn)){
 	//parse
+        pn=JSChemify.CONSTANTS.VECTORS_BASIS.expandShortPathNotation(pn);
      }
      //TODO: need a 
      var startAtom=ret.getAtom(0);
