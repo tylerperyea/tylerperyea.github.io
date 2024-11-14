@@ -56,13 +56,13 @@
       var smi = smiPath.split(" ")[0];
       var path= smiPath.split(" ")[1];
       var c=JSChemify.Chemical(smi).setPathNotation(path);
-      var smiSVG=c.toSVG();
+      var smiSVG=c.getSVG();
       document.getElementById("smiles-path-img").innerHTML=smiSVG;
     }
     function renderMol(){
       var mol = document.getElementById("molfile").value;
       var c=JSChemify.Chemical(mol);
-      var molSVG=c.toSVG();
+      var molSVG=c.getSVG();
       document.getElementById("molfile-img").innerHTML=molSVG;
     }
   </script>
