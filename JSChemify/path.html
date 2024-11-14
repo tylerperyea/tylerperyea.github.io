@@ -88,9 +88,8 @@
       var smiPath = document.getElementById("smiles-path").value;
       var smi = smiPath.split(" ")[0];
       var path= smiPath.split(" ")[1];
-      var ePath=JSChemify.CONSTANTS
-	           .VECTORS_BASIS
-	           .expandShortPathNotation(path);
+      var ePath=JSChemify.PathNotation()
+	           .expand(path);
       ePath.map(pp=>{
       	let d=pp[0];
       	let m=pp[1];
