@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
+  <style>
+      body{
+	      font-family:monospace;
+      }
+      textarea{
+        width:100%;
+        min-height:200px;
+      }
+      div.panel{
+        display:inline-block;
+        padding:10px;
+      }
+      div.panel.full{
+        display:block;
+      }
+  </style>
+  <script src="jschemify.js"></script>
+
+  <script>
+    function convertMolToPath(){
+      var mol = document.getElementById("molfile").value;
+      var c=JSChemify.Chemical(mol);
+      var smiles=c.toSmiles();
+      var path =c.getShortPathNotation();
+      document.getElementById("smiles-path").value=smiles + " " + path;
+      renderSmiPath();
+    }
+    function convertPathToMol(){
+      var smiPath = document.getElementById("smiles-path").value;
+      var smi = smiPath.split(" ")[0];
+      var path= smiPath.split(" ")[1];
+      var c=JSChemify.Chemical(smi).setPathNotation(path);
+      document.getElementById("molfile").value=c.toMol();
+      renderMol();
+    }
+    function generateCoordinatesMol(){
+      var mol = document.getElementById("molfile").value;
+      var c=JSChemify.Chemical(mol).generateCoordinates();
+      document.getElementById("molfile").value=c.toMol();
+      renderMol();
+    }
+    function generateCoordinatesSmi(){
+      var smiPath = document.getElementById("smiles-path").value;
+      var smi = smiPath.split(" ")[0];
+      var c=JSChemify.Chemical(smi).generateCoordinates();
+      var path =c.getShortPathNotation();
+      document.getElementById("smiles-path").value=smi + " " + path;
+      renderSmiPath();
+    }
+    function renderSmiPath(){
+      var smiPath = document.getElementById("smiles-path").value;
+      var smi = smiPath.split(" ")[0];
+      var path= smiPath.split(" ")[1];
+      var c=JSChemify.Chemical(smi).setPathNotation(path);
+      var smiSVG=c.toSVG();
+      document.getElementById("smiles-path-img").innerHTML=smiSVG;
+    }
+    function renderMol(){
+      var mol = document.getElementById("molfile").value;
+      var c=JSChemify.Chemical(mol);
+      var molSVG=c.toSVG();
+      document.getElementById("molfile-img").innerHTML=molSVG;
+    }
+  </script>
+  
+</head>  
+<body>
+<div class="panel full">
+  <h1>JSChemfiy Path Notation Example</h1>
+  <p>
+    This example shows the use of the PathNotation syntax for adding coordinates to a smiles string.
+  </p>
+</div>	
+<div class="panel full">
+  <div id="molfile-img">
+    
+  </div>
+<label for="molfile">Molfile</label>
+<textarea id="molfile">
+  
+  Marvin  01132102302D          
+
+ 41 44  0  0  1  0            999 V2000
+   -2.2382   -2.6126    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.8246   -2.5747    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.5524   -2.0825    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.9521   -3.4287    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.0728   -3.4119    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.9954   -2.1751    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.0085   -2.2339    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -3.7611   -2.6083    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.3240   -3.8578    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    3.7779   -2.5916    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    4.5267   -2.1372    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.7220   -3.8411    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.9954   -1.2957    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.5693   -1.2032    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.7530   -2.6588    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    4.5015   -1.2621    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+    3.0080   -2.1708    0.0000 C   0  0  1  0  0  0  0  0  0  0  0  0
+    2.2633   -2.6252    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.3029   -4.6741    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.3323   -3.4287    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -4.5100   -2.1708    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.0138   -4.6403    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    5.2924   -2.5578    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+    1.4934   -2.2087    0.0000 C   0  0  2  0  0  0  0  0  0  0  0  0
+    0.9971   -3.8284    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.3575   -5.0695    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.6701   -5.0863    0.0000 F   0  0  0  0  0  0  0  0  0  0  0  0
+    2.9912   -1.2957    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+    1.4767   -1.3336    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0
+   -3.4246   -3.4287    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.7009   -4.6151    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -2.2677   -0.7025    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -0.9130   -0.7025    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -4.5352   -1.3462    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -5.1663   -2.5957    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -3.3867   -4.9811    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -4.1145   -3.7863    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -5.8394   -2.2129    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -5.2041   -0.9634    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -5.8562   -1.3926    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -4.0851   -4.5605    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  2  3  1  0  0  0  0
+  3  1  2  0  0  0  0
+  4  1  1  0  0  0  0
+  5  4  2  0  0  0  0
+  6  1  1  0  0  0  0
+  7  2  1  0  0  0  0
+  8  6  1  0  0  0  0
+  9  5  1  0  0  0  0
+ 10 17  1  0  0  0  0
+ 11 10  1  0  0  0  0
+ 12  4  1  0  0  0  0
+ 13  6  2  0  0  0  0
+ 14  3  1  0  0  0  0
+ 15  7  1  0  0  0  0
+ 16 11  2  0  0  0  0
+ 17 18  1  0  0  0  0
+ 18 24  1  0  0  0  0
+ 19  9  1  0  0  0  0
+ 20  9  2  0  0  0  0
+ 21  8  1  0  0  0  0
+ 22 25  2  0  0  0  0
+ 23 11  1  0  0  0  0
+ 24 15  1  0  0  0  0
+ 25 20  1  0  0  0  0
+ 26 19  2  0  0  0  0
+ 27 22  1  0  0  0  0
+ 17 28  1  1  0  0  0
+ 24 29  1  1  0  0  0
+ 30 12  1  0  0  0  0
+ 31 12  2  0  0  0  0
+ 32 14  1  0  0  0  0
+ 33 14  1  0  0  0  0
+ 34 21  1  0  0  0  0
+ 35 21  2  0  0  0  0
+ 36 31  1  0  0  0  0
+ 37 30  2  0  0  0  0
+ 38 35  1  0  0  0  0
+ 39 34  2  0  0  0  0
+ 40 39  1  0  0  0  0
+ 41 36  2  0  0  0  0
+  5  2  1  0  0  0  0
+ 41 37  1  0  0  0  0
+ 22 26  1  0  0  0  0
+ 40 38  2  0  0  0  0
+M  END
+</textarea>
+<button id="generate-coordinates-molfile" onclick="generateCoordinatesMol()">Generate Coordinates</button>
+</div>
+<div>
+  <button id="convert-to-path" onclick="convertMolToPath()">Convert to Path Notation =&gt;</button>
+  <button id="convert-to-mol" onclick="convertPathToMol()">&lt; Convert to Molfile</button>
+</div>
+<div>
+  <div id="smiles-path-img">
+    
+  </div>
+<textarea id="smiles-path"></textarea>
+<button id="generate-coordinates-smiles" onclick="generateCoordinatesSmi()">Generate Coordinates</button>
+</div>
+<script>
+  convertMolToPath();
+  renderMol();
+</script>
+</body> 
+</html>
