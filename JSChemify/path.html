@@ -14,8 +14,26 @@
         display:inline-block;
         padding:10px;
       }
+	    div.panel.middle{
+		    vertical-align: bottom;
+        padding-bottom: 100px;
+	    }
+      div.panel.col-3{
+        display:inline-block;
+        padding:10px;
+	      width:33%;
+      }
       div.panel.full{
         display:block;
+      }
+      .middle button {
+        display: block;
+        width: 200px;
+      }
+      textarea.nowrap{
+        white-space: pre;
+        overflow-wrap: normal;
+        overflow-x: scroll;
       }
   </style>
   <script src="jschemify.js"></script>
@@ -75,12 +93,12 @@
     This example shows the use of the PathNotation syntax for adding coordinates to a smiles string.
   </p>
 </div>	
-<div class="panel full">
+<div class="panel col-3">
   <div id="molfile-img">
     
   </div>
 <label for="molfile">Molfile</label>
-<textarea id="molfile">
+<textarea class="nowrap" id="molfile">
   
   Marvin  01132102302D          
 
@@ -175,15 +193,15 @@ M  END
 <button id="render-smiles" onclick="renderMol()">Render</button>
 <button id="generate-coordinates-molfile" onclick="generateCoordinatesMol()">Generate Coordinates</button>
 </div>
-<div>
+<div class="panel middle">
   <button id="convert-to-path" onclick="convertMolToPath()">Convert to Path Notation =&gt;</button>
   <button id="convert-to-mol" onclick="convertPathToMol()">&lt;= Convert to Molfile</button>
 </div>
-<div>
+<div class="panel col-3">
   <div id="smiles-path-img">
     
   </div>
-Smiles Path Notation
+<label for="smiles-path">Smiles Path Notation</label>
 <textarea id="smiles-path"></textarea>
 <button id="render-smiles" onclick="renderSmiPath()">Render</button>
 <button id="generate-coordinates-smiles" onclick="generateCoordinatesSmi()">Generate Coordinates</button>
