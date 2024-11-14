@@ -233,7 +233,7 @@ JSChemify.PathNotation=function(){
        var rc=Math.round(c*10)/10;
        var rc2=Math.round(c2*1);
        
-       if(Math.abs(rc2-c2) < Math.abs(rc-c)){
+       if(Math.abs(rc2-c2) < Math.abs(rc-c) && false){
          //TODO: there's something wrong here
           //console.log("Prime version");
           dnm=dnm2;
@@ -250,6 +250,7 @@ JSChemify.PathNotation=function(){
        if(c<-50){
   	      sig="F";
        }
+       console.log(sig);
        return [sig, nm + magN];
     };
   
