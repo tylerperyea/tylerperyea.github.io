@@ -230,7 +230,7 @@ JSChemify.PathNotation=function(){
           c2=-c2;
           dnm2="s";
         }
-       var rc=Math.round(c*10)/10;
+       var rc=Math.round(c*10000)/10000;
        var rc2=Math.round(c2*1);
        
        if(Math.abs(rc2-c2) < Math.abs(rc-c) && false){
