@@ -42,7 +42,7 @@ Basic I/O:
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
  2. Coordinates: in-line allenes
- 3. Isotopes/charges in render
+ 3. [charges partial] Isotopes/charges in render
  4. Highlight atoms in render
  5. Show atom map numbers in render
  6. [in progress] Add colors to render
@@ -67,7 +67,7 @@ Coordinates and Rendering:
 21. Partial clean
 22. Coordinates: Multiple components
 23. Path Notation:  Multiple components
-24. Place subscripts down
+24. Place subscripts a little down
 
 
 **/
@@ -4972,6 +4972,10 @@ JSChemify.Renderer=function(){
 		ppoint[0]=[x,y];
 		ctx.moveTo(x,y);
 	 };
+	 const fillText=(txt,x,y)=>{
+		//TODO: nudge superscripts up
+		// and subscripts down
+	 };
 	 const lineTo=(x,y, color1, color2)=>{
 		if(color1 && color2 && color1!==color2){
 		    var oldX=ppoint[0][0];
@@ -5081,7 +5085,7 @@ JSChemify.Renderer=function(){
       
       chem.getAtoms().map(at=>{
           const sym=at.getSymbol();
-          if(sym!=="C"){
+          if(sym!=="C" || at.getCharge() || at.getIsotope()){
               const nv=at.getVectorToPoint([0,0]);
               nv[0]=-nv[0];
               nv[1]=-nv[1];
