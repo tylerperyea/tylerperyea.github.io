@@ -455,7 +455,7 @@ M  END`
     function makeExamples(){
         var buttonHTML=Object.keys(examples).map(e=>{
            return "<button onclick='load(\"" + e + "\")'>" + e + "</button>";
-        });
+        }).join("");
        document.getElementById("examples").innerHTML=buttonHTML;
     }
 	  
