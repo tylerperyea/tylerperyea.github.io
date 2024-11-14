@@ -123,8 +123,14 @@ JSChemify.BaseVectors=function(){
 		  if(!m) throw "Unexpected Path Notation:" + pth;
 		  let parr=[];
 		  parr.push(m[1]);
-		  if(m[2])parr.push(m[2]);
-		  if(m[3])parr.push(m[3]);
+		  if(m[2]){
+			  parr[1]=m[2];
+		  }else{
+			  parr[1]="";
+		  }
+		  if(m[3]){
+			  parr[2]=m[3];
+		  }
 		  fpath.push(parr);
 		  //regex.lastIndex+=m[0].length;
 	  }
@@ -1296,9 +1302,18 @@ JSChemify.Bond = function(){
       var wedge=path[2];
       if(wedge){
         var wlow=wedge.toLowerCase();
+	var par=1;
+	//TODO: something is wrong about this logic, but I don't
+	//know what
         if(wedge===wedge.toLowerCase()){
-          ret.swap();
+          //par=par*-1;
         }
+	if(ret._atom2!==a){
+	  //par=par*-1;
+	}
+	if(par<0){
+	  ret.swap();
+	}
         
         if(wlow==="h"){
           ret.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_DASH);
@@ -1388,7 +1403,8 @@ JSChemify.Bond = function(){
       		wedge="H";
       	}
       	if(ret._atom1!==a){
-      		wedge=wedge.toLowerCase();
+      		//TODO: come back to this
+		//wedge=wedge.toLowerCase();
       	}
      }
      var pn= ret.$pathNotationDirectionFromVec(vec1,vec2);
@@ -1412,7 +1428,8 @@ JSChemify.Bond = function(){
       		wedge="H";
       	}
       	if(ret._atom2!==a){
-      		wedge=wedge.toLowerCase();
+      		//TODO: come back to this
+		//wedge=wedge.toLowerCase();
       	}
      }
      var pn= ret.$pathNotationDirectionFromVec(vec1,vec2);
