@@ -83,6 +83,53 @@
       var molSVG=c.getSVG();
       document.getElementById("molfile-img").innerHTML=molSVG;
     }
+	  
+    function round(){
+      var smiPath = document.getElementById("smiles-path").value;
+      var smi = smiPath.split(" ")[0];
+      var path= smiPath.split(" ")[1];
+      var ePath=JSChemify.CONSTANTS
+	           .VECTORS_BASIS
+	           .expandShortPathNotation(path);
+      ePath.map(pp=>{
+      	let d=pp[0];
+      	let m=pp[1];
+      	let w=pp[2];
+        var match=/([A-Za-z])([0-9.]*)/y.exec(d);
+        
+      
+        var alpha=match[1];
+        var numeric=match[2];
+        if(numeric){
+          numeric=Math.round(numeric-0);
+        }else{
+          numeric="";
+        }
+        var nd=alpha+numeric;
+        if(nd==="D6"){ 
+          nd="R";
+        }else if(nd==="S6"){
+          nd="L";
+        }
+        pp[0]=nd;
+        if(m){
+          match=/([A-Za-z])([0-9.]*)/y.exec(m);
+          var mag=match[2]-0;
+          mag=Math.round(mag/20)*20;
+          if(mag===100){
+            pp[1]="";
+          }else{
+            pp[1]=match[1] + mag;
+          }
+        }
+	      
+      });
+      var c=JSChemify.Chemical(smi).setPathNotation(ePath);
+      path =c.getShortPathNotation();
+      document.getElementById("smiles-path").value=smi + " " + path;
+      renderSmiPath();
+	
+    }
   </script>
   
 </head>  
@@ -190,7 +237,7 @@
  40 38  2  0  0  0  0
 M  END
 </textarea>
-<button id="render-smiles" onclick="renderMol()">Render</button>
+<button id="render-smiles" onclick="renderMol()">Render Image</button>
 <button id="generate-coordinates-molfile" onclick="generateCoordinatesMol()">Generate Coordinates</button>
 </div>
 <div class="panel middle">
@@ -203,8 +250,9 @@ M  END
   </div>
 <label for="smiles-path">Smiles Path Notation</label>
 <textarea id="smiles-path"></textarea>
-<button id="render-smiles" onclick="renderSmiPath()">Render</button>
+<button id="render-smiles" onclick="renderSmiPath()">Render Image</button>
 <button id="generate-coordinates-smiles" onclick="generateCoordinatesSmi()">Generate Coordinates</button>
+<button id="round-path" onclick="round()">Round</button>
 </div>
 <script>
   convertMolToPath();
