@@ -720,10 +720,10 @@ JSChemify.Atom = function(){
   ret._y=0;
   ret._z=0;
   ret._parity=0; //for these purposes, 
-                             //1 means that the constituents, travelling
-                //in entered bond sequence, if CCW, for the first
-                //3, would receive a wedge bond to the second
-                //constituent
+                 //1 means that the constituents, travelling
+                 //in entered bond sequence, if CCW, for the first
+                 //3, would receive a wedge bond to the second
+                 //constituent
   
   
   ret.$indexInParent=null;
@@ -776,38 +776,53 @@ JSChemify.Atom = function(){
   ret.getGraphInvariantMarker=function(){
       return ret.getParent().getGraphInvariant()[ret.getIndexInParent()];
   };
+
+  ret.setParityFromStereoBond=function(){
+    //TODO: figure this out. I thnk 
+    var neighbors =ret.getNeighborAtomsAndBonds();
+    if(neighbors.length>=3){
+         
+        var pn=neighbors[0].atom;
+        var nn=neighbors[1].atom;
+        var ln=neighbors[2].atom;
+        var chainDir = pn.getVectorTo(nn);
+        var orthoDir = pn.getVectorTo(ln);
+        var rej=chainDir[0]*orthoDir[1]-chainDir[1]*orthoDir[0];
+    }
+    
+  };
   
   ret.setStereoBondFromParity=function(){
       var par=ret.getParity();
       if(par===1||par===2){
         var neighbors =ret.getNeighborAtomsAndBonds();
-      var pn=neighbors[0].atom;
-      var nn=neighbors[1].atom;
-      var ln=neighbors[2].atom;
-      var chainDir = pn.getVectorTo(nn);
-      var orthoDir = pn.getVectorTo(ln);
-      var rej=chainDir[0]*orthoDir[1]-chainDir[1]*orthoDir[0];
-      var order=neighbors
-                  .filter(a=>a.bond.getBondStereo()===0)
-                  .sort((a,b)=>
-                    a.atom.getGraphInvariantMarker() - 
-                    b.atom.getGraphInvariantMarker());
-      if(order.length>0){
-          useBond=order[0];
-      } else{
-          throw "Can't assign stereo bonds, no bonds available";
-      }                               
-                                          
-      if(useBond.bond._atom2===ret){
-            useBond.bond.swap();
-      }
-      rej=rej*(par-1.5);
-      if(rej>0){
-          useBond.bond.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_WEDGE);
-      }else{
-          useBond.bond.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_DASH);
-      }
-    };
+        var pn=neighbors[0].atom;
+        var nn=neighbors[1].atom;
+        var ln=neighbors[2].atom;
+        var chainDir = pn.getVectorTo(nn);
+        var orthoDir = pn.getVectorTo(ln);
+        var rej=chainDir[0]*orthoDir[1]-chainDir[1]*orthoDir[0];
+        var order=neighbors
+                    .filter(a=>a.bond.getBondStereo()===0)
+                    .sort((a,b)=>
+                      a.atom.getGraphInvariantMarker() - 
+                      b.atom.getGraphInvariantMarker());
+        if(order.length>0){
+            useBond=order[0];
+        } else{
+            throw "Can't assign stereo bonds, no bonds available";
+        }                               
+                                            
+        if(useBond.bond._atom2===ret){
+              useBond.bond.swap();
+        }
+        rej=rej*(par-1.5);
+        if(rej>0){
+            useBond.bond.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_WEDGE);
+        }else{
+            useBond.bond.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_DASH);
+        }
+      };
       return ret;
   };
   ret.getIsotope=function(){
@@ -3204,18 +3219,19 @@ JSChemify.Chemical = function(arg){
               return true;
           }
           if(type==="POP"){
+            //This is a hack to fix a weird problem
+            //that I don't understand. We need a better
+            //fix
+            if(branchStarts.length>0){
               var pBranch=branchStarts.pop();
-            chain.push("BRANCH_END:"+pBranch);
-            if(newAtom.locants){
-              newAtom.locants.map(ll=>{
-                  takenLocants[ll]=false;
-              });
+              chain.push("BRANCH_END:"+pBranch);
+              if(newAtom.locants){
+                newAtom.locants.map(ll=>{
+                    takenLocants[ll]=false;
+                });
+              }
             }
-            //Might be silly
-            //if(pBranch===chain.length-3 && (chain[chain.length-2].closeLocant)){
-            //    chain[chain.length-3]="";
-            //    chain[chain.length-1]="";
-            //}
+            
             return;
           }
           if(type==="BRANCH"){
@@ -3267,12 +3283,11 @@ JSChemify.Chemical = function(arg){
         }
       }
       
-      return chain.map(cc=>{
+      let smi= chain.map(cc=>{
        
-          if(cc==="BRANCH_START"){
+        if(cc==="BRANCH_START"){
             return "(";
         }else if((cc+"").startsWith("BRANCH_END")){
-            
           return ")";
         }else if(cc==="NEW"){
           return ".";
@@ -3297,6 +3312,8 @@ JSChemify.Chemical = function(arg){
         
         return bb + cc.atom.toSmiles()+loc;
       }).join("");
+
+      return smi;
   
   };
   
@@ -4077,13 +4094,13 @@ JSChemify.SmilesReader=function(){
     return null;
   };
   ret.getBondOnDeck=function(atom){
-         if(ret._bondOnDeck!=="!")return ret._bondOnDeck;
-    if(!atom)return "-";
+      if(ret._bondOnDeck!=="!")return ret._bondOnDeck;
+      if(!atom)return "-";
       var oat=ret._atoms[ret._targetAtomIndex];
-    if(oat.type==="a" && atom.type==="a"){
-        return "a:";
-    }
-    return "-";
+      if(oat.type==="a" && atom.type==="a"){
+          return "a:";
+      }
+      return "-";
   };
   ret.addAtom=function(atom){
           if(ret._targetAtomIndex!==null){
@@ -4097,17 +4114,17 @@ JSChemify.SmilesReader=function(){
           ret._bondNumber++;
         ret._bondOnDeck="!"; //always reset to single
       }
-          ret._atoms.push(atom);
+      ret._atoms.push(atom);
       ret._targetAtomIndex=ret._atoms.length-1;
       return ret;
   };
   ret.startBranch=function(){
-          ret._branchIndex.push(ret._targetAtomIndex); //location of branch
-      
+      ret._branchIndex.push(ret._targetAtomIndex); //location of branch
+    
       return ret;
   };
   ret.endBranch=function(){
-          ret._targetAtomIndex=ret._branchIndex.pop();//get rid of last one
+      ret._targetAtomIndex=ret._branchIndex.pop();//get rid of last one
       return ret;
   };
   ret.addBond=function(t){
