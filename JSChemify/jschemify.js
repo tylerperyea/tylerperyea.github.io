@@ -113,32 +113,128 @@ JSChemify.BaseVectors=function(){
                                     [ret.downDiag,ret.upDiag,ret.forward,
                     ret.backward]]; 
 
-  ret.expandShortPathNotation=function(pth){
-	  var fpath=[];
-	  let regex=/([LRDSF][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
-	  //regex.lastIndex=0;
-	  while(regex.lastIndex<pth.length){
-		  let m=regex.exec(pth);
-		  
-		  if(!m) throw "Unexpected Path Notation:" + pth;
-		  let parr=[];
-		  parr.push(m[1]);
-		  if(m[2]){
-			  parr[1]=m[2];
-		  }else{
-			  parr[1]="";
-		  }
-		  if(m[3]){
-			  parr[2]=m[3];
-		  }
-		  fpath.push(parr);
-		  //regex.lastIndex+=m[0].length;
-	  }
-	  return fpath;
-  };
+ 
   return ret;
 };
 
+
+
+JSChemify.PathNotation=function(){
+    if(JSChemify.CONSTANTS && JSChemify.CONSTANTS.PATH){
+      return JSChemify.CONSTANTS.PATH;
+    }
+    let ret={};
+    ret.expand=function(pth){
+  	  var fpath=[];
+  	  let regex=/([LRDSFsd][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
+  	  //regex.lastIndex=0;
+  	  while(regex.lastIndex<pth.length){
+  		  let m=regex.exec(pth);
+  		  if(!m) throw "Unexpected Path Notation:" + pth;
+  		  let parr=[];
+  		  parr.push(m[1]);
+  		  if(m[2]){
+  			  parr[1]=m[2];
+  		  }else{
+  			  parr[1]="";
+  		  }
+  		  if(m[3]){
+  			  parr[2]=m[3];
+  		  }
+  		  fpath.push(parr);
+  	  }
+  	  return fpath;
+    };
+    ret.deltaVectorFromPath=function(path){
+        if(!Array.isArray(path)){
+          path=ret.expand(path);
+        }
+      	var d=path[0];
+      	var m=path[1];
+      	var ang=0;
+      	if(d==="R"){
+      		ang=Math.PI/3;
+      	}else if(d==="L"){
+      		ang=-Math.PI/3;
+      	}else if(d==="F"){
+      		ang=0;
+      	}else if(d.startsWith("D") || d.startsWith("S") || d.startsWith("d") || d.startsWith("s")){
+      		let div=d.substr(1)-0;
+      		ang=2*Math.PI/div;
+      		if(d[0]==="S" || d[0]==="s"){
+      			ang=-ang;
+      		}
+          if(d.toLowerCase()==d){
+            ang=Math.PI-(ang+Math.PI)/2;
+          }
+      	}
+        //
+      	if(!m){
+      		m=1;
+      	}else{
+      		let mm=(m.substr(1)-0)/100;
+      		if(m[0]==="M"){
+      			m=1/mm;
+      		}else{
+      			m=mm;
+      		}
+      	}
+      	return [m*Math.cos(ang),m*Math.sin(ang)];
+    };
+    ret.pathFromDeltaVector=function(vec1,vec2){
+       if(!vec2){
+          vec2=[1,0];
+       }
+       var dot=vec1[0]*vec2[0] + vec1[1]*vec2[1];
+       var rej=vec1[0]*vec2[1] - vec1[1]*vec2[0];
+       var theta=Math.atan2(rej,dot);
+       var theta2=2*theta-Math.PI;
+       
+       var c=(Math.PI*2)/theta;
+       var c2=(Math.PI*2)/theta2;
+       var mag1=JSChemify.Util.magVector(vec1);
+       var mag2=JSChemify.Util.magVector(vec2);
+       var magN=mag1/mag2;
+       var nm="M";
+       if(magN>1){
+  	     nm="m";
+  	     magN=1/magN;
+       }
+       magN=magN*100;
+       var dnm="D";
+       var dnm2="s";
+       if(c<0){
+  	     dnm="S";
+  	     c=-c;
+       }
+       if(c2<0){
+         dnm2="d";
+         c2=-c2;
+       }
+       var rc=Math.round(c*10)/10;
+       var rc2=Math.round(c2*10)/10;
+       
+       if(Math.abs(rc2-c2) < Math.abs(rc-c)){
+         //TODO: there's something wrong here
+          console.log("Prime version");
+          //dnm=dnm2;
+          //c=rc2;
+       }else{
+          c=rc;
+       }
+       magN=Math.round(magN);
+       var sig=dnm+c;
+       if(c>50){
+  	      sig="F";
+       }
+       if(c<-50){
+  	      sig="F";
+       }
+       return [sig, nm + magN];
+    };
+  
+    return ret;
+};
 
 /*******************************
 /* CONSTANTS
@@ -160,6 +256,8 @@ JSChemify.CONSTANTS={
   BOND_STEREO_DASH : 1,
   BOND_STEREO_WIGGLE : 4,
   BOND_STEREO_NONE : 0,
+
+  PATH:JSChemify.PathNotation(),
   
   VECTORS_BASIS:JSChemify.BaseVectors(),
   
@@ -1294,7 +1392,7 @@ JSChemify.Bond = function(){
      return ret.getAtoms().indexOf(a)>=0;
   };
   ret.setCoordinatesFromPathNotation=function(path,ovec,a){
-    	var nvec=ret.$getDeltaVectorFromPathNotation(path);
+    	var nvec=JSChemify.PathNotation().deltaVectorFromPath(path);
     	
     	var nat=ret.getOtherAtom(a);
     	var oldpt=a.getPoint();
@@ -1302,18 +1400,18 @@ JSChemify.Bond = function(){
       var wedge=path[2];
       if(wedge){
         var wlow=wedge.toLowerCase();
-	var par=1;
-	//TODO: something is wrong about this logic, but I don't
-	//know what
+      	var par=1;
+      	//TODO: something is wrong about this logic, but I don't
+      	//know what
         if(wedge===wedge.toLowerCase()){
           //par=par*-1;
         }
-	if(ret._atom2!==a){
-	  //par=par*-1;
-	}
-	if(par<0){
-	  ret.swap();
-	}
+      	if(ret._atom2!==a){
+      	  //par=par*-1;
+      	}
+      	if(par<0){
+      	  ret.swap();
+      	}
         
         if(wlow==="h"){
           ret.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_DASH);
@@ -1325,70 +1423,6 @@ JSChemify.Bond = function(){
     	var nnvec=[ovec[0]*nvec[0]+pvec[0]*nvec[1],ovec[1]*nvec[0]+pvec[1]*nvec[1]];
     	nat.setXYZ(oldpt[0]+nnvec[0],oldpt[1]+nnvec[1]);
     	return ret;
-  };
-  ret.$getDeltaVectorFromPathNotation=function(path){
-    	var d=path[0];
-    	var m=path[1];
-    	var ang=0;
-    	if(d==="R"){
-    		ang=Math.PI/3;
-    	}else if(d==="L"){
-    		ang=-Math.PI/3;
-    	}else if(d==="F"){
-    		ang=0;
-    	}else if(d.startsWith("D") || d.startsWith("S")){
-    		let div=d.substr(1)-0;
-    		ang=2*Math.PI/div;
-    		if(d[0]==="S"){
-    			ang=-ang;
-    		}
-    	}
-    	if(!m){
-    		m=1;
-    	}else{
-    		let mm=(m.substr(1)-0)/100;
-    		if(m[0]==="M"){
-    			m=1/mm;
-    		}else{
-    			m=mm;
-    		}
-    	}
-    	return [m*Math.cos(ang),m*Math.sin(ang)];
-  };
-  ret.$pathNotationDirectionFromVec=function(vec1,vec2){
-     var dot=vec1[0]*vec2[0] + vec1[1]*vec2[1];
-     var rej=vec1[0]*vec2[1] - vec1[1]*vec2[0];
-     var theta=Math.atan2(rej,dot);
-     var c=(Math.PI*2)/theta;
-     var mag1=JSChemify.Util.magVector(vec1);
-     var mag2=JSChemify.Util.magVector(vec2);
-     var magN=mag1/mag2;
-     var nm="M";
-     if(magN>1){
-	     nm="m";
-	     magN=1/magN;
-     }
-     magN=magN*100;
-     var dnm="D";
-     if(c<0){
-	     dnm="S";
-	     c=-c;
-     }
-     if(c>50){
-	
-     }
-     c=Math.round(c*10)/10;
-     magN=Math.round(magN);
-     var sig=dnm+c;
-     if(c>50){
-	      sig="F";
-     }
-     if(c<-50){
-	      sig="B";
-     }
-
-    
-     return [sig, nm + magN];
   };
   ret.pathNotationDirectionFrom=function(dx,dy,a){
      let vec1=[dx,dy];
@@ -1407,7 +1441,7 @@ JSChemify.Bond = function(){
 		//wedge=wedge.toLowerCase();
       	}
      }
-     var pn= ret.$pathNotationDirectionFromVec(vec1,vec2);
+     var pn= JSChemify.PathNotation().pathFromDeltaVector(vec1,vec2);
      if(wedge){
         pn.push(wedge);
      }
@@ -1429,10 +1463,10 @@ JSChemify.Bond = function(){
       	}
       	if(ret._atom2!==a){
       		//TODO: come back to this
-		//wedge=wedge.toLowerCase();
+		      //wedge=wedge.toLowerCase();
       	}
      }
-     var pn= ret.$pathNotationDirectionFromVec(vec1,vec2);
+     var pn= JSChemify.PathNotation().pathFromDeltaVector(vec1,vec2);
      if(wedge){
         pn.push(wedge);
      }
@@ -2041,7 +2075,7 @@ JSChemify.Chemical = function(arg){
   ret.setPathNotation=function(pn){
      if(!Array.isArray(pn)){
 	//parse
-        pn=JSChemify.CONSTANTS.VECTORS_BASIS.expandShortPathNotation(pn);
+        pn=JSChemify.PathNotation().expand(pn);
      }
      //TODO: need a 
      var startAtom=ret.getAtom(0);
