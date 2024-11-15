@@ -10,6 +10,7 @@ Refactoring:
    objects (or maybe not)
 3. [done?] Make renderer an object 
 4. [done?] Precalculate layout objects for paths (up/down/left)
+5. Make some of the vectors more standardized (e.g. be consistent with directions)
 
 Basic I/O:
 1. CIP designations (R/S)
@@ -38,6 +39,7 @@ Basic I/O:
 19. Rgroup decomposition
 20. Edit distance
 21. [done] fix ++ and -- reading of smiles
+22. gzip base64 support for molfiles
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
