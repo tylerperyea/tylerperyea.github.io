@@ -232,7 +232,7 @@ JSChemify.PathNotation=function(){
           c2=-c2;
           dnm2="s";
         }
-       var rc=Math.round(c*10000)/10000;
+       var rc=Math.round(c*10)/10;
        var rc2=Math.round(c2*1);
        
        if(Math.abs(rc2-c2) < Math.abs(rc-c) && false){
@@ -4886,7 +4886,7 @@ JSChemify.SVGContext=function(width, height){
    };
    ret.toSVG=function(){
       var insert=ret._components.join("\n");
-      return `<svg width="` + ret._width + `" height="`+ ret._height +`" xmlns="http://www.w3.org/2000/svg">` 
+      return `<svg viewbox="0 0 ` + ret._width + ` `+ ret._height +`" xmlns="http://www.w3.org/2000/svg">` 
          + insert
          +`</svg>`;
    };
