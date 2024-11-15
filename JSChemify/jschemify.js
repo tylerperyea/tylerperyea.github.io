@@ -230,12 +230,11 @@ JSChemify.PathNotation=function(){
           c2=-c2;
           dnm2="s";
         }
-       var rc=Math.round(c*10)/10;
+       var rc=Math.round(c*10000)/10000;
        var rc2=Math.round(c2*1);
        
        if(Math.abs(rc2-c2) < Math.abs(rc-c) && false){
          //TODO: there's something wrong here
-          //console.log("Prime version");
           dnm=dnm2;
           c=rc2;
           //c=rc;
@@ -250,7 +249,6 @@ JSChemify.PathNotation=function(){
        if(c<-50){
   	      sig="F";
        }
-       console.log(sig);
        return [sig, nm + magN];
     };
   
@@ -1191,37 +1189,72 @@ JSChemify.Atom = function(){
   ret.getShortestAtomDistance=function(a){
       return ret.getParent().getShortestAtomDistance(ret,a);
   };
-  
+
+  ret.getBondsCCW=function(filt){
+	if(!filt)filt=(a)=>true;
+	return ret.getNeighborAtomsAndBonds()
+	   .filter(b=>filt(b))
+	   .map(n=>{
+		   let vec=ret.getVectorTo(n.atom);
+		   let theta = Math.atan2(vec[1],vec[0]);
+		   n["ang"]=theta;
+		   return n;
+	   })
+	  .sort((a,b)=>{
+		return a.ang-b.ang;
+	  });
+  };
+	
   //returns the delta vector
-  ret.getLeastOccupiedVector=function(){
-      var bonds=ret.getBonds();
-    /*
+  ret.getLeastOccupiedVector=function(filt){
+      var bonds=ret.getBondsCCW(filt);
+      var maxAng=-1000;
+      var bAng=null;
+      if(bonds.length===0){
+	        return [1,0];
+      }
       if(bonds.length===1){
-            var vv=ret.getVectorTo(bonds[0].getOtherAtom(ret));
-            vv[0]=-vv[0];
-          vv[1]=-vv[1];
-        return vv;
-    }*/
-    //TODO: consider what to do with 3 substit
-    //or colinear
-    return ret.getVectorAwayFromNeighborCenters();
+        let ang=bonds[0].ang+Math.PI;
+        
+        return [Math.cos(ang),Math.sin(ang)];
+      }
+      for(let i=0;i<bonds.length;i++){
+        	let p=(i)%bonds.length;
+        	let n=(i+1)%bonds.length;
+        	let thetaDiff=bonds[n].ang-bonds[p].ang;
+          let inv=false;
+          if(i+1>=bonds.length){
+            thetaDiff=thetaDiff+Math.PI*2;
+            inv=true;
+          }
+        	if(thetaDiff>maxAng){
+        		maxAng=thetaDiff;
+        		thetaAvg=(bonds[n].ang+bonds[p].ang)/2;
+        		if(inv){
+        			thetaAvg=thetaAvg+Math.PI;
+        		}
+        		bAng=thetaAvg;
+	        }
+      }
+      return [Math.cos(bAng),Math.sin(bAng)];
     
   };
   
   ret.getLeastOccupiedCardinalDirection=function(){
       var up=[0,1];
-    var right=[1,0];
-    var gvec=ret.getLeastOccupiedVector();
-    
-    var dot1=gvec[0]*up[0]+gvec[1]*up[1];
-    var dot2=gvec[0]*right[0]+gvec[1]*right[1];
-    if(ret.getBonds().length>1 && Math.abs(dot1)>Math.abs(dot2)){
-        if(dot1>=0)return up;
-        return [-up[0],-up[1]];
-    }else{
-        if(dot2>=0)return right;
-        return [-right[0],-right[1]];
-    }
+      var right=[1,0];
+      var gvec=ret.getLeastOccupiedVector();
+      var dot1=gvec[0]*up[0]+gvec[1]*up[1];
+      var dot2=gvec[0]*right[0]+gvec[1]*right[1];
+      if(ret.getBonds().length>1 && Math.abs(dot1)>Math.abs(dot2)){
+          if(dot1<=0)return up;
+          return [-up[0],-up[1]];
+      }else{
+          if(dot2<=-4E-2){
+            return right;
+          }
+          return [-right[0],-right[1]];
+      }
   };
   
   ret.getConnectedNetworkAndBonds=function(){
@@ -2167,26 +2200,16 @@ JSChemify.Chemical = function(arg){
   
       rs1.getExternalBonds()
         .map(eb=>{
-          if(atomSet.indexOf(eb.bond.getOtherAtom(eb.atom))>=0)return;
-          var gbonds=[];
-          var avg=eb.atom.getNeighborAtomsAndBonds()
-            .filter(na=>{
-              if(atomSet.indexOf(na.atom)>=0){
-                return true;
-              }else{
-                gbonds.push(na);
-                return false;
-              }
-            })
-            .map(na=>[na.atom.getX(),na.atom.getY(),1])
-            .reduce(JSChemify.Util.addVector);
-            avg[0]=avg[0]/avg[2];
-            avg[1]=avg[1]/avg[2];
-            var delta=[eb.atom.getX()-avg[0],
-            eb.atom.getY()-avg[1],
-            ];
-
-            delta=JSChemify.Util.normVector(delta);
+            if(atomSet.indexOf(eb.bond.getOtherAtom(eb.atom))>=0)return;
+            var gbonds=[];
+  	        var delta=eb.atom.getLeastOccupiedVector((na)=>{
+  	            if(atomSet.indexOf(na.atom)>=0){
+                  return true;
+                }else{
+                  gbonds.push(na);
+                  return false;
+                }
+  	        });
 
             //Single connection to ring
             if(gbonds.length===1){
