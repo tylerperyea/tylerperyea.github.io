@@ -474,7 +474,9 @@ M  END`
     }
     function generateCoordinatesMol(){
       var mol = document.getElementById("molfile").value;
-      var c=JSChemify.Chemical(mol).generateCoordinates();
+      var c=JSChemify.Chemical(mol);
+      c.getAtoms().map(at=>at.setXYZ(0,0));	    
+      c.generateCoordinates();
       document.getElementById("molfile").value=c.toMol();
       renderMol();
     }
