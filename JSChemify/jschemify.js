@@ -3393,9 +3393,18 @@ JSChemify.Chemical = function(arg){
  
   
   ret.fromSmiles=function(smi){
-          return JSChemify.SmilesReader().parse(smi,ret);
+	  let smiles=smi.split(" ");
+          let c= JSChemify.SmilesReader().parse(smiles[0],ret);
+	  if(smiles.length>1){
+	  	c.setPathNotation(smiles[1]);
+	  }
+	  return c;
   };
-  
+  ret.toSmilesPP=function(){
+    let smi=ret.toSmiles();
+    let pth=ret.getShortPathNotation();
+    return smi + " " + pth;
+  };
   ret.toSmiles=function(){
           if(ret.getAtomCount()==0)return "";
           var startAtom = ret.getAtom(0);
@@ -5526,7 +5535,22 @@ JSChemify.Tests=function(){
     console.log("Tests failed:"+failed);
   };
    //JSChemify.Chemical(JSChemify.Chemical("C").setProperty("abc", "val1\nval2").toSd()).toSd()
-
+  ret.tests.push(()=>{
+      let input="C1(=C(N(CCC(CC(CC(=O)O)O)O)C(=C(1)C2(C=CC=CC=2))C2(C=CC(=CC=2)F))C(C)C)C(NC1(C=CC=CC=1))=O R10m80L5RL7RLRLRRLRHRHL5L5L5R9RLLRRRRRLR13LRRRRRR5LRRRRRL5R7R7L7";
+      let c = JSChemify.Chemical(input);
+      let c2=JSChemify.Chemical(c.toMol());
+      let smipp=c2.toSmilesPP();
+      ret.assertEquals(smipp,input);
+  });
+  //This one fails, need to fix it
+  ret.tests.push(()=>{
+      let input="C14(C(C2(CCC3(=C(C(CC1)(H)2)C=CC(O)=C3))(H))(CCC(4)O)H)C L3.9m80L6.5m96R6.2M96LLLLRLLR8L5L5L5R3m80WR7HR3HL3m80WLR3HRRRLRR";
+      let c = JSChemify.Chemical(input);
+      let c2=JSChemify.Chemical(c.toMol());
+      let smipp=c2.toSmilesPP();
+      ret.assertEquals(smipp,input);
+  });
+  //C14(C(C2(CCC3(=C(C(CC1)(H)2)C=CC(O)=C3))(H))(CCC(4)O)H)C L3.9m80L6.5m96R6.2M96LLLLRLLR8L5L5L5R3m80WR7HR3HL3m80WLR3HRRRLRR
   ret.tests.push(()=>{
       var nonConvex=[[0,0],[1,0],[1,1],[0,1]];
       var convex=[[0,0],[1,0],[1,1],[0,1]];
