@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
+  <style>
+      body{
+	      font-family:monospace;
+      }
+      textarea{
+        width:100%;
+        min-height:200px;
+      }
+      div.panel{
+          display:inline-block;
+          padding:10px;
+      }
+      div.panel.full{
+          display:block;
+      }
+      div.structure-image{
+          width:300px;
+      }
+   </style>
+  <script src="jschemify.js"></script>
+
+  <script>
+    function calculate(){
+        let form=document.getElementById("formula").value;
+        let lines=document.getElementById("input").value;
+        let chemCollect=JSChemify.ChemicalCollection().fromSmilesFile(lines);
+        chemCollect.computeNewProperty(form,(c)=>{
+            return eval(form);
+        });
+        let out=chemCollect.toSmilesFile();
+        document.getElementById("results").value=out;
+    }
+  </script>
+  
+</head>  
+<body>
+<div class="panel full">
+<h1>JSChemify Example</h1>
+<p>
+  This is an interactive example of JSChemify, a "pretty okay" basic cheminformatics library written in native javascript.
+</p>
+</div>	
+<div class="panel full">
+<label for="input">Input Molecular Set</label>
+<textarea id="input">
+Name	Smiles	LN R	Kier, Simmons, Hall eq 1	Kier, Simmons, Hall eq 2
+Dipropyl-N-nitrosamine	C(N(CCC)N=O)CC	-2.526	-2.573	-2.711
+Dibutyl-N-nitrosamine	C(N(CCCC)N=O)CCC	-1.897	-3.276	-2.128
+Dipentyl-N-nitrosamine	C(N(CCCCC)N=O)CCCC	-2.996	-3.979	-3.747
+N-Nitrosopyrrolidine	O=NN1CCCC1	-3.912	-3.626	-4.232
+N-Nitrosomorpholine	O=NN1CCOCC1	-2.813	-2.247	-1.857
+N-Nitrosopiperidine	O=NN1CCCCC1	-4.605	-3.977	-4.798
+N-Methyl-N-nitroso-N'nitro-guanidine	CN(N=O)C(=N)N[N](=O)=O	7.226	5.176	5.287
+N-Ethyl-N-nitroso-N'-nitro-guanidine	CCN(N=O)C(=N)N[N](=O)=O	5.858	4.513	4.02
+N-Propyl-N-nitroso-N'-nitro-guanidine	CCCN(N=O)C(=N)N[N](=O)=O	3.6858	4.161	3.791
+N-Butyl-N-nitroso-N'-nitro-guanidine	CCCCN(N=O)C(=N)N[N](=O)=O	3.892	3.811	3.959
+N-Isobutyl-N-nitroso-N'-nitro-guanidine	CC(C)CN(N=O)C(=N)N[N](=O)=O	4.344	4.792	5.304
+N-Pentyl-N-nitroso-N'-nitro-guanidine	CCCCCN(N=O)C(=N)N[N](=O)=O	3.091	3.669	3.264
+N-Hexyl-N-nitroso-N'-nitro-guanidine	CCCCCCN(N=O)C(=N)N[N](=O)=O	1.668	3.317	2.699
+N-Nitrosomethylurea	NC(=O)NCN=O	1.482	1.716	2.676
+N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
+</textarea>
+</div>
+<div class="panel">
+   <select onchange="document.getElementById('formula').value=this.value;">
+      <option>2.398*c.getConnectivityIndexS(0)-4.095*c.getConnectivityIndexV(1)-5.590</option>
+      <option>c.getMolFormula()</option>
+      <option>c.getMolWeight()</option>
+      <option>c.getEStateVector()</option>
+      <option>c.getAtomCount()</option>
+      <option>c.getBondCount()</option>
+   </select>
+   <label for="formula">Formula to Calculate</label>
+   <input id="formula" value="2.398*getConnectivityIndexS(0)-4.095*getConnectivityIndexV(1)-5.590">
+   <button onclick="calculate()">Calculate</button>
+</div>
+<div class="panel full">
+<label for="results">Calculation Results</label>
+
+<textarea id="results">
+  
+</textarea>
+</div>
+
+</body> 
+</html>
