@@ -25,11 +25,13 @@
 
   <script>
     function calculate(){
-        let form=document.getElementById("formula").value;
-        let lines=document.getElementById("input").value;
+        let form=document.getElementById("formula").value.trim();
+        let lines=document.getElementById("input").value.trim();
         let chemCollect=JSChemify.ChemicalCollection().fromSmilesFile(lines);
         chemCollect.computeNewProperty(form,(c)=>{
-            return eval(form);
+	    let ev=eval(form);
+	    console.log(ev);
+            return ev;
         });
         let out=chemCollect.toSmilesFile();
         document.getElementById("results").value=out;
