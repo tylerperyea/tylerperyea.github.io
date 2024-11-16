@@ -110,11 +110,13 @@ JSChemify.BaseVectors=function(){
                    ret.backUp,ret.backDown],
                                    [ret.rightDown,ret.rightUp,ret.forward,
                    ret.backDown,ret.backUp]];    
+  ret.altBanglesR=ret.bangles;
+  /*
   ret.altBanglesR=[[ret.upDiag,ret.downDiag,ret.forward,
                     ret.backward],
                                     [ret.downDiag,ret.upDiag,ret.forward,
                     ret.backward]]; 
-
+*/
  
   return ret;
 };
@@ -897,6 +899,13 @@ JSChemify.Atom = function(){
   };
   ret.getParity=function(){
     return ret._parity;
+  };
+  ret.setAtomMap=function(a){
+    ret._map=a;
+    return ret;
+  };
+  ret.getAtomMap=function(){
+    return ret._map;
   };
   ret.getGraphInvariantMarker=function(){
       return ret.getParent().getGraphInvariant()[ret.getIndexInParent()];
@@ -2063,19 +2072,28 @@ JSChemify.Chemical = function(arg){
            emptyOrigin=false;
          }else{
            var buse=bangles;
+           var special=false;
            if(p.length>=2){
               if(p[p.length-2].atom.getSymbol()!=="C" &&
-               p[p.length-2].atom.getBondCount()>=4 ){
-                   if(!p[p.length-2].atom.isInRing()){
+                 p[p.length-2].atom.getBondCount()>=4 ){
+                  if(!p[p.length-2].atom.isInRing()){
                     buse=altBangles;
-                }else{
-                  buse=altBanglesR;
-                }
+                  }else{
+                    buse=altBanglesR;
+                  }
+               }else if(p[p.length-2].atom.getBondCount()>=4){
+                  special=true;
                }
            }
            var bang = buse[parity][bnum];
-           ndelta=[delta[0]*bang[0]+delta[1]*bang[1],
-           -delta[0]*bang[1]+delta[1]*bang[0]];
+           ndelta=[ delta[0]*bang[0]+delta[1]*bang[1],
+                   -delta[0]*bang[1]+delta[1]*bang[0]];
+           if(special){
+             //TODO this is hacky, and we need to fix it
+             //the parity calc vs the bnum isn't
+             //working as intended
+             bnum=0;
+           }
          }
          cursor=[cursor[0]+ndelta[0],cursor[1]+ndelta[1]];
          delta=ndelta;
@@ -2176,8 +2194,9 @@ JSChemify.Chemical = function(arg){
      
   };
   ret.addAtomMaps=function(){
-  ret.getAtoms().map((at,i)=>at.setAtomMap(i+1));
-  return ret;
+      ret.getAtoms()
+         .map((at,i)=>at.setAtomMap(i+1));
+      return ret;
   };
   ret.generateCoordinates=function(){
     var atomSet=[];
@@ -2352,7 +2371,7 @@ JSChemify.Chemical = function(arg){
     
     //This will look if some atoms are too close
     var clusters=ret.$getCloseClustersOfAtoms();
-    
+	  //clusters=[];
 	  if(clusters.length>0){
 	    var iters=0;
 	    var MAX_ITERS=20;co
@@ -4316,13 +4335,16 @@ JSChemify.SmilesReader=function(){
               var iso=(at.isotope)-0;
               nat.setIsotope(iso);
           }
+          if(at.map){
+              nat.setAtomMap(at.map.substr(1)-0);
+          }
           
           if(at.stereo){
               if(at.stereo=="@"){
                   nat.setParity(1);
-            }else if(at.stereo=="@@"){
-                nat.setParity(2);
-            }
+              }else if(at.stereo=="@@"){
+                  nat.setParity(2);
+              }
           }
           //Since H is implicit,
           //it is treated like last sub
@@ -4491,7 +4513,7 @@ JSChemify.SmilesReader=function(){
       return ret._slice.length==0;
   };
   ret.parse=function(smiles, chem){
-          ret.setInput(smiles);
+      ret.setInput(smiles);
       while(!ret.isEnd()){
          
          if(ret.isEnd())break;
@@ -4926,6 +4948,7 @@ JSChemify.Renderer=function(){
   ret._ang=Math.PI/24;
   ret._swid=0.02;
   ret._dcount=6;
+  ret._showAtomMapNumbers=true;
   ret._colorScheme={symbols:{}};
     /*
   ret._colorScheme={
@@ -5049,12 +5072,12 @@ JSChemify.Renderer=function(){
   };
 
   ret.getStyleFor=function(at){
-  var sym= at.getSymbol();
-  var style=ret._colorScheme.symbols[sym];
-  if(style){
-    return style;
-  }
-  return "black";
+      var sym= at.getSymbol();
+      var style=ret._colorScheme.symbols[sym];
+      if(style){
+        return style;
+      }
+      return "black";
   };
   /**
   Render the supplied chem object on the specified context
@@ -5079,6 +5102,7 @@ JSChemify.Renderer=function(){
                        lseg[1][1]-lseg[1][0]];
          const fsize=scale*ret._labelSize;
          ctx.font = fsize+"px sans-serif";
+    
          const text = ctx.measureText("C");
          const offx=text.width/2;
          const offy=-offx;
@@ -5269,6 +5293,20 @@ JSChemify.Renderer=function(){
              }
               
         }
+        if(at.getAtomMap()!==0){
+          if(ret._showAtomMapNumbers){
+            ctx.font = fsize/2+"px sans-serif";
+            let posVec=at.getPoint();
+            posVec[0]=posVec[0]+0.25;
+            posVec[1]=posVec[1]+0.25;
+            let loc=affine.transform(posVec);
+            ctx.fillStyle = "blue";
+            ctx.fillText(at.getAtomMap()+"",loc[0]-offx/2,loc[1]-offy/2);
+            ctx.fillStyle = "black";
+            ctx.font = fsize+"px sans-serif";
+          }
+        }
+        
       });     
             
   }; //End render function
