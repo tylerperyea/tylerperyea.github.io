@@ -252,9 +252,9 @@ JSChemify.PathNotation=function(){
     };
     ret.collapse=function(pth){
           return pth.map(v=>{
-                  if(v[0]==="D6"){
+                  if(v[0]==="R6"){
                     v[0]="R";
-                  }else if(v[0]==="S6"){
+                  }else if(v[0]==="L6"){
                     v[0]="L";
                   }
                   if(v[1]==="M100" || v[1]==="m100"){
@@ -279,10 +279,10 @@ JSChemify.PathNotation=function(){
           ang=-Math.PI/3;
         }else if(d==="F"){
           ang=0;
-        }else if(d.startsWith("D") || d.startsWith("S") || d.startsWith("d") || d.startsWith("s")){
+        }else if(d.startsWith("R") || d.startsWith("L") || d.startsWith("r") || d.startsWith("l")){
           let div=d.substr(1)-0;
           ang=2*Math.PI/div;
-          if(d[0]==="S" || d[0] ==="s"){
+          if(d[0]==="L" || d[0] ==="l"){
             ang=-ang;
           }
           if(d.toLowerCase()==d){
@@ -325,15 +325,15 @@ JSChemify.PathNotation=function(){
          magN=1/magN;
        }
        magN=magN*100;
-       var dnm="D";
-       var dnm2="d";
+       var dnm="R";
+       var dnm2="r";
        if(c<0){
-         dnm="S";
+         dnm="L";
          c=-c;
        }
         if(c2<0){
           c2=-c2;
-          dnm2="s";
+          dnm2="l";
         }
        var rc=Math.round(c*10)/10;
        var rc2=Math.round(c2*1);
