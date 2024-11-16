@@ -5307,7 +5307,7 @@ JSChemify.Renderer=function(){
              }
               
         }
-        if(at.getAtomMap()!==0){
+        if(at.getAtomMap()){
           if(ret._showAtomMapNumbers){
             ctx.font = fsize/2+"px sans-serif";
             let posVec=at.getPoint();
