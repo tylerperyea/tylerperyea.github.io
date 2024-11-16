@@ -39,6 +39,10 @@
   <script src="jschemify.js"></script>
 
   <script>
+    let settings={
+	    "atomMaps":false
+    };
+	  
     let examples={
 	"atorvastatin":`
   Marvin  01132102302D          
@@ -493,12 +497,18 @@ M  END`
       var smi = smiPath.split(" ")[0];
       var path= smiPath.split(" ")[1];
       var c=JSChemify.Chemical(smi).setPathNotation(path);
+      if(settings.atomMaps){
+		      c=c.addAtomMaps();
+      }
       var smiSVG=c.getSVG();
       document.getElementById("smiles-path-img").innerHTML=smiSVG;
     }
     function renderMol(){
       var mol = document.getElementById("molfile").value;
       var c=JSChemify.Chemical(mol);
+	    if(settings.atomMaps){
+		      c=c.addAtomMaps();
+      }
       var molSVG=c.getSVG();
       document.getElementById("molfile-img").innerHTML=molSVG;
     }
@@ -513,6 +523,13 @@ M  END`
            return "<button onclick='load(\"" + e + "\")'>" + e + "</button>";
         }).join("");
        document.getElementById("examples").innerHTML=buttonHTML;
+    }
+
+    function toggleAtomMaps(){
+    	settings.atomMaps=!settings.atomMaps;
+    
+    	renderMol();
+    	renderSmiPath();
     }
 	  
     function round(){
@@ -574,6 +591,10 @@ M  END`
     </p>
   <div id="examples">
     
+  </div>
+  Settings
+  <div>
+    <button onclick="toggleAtomMaps()">Toggle Atom Numbers</button>
   </div>
 </div>	
 <div class="panel col-3">
