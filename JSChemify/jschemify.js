@@ -4857,7 +4857,7 @@ Query Smiles
      
    };
    ret.getChemical=function(i){
-  return ret._chems[i];
+     return ret._chems[i];
    };
    ret.getChems=function(){
       return ret._chems;
@@ -4917,9 +4917,13 @@ Query Smiles
       return ret;
    };
    ret.computeNewProperty=function(prop, calc){
+      let t=0;
       ret.getChems().map(c=>{
+         t++;
          c.setProperty(prop,calc(c));
       });
+      ret._properties[prop]=t;
+      ret._propertyOrder.push(prop);
       return ret;
    };
    ret.toSmilesFileBuilder=function(){
