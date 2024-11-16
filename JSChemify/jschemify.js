@@ -120,7 +120,108 @@ JSChemify.BaseVectors=function(){
  
   return ret;
 };
-
+JSChemify.ShapeUtils=function(){
+  let ret={}; 
+  ret.rejection=function(pt1,pt2,pt3){
+      var delta1=[pt2[0]-pt1[0],pt2[1]-pt1[1]];
+      var delta2=[pt3[0]-pt2[0],pt3[1]-pt2[1]];
+      if((delta1[0]===0 && delta1[1]===0) ||
+         (delta2[0]===0 && delta2[1]===0)
+        ){
+        return null;
+      }
+      var rej = delta1[0]*delta2[1]-delta1[1]*delta2[0];
+      return rej;
+  };
+  ret.canonicalPathCCW=function(pts){
+      let fp=pts.map((p,i)=>[p,i]).reduce((ap,bp)=>{
+          let a=ap[0];
+          let b=bp[0];
+          if(a[0]<b[0]){
+              return ap;
+          }else if(b[0]<a[0]){
+              return bp;
+          }
+          if(a[1]<b[1]){
+              return ap;
+          }else if(b[1]<a[1]){
+              return bp;
+          }
+          if(ap[1]<bp[1]){
+              return ap;
+          }
+          return bp;
+      });
+      let ppi=(fp[1]+pts.length-1)%pts.length;
+      let npi=(fp[1]+pts.length+1)%pts.length;
+      var rej=Math.sign(ret.rejection(pts[ppi],fp[0],pts[npi]));
+      if(rej===0)rej=1;
+      return pts.map((p,i)=>{
+          return pts[(fp[1]+pts.length+rej*i)%pts.length];
+      });
+      
+    
+  };
+  ret.convexHull=function(pts){
+   
+    //first, sort the points by the rejection to pt 0
+    //
+    let fp=pts[0];
+    pts= pts.map((pp)=>{
+                let theta = Math.atan2(pp[1]-fp[1],pp[0]-fp[0]);
+                if(theta<0){
+                  theta=theta+Math.PI*2;
+                }
+                return [theta,pp];
+            })
+            .sort((a,b)=>{
+                let t= a[0]-b[0];
+                if(t!==0)return t;
+                return JSChemify.Util.sqMagVector(a[1])-JSChemify.Util.sqMagVector(b[1]);
+            })
+            .map(a=>a[1]);
+    let max=pts.length;
+    for(let j=0;j<max;j++){
+      let dirP=[];
+      let dirN=[];
+      let prevDupe=false;
+      for(let i=0;i<pts.length;i++){
+        let ppoint=pts[(i+pts.length-1)%pts.length];
+        let cpoint=pts[i];
+        let npoint=pts[(i+1)%pts.length];
+        let rej=ret.rejection(ppoint,cpoint,npoint);
+        if(rej===null){
+          
+          if(prevDupe){
+            continue;
+          }
+          prevDupe=true;
+        }else{
+          prevDupe=false;
+        }
+        if(rej<0){
+          dirN.push(cpoint);
+        }else if(rej>0){
+          dirP.push(cpoint);
+        }else if(rej===null){
+          dirN.push(cpoint);
+          dirP.push(cpoint);
+        }
+      }
+      if(dirN.length===0)return dirP;
+      if(dirP.length===0)return dirN;
+      if(dirN.length>dirP.length){
+        pts=dirN;
+      }else{
+        pts=dirP;
+      }
+    }
+    //shouldn't ever get here
+    return pts;
+  };
+  
+  return ret;
+};
 
 
 JSChemify.PathNotation=function(){
@@ -5425,7 +5526,53 @@ JSChemify.Tests=function(){
     console.log("Tests failed:"+failed);
   };
    //JSChemify.Chemical(JSChemify.Chemical("C").setProperty("abc", "val1\nval2").toSd()).toSd()
-   
+
+  ret.tests.push(()=>{
+      var nonConvex=[[0,0],[1,0],[1,1],[0,1]];
+      var convex=[[0,0],[1,0],[1,1],[0,1]];
+    
+      var nconvex=JSChemify.ShapeUtils().convexHull(nonConvex);
+      ret.assertToStringEquals(nconvex,convex);
+  });
+  ret.tests.push(()=>{
+      var nonConvex=[[0,0],[1,0],[0.9,0.5],[1,1],[0,1]];
+      var convex=[[0,0],[1,0],[1,1],[0,1]];
+    
+      var nconvex=JSChemify.ShapeUtils().convexHull(nonConvex);
+      ret.assertToStringEquals(nconvex,convex);
+  });
+  ret.tests.push(()=>{
+      var nonConvex=[[0,0],[1,1],[1,0],[0,1]];
+      var convex=[[0,0],[1,0],[1,1],[0,1]];
+    
+      var nconvex=JSChemify.ShapeUtils().convexHull(nonConvex);
+      ret.assertToStringEquals(nconvex,convex);
+  });
+  ret.tests.push(()=>{
+      var nonConvex=[[0.1214,0.33123],[0,0],[0.27,0.99],[0.11,0.36],[1,1],[1,0],[0,1],[0.11,0.37],[0.82,0.22222]];
+      var convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
+      var nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
+      ret.assertToStringEquals(nconvex,convex);
+  });
+  ret.tests.push(()=>{
+      var nonConvex=[[0,0],[0,0],[1,1],[1,0],[0,1]];
+      var convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
+      var nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
+      ret.assertToStringEquals(nconvex,convex);
+  });
+  ret.tests.push(()=>{
+      var nonConvex=[[0,0],[0.5,0.5],[0.25,0.25],[1,1],[1,0],[0,1]];
+      var convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
+      var nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
+      ret.assertToStringEquals(nconvex,convex);
+  }); 
+  ret.tests.push(()=>{
+      var nonConvex=[[0,0],[1,1],[1,0],[1,0.25],[1,0.1],[0,1]];
+      var convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
+      var nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
+      ret.assertToStringEquals(nconvex,convex);
+  });
+  
   ret.tests.push(()=>{
     
     let propChem=JSChemify.Chemical(JSChemify.Chemical("C")
@@ -5540,8 +5687,7 @@ JSChemify.Tests=function(){
   // but we could fix it
   
   ret.tests.push(()=>{
-      ret.assertCleanCoordinates(
-                                             "C1=CC=C([P+](C2C=CC=CC=2)(CCCC#N)C2C=CC=CC=2)C=C1");
+      ret.assertCleanCoordinates("C1=CC=C([P+](C2C=CC=CC=2)(CCCC#N)C2C=CC=CC=2)C=C1");
   });
   
   ret.tests.push(()=>{
