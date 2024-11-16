@@ -1354,25 +1354,39 @@ JSChemify.Atom = function(){
   
   //TODO: Move out probably
   ret.toMolLine=function(){
-              var chg="0";
-            if(ret.getCharge()!==0 && 
+        var chg="0";
+    	  var map=ret.getAtomMap();
+    	  if(!map){
+    		  map=0;
+    	  }
+        if(ret.getCharge()!==0 && 
            Math.abs(ret.getCharge())<=4)chg=4-ret.getCharge();
               return JSChemify.Util.toMolDouble(ret._x)+
         JSChemify.Util.toMolDouble(ret._y)+
         JSChemify.Util.toMolDouble(ret._z)+" "+
         (ret.getSymbol()+"  ").substr(0,3)+ 
-        " 0  " + chg+ "  0  0  0  0  0  0  0  0  0  0";
+        " 0  " + chg+ "  0  0  0  0  0  0  0"+
+		      ("   "+map).substr(-3) +
+		      "  0  0";
         //   27.5477   -5.8710    0.0000 O   0  7  0  0  0  0  0  0  0  0  0  0
+	  //
   };
   ret.fromMolLine=function(line){
+//   -3.8971    2.2500    0.0000 C   0  0  0  0  0  0  0  0  0  7  0  0
     var x= line.substr(0,10).trim()-0;
     var y= line.substr(10,10).trim()-0;
     var z= line.substr(20,10).trim()-0;
     var symbol= line.substr(31,3).trim();
     var charge= line.substr(37,3).trim();
+	  
+    var map= line.substr(61,3).trim();
+    if(map && map!=="0"){
+        ret.setAtomMap(map);
+    }
 
-     //TODO: read parity, isotope, atom map, radical
-     
+     //TODO: read parity, isotope, radical
+    
+	  
     if(charge && charge!=="0"){
         ret.setCharge(-(charge-4));
     }
