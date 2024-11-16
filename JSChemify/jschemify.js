@@ -120,6 +120,30 @@ JSChemify.BaseVectors=function(){
  
   return ret;
 };
+JSChemify.Shape=function(arg,c){
+  if(art._path)return arg;
+  let ret={};
+  ret._path=[];
+  ret.closed=true;
+  ret.toConvexHull=function(){
+    let npath=JSChemify.ShapeUtils().convexHull(ret._path);
+    return JSChemify.Shape(npath);
+  };
+  ret.intersection=function(s2){
+    //TODO: intersection
+  };
+  ret.setPath=function(p,c){
+    if(typeof c !== "undefined"){
+        ret._closed=c;
+    }
+    ret._path=p;
+    return ret;
+  };
+  if(arg){
+    return ret.setPath(arg,c);
+  }
+  return ret;
+};
 JSChemify.ShapeUtils=function(){
   let ret={}; 
   ret.rejection=function(pt1,pt2,pt3){
@@ -3406,10 +3430,10 @@ JSChemify.Chemical = function(arg){
     return smi + " " + pth;
   };
   ret.toSmiles=function(){
-          if(ret.getAtomCount()==0)return "";
-          var startAtom = ret.getAtom(0);
+      if(ret.getAtomCount()==0)return "";
+      var startAtom = ret.getAtom(0);
       var chain=[];
-         var atomsGot=[];
+      var atomsGot=[];
       var takenLocants=[];
       var locantUsed=[];
       var getLowestLocant = (at)=>{
@@ -3442,6 +3466,10 @@ JSChemify.Chemical = function(arg){
               chain.push(prevAtom);
             startTime=false;
           }
+          if(type==="BRANCH"){
+            chain.push("BRANCH_START");
+            branchStarts.push(chain.length-1);
+          }
           if(closedRings.findIndex(cr=>cr.bond ===newAtom.bond)>=0){
               return true;
           }
@@ -3451,20 +3479,23 @@ JSChemify.Chemical = function(arg){
             //fix
             if(branchStarts.length>0){
               var pBranch=branchStarts.pop();
-              chain.push("BRANCH_END:"+pBranch);
+              if(chain[chain.length-1]!=="BRANCH_START"){
+                chain.push("BRANCH_END:"+pBranch);
+              }else{
+                //the branch isn't real
+                chain.pop();
+              }
               if(newAtom.locants){
                 newAtom.locants.map(ll=>{
                     takenLocants[ll]=false;
                 });
               }
+            }else{
             }
             
             return;
           }
-          if(type==="BRANCH"){
-            chain.push("BRANCH_START");
-            branchStarts.push(chain.length-1);
-          }
+         
           //RING
           var rindx=p.findIndex(pa=>pa.atom===newAtom.atom);
           if(rindx<p.length-1){
@@ -3476,7 +3507,7 @@ JSChemify.Chemical = function(arg){
             newAtom.closeLocant=loc;
             locantUsed[loc]=chain.length;
             
-              newAtom._idx=chain.length;
+            newAtom._idx=chain.length;
             chain.push(newAtom);
             closedRings.push(newAtom);
             return true;
@@ -5542,9 +5573,8 @@ JSChemify.Tests=function(){
       let smipp=c2.toSmilesPP();
       ret.assertEquals(smipp,input);
   });
-  //This one fails, need to fix it
   ret.tests.push(()=>{
-      let input="C14(C(C2(CCC3(=C(C(CC1)(H)2)C=CC(O)=C3))(H))(CCC(4)O)H)C L3.9m80L6.5m96R6.2M96LLLLRLLR8L5L5L5R3m80WR7HR3HL3m80WLR3HRRRLRR";
+      let input="C2(C(C1(CCCCC1)C)CCC2) L4M60LRLLLLLR3R5R5R5R5";
       let c = JSChemify.Chemical(input);
       let c2=JSChemify.Chemical(c.toMol());
       let smipp=c2.toSmilesPP();
