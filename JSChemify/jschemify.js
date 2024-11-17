@@ -5029,7 +5029,7 @@ JSChemify.ChemicalCollection=function(){
       let updateTopSkip=(t,s)=>{
             top=t;
             skip=Math.max(s,0);
-            if(top+skip>ret.getChemicalCount()){
+            if(top+skip>=ret.getChemicalCount()){
                   nextPageElm.disabled=true;
             }else{
                   nextPageElm.disabled=false;
