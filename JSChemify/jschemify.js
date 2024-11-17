@@ -4985,6 +4985,7 @@ JSChemify.ChemicalCollection=function(){
                hhh.innerHTML=sortDir+sorted;
             }
          });
+         console.log("refreshed table");
       };
       ret._refreshListener=refreshTable;
       let tt= ()=>{
