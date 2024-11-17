@@ -57,7 +57,6 @@
 </div>	
 <div class="panel full">
 <label for="input">Input Molecular Set</label>
-<p>Data from: Kier LB, Simons RJ, Hall LH. Structure--activity studies on mutagenicity of nitrosamines using molecular connectivity. J Pharm Sci. 1978 May;67(5):725-6. doi: 10.1002/jps.2600670548. PMID: 347051.</p>
 <textarea id="input">
 Name	Smiles	LN R	Kier, Simmons, Hall eq 1	Kier, Simmons, Hall eq 2
 Dipropyl-N-nitrosamine	C(N(CCC)N=O)CC	-2.526	-2.573	-2.711
@@ -76,6 +75,8 @@ N-Hexyl-N-nitroso-N'-nitro-guanidine	CCCCCCN(N=O)C(=N)N[N](=O)=O	1.668	3.317	2.6
 N-Nitrosomethylurea	NC(=O)NCN=O	1.482	1.716	2.676
 N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
 </textarea>
+<p>Data from: Kier LB, Simons RJ, Hall LH. Structure--activity studies on mutagenicity of nitrosamines using molecular connectivity. J Pharm Sci. 1978 May;67(5):725-6. doi: 10.1002/jps.2600670548. PMID: 347051.</p>
+
 </div>
 <div class="panel full">
     <div class="panel full">
@@ -91,11 +92,15 @@ N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
    </div>
 <div class="panel full">
 	<div>
+		<div>
    <label for="formula-name">Name of Property</label>
+		</div>
    <input id="formula-name" value="Calculation">
 	</div>
 	<div>
+		<div>
    <label for="formula">Formula to Calculate</label>
+		</div>
    <input id="formula" value="2.398*c.getConnectivityIndexS(0)-4.095*c.getConnectivityIndexV(1)-5.590">
    <button onclick="calculate()">Calculate</button>
 	</div>
