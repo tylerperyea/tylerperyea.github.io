@@ -4840,7 +4840,8 @@ JSChemify.ChemicalCollection=function(){
            cchem=chem.clone().dearomatize();  
         }catch(e){
            console.log(e);
-           console.log(cchem.toSmiles());
+           console.log(chem.toSmiles());
+           
         }
         var rowHTML = "<tr><td><div class='jschemify-tbl-image'>" + cchem.getSVG() + "</div><div class='jschemify-tbl-smiles'>" 
                + cchem.toSmiles() +"</div></td><td>" + chem.getName() + "</td>"
