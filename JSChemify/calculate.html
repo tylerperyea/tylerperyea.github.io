@@ -49,7 +49,9 @@
 	    }
             return ev;
         });
-        mcol.refresh();
+	setTimeout(()=>{
+        	mcol.refresh();
+	},1000);
     }
     function revert(){
 	newProps.map(np=>mcol.removeProperty(np));
@@ -141,7 +143,7 @@ N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
 	setTimeout(()=>{
 	load();
 	calculate();
-		},2000);
+		},1);
 </script>
 </body> 
 </html>
