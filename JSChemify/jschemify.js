@@ -4773,6 +4773,8 @@ JSChemify.ChemicalCollection=function(){
    ret._filteredChems=[];
    ret._collectionID="jschemify-table-" +(new Date()-0);
 
+   ret._refreshListener=()=>{};
+
    ret.getCollectionID=function(){
       return ret._collectionID;
    };
@@ -4905,7 +4907,10 @@ JSChemify.ChemicalCollection=function(){
         },100);    
         return htmlSections.join("\n");
    };
-   
+
+   ret.refresh=function(){
+      ret._refreshListener();
+   };
    ret.$registerEvents=function(){
        let top=10;
        let skip=0;
@@ -4959,6 +4964,7 @@ JSChemify.ChemicalCollection=function(){
             }
          });
       };
+      ret._refreshListener=refreshTable;
       let tt= ()=>{
          $$("th").forEach(h=>{
             h.style="cursor:pointer;"
