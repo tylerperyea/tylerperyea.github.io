@@ -4809,13 +4809,13 @@ JSChemify.ChemicalCollection=function(){
       .jschemify-tbl-image{
          max-width:150px;
       }
-      .jschemify-tbl td{
-         border:1px solid #dedede;
+      .jschemify-tbl td {
+          border-bottom: 1px solid #dedede;
       }
-      .jschemify-tbl th{
-         border:1px solid grey;
-         background-color: #d2e1fa;
-         
+      .jschemify-tbl th {
+          border-top: 1px solid grey;
+          border-bottom: 1px solid grey;
+          padding: 10px;
       }
       </style>`;
    };
