@@ -5158,11 +5158,12 @@ JSChemify.ChemicalCollection=function(){
       return builder;
    };
    ret.toSDF=function(){
-      return ret.toSDFBuilder().build();
+      return ret.toSDFBuilder()
+                .generateCoordinates()
+                .build();
    };
    ret.toSmilesFile=function(){
       return ret.toSmilesFileBuilder()
-                .generateCoordinates()
                 .build();
    };
    
