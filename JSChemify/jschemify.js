@@ -4886,6 +4886,10 @@ JSChemify.ChemicalCollection=function(){
          <select id="jschemify-query-type">
          <option>E-State</option>
          </select>
+         <select id="jschemify-query-estate-metric">
+         <option>Euclidean Distance</option>
+         <option>Cosine Distance</option>
+         </select>
          <button id="jschemify-query-search">Search</button>
          <div id="jschemify-query-img" class="jschemify-tbl-image">
          </div>
@@ -5054,12 +5058,19 @@ JSChemify.ChemicalCollection=function(){
       };
       $("#jschemify-query-search").onclick=()=>{
          let smi=$("#jschemify-query").value;
+         let type=$("#jschemify-query-estate-metric").value;
+         
          let cq=JSChemify.Chemical(smi).aromatize();
          let estate=cq.getEStateVector();
 
          ret.computeNewProperty("Distance",(cc)=>{
             let tar=cc.getEStateVector();
-            return tar.distanceTo(estate);
+            if(type==="Cosine Distance"){
+               return (1-tar.cosineTo(estate));
+            }else{
+               return tar.distanceTo(estate);
+            }
+            
          });
          ret._chems.sort((a,b)=>{
             return (a.getProperty("Distance")-0)- (b.getProperty("Distance")-0);
