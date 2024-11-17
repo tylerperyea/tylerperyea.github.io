@@ -77,10 +77,10 @@ N-Nitrosomethylurea	NC(=O)NCN=O	1.482	1.716	2.676
 N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
 </textarea>
 </div>
-<div class="panel">
-    <div>
+<div class="panel full">
+    <div class="panel full">
 	   <p>Select example forumula</p>
-	   <select onchange="document.getElementById('formula').value=this.value;">
+	   <select onchange="document.getElementById('formula').value=this.value;calculate();">
 	      <option>2.398*c.getConnectivityIndexS(0)-4.095*c.getConnectivityIndexV(1)-5.590</option>
 	      <option>c.getMolFormula()</option>
 	      <option>c.getMolWeight()</option>
@@ -89,7 +89,7 @@ N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
 	      <option>c.getBondCount()</option>
 	   </select>
    </div>
-<div>
+<div class="panel full">
 	<div>
    <label for="formula-name">Name of Property</label>
    <input id="formula-name" value="Calculation">
