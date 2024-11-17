@@ -4207,6 +4207,10 @@ JSChemify.EState=function(arg){
     });
     return dotSum/(ret.l2()*v.l2());
   };
+   
+  ret.serialize=function(){
+    return ret._vec;
+  };
 
   ret.toString=function(){
     return ret._vec.toString();
