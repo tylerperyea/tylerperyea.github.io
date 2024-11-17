@@ -4209,7 +4209,7 @@ JSChemify.EState=function(arg){
   };
 
   ret.toString=function(){
-    return ret._vec
+    return ret._vec.toString();
   };
   
   if(arg){
