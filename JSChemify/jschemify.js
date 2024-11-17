@@ -4961,6 +4961,8 @@ JSChemify.ChemicalCollection=function(){
       let selectCountElm=$("#jschemify-rows-per-page");
       let editRawElm=$("#jschemify-edit");
       $("#mfile").onchange=(e)=>{
+           console.log(e);
+           $("#mfile").style="display:none;"; 
            let file = e.target.files[0];
            if (!file) {
              return;
@@ -4968,12 +4970,14 @@ JSChemify.ChemicalCollection=function(){
            var reader = new FileReader();
            reader.onload =(ee)=>{
              let contents = ee.target.result;
+             console.log(contents);
              ret.fromFile(contents);
              ret.refresh();
            };
            reader.readAsText(file);
       };
       $("#jschemify-import").onclick=()=>{
+         $("#mfile").style="";
          $("#mfile").click();
       };
       
