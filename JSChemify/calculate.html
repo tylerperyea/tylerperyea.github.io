@@ -27,12 +27,18 @@
   <script src="jschemify.js"></script>
 
   <script>
+    let mcol;
+    function load(){
+	let col=JSChemify.ChemicalCollection()
+		         .fromSmilesFile(document.getElementById("input").value.trim());
+    	document.getElementById("spreadsheet").innerHTML=col.$getTableHTML(20);
+	mcol=col;
+    }
     function calculate(){
         let form=document.getElementById("formula").value.trim();
         let lines=document.getElementById("input").value.trim();
 	let name=document.getElementById("formula-name").value.trim();
-        let chemCollect=JSChemify.ChemicalCollection().fromSmilesFile(lines);
-        chemCollect.computeNewProperty(name,(c)=>{
+        mcol.computeNewProperty(name,(c)=>{
 	    let ev=eval(form);
 	    if(ev && ev.serialize){
 		ev=ev.serialize();
@@ -42,8 +48,7 @@
 	    }
             return ev;
         });
-        let out=chemCollect.toSmilesFile();
-        document.getElementById("results").value=out;
+        mcol.refresh();
     }
   </script>
   
@@ -57,8 +62,9 @@
 </div>	
 <div class="panel full">
 <label for="input">Input Molecular Set</label>
+<div id="spreadsheet">
 <textarea id="input">
-Name	Smiles	LN R	Kier, Simmons, Hall eq 1	Kier, Simmons, Hall eq 2
+Name	Smiles	LN R	KH eq 1	KH eq 2
 Dipropyl-N-nitrosamine	C(N(CCC)N=O)CC	-2.526	-2.573	-2.711
 Dibutyl-N-nitrosamine	C(N(CCCC)N=O)CCC	-1.897	-3.276	-2.128
 Dipentyl-N-nitrosamine	C(N(CCCCC)N=O)CCCC	-2.996	-3.979	-3.747
@@ -75,6 +81,7 @@ N-Hexyl-N-nitroso-N'-nitro-guanidine	CCCCCCN(N=O)C(=N)N[N](=O)=O	1.668	3.317	2.6
 N-Nitrosomethylurea	NC(=O)NCN=O	1.482	1.716	2.676
 N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
 </textarea>
+</div>
 <p><a href="https://pubmed.ncbi.nlm.nih.gov/347051/">Data from: Kier LB, Simons RJ, Hall LH. Structure--activity studies on mutagenicity of nitrosamines using molecular connectivity. J Pharm Sci. 1978 May;67(5):725-6. doi: 10.1002/jps.2600670548. PMID: 347051.</a></p>
 
 </div>
@@ -114,6 +121,7 @@ N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
 </textarea>
 </div>
 <script>
+	load();
 	calculate();
 </script>
 </body> 
