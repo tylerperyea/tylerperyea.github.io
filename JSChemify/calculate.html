@@ -4,7 +4,7 @@
   <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
   <style>
       body{
-	      font-family:monospace;
+	font-family:monospace;
       }
       textarea{
         width:100%;
@@ -20,6 +20,9 @@
       div.structure-image{
           width:300px;
       }
+	  input#formula{
+		width:100%;
+	  }
    </style>
   <script src="jschemify.js"></script>
 
@@ -27,10 +30,10 @@
     function calculate(){
         let form=document.getElementById("formula").value.trim();
         let lines=document.getElementById("input").value.trim();
+	let name=document.getElementById("formula-name").value.trim();
         let chemCollect=JSChemify.ChemicalCollection().fromSmilesFile(lines);
-        chemCollect.computeNewProperty(form,(c)=>{
+        chemCollect.computeNewProperty(name,(c)=>{
 	    let ev=eval(form);
-	    console.log(ev);
             return ev;
         });
         let out=chemCollect.toSmilesFile();
@@ -68,17 +71,24 @@ N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
 </textarea>
 </div>
 <div class="panel">
-   <select onchange="document.getElementById('formula').value=this.value;">
-      <option>2.398*c.getConnectivityIndexS(0)-4.095*c.getConnectivityIndexV(1)-5.590</option>
-      <option>c.getMolFormula()</option>
-      <option>c.getMolWeight()</option>
-      <option>c.getEStateVector()</option>
-      <option>c.getAtomCount()</option>
-      <option>c.getBondCount()</option>
-   </select>
+    <div>
+	   <p>Select example forumula</p>
+	   <select onchange="document.getElementById('formula').value=this.value;">
+	      <option>2.398*c.getConnectivityIndexS(0)-4.095*c.getConnectivityIndexV(1)-5.590</option>
+	      <option>c.getMolFormula()</option>
+	      <option>c.getMolWeight()</option>
+	      <option>c.getEStateVector()</option>
+	      <option>c.getAtomCount()</option>
+	      <option>c.getBondCount()</option>
+	   </select>
+   </div>
+<div>
+   <label for="formula-name">Name of Property</label>
+   <input id="formula-name" value="Calculation">
    <label for="formula">Formula to Calculate</label>
    <input id="formula" value="2.398*getConnectivityIndexS(0)-4.095*getConnectivityIndexV(1)-5.590">
    <button onclick="calculate()">Calculate</button>
+</div>
 </div>
 <div class="panel full">
 <label for="results">Calculation Results</label>
