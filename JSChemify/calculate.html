@@ -38,7 +38,7 @@
     function calculate(){
         let form=document.getElementById("formula").value.trim();
 	let name=document.getElementById("formula-name").value.trim();
-	    newProps.push(name);
+	newProps.push(name);
         mcol.computeNewProperty(name,(c)=>{
 	    let ev=eval(form);
 	    if(ev && ev.serialize){
@@ -141,7 +141,7 @@ N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
 	setTimeout(()=>{
 	load();
 	calculate();
-		},1);
+		},2000);
 </script>
 </body> 
 </html>
