@@ -4834,6 +4834,7 @@ JSChemify.ChemicalCollection=function(){
    };
    ret.$getTableHTML=function(maxRows){
          if(!maxRows)maxRows=10;
+         maxRows=Math.min(maxRows,ret.getChemicalCount());
          JSChemify.Global[ret.getCollectionID()]=ret;
                
          let topPart=`<div id="` + ret._collectionID + `">
