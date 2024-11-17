@@ -4753,11 +4753,14 @@ JSChemify.SmilesReader=function(){
   
 };
 
+JSChemify.Global={
+
+};
 
 /*******************************
 /* ChemicalCollection
 /*******************************
-Status: NOT IMPLEMENTED
+Status: NOT FULLY IMPLEMENTED
    
    
 *******************************/
@@ -4768,7 +4771,14 @@ JSChemify.ChemicalCollection=function(){
    ret._propertyOrder=[];
    ret._inputStandardizer=null;
    ret._filteredChems=[];
-   
+   ret._collectionID="jschemify-table-" +(new Date()-0);
+
+   ret.getCollectionID=function(){
+      return ret._collectionID;
+   };
+   ret.getChemicalCount=function(){
+      return ret._chems.length;
+   };
 
    ret.addChemical=function(c){
       c=JSChemify.Chemical(c);
@@ -4789,76 +4799,169 @@ JSChemify.ChemicalCollection=function(){
       return ret;
    };
 
+   ret.$getCSS=function(){
+      return `<style>
+      .jschemify-tbl-image{
+         max-width:150px;
+      }
+      
+      </style>`;
+   };
    ret.$getHeaderHTML=function(){
-  var headHTML = "<thead><tr><th>Structure</th><th>Name</th>"
-         + ret._propertyOrder.map(p=>"<th>" + p + "</th>").join("") 
-            + "</tr></thead>";
-  return headHTML;
+        var headHTML = "<thead><tr><th>Structure</th><th>Name</th>"
+               + ret._propertyOrder.map(p=>"<th>" + p + "</th>").join("") 
+                  + "</tr></thead>";
+        return headHTML;
    };
    ret.$getRowHTML=function(ri){
-  var chem=ret.getChemical(ri);
-  chem.generateCoordinates();
-  var cchem=chem.clone().dearomatize();  
-  var rowHTML = "<tr><td><div>" + cchem.getSVG(100,75) + "</div></td><td>" + chem.getName() + "</td>"
-         + ret._propertyOrder.map(p=>"<td>" + chem.getProperty(p) + "</td>").join("") 
-            + "</tr>";
-  return rowHTML;
+        var chem=ret.getChemical(ri);
+        chem.generateCoordinates();
+        var cchem=chem.clone().dearomatize();  
+        var rowHTML = "<tr><td><div class='jschemify-tbl-image'>" + cchem.getSVG() + "</div><div class='jschemify-tbl-smiles'>" 
+               + cchem.toSmiles() +"</div></td><td>" + chem.getName() + "</td>"
+               + ret._propertyOrder.map(p=>"<td>" + chem.getProperty(p) + "</td>").join("") 
+                  + "</tr>";
+        return rowHTML;
    };
    ret.$getTableHTML=function(maxRows){
-//Some ideas
-/*
-<div id="table-test">
-<div class="jschemify-table-controls">
-
-Show Structures
-<select>
-<option>Smiles</option>
-<option>Image</option>
-<option>Both</option>
-</select>
-
-<button>Edit Raw Data</button>
-<button>Import</button>
-<button>Download SDF</button>
-<button>Download TXT</button>
-<div>
-Structure Size
-<input type="range" min="1" max="100" value="50">
-</div>
-<span>
-Display Rows
-<select>
-<option>10</option>
-<option>20</option>
-<option>50</option>
-<option>All</option>
-</select>
-Showing <span>1-10</span> of <span>100</span>
-<button disabled="">previous</button>
-<button>next</button>   </span><div class="jschemify-table-query">
-Query Smiles
-<input value="CCCCCC">
-<select>
-<option>E-State</option>
-<option>Fingerprint</option>
-<option>Edit Distance</option>
-</select>
-</div>
-
-</div>
-*/
-     
-  let htmlSections = [];
-  htmlSections.push("<table class='jschemify-table'>");
-  htmlSections.push(ret.$getHeaderHTML());
-  htmlSections.push("<tbody>");
-  for(let i=0;i<maxRows;i++){
-    htmlSections.push(ret.$getRowHTML(i));
-  }
-  htmlSections.push("</tbody>");
-  htmlSections.push("</table>");
-  return htmlSections.join("\n");
-     
+         JSChemify.Global[ret.getCollectionID()]=ret;
+               
+         let topPart=`<div id="` + ret._collectionID + `">
+         <div class="jschemify-table-controls">
+         <div style="display:none;" id="jschemify-raw-panel">
+            <textarea id="jschemify-raw"></textarea>
+         </div>
+         Show Structures
+         <select id="jschemify-structure-type">
+         <option>Smiles+Structure</option>
+         <option>Smiles Only</option>
+         <option>Structure Only</option>
+         </select>
+         
+         <button id="jschemify-edit">Edit Raw Data</button>
+         <button id="jschemify-import">Import</button>
+         <button id="jschemify-download-sdf">Download SDF</button>
+         <button id="jschemify-download-txt">Download TXT</button>
+         <div>
+         Structure Size
+         <input id="jschemify-structure-size" type="range" min="1" max="100" value="50">
+         </div>
+         <span>
+         Display Rows
+         <select id="jschemify-rows-per-page">
+         <option>10</option>
+         <option>20</option>
+         <option>50</option>
+         <option>All</option>
+         </select>
+         Showing <span id="jschemify-display-count">1-10</span> of <span id="total">` + ret.getChemicalCount() + `</span>
+         <button id="jschemify-page-previous" disabled="">previous</button>
+         <button id="jschemify-page-next">next</button></span><div class="jschemify-table-query">
+         Query Smiles
+         <input id="jschemify-query" value="CCCCCC">
+         <select id="jschemify-query-type">
+         <option>E-State</option>
+         <option>Fingerprint</option>
+         <option>Edit Distance</option>
+         </select>
+         </div>
+         
+         </div>
+         `;
+           
+        let htmlSections = [];
+            
+        htmlSections.push(topPart);
+        htmlSections.push(ret.$getCSS());
+        htmlSections.push("<table class='jschemify-tbl'>");
+        htmlSections.push(ret.$getHeaderHTML());
+        htmlSections.push("<tbody>");
+        for(let i=0;i<maxRows;i++){
+          htmlSections.push(ret.$getRowHTML(i));
+        }
+        htmlSections.push("</tbody>");
+        htmlSections.push("</table>");
+        htmlSections.push(`<script>
+            alert("HELLO");
+            console.log("TESTY");
+            JSChemify.Global["`+ret.getCollectionID()+`"].registerEvents();
+         </script>`);
+        setTimeout(()=>{
+           ret.registerEvents();
+           alert("ok");
+        },100);    
+        return htmlSections.join("\n");
+   };
+   ret.registerEvents=function(){
+       let top=10;
+       let skip=0;
+       let download=function(blob, name = 'file.txt'){
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = name;
+        document.body.appendChild(link);
+        link.dispatchEvent(
+          new MouseEvent('click', { 
+            bubbles: true, 
+            cancelable: true, 
+            view: window 
+          })
+        );
+        document.body.removeChild(link);
+      };
+      let $=document.querySelector;
+      let parent=document.querySelector("#" + ret.getCollectionID());
+      $=(t)=>parent.querySelector(t);
+      let rowContainer=$("tbody");
+      let pageCountElm=$("#jschemify-display-count");
+      let previousPageElm=$("#jschemify-page-previous");
+      let nextPageElm=$("#jschemify-page-next");
+      let selectCountElm=$("#jschemify-rows-per-page");
+      let updateTopSkip=(t,s)=>{
+            top=t;
+            skip=s;
+            if(top+skip>ret.getChemicalCount()){
+                  nextPageElm.disabled=true;
+            }else{
+                   nextPageElm.disabled=false;
+            }
+            if(skip===0){
+                   previousPageElm.disabled=true;
+            }else{
+                   previousPageElm.disabled=false;
+            }
+            pageCountElm.innerHTML=(skip+1)+ "-" + (skip+top);
+            let mh=[];
+            for(let i=skip;i<Math.min(skip+top,ret.getChemicalCount());i++){
+                mh.push(ret.$getRowHTML(i));
+            }
+            rowContainer.innerHTML=mh.join("\n");
+      };
+      selectCountElm.onchange=()=>{
+         let t=selectCountElm.value;
+         if(t.toLowerCase()==="all"){
+            updateTopSkip(ret.getChemicalCount(),0);
+         }else{
+            updateTopSkip(t-0,skip);
+         }
+      };
+      $("#jschemify-download-sdf").onclick=()=>{
+         download(new Blob([ret.toSDF()]),"jschemify.sdf");
+      };
+      $("#jschemify-download-txt").onclick=()=>{
+         download(new Blob([ret.toSmilesFile()]),"jschemify.txt");
+      };
+      $("#jschemify-page-next").onclick=()=>{
+         updateTopSkip(top,skip+top);
+      };
+      $("#jschemify-page-previous").onclick=()=>{
+         updateTopSkip(top,skip-top);
+      };
+      console.log("added events");
+      //jschemify-page-next
+      
+      
    };
    ret.getChemical=function(i){
      return ret._chems[i];
