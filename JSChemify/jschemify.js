@@ -4832,6 +4832,7 @@ JSChemify.ChemicalCollection=function(){
               chem.generateCoordinates();
            }catch(e){
               console.log(e);
+              console.log(chem.toSmiles());
            }
         }
         var cchem=chem;
