@@ -4828,7 +4828,13 @@ JSChemify.ChemicalCollection=function(){
    ret.$getRowHTML=function(ri){
         var chem=ret.getChemical(ri);
         chem.generateCoordinates();
-        var cchem=chem.clone().dearomatize();  
+        var cchem=chem;
+        try{
+           cchem=chem.clone().dearomatize();  
+        }catch(e){
+           console.log(e);
+           console.log(cchem.toSmiles());
+        }
         var rowHTML = "<tr><td><div class='jschemify-tbl-image'>" + cchem.getSVG() + "</div><div class='jschemify-tbl-smiles'>" 
                + cchem.toSmiles() +"</div></td><td>" + chem.getName() + "</td>"
                + ret._propertyOrder.map(p=>"<td>" + chem.getProperty(p) + "</td>").join("") 
