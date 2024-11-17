@@ -3311,7 +3311,7 @@ JSChemify.Chemical = function(arg){
         .map(at=>[at,at.getEState()])
         .flatMap(aa=>{
             return [
-                    [aa[0].getKierHallAtomType(),aa[1]],
+                [aa[0].getKierHallAtomType(),aa[1]],
                 [aa[0].getKierHallAtomType2(),aa[1]],
             ].slice(0,d);
         })
@@ -4800,11 +4800,13 @@ JSChemify.ChemicalCollection=function(){
    };
 
    ret.$getCSS=function(){
-      return `<style>
+      return `<style id="jschemify-table-style">
       .jschemify-tbl-image{
          max-width:150px;
       }
-      
+      .jschemify-tbl td{
+         border:1px solid grey;
+      }
       </style>`;
    };
    ret.$getHeaderHTML=function(){
@@ -4824,13 +4826,16 @@ JSChemify.ChemicalCollection=function(){
         return rowHTML;
    };
    ret.$getTableHTML=function(maxRows){
+         if(!maxRows)maxRows=10;
          JSChemify.Global[ret.getCollectionID()]=ret;
                
          let topPart=`<div id="` + ret._collectionID + `">
          <div class="jschemify-table-controls">
          <div style="display:none;" id="jschemify-raw-panel">
+            <button id="jschemify-show-table">Show Table</button>
             <textarea id="jschemify-raw"></textarea>
          </div>
+         <div id="js-full-table-view">
          Show Structures
          <select id="jschemify-structure-type">
          <option>Smiles+Structure</option>
@@ -4839,13 +4844,15 @@ JSChemify.ChemicalCollection=function(){
          </select>
          
          <button id="jschemify-edit">Edit Raw Data</button>
-         <button id="jschemify-import">Import</button>
+         <button disabled id="jschemify-import">Import</button>
          <button id="jschemify-download-sdf">Download SDF</button>
          <button id="jschemify-download-txt">Download TXT</button>
-         <div>
+         
+         <div style="display:none;">
          Structure Size
          <input id="jschemify-structure-size" type="range" min="1" max="100" value="50">
          </div>
+         <div>
          <span>
          Display Rows
          <select id="jschemify-rows-per-page">
@@ -4856,16 +4863,16 @@ JSChemify.ChemicalCollection=function(){
          </select>
          Showing <span id="jschemify-display-count">1-10</span> of <span id="total">` + ret.getChemicalCount() + `</span>
          <button id="jschemify-page-previous" disabled="">previous</button>
+         </div>
          <button id="jschemify-page-next">next</button></span><div class="jschemify-table-query">
          Query Smiles
          <input id="jschemify-query" value="CCCCCC">
          <select id="jschemify-query-type">
          <option>E-State</option>
-         <option>Fingerprint</option>
-         <option>Edit Distance</option>
          </select>
+         <button id="jschemify-query-search">Search</button>
+         <div id="jschemify-query-img" class="jschemify-tbl-image">
          </div>
-         
          </div>
          `;
            
@@ -4881,18 +4888,15 @@ JSChemify.ChemicalCollection=function(){
         }
         htmlSections.push("</tbody>");
         htmlSections.push("</table>");
-        htmlSections.push(`<script>
-            alert("HELLO");
-            console.log("TESTY");
-            JSChemify.Global["`+ret.getCollectionID()+`"].registerEvents();
-         </script>`);
+        htmlSections.push("</div>");
+       
         setTimeout(()=>{
-           ret.registerEvents();
-           alert("ok");
+           ret.$registerEvents();
         },100);    
         return htmlSections.join("\n");
    };
-   ret.registerEvents=function(){
+   
+   ret.$registerEvents=function(){
        let top=10;
        let skip=0;
        let download=function(blob, name = 'file.txt'){
@@ -4910,33 +4914,86 @@ JSChemify.ChemicalCollection=function(){
         );
         document.body.removeChild(link);
       };
-      let $=document.querySelector;
+      
       let parent=document.querySelector("#" + ret.getCollectionID());
-      $=(t)=>parent.querySelector(t);
+      let $=(t)=>parent.querySelector(t);
+      let $$=(t)=>parent.querySelectorAll(t);
       let rowContainer=$("tbody");
       let pageCountElm=$("#jschemify-display-count");
       let previousPageElm=$("#jschemify-page-previous");
       let nextPageElm=$("#jschemify-page-next");
       let selectCountElm=$("#jschemify-rows-per-page");
+      let editRawElm=$("#jschemify-edit");
+      let refreshTable=()=>{
+         let otab=$(".jschemify-tbl");
+         let htmlSections=[];
+         htmlSections.push(ret.$getHeaderHTML());
+        htmlSections.push("<tbody>");
+        for(let i=skip;i<skip+top;i++){
+          htmlSections.push(ret.$getRowHTML(i));
+        }
+        htmlSections.push("</tbody>");
+         otab.innerHTML=htmlSections.join("\n");
+         
+      };
       let updateTopSkip=(t,s)=>{
             top=t;
             skip=s;
             if(top+skip>ret.getChemicalCount()){
                   nextPageElm.disabled=true;
             }else{
-                   nextPageElm.disabled=false;
+                  nextPageElm.disabled=false;
             }
             if(skip===0){
                    previousPageElm.disabled=true;
             }else{
                    previousPageElm.disabled=false;
             }
-            pageCountElm.innerHTML=(skip+1)+ "-" + (skip+top);
+            pageCountElm.innerHTML=(skip+1)+ "-" + Math.min((skip+top),ret.getChemicalCount());
             let mh=[];
             for(let i=skip;i<Math.min(skip+top,ret.getChemicalCount());i++){
                 mh.push(ret.$getRowHTML(i));
             }
             rowContainer.innerHTML=mh.join("\n");
+      };
+      $("#jschemify-show-table").onclick=()=>{
+            $("#js-full-table-view").style="";
+            $("#jschemify-raw-panel").style="display:none;";
+
+         //TODO: refresh table
+      };
+      $("#jschemify-structure-type").onchange=()=>{
+            let v=$("#jschemify-structure-type").value;
+            if(v==="Smiles+Structure"){
+               $$(".jschemify-tbl-image").forEach(e=>e.style="");
+               $$(".jschemify-tbl-smiles").forEach(e=>e.style="");
+            }else if(v==="Smiles Only"){
+               $$(".jschemify-tbl-image").forEach(e=>e.style="display:none;");
+               $$(".jschemify-tbl-smiles").forEach(e=>e.style="");
+            }else if(v==="Structure Only"){
+               $$(".jschemify-tbl-image").forEach(e=>e.style="");
+               $$(".jschemify-tbl-smiles").forEach(e=>e.style="display:none;");
+            }
+      };
+      $("#jschemify-query-search").onclick=()=>{
+         let smi=$("#jschemify-query").value;
+         let cq=JSChemify.Chemical(smi).aromatize();
+         let estate=cq.getEStateVector();
+
+         ret.computeNewProperty("distance",(cc)=>{
+            let tar=cc.getEStateVector();
+            return tar.distanceTo(estate);
+         });
+         ret._chems.sort((a,b)=>{
+            return (a.getProperty("distance")-0)- (b.getProperty("distance")-0);
+         });
+         $("#jschemify-query-img").innerHTML=cq.dearomatize().getSVG();
+         refreshTable();
+      };
+      editRawElm.onclick=()=>{
+            $("#js-full-table-view").style="display:none;";
+            $("#jschemify-raw-panel").style="";
+            $("#jschemify-raw").value=ret.toSmilesFile();
       };
       selectCountElm.onchange=()=>{
          let t=selectCountElm.value;
@@ -4958,7 +5015,6 @@ JSChemify.ChemicalCollection=function(){
       $("#jschemify-page-previous").onclick=()=>{
          updateTopSkip(top,skip-top);
       };
-      console.log("added events");
       //jschemify-page-next
       
       
@@ -5029,8 +5085,10 @@ JSChemify.ChemicalCollection=function(){
          t++;
          c.setProperty(prop,calc(c));
       });
+      if(!ret._properties[prop]){
+         ret._propertyOrder.push(prop);
+      }
       ret._properties[prop]=t;
-      ret._propertyOrder.push(prop);
       return ret;
    };
    ret.toSmilesFileBuilder=function(){
@@ -5090,7 +5148,9 @@ JSChemify.ChemicalCollection=function(){
          }
          return chems.map(c=>{
             if(builder._generateCoordinates){
-              c.generateCoordinates();
+                if(!c.hasCoordinates()){
+                    c.generateCoordinates();
+                }
             }
             return c.toSd();
          }).join("\n");
@@ -5101,7 +5161,9 @@ JSChemify.ChemicalCollection=function(){
       return ret.toSDFBuilder().build();
    };
    ret.toSmilesFile=function(){
-      return ret.toSmilesFileBuilder().build();
+      return ret.toSmilesFileBuilder()
+                .generateCoordinates()
+                .build();
    };
    
    ret.search=function(q){
