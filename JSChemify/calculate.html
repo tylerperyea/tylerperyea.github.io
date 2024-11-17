@@ -34,6 +34,12 @@
         let chemCollect=JSChemify.ChemicalCollection().fromSmilesFile(lines);
         chemCollect.computeNewProperty(name,(c)=>{
 	    let ev=eval(form);
+	    if(ev && ev.serialize){
+		ev=ev.serialize();
+	    }
+	    if(typeof ev ==="object"){
+		ev=JSON.stringify(ev);
+	    }
             return ev;
         });
         let out=chemCollect.toSmilesFile();
@@ -90,7 +96,7 @@ N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
 	</div>
 	<div>
    <label for="formula">Formula to Calculate</label>
-   <input id="formula" value="2.398*getConnectivityIndexS(0)-4.095*getConnectivityIndexV(1)-5.590">
+   <input id="formula" value="2.398*c.getConnectivityIndexS(0)-4.095*c.getConnectivityIndexV(1)-5.590">
    <button onclick="calculate()">Calculate</button>
 	</div>
 </div>
