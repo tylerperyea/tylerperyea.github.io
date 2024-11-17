@@ -1914,7 +1914,10 @@ JSChemify.Chemical = function(arg){
   ret.$graphInvariant;
   ret.$$dirty=0;
   
-  
+  ret.removeProperty=function(k){
+      delete ret._properties[k];
+      return ret;
+  };
   ret.setProperty=function(k,v){
       ret._properties[k]=v;
       return ret;
@@ -5163,6 +5166,14 @@ JSChemify.ChemicalCollection=function(){
          ret._propertyOrder.push(prop);
       }
       ret._properties[prop]=t;
+      return ret;
+   };
+   ret.removeProperty=function(prop){
+      ret.getChems().map(cc=>{
+         cc.removeProperty(prop);
+      });
+      delete ret._properties[prop];
+      ret._propertyOrder=ret._propertyOrder.filter(pp=>pp!==prop);
       return ret;
    };
    ret.toSmilesFileBuilder=function(){
