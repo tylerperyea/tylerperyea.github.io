@@ -4867,9 +4867,9 @@ JSChemify.ChemicalCollection=function(){
          <option>Smiles Only</option>
          <option>Structure Only</option>
          </select>
-         
+         <input style="display:none;" id="mfile" type="file">
          <button id="jschemify-edit">Edit Raw Data</button>
-         <button disabled id="jschemify-import">Import</button>
+         <button id="jschemify-import">Import</button>
          <button id="jschemify-download-sdf">Download SDF</button>
          <button id="jschemify-download-txt">Download TXT</button>
          
@@ -4960,6 +4960,22 @@ JSChemify.ChemicalCollection=function(){
       let nextPageElm=$("#jschemify-page-next");
       let selectCountElm=$("#jschemify-rows-per-page");
       let editRawElm=$("#jschemify-edit");
+      $("#mfile").onchange=(e)=>{
+           let file = e.target.files[0];
+           if (!file) {
+             return;
+           }
+           var reader = new FileReader();
+           reader.onload =(ee)=>{
+             let contents = ee.target.result;
+             ret.fromFile(contents);
+             ret.refresh();
+           };
+           reader.readAsText(file);
+      };
+      $("#jschemify-import").onclick=()=>{
+         $("#mfile").click();
+      };
       
       let update;
       let sorted="";
@@ -5145,6 +5161,23 @@ JSChemify.ChemicalCollection=function(){
          cursor=parsed.cursor;
       }
       return ret;
+   };
+   ret.fromFile=function(inputList){
+       if(!Array.isArray(inputList)){
+         inputList=inputList.split("\n");
+       }
+       let hasMend=false;
+       for(let i=0;i<Math.min(2100,inputList.length);i++){
+         let line=inputList[i];
+         if(line.startsWith("M  END")){
+            hasMend=true;
+            break;
+         }
+       }
+       if(hasMend){
+          return ret.fromSD(inputList);
+       }
+       return ret.fromSmilesFile(inputList);
    };
    ret.fromSmilesFile=function(inputList){
        if(!Array.isArray(inputList)){
