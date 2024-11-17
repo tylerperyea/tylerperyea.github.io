@@ -36,7 +36,6 @@
     }
     function calculate(){
         let form=document.getElementById("formula").value.trim();
-        let lines=document.getElementById("input").value.trim();
 	let name=document.getElementById("formula-name").value.trim();
         mcol.computeNewProperty(name,(c)=>{
 	    let ev=eval(form);
@@ -112,13 +111,6 @@ N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
    <button onclick="calculate()">Calculate</button>
 	</div>
 </div>
-</div>
-<div class="panel full">
-<label for="results">Calculation Results</label>
-
-<textarea id="results">
-  
-</textarea>
 </div>
 <script>
 	load();
