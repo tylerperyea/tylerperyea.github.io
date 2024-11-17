@@ -4827,7 +4827,13 @@ JSChemify.ChemicalCollection=function(){
    };
    ret.$getRowHTML=function(ri){
         var chem=ret.getChemical(ri);
-        chem.generateCoordinates();
+        if(!chem.hasCoordinates()){
+           try{
+              chem.generateCoordinates();
+           }catch(e){
+              console.log(e);
+           }
+        }
         var cchem=chem;
         try{
            cchem=chem.clone().dearomatize();  
