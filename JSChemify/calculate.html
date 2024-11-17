@@ -32,7 +32,7 @@
     function load(){
 	let col=JSChemify.ChemicalCollection()
 		         .fromSmilesFile(document.getElementById("input").value.trim());
-    	document.getElementById("spreadsheet").innerHTML=col.$getTableHTML(20);
+    	document.getElementById("spreadsheet").innerHTML=col.$getTableHTML(10);
 	mcol=col;
     }
     function calculate(){
@@ -122,8 +122,10 @@ N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
 </div>
 </div>
 <script>
+	setTimeout(()=>{
 	load();
 	calculate();
+		},1);
 </script>
 </body> 
 </html>
