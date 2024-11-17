@@ -28,6 +28,7 @@
 
   <script>
     let mcol;
+    let newProps=[];
     function load(){
 	let col=JSChemify.ChemicalCollection()
 		         .fromSmilesFile(document.getElementById("input").value.trim());
@@ -37,6 +38,7 @@
     function calculate(){
         let form=document.getElementById("formula").value.trim();
 	let name=document.getElementById("formula-name").value.trim();
+	    newProps.push(name);
         mcol.computeNewProperty(name,(c)=>{
 	    let ev=eval(form);
 	    if(ev && ev.serialize){
@@ -49,6 +51,11 @@
         });
         mcol.refresh();
     }
+    function revert(){
+	newProps.map(np=>mcol.removeProperty(np));
+	newProps=[];
+	mcol.refresh();
+    };
   </script>
   
 </head>  
@@ -101,15 +108,17 @@ N-Nitrosoethylurea	NC(=O)NCCN=O	0.095	1.117	1.069
 		<div>
    <label for="formula-name">Name of Property</label>
 		</div>
-   <input id="formula-name" value="Calculation">
+   <input id="formula-name" value="JSChemify Value">
 	</div>
 	<div>
 		<div>
    <label for="formula">Formula to Calculate</label>
 		</div>
    <input id="formula" value="2.398*c.getConnectivityIndexS(0)-4.095*c.getConnectivityIndexV(1)-5.590">
-   <button onclick="calculate()">Calculate</button>
+   <button onclick="calculate()">Add New Property</button>
+		<button onclick="revert()">Delete All added Properties</button>
 	</div>
+	
 </div>
 </div>
 <script>
