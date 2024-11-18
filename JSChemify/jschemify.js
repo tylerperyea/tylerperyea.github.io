@@ -3335,8 +3335,8 @@ JSChemify.Chemical = function(arg){
     }
     if(!start)start=0;
     
-    var acount=lines[3+cursor].substr(0,3).trim()-0;
-    var bcount=lines[3+cursor].substr(3,3).trim()-0;
+    var acount=lines[3+start].substr(0,3).trim()-0;
+    var bcount=lines[3+start].substr(3,3).trim()-0;
     let cursor=start;
     for(let i=0;i<acount;i++){
         ret.addNewAtom("A").fromMolLine(lines[3+i+1+cursor]);
