@@ -4930,6 +4930,13 @@ JSChemify.ChemicalCollection=function(){
         return htmlSections.join("\n");
    };
 
+   ret.clear=function(){
+      ret._chems=[];
+      ret._properties={};
+      ret._propertyOrder=[];
+      return ret;
+   };
+
    ret.refresh=function(){
       ret._refreshListener();
    };
@@ -4971,6 +4978,7 @@ JSChemify.ChemicalCollection=function(){
            reader.onload =(ee)=>{
              let contents = ee.target.result;
              console.log(contents);
+             ret.clear();
              ret.fromFile(contents);
              ret.refresh();
            };
@@ -5070,9 +5078,7 @@ JSChemify.ChemicalCollection=function(){
       $("#jschemify-show-table").onclick=()=>{
             $("#js-full-table-view").style="";
             $("#jschemify-raw-panel").style="display:none;";
-            ret._chems=[];
-            ret._properties={};
-            ret._propertyOrder=[];
+            ret.clear();
             let inp=$("#jschemify-raw").value.trim();
             ret.fromSmilesFile(inp);
             refreshTable();
