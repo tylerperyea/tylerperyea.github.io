@@ -5041,6 +5041,14 @@ JSChemify.ChemicalCollection=function(){
                      pA=a.getMolWeight();
                      pB=b.getMolWeight();
                   }
+                  var diff = pA-pB;
+                  if(!isNaN(diff)){
+                     return rev*diff;
+                  }else if(Math.abs(pA)>=0){
+                     return rev;
+                  }else if(Math.abs(pb)>=0){
+                     return -rev;
+                  }
                   let m=[pA,pB].sort()[0];
                   if(m===pA){
                      return rev;
