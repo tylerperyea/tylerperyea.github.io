@@ -5362,17 +5362,24 @@ JSChemify.SVGContext=function(width, height){
    ret._path=[];
    ret._cursor=["M",0,0];
    ret._closed=false;
+   ret._lineDash=null;
 
    ret.lineWidth=1;
    ret.font = "8pt sans-serif";
    ret.fillStyle = "black";
    ret.strokeStyle = "black";
-
+   
    ret.measureText=function(v){
       //Hacky
       var size= (/[0-9]*/y.exec(ret.font.trim())[0])-0;
       return {width:(size)*10.8/15};
    };
+
+   ret.setLineDash=function(dpat){
+      ret._lineDash=dpat;
+      return ret;
+   };
+   
    ret.beginPath=function(){
       //TODO: what do we do here?
       ret._path=[];
@@ -5407,7 +5414,12 @@ JSChemify.SVGContext=function(width, height){
       if(ret._closed){
          p+=" Z";
       }
-      p="<path d=\"" + p + "\" style=\"fill:none;stroke:" + ret.strokeStyle +
+      let other="";
+      if(ret._lineDash && ret._lineDash.length>0){
+            other="stroke-dasharray=\"" + ret._lineDash.join(",") + "\" ";
+      }
+         //stroke-dasharray="10,10"
+      p="<path " + other +  " d=\"" + p + "\" style=\"fill:none;stroke:" + ret.strokeStyle +
             ";stroke-width:" + ret.lineWidth + "\" />";
           
       ret._components.push(p);
@@ -5489,6 +5501,7 @@ JSChemify.Renderer=function(){
   ret._ang=Math.PI/24;
   ret._swid=0.02;
   ret._dcount=6;
+  ret._dashSpace=1/8;
   ret._showAtomMapNumbers=true;
 
   
@@ -5654,36 +5667,36 @@ JSChemify.Renderer=function(){
          const dash=ret._getDash();
          // Set line width
          ctx.lineWidth = scale*ret._lineWidth;  
+               
+         const ppoint=[];
+         const moveTo=(x,y,color)=>{
+          ppoint[0]=[x,y];
+          ctx.moveTo(x,y);
+         };
+         const fillText=(txt,x,y)=>{
+          //TODO: nudge superscripts up
+          // and subscripts down
+         };
+         const lineTo=(x,y, color1, color2)=>{
+          if(color1 && color2 && color1!==color2){
+              var oldX=ppoint[0][0];
+              var oldY=ppoint[0][1];
+              var mid=[oldX+(x-oldX)/2,oldY+(y-oldY)/2];
+              
+              ctx.strokeStyle=color1;
+              ctx.lineTo(mid[0],mid[1]);
+              ctx.stroke();
+              ctx.strokeStyle=color2;
+              ctx.beginPath();
+              ctx.moveTo(mid[0],mid[1]);
+              ctx.lineTo(x,y);
+              
+          }else{
+              ctx.lineTo(x,y);
+          }
+          ppoint[0]=[x,y];
+         };
          
-   const ppoint=[];
-   const moveTo=(x,y,color)=>{
-    ppoint[0]=[x,y];
-    ctx.moveTo(x,y);
-   };
-   const fillText=(txt,x,y)=>{
-    //TODO: nudge superscripts up
-    // and subscripts down
-   };
-   const lineTo=(x,y, color1, color2)=>{
-    if(color1 && color2 && color1!==color2){
-        var oldX=ppoint[0][0];
-        var oldY=ppoint[0][1];
-        var mid=[oldX+(x-oldX)/2,oldY+(y-oldY)/2];
-        
-        ctx.strokeStyle=color1;
-        ctx.lineTo(mid[0],mid[1]);
-        ctx.stroke();
-        ctx.strokeStyle=color2;
-        ctx.beginPath();
-        ctx.moveTo(mid[0],mid[1]);
-        ctx.lineTo(x,y);
-        
-    }else{
-        ctx.lineTo(x,y);
-    }
-    ppoint[0]=[x,y];
-   };
-   
     
          //draw bonds
          chem.getBonds().map(b=>{
@@ -5721,7 +5734,7 @@ JSChemify.Renderer=function(){
                    }
                    return;
             }
-            if(bo===2){
+            if(bo===2 || bo===4){
                 //If the double bond is in a ring
                 //center it
                 if(!b.isInRing()){
@@ -5754,12 +5767,17 @@ JSChemify.Renderer=function(){
             ctx.stroke();
             
             //Draw double bond
-            if(bo===2 || bo===3){
+            if(bo===2 || bo===3 || bo===4){
               ctx.beginPath();
+              if(bo===4){
+                  let space=ret._dashSpace*scale;
+                  ctx.setLineDash([space,space]);
+              }
               moveTo(seg[0][0]+rej[0]-dseg[0]*short, seg[0][1]+rej[1]-dseg[1]*short,styles[0],styles[1]);
               lineTo(seg[1][0]+rej[0]+dseg[0]*short, seg[1][1]+rej[1]+dseg[1]*short,styles[0],styles[1]);
               //ctx.closePath();
               ctx.stroke();
+              ctx.setLineDash([]);
             }
             //Draw triple bond
             if(bo===3){
