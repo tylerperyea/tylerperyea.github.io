@@ -5014,6 +5014,7 @@ JSChemify.ChemicalCollection=function(){
             }
          });
          console.log("refreshed table");
+         $("#jschemify-structure-type").onchange();
       };
       ret._refreshListener=refreshTable;
       let tt= ()=>{
@@ -5082,6 +5083,7 @@ JSChemify.ChemicalCollection=function(){
                 mh.push(ret.$getRowHTML(i));
             }
             $("tbody").innerHTML=mh.join("\n");
+            $("#jschemify-structure-type").onchange();
       };
       $("#jschemify-show-table").onclick=()=>{
             $("#js-full-table-view").style="";
