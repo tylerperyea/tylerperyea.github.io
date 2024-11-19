@@ -5280,16 +5280,24 @@ JSChemify.ChemicalCollection=function(){
           }
           var name=i;
           var smiles=l[0];
+          var pnot=null;
           if(headerIndex["name"]>=0){
             name=l[headerIndex["name"]];
           }
           if(headerIndex["smiles"]>=0){
             smiles=l[headerIndex["smiles"]];
           }
+          if(headerIndex["path_notation"]>=0){
+            pnot=l[headerIndex["path_notation"]];
+          }
           var chem= JSChemify.Chemical().fromSmiles(smiles).setName(name);
+          if(pnot){
+            chem.setPathNotation(pnot);
+          }
           
+           
           for(var i=0;i<header.length;i++){
-            if(header[i].toLowerCase()==="smiles" || header[i].toLowerCase()==="name")continue;
+            if(header[i].toLowerCase()==="smiles" || header[i].toLowerCase()==="name" || header[i].toLowerCase() === "path_notation")continue;
             chem.setProperty(header[i],l[i]);
           }
           ret.addChemical(chem);
@@ -5321,7 +5329,34 @@ JSChemify.ChemicalCollection=function(){
    };
    ret.toSmilesFileBuilder=function(){
       let builder={};
+      builder._smilesPP=false;
+      builder._pathNotationColumn=true;
+      builder._generateCoordinates=false;
+      
       builder._map=null;
+      builder.smilesPP=function(b){
+         if(b===false){
+            builder._smilesPP=false;
+         }else{
+            builder._smilesPP=true;
+         }
+         return builder;
+      };
+      builder.addPathNotationColumn=function(b){
+         if(b===false){
+            builder._pathNotationColumn=false;
+         }else{
+            builder._pathNotationColumn=true;
+         }
+         return builder;
+      };
+      builder.generateCoordinates=function(b){
+         if(typeof b === "undefined"){
+            b=true;
+         }
+         builder._generateCoordinates=b;
+         return builder;
+      };
       builder.map=function(m){
          if(m){
             if(builder._map){
@@ -5341,8 +5376,28 @@ JSChemify.ChemicalCollection=function(){
          }
          //TODO: need to think about computed properties
          var header="SMILES\tName\t"+ret._propertyOrder.join("\t");
+         if(builder._pathNotationColumn){
+            header="SMILES\tPATH_NOTATION\tName\t"+ret._propertyOrder.join("\t");
+         }
+         let smiMaker=(c)=>{
+            if(builder._smilesPP){
+               return c.toSmiles();
+            }else{
+               return c.toSmilesPP();
+            }
+         };
+         
          return header + "\n" + chems.map(c=>{
-            return c.toSmiles()  + "\t" + c.getName()+"\t" + c.getProperties(ret._propertyOrder).join("\t");
+            if(builder._generateCoordinates){
+                if(!c.hasCoordinates()){
+                    c.generateCoordinates();
+                }
+            }
+            if(builder._pathNotationColumn){
+               return smiMaker(c) + "\t" + c.getShortPathNotation() +"\t"+ c.getName()+"\t" + c.getProperties(ret._propertyOrder).join("\t");
+            }else{
+               return smiMaker(c) + "\t" + c.getName()+"\t" + c.getProperties(ret._propertyOrder).join("\t");
+            }
          }).join("\n");
       };
       return builder;
