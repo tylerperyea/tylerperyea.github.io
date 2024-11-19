@@ -5111,7 +5111,7 @@ JSChemify.ChemicalCollection=function(){
                      return rev*diff;
                   }else if(Math.abs(pA)>=0){
                      return rev;
-                  }else if(Math.abs(pb)>=0){
+                  }else if(Math.abs(pB)>=0){
                      return -rev;
                   }
                   let m=[pA,pB].sort()[0];
