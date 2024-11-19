@@ -1911,6 +1911,7 @@ JSChemify.Chemical = function(arg){
   
   
   ret.$ringSystems=null;
+  ret.$EstateVector=null;
   ret.$graphInvariant;
   ret.$$dirty=0;
   
@@ -2869,6 +2870,7 @@ JSChemify.Chemical = function(arg){
     ret._rings=null;
     ret.$graphInvarient=null;
     ret.$$dirty++;
+    ret.$EstateVector=null;
   };
   ret.$dirtyNumber=function(){
       return ret.$$dirty;
@@ -3307,24 +3309,27 @@ JSChemify.Chemical = function(arg){
   };
   
   ret.getEStateVector=function(d){
-    var vec={};
-    if(!d)d=1;
-    ret.getAtoms()
-        .filter(at=>at.getSymbol()!=="H")
-        .map(at=>[at,at.getEState()])
-        .flatMap(aa=>{
-            return [
-                [aa[0].getKierHallAtomType(),aa[1]],
-                [aa[0].getKierHallAtomType2(),aa[1]],
-            ].slice(0,d);
-        })
-        .map(vv=>{
-            var o=vec[vv[0]];
-            if(!o)o=0;
-            o+=vv[1];
-            vec[vv[0]]=o;
-        });
-    return JSChemify.EState(vec);
+    if(ret.$EstateVector){
+       var vec={};
+       if(!d)d=1;
+       ret.getAtoms()
+           .filter(at=>at.getSymbol()!=="H")
+           .map(at=>[at,at.getEState()])
+           .flatMap(aa=>{
+               return [
+                   [aa[0].getKierHallAtomType(),aa[1]],
+                   [aa[0].getKierHallAtomType2(),aa[1]],
+               ].slice(0,d);
+           })
+           .map(vv=>{
+               var o=vec[vv[0]];
+               if(!o)o=0;
+               o+=vv[1];
+               vec[vv[0]]=o;
+           });
+       ret.$EstateVector= JSChemify.EState(vec);
+    }
+    return ret.$EstateVector;
   };
   ret.fromMol=function(lines,start){
       return ret.readNextMol(lines,start).chem;
@@ -4096,6 +4101,57 @@ JSChemify.Ring=function(arg){
   }
   
   return ret;
+};
+
+
+JSChemify.ChemicalFeatures=function(){
+   let ret={};
+   ret._counts={};
+   
+   ret.$hash=function(s){
+        let hash = 0, i, chr;
+        if (s.length === 0) return hash;
+        for (i = 0; i < s.length; i++) {
+          chr = s.charCodeAt(i);
+          hash = ((hash << 5) - hash) + chr;
+          hash |= 0; // Convert to 32bit integer
+        }
+        return hash;
+   };
+   ret.toFoldedFingerprint(size){
+      let fp=[];
+      if(!size){
+         size=1024;
+      }
+      
+      Object.keys(ret._counts)
+            .map(k=>{
+               let hnum=Math.abs(ret.$hash(k))%size;
+               fp[hnum]=((!fp[hnum])?0:fp[hnum])+ret._counts[k];
+            });
+      //TODO: make it binary?
+      return fp;
+   };
+   
+   
+   return ret;
+};
+/*******************************
+/* ChemicalSearcher
+/*******************************
+Status: IN PROGRESS
+
+
+   
+*******************************/
+JSChemify.ChemcialSearcher=function(){
+   let ret={};
+   ret._query=null;
+   
+   
+
+
+   return ret;
 };
 
 /*******************************
