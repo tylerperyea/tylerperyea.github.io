@@ -2362,22 +2362,47 @@ JSChemify.Chemical = function(arg){
      //TODO: need a 
      var startAtom=ret.getAtom(0);
      var dpath=[];
+     var gotAtoms={};
      var got={};
-     startAtom.$allPathsDepthFirst((path)=>{
-  if(got[path[path.length-1].bond.getIndexInParent()]){
-    return true;
-  }  
-  if(path.length>2){
-    var obond=path[path.length-2].bond;
-    var nbond=path[path.length-1].bond;
-    var satom=path[path.length-2].atom;
-    dpath.push(obond.pathNotationDirectionTo(nbond,satom));
-  }else if(path.length===2){
-    var nn=path[path.length-1].bond.pathNotationDirectionFrom(1,0,path[0].atom);
-    dpath.push(nn);
-  }
-  got[path[path.length-1].bond.getIndexInParent()]=true;
-     });
+     var startDx=1;
+     var startDy=0;
+     
+     while(startAtom){
+        startAtom.$allPathsDepthFirst((path)=>{
+           if(got[path[path.length-1].bond.getIndexInParent()]){
+             return true;
+           } 
+           var atom1=path[path.length-2].atom;
+           gotAtoms[atom1.getIndexInParent()]=true;
+           if(path.length>2){
+             var atom2=path[path.length-1].atom;
+             gotAtoms[atom2.getIndexInParent()]=true;
+             var obond=path[path.length-2].bond;
+             var nbond=path[path.length-1].bond;
+             var satom=path[path.length-2].atom;
+             dpath.push(obond.pathNotationDirectionTo(nbond,satom));
+           }else if(path.length===2){
+             var nn=path[path.length-1].bond.pathNotationDirectionFrom(startDx,startDy,path[0].atom);
+             dpath.push(nn);
+           }
+           got[path[path.length-1].bond.getIndexInParent()]=true;
+        });
+        let latom=startAtom;
+        startAtom=null;
+        for(let i=0;i<ret.getAtomCount();i++){
+            if(!gotAtoms[i]){
+               startAtom=ret.getAtom(i);
+               break;
+            }
+        }
+        if(startAtom){
+            let dvec=latom.getVectorTo(startAtom);
+            startDx=dvec[0];
+            startDy=dvec[1];
+        }
+        //TODO: Finish thinking about this
+     }
+     
 
      return dpath;
      
