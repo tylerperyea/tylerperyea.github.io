@@ -2765,7 +2765,7 @@ JSChemify.Chemical = function(arg){
      return renderer.getSVG(ret,width,height);
   };
   ret.getBoundingBox=function(){
-    return ret.getAtoms()
+    let bb= ret.getAtoms()
           .map(at=>[at.getX(),at.getY(),at.getX(),at.getY()])
           .reduce((a,b)=>{
         a[0]=Math.min(a[0],b[0]);
@@ -2773,7 +2773,15 @@ JSChemify.Chemical = function(arg){
         a[2]=Math.max(a[2],b[2]);
         a[3]=Math.max(a[3],b[3]);
         return a;
-          });
+          },[1000,1000,-1000,-1000]);
+     if(bb[0]>bb[2] || ret.getAtomCount()===1){
+        if(ret.getAtomCount()===1){
+           let at=ret.getAtom(0);
+           return [at.getX()-3,at.getY()-3,at.getX()+3,at.getY()+3];
+        }
+        return [-3,-3,3,3];
+     }
+     return bb;
   };
   ret.getComponents=function(){
       let cats= ret.getAtomsInComponents();
