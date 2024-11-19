@@ -3309,7 +3309,7 @@ JSChemify.Chemical = function(arg){
   };
   
   ret.getEStateVector=function(d){
-    if(ret.$EstateVector){
+    if(!ret.$EstateVector){
        var vec={};
        if(!d)d=1;
        ret.getAtoms()
