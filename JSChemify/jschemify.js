@@ -4118,7 +4118,7 @@ JSChemify.ChemicalFeatures=function(){
         }
         return hash;
    };
-   ret.toFoldedFingerprint(size){
+   ret.toFoldedFingerprint=function(size){
       let fp=[];
       if(!size){
          size=1024;
