@@ -2337,6 +2337,8 @@ JSChemify.Chemical = function(arg){
      var startDy=0;
      
      while(startAtom){
+        
+        gotAtoms[startAtom.getIndexInParent()]=true;
         startAtom.$allPathsDepthFirst((path)=>{
              if(got[path[path.length-1].bond.getIndexInParent()]){
                return true;
@@ -2389,9 +2391,8 @@ JSChemify.Chemical = function(arg){
                        ovec[1]*nvec[0]+pvec[1]*nvec[1]];
             startAtom.setXYZ(latom.getX()+nnvec[0],latom.getY()+nnvec[1]);
             let dvec=latom.getVectorTo(startAtom);
-            startDx=nvec[0];
-            startDy=nvec[1];
-            gotAtoms[startAtom.getIndexInParent()]=true;
+            startDx=dvec[0];
+            startDy=dvec[1];
         }
      }
 
@@ -2406,6 +2407,8 @@ JSChemify.Chemical = function(arg){
      var startDy=0;
      
      while(startAtom){
+        
+        gotAtoms[startAtom.getIndexInParent()]=true;
         startAtom.$allPathsDepthFirst((path)=>{
            if(got[path[path.length-1].bond.getIndexInParent()]){
              return true;
@@ -2444,8 +2447,6 @@ JSChemify.Chemical = function(arg){
                                .pathFromDeltaVector([pdx,pdy],
                                                     [startDx,startDy]);
             dpath.push(npath);
-           
-            gotAtoms[startAtom.getIndexInParent()]=true;
         }
      }
      return dpath;
