@@ -29,7 +29,7 @@ Basic I/O:
 9. SMARTS/query support
 10. [done] Molform and weight
 11. [done] Basic SDF/Smiles file reader into collection
-12. Spreadsheet support?
+12. [partial] Spreadsheet support?
 13. Basic ECFP implementation
 14. MCS support
 15. Scaffold support
@@ -46,14 +46,14 @@ Coordinates and Rendering:
  2. Coordinates: in-line allenes
  3. [charges partial] Isotopes/charges in render
  4. Highlight atoms in render
- 5. Show atom map numbers in render
+ 5. [done] Show atom map numbers in render
  6. [in progress] Add colors to render
  8. [done] Get SVG or PNG directly
  9. Coordinates: Add explicit hydrogens when 
     it makes sense for stereo
 10. Coordinates: Extend/wiggle colliding atoms 
     where possible
-11. Draw aromatic circles and bonds
+11. [partial] Draw aromatic circles and bonds
 12. Coordinates: Multiple components
 13. Brackets
 14. Coordinates: hex grid rings alignment
@@ -61,14 +61,14 @@ Coordinates and Rendering:
     4 substituents
 16. Coordinates: overlapping bonds issue
 17. [done] Path Encoding
-18. Parse simplified path encoding
+18. [done] Parse simplified path encoding
 17. SVG Bug: clearing background
 18. [done] Path Encoding wedge and hash support
 19. Path encoding smiles bond order discrepency?
 20. Path encoding extended angles (complements)
 21. Partial clean
 22. Coordinates: Multiple components
-23. Path Notation:  Multiple components
+23. [done] Path Notation:  Multiple components
 24. Place subscripts a little down
 
 
