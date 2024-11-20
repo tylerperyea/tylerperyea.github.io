@@ -2331,35 +2331,73 @@ JSChemify.Chemical = function(arg){
      }
      var startAtom=ret.getAtom(0);
      var got={};
+     var gotAtoms={};
      var pthIndex=0;
-     startAtom.$allPathsDepthFirst((path)=>{
-          if(got[path[path.length-1].bond.getIndexInParent()]){
-            return true;
-          }  
-          if(path.length>2){
+     var startDx=1;
+     var startDy=0;
+     
+     while(startAtom){
+        startAtom.$allPathsDepthFirst((path)=>{
+             if(got[path[path.length-1].bond.getIndexInParent()]){
+               return true;
+             }  
+           
+             var atom1=path[path.length-2].atom;
+             gotAtoms[atom1.getIndexInParent()]=true;
+             if(path.length>2){
+                
+               var atom2=path[path.length-1].atom;
+               gotAtoms[atom2.getIndexInParent()]=true;
+               var pth=pn[pthIndex];
+               pthIndex++;
+               var obond=path[path.length-2].bond;
+               var nbond=path[path.length-1].bond;
+               var satom=path[path.length-2].atom;
+               var ovec = obond.getOtherAtom(satom).getVectorTo(satom);
+               nbond.setCoordinatesFromPathNotation(pth,ovec,satom);
+               
+             }else if(path.length===2){
+               var pth=pn[pthIndex];
+               pthIndex++;
+               var bond=path[path.length-1].bond;
+               var satom=path[path.length-1].atom;
+               var datom=bond.getOtherAtom(satom);
+               bond.setCoordinatesFromPathNotation(pth,[startDx,startDy],datom);
+             }
+             got[path[path.length-1].bond.getIndexInParent()]=true;
+            });
+        let latom=startAtom;
+        startAtom=null;
+        for(let i=0;i<ret.getAtomCount();i++){
+            if(!gotAtoms[i]){
+               startAtom=ret.getAtom(i);
+               break;
+            }
+        }
+        if(startAtom){
+            let pdx=startDx;
+            let pdy=startDy;
             var pth=pn[pthIndex];
             pthIndex++;
-            var obond=path[path.length-2].bond;
-            var nbond=path[path.length-1].bond;
-            var satom=path[path.length-2].atom;
-            var ovec = obond.getOtherAtom(satom).getVectorTo(satom);
-            nbond.setCoordinatesFromPathNotation(pth,ovec,satom);
-            
-          }else if(path.length===2){
-            var pth=pn[pthIndex];
-            pthIndex++;
-            var bond=path[path.length-1].bond;
-            var satom=path[path.length-1].atom;
-            var datom=bond.getOtherAtom(satom);
-            bond.setCoordinatesFromPathNotation(pth,[1,0],datom);
-          }
-          got[path[path.length-1].bond.getIndexInParent()]=true;
-         });
+           
+            var nvec=JSChemify.PathNotation()
+                              .deltaVectorFromPath(pth);
+            var ovec=[pdx,pdy];
+           
+            var pvec=[-ovec[1],ovec[0]];
+            var nnvec=[ovec[0]*nvec[0]+pvec[0]*nvec[1],
+                       ovec[1]*nvec[0]+pvec[1]*nvec[1]];
+            startAtom.setXYZ(latom.getX()+nnvec[0],latom.getY()+nnvec[1]);
+            let dvec=latom.getVectorTo(startAtom);
+            startDx=nvec[0];
+            startDy=nvec[1];
+            gotAtoms[startAtom.getIndexInParent()]=true;
+        }
+     }
 
      return ret;
   };
   ret.getPathNotation=function(){
-     //TODO: need a 
      var startAtom=ret.getAtom(0);
      var dpath=[];
      var gotAtoms={};
@@ -2396,14 +2434,20 @@ JSChemify.Chemical = function(arg){
             }
         }
         if(startAtom){
+            let pdx=startDx;
+            let pdy=startDy;
             let dvec=latom.getVectorTo(startAtom);
             startDx=dvec[0];
             startDy=dvec[1];
+           
+            let npath=JSChemify.PathNotation()
+                               .pathFromDeltaVector([pdx,pdy],
+                                                    [startDx,startDy]);
+            dpath.push(npath);
+           
+            gotAtoms[startAtom.getIndexInParent()]=true;
         }
-        //TODO: Finish thinking about this
      }
-     
-
      return dpath;
      
   };
@@ -4140,6 +4184,9 @@ JSChemify.Ring=function(arg){
 JSChemify.ChemicalFeatures=function(){
    let ret={};
    ret._counts={};
+
+   //TODO: think this through
+   ret._atomCounts={};
    
    ret.$hash=function(s){
         let hash = 0, i, chr;
@@ -4151,6 +4198,15 @@ JSChemify.ChemicalFeatures=function(){
         }
         return hash;
    };
+
+   ret.addFeature=function(f,nc){
+      if(!nc)nc=1;
+      let c= ret._counts[f];
+      if(!c)ret._counts[f]=0;
+      ret._counts[f]+=nc;
+      return ret;
+   };
+   
    ret.toFoldedFingerprint=function(size){
       let fp=[];
       if(!size){
