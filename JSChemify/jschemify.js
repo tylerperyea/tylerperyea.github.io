@@ -1181,10 +1181,13 @@ JSChemify.Atom = function(){
     return sumV;
   };
   ret.getVectorAwayFromNeighborCenters=function(){
-      var cent=ret.getCenterPointOfNeighbors();
+    var cent=ret.getCenterPointOfNeighbors();
     var vecTo=ret.getVectorToPoint(cent);
-    vecTo[0]=vecTo[0];
-    vecTo[1]=vecTo[1];
+    //if the vector is 0,0, instead
+    //point to the least occupied location
+    if(vecTo[0]===0 && vecTo[1]===0){
+      return ret.getLeastOccupiedVector();
+    }
     return JSChemify.Util.normVector(vecTo);
   };
   
@@ -2136,7 +2139,7 @@ JSChemify.Chemical = function(arg){
     var ang=Math.PI*2/acountAng;
     var outsideAng=Math.PI*2-ang;
     
-      var adj =[Math.cos(ang), Math.sin(ang)];
+    var adj =[Math.cos(ang), Math.sin(ang)];
     var adjHalf=[Math.cos(outsideAng/2), Math.sin(outsideAng/2)];
     
     var deltaR =[Math.cos(Math.PI/3), 
@@ -2290,9 +2293,9 @@ JSChemify.Chemical = function(arg){
              bnum=0;
            }
          }
+           
          cursor=[cursor[0]+ndelta[0],cursor[1]+ndelta[1]];
          delta=ndelta;
-         
         var newAtom = p[p.length-1];
         newAtom.atom.setXYZ(cursor[0],cursor[1]);
         if(cb){
@@ -2440,7 +2443,6 @@ JSChemify.Chemical = function(arg){
             }
         }
         if(startAtom){
-           console.log("found another");
             let pdx=startDx;
             let pdy=startDy;
             let dvec=latom.getVectorTo(startAtom);
@@ -2620,8 +2622,7 @@ JSChemify.Chemical = function(arg){
           [flipHorizontal,0],
           [0,flipVertical]
           ];
-        ret.transformCoordinates(trans);
-        
+         ret.transformCoordinates(trans);
         //TODO do better with dirtiness
         lRingSystem.$center=null;
         lRingSystem.getRings().map(rr=>rr.$center=null);
@@ -2631,13 +2632,13 @@ JSChemify.Chemical = function(arg){
       //horizontal
     }
     
-    
     //This will look if some atoms are too close
     var clusters=ret.$getCloseClustersOfAtoms();
     //clusters=[];
     if(clusters.length>0){
       var iters=0;
-      var MAX_ITERS=20;co
+      var MAX_ITERS=20;
+
       
       while(clusters.length>0){
         if(iters>MAX_ITERS)break;
@@ -2684,7 +2685,10 @@ JSChemify.Chemical = function(arg){
               var nvecs=[];
   
               if(aatom.getBonds().length===2){
-                nvecs.push({"net":null, "vec":(()=>aatom.getVectorAwayFromNeighborCenters())});
+                nvecs.push({"net":null, "vec":(()=>{
+                   var rrvec=aatom.getVectorAwayFromNeighborCenters();
+                   return rrvec;
+                   })});
               }else{
                 othernets.map(on=>{
                   var cAtom = on.bond.getOtherAtom(aatom);
@@ -2708,13 +2712,13 @@ JSChemify.Chemical = function(arg){
                       .map(v=>JSChemify.Util.addVector(v,cVec));
                 Object.keys(smallerNet.network)
                       .map((ai,i)=>ret.getAtom(ai).setXYZ(vecs[i][0],vecs[i][1]));
-  
                 if(nvecT.net){;
                   var vecs2=Object.keys(nvecT.net.network)
                         .map(ai=>ret.getAtom(ai))
                         .map(at=>at.getVectorTo(aatom))
                         .map(v=>JSChemify.Util.matrixMultiply(revmat,v))
                         .map(v=>JSChemify.Util.addVector(v,cVec));
+                  
                   Object.keys(nvecT.net.network)
                         .map((ai,i)=>ret.getAtom(ai).setXYZ(vecs2[i][0],vecs2[i][1]));
                 }
@@ -2730,7 +2734,7 @@ JSChemify.Chemical = function(arg){
                   breakOut=true;
                   break;
                 }else{
-                  //TODO: Put it back
+                  //Put it back
                   oldXY.map((xv,i)=>ret.getAtom(i).setXYZ(xv[0],xv[1]));
                 }
               }
@@ -4953,6 +4957,7 @@ JSChemify.ChemicalCollection=function(){
         //TODO:some stats
         old.count++;
       });
+      c.setProperty("$index",ret._chems.length);
       ret._chems.push(c);
       return ret;
    };
@@ -5121,7 +5126,6 @@ JSChemify.ChemicalCollection=function(){
       let selectCountElm=$("#jschemify-rows-per-page");
       let editRawElm=$("#jschemify-edit");
       $("#mfile").onchange=(e)=>{
-           console.log(e);
            $("#mfile").style="display:none;"; 
            let file = e.target.files[0];
            if (!file) {
@@ -5130,7 +5134,6 @@ JSChemify.ChemicalCollection=function(){
            var reader = new FileReader();
            reader.onload =(ee)=>{
              let contents = ee.target.result;
-             console.log(contents);
              ret.clear();
              ret.fromFile(contents);
              ret.refresh();
@@ -5162,11 +5165,9 @@ JSChemify.ChemicalCollection=function(){
          $$("th").forEach(hhh=>{
             let column=hhh.innerHTML;
             if(column===sorted){
-               console.log("Changing to " + sortDir);
                hhh.innerHTML=sortDir+sorted;
             }
          });
-         console.log("refreshed table");
          $("#jschemify-structure-type").onchange();
       };
       ret._refreshListener=refreshTable;
@@ -5181,10 +5182,18 @@ JSChemify.ChemicalCollection=function(){
                if(h.innerHTML.indexOf("↑")>=0){
                   rev=1;
                   sortDir="↓";
+               }else if(h.innerHTML.indexOf("↓")>=0){
+                  sortDir="";
+                  rev=null;
                }else{
                   sortDir="↑";
                }
+               if(rev===null){
+                  rev=1;
+                  column="$index";
+               }
                ret._chems.sort((a,b)=>{
+                 
                   let pA=a.getProperty(column);
                   let pB=b.getProperty(column);
                   
