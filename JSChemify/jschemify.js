@@ -1947,11 +1947,6 @@ JSChemify.Chemical = function(arg){
     return keys.map(k=>"> <" + k + ">\n" +ret.getProperty(k) + "\n").join("\n");
     
   };
-  ret.$$doRings=function(){
-      var rings=ret.getRings();
-    rings.map(r=>ret.$ringCoordinates(r));
-      return ret;
-  };
   ret.$ringSystemCoordinates=function(ringSystem,satom,delta){
       
     var atomSet=[];
@@ -1981,13 +1976,12 @@ JSChemify.Chemical = function(arg){
                 })[0];
     };
     
-    
     ret.$ringCoordinates(firstRing,satom,null, delta);
     firstRing.getAtoms().map(aa=>atomSet.push(aa));
     var stack = firstRing.getNeighborRingsAndBonds().map(nn=>nn);
     
     while(stack.length>0){
-        var nRingConnection = stack.pop();
+      var nRingConnection = stack.pop();
       var newRing = nRingConnection.ring;
       //If the new ring has unassiged atoms, process it.
       //otherwise continue down the stack
@@ -2008,6 +2002,7 @@ JSChemify.Chemical = function(arg){
           delta=bridgeHeads[1].getVectorTo(bridgeHeads[0]);
           direction=centerVec[1]*delta[0]-centerVec[0]*delta[1];
         }
+         
         ret.$ringCoordinates(newRing,
                                             bridgeHeads[0],
                           bridgeHeads[1],
@@ -2022,7 +2017,6 @@ JSChemify.Chemical = function(arg){
                  .map(nn=>stack.push(nn));  
       }
     }
-    
     return ret;
   };
   ret.getLayoutAdjustableAtoms=function(){
@@ -2167,7 +2161,7 @@ JSChemify.Chemical = function(arg){
     
     var lastPoint=[satom.getX(),satom.getY()];
    // satom.setXYZ(lastPoint[0],lastPoint[1]);
-       if(!internalDelta){    
+    if(!internalDelta){    
       var ndelta=[-delta[1],delta[0]];
       delta=[
         -adjHalf[0]*ndelta[0] - adjHalf[1]*ndelta[1],
@@ -2191,6 +2185,7 @@ JSChemify.Chemical = function(arg){
       delta[0]*adj[0]+ delta[1]*adj[1],
       -delta[0]*adj[1]+ delta[1]*adj[0]
       ];
+       
       lastPoint[0]=lastPoint[0]+delta[0];
       lastPoint[1]=lastPoint[1]+delta[1];
         ratoms[ni].setXYZ(lastPoint[0],lastPoint[1]);
@@ -2525,20 +2520,9 @@ JSChemify.Chemical = function(arg){
         });
       
         if(natoms.length>0){
-            startAtom=natoms.pop();
-            rs1 = ringSystems.filter(ra=>ra.hasAtom(startAtom))[0];
-         
-          
-          var co=startAtom.getNeighborAtomsAndBonds()
-             .filter(nb=>!nb.bond.isInRing())
-             .map(nb=>nb.atom)
-             .map(a=>[a.getX(),a.getY(),1])
-             .reduce(JSChemify.Util.addVector);
-           co[0]=co[0]/co[2]; 
-           co[1]=co[1]/co[2]; 
-           co[0]=startAtom.getX()-co[0];
-           co[1]=startAtom.getY()-co[1];
-           co.pop();
+           startAtom=natoms.pop();
+           rs1 = ringSystems.filter(ra=>ra.hasAtom(startAtom))[0];
+           var co=startAtom.getLeastOccupiedVector(nb=>!nb.bond.isInRing());
            rdelta=JSChemify.Util.normVector(co);
         }else{
             rs1=null;
@@ -6118,8 +6102,8 @@ TODO:
 3. Expand Tests
 *******************************/
 JSChemify.Tests=function(){
-    ret={};
-  ret.tests=[];
+  ret={};
+  ret._tests=[];
   
   ret.assertTrue=function(b,msg){
       if(!b){
@@ -6180,23 +6164,42 @@ JSChemify.Tests=function(){
     var clusters=c.$getCloseClustersOfAtoms();
     ret.assertTrue(clusters.length===0,"overlapping atoms");
   };
+
+  ret.tests={
+      push:function(nm,o){
+         if(typeof nm === "function"){
+            o = nm;
+            nm= "Unnamed Test:" + ret._tests.length;
+         }
+         if(o.name){
+            ret._tests.push(o);
+         }else{
+            ret._tests.push({
+               "name":nm,
+               "test":o
+            });
+         }
+      }
+  };
   
   ret.runAll=function(){
-      var passed=0;
+    var passed=0;
     var failed=0;
-    var total=ret.tests.length;
-      ret.tests.map((t,i)=>{
+    var total=ret._tests.length;
+    ret._tests.map((t,i)=>{
         try{
-            t();
-        passed++;
-      }catch(e){
-          console.log("Test Failed:" + e);
-          failed++;
-      }
+            t.test();
+            passed++;
+         }catch(e){
+             console.log("Test " + t.name + " Failed:" + e);
+             failed++;
+         }
+         console.log("Test " + t.name + " Passed");
     });
     console.log("Tests passed:"+passed);
     console.log("Tests failed:"+failed);
   };
+  
    //JSChemify.Chemical(JSChemify.Chemical("C").setProperty("abc", "val1\nval2").toSd()).toSd()
   ret.tests.push(()=>{
       let input="C1(=C(N(CCC(CC(CC(=O)O)O)O)C(=C(1)C2(C=CC=CC=2))C2(C=CC(=CC=2)F))C(C)C)C(NC1(C=CC=CC=1))=O R10m80L5RL7RLRLRRLRHRHL5L5L5R9RLLRRRRRLR13LRRRRRR5LRRRRRL5R7R7L7";
@@ -6359,11 +6362,11 @@ JSChemify.Tests=function(){
       ret.assertCleanCoordinates(
                                              "C(C(C(C(C(C(C(C(C))))))))");
   });
-  ret.tests.push(()=>{
+  ret.tests.push("Oxytocin Chain Structure Clean",()=>{
       ret.assertCleanCoordinates(
                                              "CCC(C)C(C(=O)NC(CCC(=O)N)C(=O)NC(CC(=O)N)C(=O)NC(CS)C(=O)N(CC2)C(C2)C(=O)NC(CC(C)C)C(=O)NCC(=O)N)NC(=O)C(CC(=CC=C1O)C=C1)NC(=O)C(CS)N");
   });
-  ret.tests.push(()=>{
+  ret.tests.push("Oxytocin Structure Clean", ()=>{
       ret.assertCleanCoordinates(
                                              "CC[C@H](C)[C@H]1C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@@H](CSSC[C@@H](C(=O)N[C@H](C(=O)N1)CC2=CC=C(C=C2)O)N)C(=O)N3CCC[C@H]3C(=O)N[C@@H](CC(C)C)C(=O)NCC(=O)N)CC(=O)N)CCC(=O)N");
   });
@@ -6372,7 +6375,7 @@ JSChemify.Tests=function(){
   // TODO: this one fails right now
   // but we could fix it
   
-  ret.tests.push(()=>{
+  ret.tests.push("Triphenyl 4-bond Phosphorous Clean",()=>{
       ret.assertCleanCoordinates("C1=CC=C([P+](C2C=CC=CC=2)(CCCC#N)C2C=CC=CC=2)C=C1");
   });
   
