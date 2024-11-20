@@ -1577,10 +1577,13 @@ JSChemify.Atom = function(){
       }
       return ret.getSymbol();
     }
-    var chargeStr=ret._charge;
+    var chargeStr=ret._charge+"";
     if(ret._charge>0){
         chargeStr="+" + ret._charge;
     }
+    if(chargeStr==="-1")chargeStr="-";
+    if(chargeStr==="+1")chargeStr="+";
+     
     
     var rr= "["
       +((ret._isotope)?(ret._isotope):("")) +
@@ -2437,6 +2440,7 @@ JSChemify.Chemical = function(arg){
             }
         }
         if(startAtom){
+           console.log("found another");
             let pdx=startDx;
             let pdy=startDy;
             let dvec=latom.getVectorTo(startAtom);
@@ -3558,8 +3562,11 @@ JSChemify.Chemical = function(arg){
   };
   ret.toSmilesPP=function(){
     let smi=ret.toSmiles();
-    let pth=ret.getShortPathNotation();
-    return smi + " " + pth;
+    if(ret.hasCoordinates()){
+       let pth=ret.getShortPathNotation();
+       return smi + " " + pth;
+    }
+    return smi;
   };
   ret.toSmiles=function(){
       if(ret.getAtomCount()==0)return "";
@@ -5463,9 +5470,16 @@ JSChemify.ChemicalCollection=function(){
          }
          let smiMaker=(c)=>{
             if(builder._smilesPP){
-               return c.toSmiles();
-            }else{
                return c.toSmilesPP();
+            }else{
+               return c.toSmiles();
+            }
+         };
+         let pathNotationMaker=(c)=>{
+            if(c.hasCoordinates()){
+               return c.getShortPathNotation();
+            }else{
+               return "";
             }
          };
          
@@ -5476,7 +5490,7 @@ JSChemify.ChemicalCollection=function(){
                 }
             }
             if(builder._pathNotationColumn){
-               return smiMaker(c) + "\t" + c.getShortPathNotation() +"\t"+ c.getName()+"\t" + c.getProperties(ret._propertyOrder).join("\t");
+               return smiMaker(c) + "\t" + pathNotationMaker(c) +"\t"+ c.getName()+"\t" + c.getProperties(ret._propertyOrder).join("\t");
             }else{
                return smiMaker(c) + "\t" + c.getName()+"\t" + c.getProperties(ret._propertyOrder).join("\t");
             }
