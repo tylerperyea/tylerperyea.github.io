@@ -3084,16 +3084,17 @@ JSChemify.Chemical = function(arg){
   };
   
   ret.dearomatize=function(){
-      //TODO implement this
+    //TODO implement this better
     var stack=ret.getRings()
-                               .filter(r=>r.isAromatic());
+                 .filter(r=>r.isAromatic())
+                 .filter(r=>r.getBonds().filter(bb=>bb.getBondOrder()==4).length>0);
     
     stack.sort((a,b)=>{
         return a.getNeighborRingsAndBonds().length-b.getNeighborRingsAndBonds().length;
     });
-       var done=[];
+    var done=[];
     while(stack.length>0){
-        var nextRing=stack.pop();
+      var nextRing=stack.pop();
       if(done.indexOf(nextRing)<0){
       
         nextRing.dearomatize();
@@ -4138,15 +4139,17 @@ JSChemify.Ring=function(arg){
     return ret._ring[ni];
   }
   ret.dearomatize=function(){
-      var s=ret.getSize();
+    var s=ret.getSize();
     if(s%2===0 || s%2===1){
-        var startOrder=1;
+      var startOrder=1;
       var startIndex=0;
       
-        var aset = ret.getBonds()
-         .map((b,i)=>[b,i])
-         .filter(bb=>bb[0].getBondOrder()!=4);
+      var aset = ret.getBonds()
+                    .map((b,i)=>[b,i])
+                    .filter(bb=>bb[0].getBondOrder()!=4);
       
+       
+       
       if(aset.length>1){
           throw "can't dearomatize, there are " + aset.length + " presets";
       }
@@ -4159,6 +4162,19 @@ JSChemify.Ring=function(arg){
         startOrder=2;
         startIndex+=2;
       }
+      ret.getExternalBonds()
+         .filter(b=>!b.bond.isInRing())
+         .filter(b=>b.bond.getBondOrder()==2)
+         .map(b=>{
+            b.atom.getBonds()
+                  .filter(bb=>bb.getBondOrder()===4)
+                  .filter(bb=>ret.hasBond(bb))
+                  .map(bb=>{
+                     bb.setBondOrder(1);
+                     startOrder=2;
+                  });
+         });
+       
       var hetero1=ret.getAtoms()
          .filter(a=>a.getSymbol()!=="C")
          .reduce((a,b)=>{
@@ -4180,10 +4196,10 @@ JSChemify.Ring=function(arg){
          
          
       for(var i=0;i<s;i++){
-          var b= ret.getBondAt(i+startIndex);
+        var b= ret.getBondAt(i+startIndex);
         if(b.getBondOrder()===4){
             b.setBondOrder(startOrder);
-          startOrder=(startOrder)%2+1;
+            startOrder=(startOrder)%2+1;
         }else{
             startOrder=(b.getBondOrder())%2+1;
         }
@@ -4336,7 +4352,7 @@ Status: IN PROGRESS
 
    
 *******************************/
-JSChemify.ChemcialSearcher=function(){
+JSChemify.ChemicalSearcher=function(){
    let ret={};
    ret._query=null;
    
@@ -6310,6 +6326,14 @@ JSChemify.Tests=function(){
     b=JSChemify.Chemical(b).aromatize();
     ret.assertTrue(ret.sameSmiles(a,b),msg);
   };
+  ret.assertSameSmilesKekulized=function(a,b,msg){
+      if(!msg){
+          msg = "'" + a + "' != " + "'" + b + "'";
+      }
+    a=JSChemify.Chemical(a).dearomatize();
+    b=JSChemify.Chemical(b).dearomatize();
+    ret.assertTrue(ret.sameSmiles(a,b),msg);
+  };
   ret.sameSmiles=function(a,b){
       return JSChemify.Chemical(a).toSmiles()===JSChemify.Chemical(b).toSmiles();
   };
@@ -6499,6 +6523,11 @@ JSChemify.Tests=function(){
   ret.tests.push(()=>{
       ret.assertSameSmiles("c1ccccc1c2ccccc2",
                          "c1ccccc1-c2ccccc2");
+  });
+  ret.tests.push(()=>{
+      ret.assertSameSmilesKekulized(
+                         "c12c(c(=O)n(c(n1C)=O)C)n(C)cn2",
+                         "C12(=C(C(=O)N(C(N(1)C)=O)C)N(C)C=N2)");
   });
   ret.tests.push(()=>{
       ret.assertSameSmilesAromatic(
