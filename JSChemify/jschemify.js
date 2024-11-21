@@ -1912,6 +1912,7 @@ JSChemify.Chemical = function(arg){
   ret._name=null;
   ret.$bondTypes=null;
   ret.$atomComponentTypes=null;
+  ret.$componentCount=null;
   ret._rings=null;
   ret.$atomDistances=null;
   ret._properties={};
@@ -2464,13 +2465,67 @@ JSChemify.Chemical = function(arg){
       return ret;
   };
   ret.generateCoordinates=function(){
+    if(ret.getComponentCount()>1){
+       var comps=ret.getComponents();
+       comps.map(cc=>cc.generateCoordinates());
+       //TODO determine best grid layout and whether
+       //to have ionic moieties show near their 
+       //counter ions?
+       var offsets=[];
+       var padding=1.5;
+       offsets.push([0,0]);
+       var lastBbox=comps[0].getBoundingBox();
+       var lastC=[(lastBbox[0]+lastBbox[2])/2,
+                  (lastBbox[1]+lastBbox[3])/2];
+       //vector which points to the center
+       var lastV=[(lastBbox[2]-lastBbox[0])/2,
+                  (lastBbox[3]-lastBbox[1])/2];
+       for(let i=1;i<comps.length;i++){
+           let bbox=comps[i].getBoundingBox();
+           let c=[(bbox[0]+bbox[2])/2,
+                  (bbox[1]+bbox[3])/2];
+           var v=[(bbox[2]-bbox[0])/2,
+                  (bbox[3]-bbox[1])/2];
+           let targetVector=[
+              padding+lastV[0] 
+                     +v[0],
+              0
+           ];
+           targetVector[0]+=v[0];
+           targetVector[1]+=v[1];
+           targetVector[0]-=lastV[0];
+           targetVector[1]-=lastV[1];
+           offsets.push(targetVector);
+           lastBbox=bbox;
+           lastC=c;
+           lastV=v;
+       }
+       let acomps = ret.getAtomsInComponents();
+       let poff=[0,0];
+       comps.map((cc,i)=>{
+            let offset=offsets[i];
+            let noff=[offset[0]+poff[0],
+                      offset[1]+poff[1]];
+            poff=noff;
+            let oatoms=acomps[i];
+            cc.getAtoms().map((aa,j)=>{
+               let oAtom=oatoms[j];
+               let x=aa.getX() + noff[0];
+               let y=aa.getY() + noff[1];
+               //console.log([x,y]);
+               oAtom.setXYZ(x,y);
+            });
+       });
+       return ret;
+    }
+     
     var atomSet=[];
     var natoms=[];
     var ringSystems=ret.getRingSystems();
     var lRingSystem=null;
     if(ringSystems.length>0){
         
-        var rs1= ringSystems[0];
+      var rs1= ringSystems[0];
       if(ringSystems.length>1){
         rs1= ringSystems.reduce((a,b)=>{
           if(a.getSize()>b.getSize())return a;
@@ -2871,13 +2926,21 @@ JSChemify.Chemical = function(arg){
      if(bb[0]>bb[2] || ret.getAtomCount()===1){
         if(ret.getAtomCount()===1){
            let at=ret.getAtom(0);
-           return [at.getX()-3,at.getY()-3,at.getX()+3,at.getY()+3];
+           return [at.getX()-1,at.getY()-1,at.getX()+1,at.getY()+1];
         }
-        return [-3,-3,3,3];
+        return [-1,-1,1,1];
      }
      return bb;
   };
+  ret.getComponentCount=function(){
+      if(!ret.$componentCount){
+         let acomps=ret.getAtomsInComponents();
+         ret.$componentCount = acomps.length;
+      }
+     return ret.$componentCount;
+  };
   ret.getComponents=function(){
+      
       let cats= ret.getAtomsInComponents();
       return cats.map(carr=>{
          let bonds=JSChemify.Util.distinct(carr.flatMap(at=>at.getBonds()));
@@ -2894,6 +2957,10 @@ JSChemify.Chemical = function(arg){
             
             chem.addBond(bbond);
          });
+         //all components the same
+         chem.$atomComponentTypes=chem.getAtoms()
+                                      .map((a,i)=>1);
+         chem.$componentCount=1;
          return chem;
       });
   };
