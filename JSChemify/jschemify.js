@@ -5434,6 +5434,7 @@ JSChemify.ChemicalCollection=function(){
          }catch(e){
             console.log(e);
             if(cursor>inputList.length-3){
+               console.log("End of file");
                break;
             }else{
                throw e;
@@ -5961,7 +5962,7 @@ JSChemify.Renderer=function(){
       return "black";
   };
   ret.getSuperScriptUTF8=function(ss, explSign, showOne){
-      if(!(ss-0>=0)){
+      if(!(Math.abs(ss-0)>=0)){
          throw "Not a number:" + ss;   
       }
       if(explSign){
