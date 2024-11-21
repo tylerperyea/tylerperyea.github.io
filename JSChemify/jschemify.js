@@ -1938,7 +1938,7 @@ JSChemify.Chemical = function(arg){
       return ret._properties[k];
   };
   ret.getProperties=function(keys){
-      return keys.map(k=>ret.getProperty(k));
+      return keys.map(k=>ret.getProperty(k)).map(v=>(v)?v:"");
   };
   ret.getPropertyKeys=function(){
       return Object.keys(ret._properties);
