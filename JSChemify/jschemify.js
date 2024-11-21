@@ -341,6 +341,9 @@ JSChemify.PathNotation=function(){
         var d=path[0];
         var m=path[1];
         var ang=0;
+        if(d==="S"){
+            return [0,0];
+        }
         if(d==="R"){
           ang=Math.PI/3;
         }else if(d==="L"){
@@ -421,6 +424,12 @@ JSChemify.PathNotation=function(){
        }
        if(c<-50){
           sig="F";
+       }
+       if((magN+"")==="NaN"){
+            return ["S","M100"];
+       }
+       if(magN===0){
+            return ["S","M100"];
        }
        return [sig, nm + magN];
     };
@@ -2394,6 +2403,7 @@ JSChemify.Chemical = function(arg){
            
             var nvec=JSChemify.PathNotation()
                               .deltaVectorFromPath(pth);
+           
             var ovec=[pdx,pdy];
            
             var pvec=[-ovec[1],ovec[0]];
@@ -2403,6 +2413,10 @@ JSChemify.Chemical = function(arg){
             let dvec=latom.getVectorTo(startAtom);
             startDx=dvec[0];
             startDy=dvec[1];
+            if(startDx===0 && startDy===0){
+               startDx=1;
+               startDy=0;
+            }
         }
      }
 
@@ -2456,6 +2470,10 @@ JSChemify.Chemical = function(arg){
             let npath=JSChemify.PathNotation()
                                .pathFromDeltaVector([pdx,pdy],
                                                     [startDx,startDy]);
+            if(startDx===0 && startDy===0){
+               startDx=1;
+               startDy=0;
+            }
             dpath.push(npath);
         }
      }
