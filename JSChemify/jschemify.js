@@ -54,10 +54,10 @@ Coordinates and Rendering:
 10. Coordinates: Extend/wiggle colliding atoms 
     where possible
 11. [partial] Draw aromatic circles and bonds
-12. Coordinates: Multiple components
+12. [partial] Coordinates: Multiple components
 13. Brackets
 14. Coordinates: hex grid rings alignment
-15. Coordinates: bug when 3 substituents follow 
+15. [partial] Coordinates: bug when 3 substituents follow 
     4 substituents
 16. Coordinates: overlapping bonds issue
 17. [done] Path Encoding
@@ -67,9 +67,8 @@ Coordinates and Rendering:
 19. Path encoding smiles bond order discrepency?
 20. Path encoding extended angles (complements)
 21. Partial clean
-22. Coordinates: Multiple components
-23. [done] Path Notation:  Multiple components
-24. Place subscripts a little down
+22. [done] Path Notation:  Multiple components
+23. Place subscripts a little down
 
 
 **/
@@ -148,6 +147,9 @@ JSChemify.Shape=function(arg,c){
   ret.intersection=function(s2){
     //TODO: intersection
   };
+  ret.containsPoint=function(pt){
+    //TODO: containsPoint
+  };
   ret.setPath=function(p,c){
     if(typeof c !== "undefined"){
         ret._closed=c;
@@ -164,7 +166,7 @@ JSChemify.Shape=function(arg,c){
 /*******************************
 /* ShapeUtils
 /*******************************
-Status: WORKINg
+Status: WORKING
 
 Basic shape-related utilities.
    
@@ -293,6 +295,8 @@ JSChemify.PathNotation=function(){
       return JSChemify.CONSTANTS.PATH;
     }
     let ret={};
+    ret._roundAngle=10;
+    ret._roundMag=1;
     ret.expand=function(pth){
       var fpath=[];
       let regex=/([LRDSFsd][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
@@ -399,8 +403,8 @@ JSChemify.PathNotation=function(){
           c2=-c2;
           dnm2="l";
         }
-       var rc=Math.round(c*10)/10;
-       var rc2=Math.round(c2*1);
+       var rc=Math.round(c*ret._roundAngle)/ret._roundAngle;
+       var rc2=Math.round(c2*ret._roundAngle)/ret._roundAngle;
        
        if(Math.abs(rc2-c2) < Math.abs(rc-c) && false){
          //TODO: there's something wrong here
@@ -410,7 +414,7 @@ JSChemify.PathNotation=function(){
        }else{
           c=rc;
        }
-       magN=Math.round(magN);
+       magN=Math.round(magN*ret._roundMag)/ret._roundMag;
        var sig=dnm+c;
        if(c>50){
           sig="F";
@@ -584,7 +588,7 @@ TODO:
    
 *******************************/
 JSChemify.Util = {
-    isAtom: function(o){
+  isAtom: function(o){
       return o && o._chemType && o._chemType === JSChemify.CONSTANTS.CHEM_TYPE_ATOM;
   },
   isBond: function(o){
@@ -864,7 +868,7 @@ JSChemify.Util = {
 /*******************************
 /* AffineTransformation
 /*******************************
-Status: WORKINg
+Status: WORKING
 
 Basic affine transformation type
 to help translate, rotate and 
@@ -1161,20 +1165,19 @@ JSChemify.Atom = function(){
   
   ret.getNeighborAtomsAndBonds=function(order){
       if(order){
-      var ss=ret.getBonds()
-         .map(b=>({"bond":b,"atom":b.getOtherAtom(ret)}))
-           .sort(order);
-      return ss;
-    }
+         var ss=ret.getBonds()
+            .map(b=>({"bond":b,"atom":b.getOtherAtom(ret)}))
+            .sort(order);
+         return ss;
+      }
       return ret.getBonds()
-              .map(b=>({"bond":b,"atom":b.getOtherAtom(ret)}));
+                .map(b=>({"bond":b,"atom":b.getOtherAtom(ret)}));
   };
   ret.getCenterPointOfNeighbors=function(){
-      
     var sumV=ret.getNeighborAtomsAndBonds()
-    .map(a=>a.atom)
-    .map(a=>[a.getX(),a.getY(),1])
-    .reduce(JSChemify.Util.addVector);
+       .map(a=>a.atom)
+       .map(a=>[a.getX(),a.getY(),1])
+       .reduce(JSChemify.Util.addVector);
     sumV[0]=sumV[0]/sumV[2];
     sumV[1]=sumV[1]/sumV[2];
     sumV.pop();
@@ -1256,7 +1259,7 @@ JSChemify.Atom = function(){
   
   
   ret.getAtomsCloserThan=function(dist){
-      var sqDist=dist*dist;
+    var sqDist=dist*dist;
     return ret.getParent().getAtoms()
                                  .filter(a=>a!==ret)
                    .map(a=>[a,ret.getVectorTo(a)])
@@ -1297,26 +1300,26 @@ JSChemify.Atom = function(){
   
   ret.getDeltaV=function(){
       var val=ret.getValance();
-    var hT=ret.getTotalHydrogenCount();
-    return val-hT;
+      var hT=ret.getTotalHydrogenCount();
+      return val-hT;
   };
   ret.getDelta=function(){
-    return ret.getBondCount()-ret.getExplicitHydrogens();
+      return ret.getBondCount()-ret.getExplicitHydrogens();
   };
   ret.getIntrinsicState=function(){
       var val=ret.getValance();
-    var hI=ret.getImplicitHydrogens();
-    var hE=ret.getExplicitHydrogens();
-    var hT=hI+hE;
-    var n=ret.getElement().period;
-    var sigma = ret.getBondCount()-hE;
-    var fac = (2/n)*(2/n);
+      var hI=ret.getImplicitHydrogens();
+      var hE=ret.getExplicitHydrogens();
+      var hT=hI+hE;
+      var n=ret.getElement().period;
+      var sigma = ret.getBondCount()-hE;
+      var fac = (2/n)*(2/n);
     
-    return (fac*(val-hT)+1)/(sigma);
-    
+      return (fac*(val-hT)+1)/(sigma);    
   };
+   
   ret.getEState=function(MAX_DEPTH){
-    if(!MAX_DEPTH)MAX_DEPTH=10;
+    if(!MAX_DEPTH)MAX_DEPTH=15;
     var e0=ret.getIntrinsicState();
     var eSum=e0;
     for(var i=1;i<MAX_DEPTH;i++){
