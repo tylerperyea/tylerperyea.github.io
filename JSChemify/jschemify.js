@@ -3511,8 +3511,12 @@ JSChemify.Chemical = function(arg){
          lines= lines.split("\n");
     }
     if(!start)start=0;
-     console.log(start);
-     console.log(lines[start]);
+    let name=lines[start];
+    if(name){
+       ret.setName(name);
+    }
+    //console.log(start);
+    //console.log(lines[start]);
     var acount=lines[3+start].substr(0,3).trim()-0;
     var bcount=lines[3+start].substr(3,3).trim()-0;
     let cursor=start;
