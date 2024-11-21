@@ -1573,6 +1573,7 @@ JSChemify.Atom = function(){
   
   ret.toSmiles=function(){
     var eH=ret.getImplicitHydrogens();
+    var ehShow = (eH>1)?eH:"";
     var simpleOkay =ret.getElement().smiles;
     if(simpleOkay && !ret._isotope && !ret._charge && !ret._map){
         if(ret.isAromatic()){
@@ -1591,7 +1592,7 @@ JSChemify.Atom = function(){
     var rr= "["
       +((ret._isotope)?(ret._isotope):("")) +
       ret._symbol +
-      ((eH)?("H"+eH):"") +
+      ((eH)?("H"+ehShow):"") +
       ((chargeStr)?chargeStr:"") +
       ((ret._map)?(":"+ret._map):"") +
       "]";
@@ -2274,13 +2275,17 @@ JSChemify.Chemical = function(arg){
                   }else{
                     buse=altBanglesR;
                   }
-               }else if(p[p.length-2].atom.getBondCount()>=4){
+               }else if(p[p.length-2].atom.getBondCount()>=3){
                   special=true;
                }
            }
+            
            var bang = buse[parity][bnum];
            ndelta=[ delta[0]*bang[0]+delta[1]*bang[1],
                    -delta[0]*bang[1]+delta[1]*bang[0]];
+            if(bnum>1 && p[p.length-1].atom.getBondCount()==2){
+               bnum=1;
+            }
            if(special){
              //TODO this is hacky, and we need to fix it
              //the parity calc vs the bnum isn't
@@ -2615,7 +2620,10 @@ JSChemify.Chemical = function(arg){
       //get longest continual chain, rotare it to be
       //horizontal
     }
-    
+
+    var isDebug=false;
+    var debug=0;
+    var maxdebug=200;
     //This will look if some atoms are too close
     var clusters=ret.$getCloseClustersOfAtoms();
     //clusters=[];
@@ -2632,6 +2640,8 @@ JSChemify.Chemical = function(arg){
         var atom1=cluster1[0];
         var atom2=cluster1[1];
         adjAtoms.sort((a,b)=>{
+            var diff=a.getBondCount()-b.getBondCount();
+            if(diff!==0)return diff;
             var d1a=a.getShortestAtomDistance(atom1);
             var d2a=a.getShortestAtomDistance(atom2);
             var d1b=b.getShortestAtomDistance(atom1);
@@ -2662,6 +2672,7 @@ JSChemify.Chemical = function(arg){
           // None of these are done at the moment
           
           if(net1!==net2 && (net1) && (net2)){
+             debug++;
             var nlist=[net1,net2];
             for(var ii=0;ii<nlist.length;ii++){
               if(breakOut)break;
@@ -2679,7 +2690,9 @@ JSChemify.Chemical = function(arg){
                   nvecs.push({"net":on, "vec":(()=>aatom.getVectorTo(cAtom))});
                 })
               }
-  
+              if(isDebug){
+                ret.getAtoms().map(a=>a.setAtomMap(0));
+              }
               while(nvecs.length>0){
                 var nvecT=nvecs.pop();
                 var nvec=nvecT.vec();
@@ -2691,22 +2704,41 @@ JSChemify.Chemical = function(arg){
                 var oldXY=ret.getAtoms().map(a=>[a.getX(),a.getY()]);
                 var vecs=Object.keys(smallerNet.network)
                       .map(ai=>ret.getAtom(ai))
+                      .map(at=>{
+                         if(isDebug){
+                            return at.setAtomMap(2)
+                         }
+                         return at;
+                      })
                       .map(at=>at.getVectorTo(aatom))
                       .map(v=>JSChemify.Util.matrixMultiply(mat,v))
                       .map(v=>JSChemify.Util.addVector(v,cVec));
-                Object.keys(smallerNet.network)
-                      .map((ai,i)=>ret.getAtom(ai).setXYZ(vecs[i][0],vecs[i][1]));
+
+                 if(debug<=maxdebug){
+                   Object.keys(smallerNet.network)
+                         .map((ai,i)=>ret.getAtom(ai).setXYZ(vecs[i][0],vecs[i][1]));
+                 }
                 if(nvecT.net){;
                   var vecs2=Object.keys(nvecT.net.network)
                         .map(ai=>ret.getAtom(ai))
+                        .map(at=>{
+                            if(isDebug){
+                               return at.setAtomMap(3)
+                            }
+                            return at;
+                         })
                         .map(at=>at.getVectorTo(aatom))
                         .map(v=>JSChemify.Util.matrixMultiply(revmat,v))
                         .map(v=>JSChemify.Util.addVector(v,cVec));
-                  
+                  if(debug<=maxdebug){
                   Object.keys(nvecT.net.network)
                         .map((ai,i)=>ret.getAtom(ai).setXYZ(vecs2[i][0],vecs2[i][1]));
+                  }
                 }
                 var nclusters=ret.$getCloseClustersOfAtoms();
+                 if(debug>maxdebug){
+                    nclusters=[];
+                 }
                 if(nclusters.length===0){
                   // it worked!
                   clusters=nclusters;
@@ -6370,7 +6402,11 @@ JSChemify.Tests=function(){
       ret.assertCleanCoordinates(
                                              "CC[C@H](C)[C@H]1C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@@H](CSSC[C@@H](C(=O)N[C@H](C(=O)N1)CC2=CC=C(C=C2)O)N)C(=O)N3CCC[C@H]3C(=O)N[C@@H](CC(C)C)C(=O)NCC(=O)N)CC(=O)N)CCC(=O)N");
   });
-  
+  ret.tests.push("Structure With Overlap Clean", ()=>{
+      ret.assertCleanCoordinates(
+                                             "CC(C)CC(NC(=O)C(CC1(C=CC=CC=1))NC(=O)C(N)CC1(C=CC=CC=1))C(=O)NC(CCCCN)C(=O)N1(CCC(N)(CC1)C(O)=O)");
+  });
+  //
   
   // TODO: this one fails right now
   // but we could fix it
