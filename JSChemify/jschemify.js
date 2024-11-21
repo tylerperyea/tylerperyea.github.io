@@ -44,7 +44,7 @@ Basic I/O:
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
  2. Coordinates: in-line allenes
- 3. [charges partial] Isotopes/charges in render
+ 3. [done] charges in render
  4. Highlight atoms in render
  5. [done] Show atom map numbers in render
  6. [in progress] Add colors to render
@@ -69,7 +69,7 @@ Coordinates and Rendering:
 21. Partial clean
 22. [done] Path Notation:  Multiple components
 23. Place subscripts a little down
-
+24. isotopes in render
 
 **/
 
@@ -5947,6 +5947,41 @@ JSChemify.Renderer=function(){
       }
       return "black";
   };
+  ret.getSuperScriptUTF8=function(ss, explSign, showOne){
+      if(!(ss-0>=0)){
+         throw "Not a number:" + ss;   
+      }
+      if(explSign){
+         if(ss-0>0){
+            ss="+"+ss;
+         }else{
+            ss=ss+"";
+         }
+      }else{
+         ss=ss+"";
+      }
+      if(!showOne){
+         if(ss==="+1" || ss==="-1"){
+            ss=ss[0];
+         }
+      }
+      return ss.split("").map(dig=>{
+            if(dig==="-"){
+               return String.fromCodePoint(0x207B);
+            }else if(dig==="+"){
+               return String.fromCodePoint(0x207A);
+            }else{
+               if((dig-0)===1){
+                  return String.fromCodePoint(0x00B9);
+               }
+               if(Math.abs(dig-0)<=3){
+                   return String.fromCodePoint(0x00B0+Math.abs(dig-0));
+               }else{
+                   return String.fromCodePoint(0x2070+Math.abs(dig-0));
+               }
+            }
+      }).join("");
+  };
   /**
   Render the supplied chem object on the specified context
   at the X,Y coordinates, and scale it by "scale"
@@ -6111,21 +6146,20 @@ JSChemify.Renderer=function(){
         
               let loc=affine.transform(nv);
               let append="";
+              let prepend="";
               let chg=at.getCharge();
+              let iso=at.getIsotope();
+              let nudgeDx=0;
+              let nudgeDy=0;
               if(Math.abs(chg)>0){
-                    if(chg>0){
-                      append+=String.fromCodePoint(0x207A);
-                    }else{
-                      append+=String.fromCodePoint(0x207B);
-                    }
-                    if(Math.abs(chg)>1){
-                        if(Math.abs(chg)<=3){
-                             append+=String.fromCodePoint(0x00B0+Math.abs(chg));
-                        }else{
-                            append+=String.fromCodePoint(0x2070+Math.abs(chg));
-                        }
-                    }
-                }
+                    append+=ret.getSuperScriptUTF8(chg,true,false);
+              }
+              if(iso>0){
+                    prepend=ret.getSuperScriptUTF8(iso,false,true);
+                    nudgeDx=-prepend.length*offx;
+                    nudgeDy=0;
+              }
+             
         
               ctx.fillStyle = "white";
               ctx.beginPath();
@@ -6135,9 +6169,9 @@ JSChemify.Renderer=function(){
               ctx.fillStyle = ret.getStyleFor(at);
         
               if(at.getImplicitHydrogens()===0){
-                  ctx.fillText(at.getSymbol()+append,loc[0]-offx,loc[1]-offy);
+                  ctx.fillText(prepend+ sym+append,loc[0]-offx+nudgeDx,loc[1]-offy+nudgeDy);
               }else{
-                  ctx.fillText(at.getSymbol(),loc[0]-offx,loc[1]-offy);
+                  ctx.fillText(prepend+ sym,loc[0]-offx+nudgeDx,loc[1]-offy+nudgeDy);
               }
               
               
@@ -6155,11 +6189,12 @@ JSChemify.Renderer=function(){
                 }
                   
                 if(vec[0]>0){
-                    nv[0]=nv[0]-vec[0]*ret._letterSpace*(0.4*append.length);
+                    nv[0]=nv[0]-vec[0]*ret._letterSpace*(0.35*append.length);
                     append=[...append].reverse().join("");
                     loc=affine.transform(nv);
                     ctx.fillText(append+ntext,loc[0]-offx,loc[1]-offy);
                 }else{
+                    nv[0]=nv[0]-vec[0]*ret._letterSpace*(0.35*(sym.length-1));
                     loc=affine.transform(nv);
                     ctx.fillText(ntext+append,loc[0]-offx,loc[1]-offy);
                 }
