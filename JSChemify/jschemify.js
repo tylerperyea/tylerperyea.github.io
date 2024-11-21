@@ -69,7 +69,7 @@ Coordinates and Rendering:
 21. Partial clean
 22. [done] Path Notation:  Multiple components
 23. Place subscripts a little down
-24. isotopes in render
+24. [done] isotopes in render
 
 **/
 
