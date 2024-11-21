@@ -3511,7 +3511,8 @@ JSChemify.Chemical = function(arg){
          lines= lines.split("\n");
     }
     if(!start)start=0;
-    
+     console.log(start);
+     console.log(lines[start]);
     var acount=lines[3+start].substr(0,3).trim()-0;
     var bcount=lines[3+start].substr(3,3).trim()-0;
     let cursor=start;
@@ -5423,10 +5424,22 @@ JSChemify.ChemicalCollection=function(){
       }
       let cursor=0;
       while(cursor<inputList.length){
-         let parsed = JSChemify.Chemical()
+         let parsed=null;
+
+         try{
+            parsed = JSChemify.Chemical()
                              .readNextMol(inputList,cursor);
-         ret.addChemical(parsed.chem);
-         cursor=parsed.cursor;
+            ret.addChemical(parsed.chem);
+            cursor=parsed.cursor;
+         }catch(e){
+            console.log(e);
+            if(cursor>inputList.length-3){
+               break;
+            }else{
+               throw e;
+            }
+         }
+        
       }
       return ret;
    };
