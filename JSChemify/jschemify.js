@@ -5619,7 +5619,7 @@ JSChemify.ChemicalCollection=function(){
          }
          var headerProps=ret._propertyOrder
                                         .map(po=>{
-                                             if(po.toLowerCase())==="smiles"){
+                                             if(po.toLowerCase()==="smiles"){
                                                 return "verbatim_" + po;
                                              }
                                              return po;
