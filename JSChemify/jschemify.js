@@ -1597,8 +1597,10 @@ JSChemify.Atom = function(){
     if(ret._charge>0){
         chargeStr="+" + ret._charge;
     }
+    
     if(chargeStr==="-1")chargeStr="-";
     if(chargeStr==="+1")chargeStr="+";
+    if(chargeStr=== "0")chargeStr="";
      
     
     var rr= "["
@@ -2423,6 +2425,7 @@ JSChemify.Chemical = function(arg){
      return ret;
   };
   ret.getPathNotation=function(){
+     console.log("getting path notation");
      var startAtom=ret.getAtom(0);
      var dpath=[];
      var gotAtoms={};
@@ -2442,6 +2445,7 @@ JSChemify.Chemical = function(arg){
            if(path.length>2){
              var atom2=path[path.length-1].atom;
              gotAtoms[atom2.getIndexInParent()]=true;
+             console.log((atom2.getIndexInParent() + 1));
              var obond=path[path.length-2].bond;
              var nbond=path[path.length-1].bond;
              var satom=path[path.length-2].atom;
@@ -3683,6 +3687,7 @@ JSChemify.Chemical = function(arg){
     return smi;
   };
   ret.toSmiles=function(){
+     console.log("make smiles");
       if(ret.getAtomCount()==0)return "";
       var startAtom = ret.getAtom(0);
       var chain=[];
@@ -3709,68 +3714,70 @@ JSChemify.Chemical = function(arg){
         }else{
           var closedRings=[];
           var startTime=true;
-        var branchStarts=[];
-        startAtom.$allPathsDepthFirst((p,type)=>{
-        
-          var prevAtom = p[p.length-2];
-          var newAtom = p[p.length-1];
-          if(startTime){
-              prevAtom._idx=chain.length;
-              chain.push(prevAtom);
-            startTime=false;
-          }
-          if(type==="BRANCH"){
-            chain.push("BRANCH_START");
-            branchStarts.push(chain.length-1);
-          }
-          if(closedRings.findIndex(cr=>cr.bond ===newAtom.bond)>=0){
-              return true;
-          }
-          if(type==="POP"){
-            //This is a hack to fix a weird problem
-            //that I don't understand. We need a better
-            //fix
-            if(branchStarts.length>0){
-              var pBranch=branchStarts.pop();
-              if(chain[chain.length-1]!=="BRANCH_START"){
-                chain.push("BRANCH_END:"+pBranch);
-              }else{
-                //the branch isn't real
-                chain.pop();
-              }
-              if(newAtom.locants){
-                newAtom.locants.map(ll=>{
-                    takenLocants[ll]=false;
-                });
-              }
-            }else{
-            }
+           var branchStarts=[];
+           startAtom.$allPathsDepthFirst((p,type)=>{
+           
+             var prevAtom = p[p.length-2];
+             var newAtom = p[p.length-1];
+             if(startTime){
+                 prevAtom._idx=chain.length;
+                 chain.push(prevAtom);
+                 startTime=false;
+             }
+             if(type==="BRANCH"){
+               chain.push("BRANCH_START");
+               branchStarts.push(chain.length-1);
+             }
+              
+             console.log((newAtom.atom.getIndexInParent() + 1));
+             if(closedRings.findIndex(cr=>cr.bond ===newAtom.bond)>=0){
+                 return true;
+             }
+             if(type==="POP"){
+               //This is a hack to fix a weird problem
+               //that I don't understand. We need a better
+               //fix
+               if(branchStarts.length>0){
+                 var pBranch=branchStarts.pop();
+                 if(chain[chain.length-1]!=="BRANCH_START"){
+                   chain.push("BRANCH_END:"+pBranch);
+                 }else{
+                   //the branch isn't real
+                   chain.pop();
+                 }
+                 if(newAtom.locants){
+                   newAtom.locants.map(ll=>{
+                       takenLocants[ll]=false;
+                   });
+                 }
+               }else{
+               }
+               
+               return;
+             }
             
-            return;
-          }
-         
-          //RING
-          var rindx=p.findIndex(pa=>pa.atom===newAtom.atom);
-          if(rindx<p.length-1){
-            if(!p[rindx].locants){
-              p[rindx].locants=[];
-            }
-            var loc=getLowestLocant(p[rindx]);
-            p[rindx].locants.push(loc);
-            newAtom.closeLocant=loc;
-            locantUsed[loc]=chain.length;
-            
-            newAtom._idx=chain.length;
-            chain.push(newAtom);
-            closedRings.push(newAtom);
-            return true;
-          }else{
-              newAtom._idx=chain.length;
-              chain.push(newAtom);
-          }
-
-        },null,true,null,true);
-        }
+             //RING
+             var rindx=p.findIndex(pa=>pa.atom===newAtom.atom);
+             if(rindx<p.length-1){
+               if(!p[rindx].locants){
+                 p[rindx].locants=[];
+               }
+               var loc=getLowestLocant(p[rindx]);
+               p[rindx].locants.push(loc);
+               newAtom.closeLocant=loc;
+               locantUsed[loc]=chain.length;
+               
+               newAtom._idx=chain.length;
+               chain.push(newAtom);
+               closedRings.push(newAtom);
+               return true;
+             }else{
+                 newAtom._idx=chain.length;
+                 chain.push(newAtom);
+             }
+   
+           },null,true,null,true);
+           }
         /*
         for(var li=chain.length-1;li>=0;li--){
           var last = chain[li];
@@ -3784,11 +3791,11 @@ JSChemify.Chemical = function(arg){
         }*/
         chain.filter(cc=>cc.atom).map(ca=>atomsGot[ca.atom.getIndexInParent()]=true);
         
-          var ni = atomsGot.findIndex(g=>!g);
+        var ni = atomsGot.findIndex(g=>!g);
         if(ni>=0){
             startAtom=ret.getAtom(ni);
           
-          chain.push("NEW");
+            chain.push("NEW");
         }else{
             startAtom=null;
         }
