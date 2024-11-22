@@ -5617,10 +5617,18 @@ JSChemify.ChemicalCollection=function(){
          if(builder._map){
             chems=chems.map(builder._map);
          }
+         var headerProps=ret._propertyOrder
+                                        .map(po=>{
+                                             if(po.toLowerCase())==="smiles"){
+                                                return "verbatim_" + po;
+                                             }
+                                             return po;
+                                        })
+                                        .join("\t");
          //TODO: need to think about computed properties
-         var header="SMILES\tName\t"+ret._propertyOrder.join("\t");
+         var header="SMILES\tName\t"+headerProps;
          if(builder._pathNotationColumn){
-            header="SMILES\tPATH_NOTATION\tName\t"+ret._propertyOrder.join("\t");
+            header="SMILES\tPATH_NOTATION\tName\t"+headerProps;
          }
          let smiMaker=(c)=>{
             if(builder._smilesPP){
