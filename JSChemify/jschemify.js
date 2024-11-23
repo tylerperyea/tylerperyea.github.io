@@ -2425,7 +2425,6 @@ JSChemify.Chemical = function(arg){
      return ret;
   };
   ret.getPathNotation=function(){
-     console.log("getting path notation");
      var startAtom=ret.getAtom(0);
      var dpath=[];
      var gotAtoms={};
@@ -2445,7 +2444,6 @@ JSChemify.Chemical = function(arg){
            if(path.length>2){
              var atom2=path[path.length-1].atom;
              gotAtoms[atom2.getIndexInParent()]=true;
-             console.log((atom2.getIndexInParent() + 1));
              var obond=path[path.length-2].bond;
              var nbond=path[path.length-1].bond;
              var satom=path[path.length-2].atom;
@@ -4135,24 +4133,42 @@ JSChemify.Ring=function(arg){
       return ret.getAtoms().indexOf(at);
   };
   ret.getAtoms=function(){
-         if(ret.$atoms)return ret.$atoms;
-      var atoms=[];
+    if(ret.$atoms)return ret.$atoms;
+    var atoms=[];
     var bds=ret.getBonds();
     var fbond = bds[0];
-    
+    var swap=false;
     var patoms=null;
     bds.map((b,j)=>{
         if(j==bds.length-1)return;
         if(patoms==null){
           atoms.push(b.getAtoms()[0]);
           atoms.push(b.getAtoms()[1]);
-        patoms=[b.getAtoms()[0],b.getAtoms()[1]];
-      }else{
-          var atn=patoms.map(a=>b.getOtherAtom(a)).filter(at=>at!==null);
-        atoms.push(atn[0]);
-        patoms=atn;
-      }
+          patoms=[b.getAtoms()[0],b.getAtoms()[1]];
+        }else{
+          var atn;
+          if(patoms.length===1){
+               atn=patoms.map(a=>b.getOtherAtom(a))
+                        .filter(at=>at!==null);
+          }else{
+               var oat=b.getOtherAtom(patoms[0]);
+               if(oat){
+                  swap=true;
+                  atn=[oat];
+               }else{
+                  atn=[b.getOtherAtom(patoms[1])];
+               }
+          }
+          
+          atoms.push(atn[0]);
+          patoms=atn;
+        }
     });
+    if(swap){
+         var f=atoms[0];
+         atoms[0]=atoms[1];
+         atoms[1]=f;
+    }
     ret.$atoms=atoms;
     return atoms;
   };
