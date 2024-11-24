@@ -1857,6 +1857,12 @@ JSChemify.Bond = function(){
   ret.getBondOrder=function(){
       return ret._order;
   };
+  ret.getAtom1=function(){
+      return ret._atom1;
+  };
+  ret.getAtom2=function(){
+      return ret._atom2;
+  };
   ret.setBondStereo=function(st){
       ret._stereo=st;
     return ret;
@@ -4748,7 +4754,157 @@ Status: IN PROGRESS
 JSChemify.ChemicalSearcher=function(){
    let ret={};
    ret._query=null;
+   ret._queryBonds=null;
+   ret._queryAtoms=null;
+   ret._queryBondLeft=[];
+   ret._queryBondRight=[];
    
+   ret.setQuery=function(c){
+      ret._query=JSChemify.Chemical(c);
+      ret._queryBonds=ret._query.getBonds();
+      ret._queryAtoms=ret._query.getAtoms();
+
+      //make left and right bond neighbors index
+      ret._queryBondLeft=ret._query.getBonds()
+                .map(b=>{
+                     let bns=b.getAtom1()
+                             .getNeighborAtomsAndBonds()
+                             .filter(bn=>bn.bond!==b)
+                             .map(bn=>bn.bond.getIndexInParent());
+                     return bns;
+                });
+      ret._queryBondRight=ret._query.getBonds()
+                .map(b=>{
+                     let bns=b.getAtom2()
+                             .getNeighborAtomsAndBonds()
+                             .filter(bn=>bn.bond!==b)
+                             .map(bn=>bn.bond.getIndexInParent());
+                     return bns;
+                });
+      
+      
+      return ret;
+   };
+   
+   ret.sameBond=function(b1,b2){
+      //TODO: make more flexible
+      // for queries
+      if(b1.getBondOrder() === b2.getBondOrder()){
+         let dir=0;
+         if(ret.sameAtom(b1.getAtom1(),b2.getAtom1() &&
+            ret.sameAtom(b1.getAtom2(),b2.getAtom2()
+                        ){
+            dir=1;
+         }
+         if(ret.sameAtom(b1.getAtom2(),b2.getAtom1() &&
+            ret.sameAtom(b1.getAtom1(),b2.getAtom2()
+                        ){
+            dir=dir+2;
+         }
+         //0 means no match
+         //1 means only same way match
+         //2 means only invert match
+         //3 means both matches
+         return dir;
+      }
+      return 0;
+   };
+   ret.sameAtom=function(a1,a2){
+      //TODO: make more flexible
+      // for queries
+      if(a1.getSymbol() === a2.getSymbol() &&
+         a1.getCharge() === a2.getCharge() &&
+         a1.getIsotope() === a2.getIsotope() &&
+        ){
+         return true;
+      }
+      return false;
+   };
+   ret.match=function(t){
+      let tar=JSChemify.Chemical(t);
+      let q=ret._query;
+      //target must have at least the same number
+      //of atoms and bonds as query
+      if(tar.getBonds().length<q.getBonds().length || 
+         tar.getAtoms().length<q.getAtoms().length
+        ){
+         return null;
+      }
+      //TODO: what about isolated atoms?
+      let cancel=false;
+      let possibleBonds = q.getBonds().map((b,i)=>{
+         if(cancel){
+            return;
+         }
+         let pBonds= tar.getBonds()
+                   .map(b2=>[b2,ret.sameBond(b2,b)])
+                   .filter(bb=>bb[1]!==0);
+         if(pBonds.length<=0){
+            cancel=true;
+         }
+         return [i,pBonds];
+      });
+      if(cancel)return null;
+
+      let targetBondLeft=tar.getBonds()
+                .map(b=>{
+                     let bns=b.getAtom1()
+                             .getNeighborAtomsAndBonds()
+                             .filter(bn=>bn.bond!==b)
+                             .map(bn=>bn.bond.getIndexInParent());
+                     return bns;
+                });
+      let targetBondRight=tar.getBonds()
+                .map(b=>{
+                     let bns=b.getAtom2()
+                             .getNeighborAtomsAndBonds()
+                             .filter(bn=>bn.bond!==b)
+                             .map(bn=>bn.bond.getIndexInParent());
+                     return bns;
+                });
+      
+      //make a copy
+      let lookup=possibleBonds.map(b=>b);
+      
+      possibleBonds.sort((a,b)=>{
+         return a[1].length-b[1].length;
+      });
+      //Start with the bond that has the least possibilities
+      //possibleBonds[0]
+      let tbondPair=possibleBonds[0];
+      let qBondStack=[];
+      let tBondStack=[];
+      let idxStack=[];
+      while(true){
+         let qBondIndex=tbondPair[0];
+         
+         //next, get the neighbor bonds for
+         //the query. Then filter the possible
+         //bonds for ones that are compatible
+         //with that bond
+         let idx=0;
+         let tbondTry=tbondPair[1][idx];
+         let forward=(tbondTry[1]===1 || tbondTry[1]===3);
+         let reverse=(tbondTry[1]===2 || tbondTry[1]===3);
+         
+         //first, assert that tbondTry is the
+         //same as qbond. Then, check that
+         //assumption by looking at the first neighbor
+         //bond of qbond, and seeing if there's a
+         //neighbor bond of tbondTry that fits that
+         //criteria
+         let qBondLeft=ret._queryBondLeft[qBondIndex];
+         let qBondRight=ret._queryBondRight[qBondIndex];
+         
+         let tBondLeft=ret._queryBondLeft[qBondIndex];
+         let tBondRight=ret._queryBondRight[qBondIndex];
+         if(qBondLeft.length
+         
+      }
+      
+      
+      
+   };
    
 
 
