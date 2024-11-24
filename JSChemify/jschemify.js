@@ -3513,7 +3513,7 @@ JSChemify.Chemical = function(arg){
   ret.addNewSGroup = function(num){
     var sg=JSChemify.SGroup()
                     .setIndex(num);
-    return ret.addSGroup(at);
+    return ret.addSGroup(sg);
   };
   ret.getSGroupByIndex=function(n){
      return ret._sgroups.find(sg=>sg.getIndex()===n);
@@ -3619,15 +3619,15 @@ M  SMT   1 2
                if(mtype === "SMT"){
                   let lab = mvals.substr(0,3).trim();
                   sgroup.setLabel(lab);
-               }else if(mytype === "SDI"){
+               }else if(mtype === "SDI"){
                   mvals = mvals.substr(3);
                   let cord=[];
                   for(let k=0;k<mvals.length;k+=10){
                      let pos=mvals.substr(k,10).trim()-0;
                      cord.push(pos);
                   }
-                  sgroup.addBracketXY([pos[0],pos[1]],[pos[2],pos[3]]);
-               }else if(mytype === "SAL" || mtype === "SPA"){
+                  sgroup.addBracketXY([cord[0],cord[1]],[cord[2],cord[3]]);
+               }else if(mtype === "SAL" || mtype === "SPA"){
                   let cnt = mvals.substr(0,3).trim()-0;
                   mvals = mvals.substr(3);
                   for(let k=0;k<mvals.length;k+=4){
