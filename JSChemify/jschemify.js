@@ -6524,7 +6524,18 @@ JSChemify.Renderer=function(){
      if(nwidth>(maxWidth-pad*2) || nheight>(maxHeight-pad*2)){
          scale=Math.min((maxWidth-pad*2)/cwidth,(maxHeight-pad*2)/cheight);
      }
-     var nret={chem:chem, scale:scale, maxWidth:maxWidth, maxHeight:maxHeight, pad:pad, bbox:bbox};
+     let centX=maxWidth/2;
+     let centY=maxHeight/2;
+     let ocX=scale*(bbox[2]-bbox[0])/2;
+     let ocY=scale*(bbox[3]-bbox[1])/2;
+     //TODO: I don't know why 4 works here
+     // but seems to make the spacing okay?
+     // probably a bug in the affine transform 
+     // implementation
+     let padX=4*(centX-ocX);
+     let padY=4*(centY-ocY);
+     
+     var nret={chem:chem, scale:scale, maxWidth:maxWidth, maxHeight:maxHeight, padX:padX,padY:padY, bbox:bbox};
      return nret;
   };
   /**
@@ -6551,7 +6562,7 @@ JSChemify.Renderer=function(){
      
      const offscreen = new OffscreenCanvas(imgDim.maxWidth, imgDim.maxHeight);
      const ctx=offscreen.getContext("2d");
-     ret.render(imgDim.chem,ctx,imgDim.pad,imgDim.pad,imgDim.scale);
+     ret.render(imgDim.chem,ctx,imgDim.padX,imgDim.padY,imgDim.scale);
      const blob = offscreen.convertToBlob();
      return (new Promise(ok=>{
         blob.then(b=>{
@@ -6567,10 +6578,8 @@ JSChemify.Renderer=function(){
   ret.getSVG = function(chem, maxWidth, maxHeight){
      //just in case it's not a chemical yet
      let imgDim=ret.getImageDimensions(chem,maxWidth,maxHeight);
-     
-     
      const ctx = JSChemify.SVGContext(imgDim.maxWidth, imgDim.maxHeight);
-     ret.render(imgDim.chem,ctx,imgDim.pad,imgDim.pad,imgDim.scale);
+     ret.render(imgDim.chem,ctx,imgDim.padX,imgDim.padY,imgDim.scale);
      return ctx.toSVG();
   };
 
