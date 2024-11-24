@@ -4791,13 +4791,13 @@ JSChemify.ChemicalSearcher=function(){
       // for queries
       if(b1.getBondOrder() === b2.getBondOrder()){
          let dir=0;
-         if(ret.sameAtom(b1.getAtom1(),b2.getAtom1() &&
-            ret.sameAtom(b1.getAtom2(),b2.getAtom2()
+         if(ret.sameAtom(b1.getAtom1(),b2.getAtom1()) &&
+            ret.sameAtom(b1.getAtom2(),b2.getAtom2())
                         ){
             dir=1;
          }
-         if(ret.sameAtom(b1.getAtom2(),b2.getAtom1() &&
-            ret.sameAtom(b1.getAtom1(),b2.getAtom2()
+         if(ret.sameAtom(b1.getAtom2(),b2.getAtom1()) &&
+            ret.sameAtom(b1.getAtom1(),b2.getAtom2())
                         ){
             dir=dir+2;
          }
@@ -4814,7 +4814,7 @@ JSChemify.ChemicalSearcher=function(){
       // for queries
       if(a1.getSymbol() === a2.getSymbol() &&
          a1.getCharge() === a2.getCharge() &&
-         a1.getIsotope() === a2.getIsotope() &&
+         a1.getIsotope() === a2.getIsotope()
         ){
          return true;
       }
@@ -4898,7 +4898,8 @@ JSChemify.ChemicalSearcher=function(){
          
          let tBondLeft=ret._queryBondLeft[qBondIndex];
          let tBondRight=ret._queryBondRight[qBondIndex];
-         if(qBondLeft.length
+         //TODO FINISH
+         //if(qBondLeft.length
          
       }
       
