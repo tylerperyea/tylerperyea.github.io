@@ -3513,6 +3513,9 @@ JSChemify.Chemical = function(arg){
       return ret._sgroups;
   };
   ret.addNewSGroup = function(num){
+    if(!num){
+       num=ret._sgroups.length+1;
+    }
     var sg=JSChemify.SGroup()
                     .setIndex(num);
     return ret.addSGroup(sg);
@@ -3625,7 +3628,7 @@ M  SCN  2   1 HT    2 HT
                let sgroup = ret.getSGroupByIndex(sid);
                //
                if(mtype === "SMT"){
-                  let lab = mvals.substr(0,3).trim();
+                  let lab = mvals.substr(0,4).trim();
                   sgroup.setLabel(lab);
                }else if(mtype === "SDI"){
                   mvals = mvals.substr(3);
@@ -3699,27 +3702,98 @@ M  SCN  2   1 HT    2 HT
     var btab=ret._bonds.map(bd=>bd.toMolLine()).join("\n");
     if(atab)mol+="\n" +btab;
     if(btab)mol+="\n";
-        mol+=ret.molMBlocks();
+    mol+=ret.molMBlocks();
+    mol+=ret.molSBlocks();
     mol+="M  END";
     return mol;
   };
+  ret.molSBlocks=function(){
+     var buff=[];
+     ret.getSGroups().map(sg=>{
+         let num = sg.getIndex();
+         let type = sg.getType();
+         let lab = sg.getLabel();
+         let bloc= sg.getBracketLocation();
+         let con = sg.getConnectivity();
+         buff.push("M  STY  1");
+         buff.push(("    "+num).substr(-4));
+         buff.push(("    "+type).substr(-4));
+         buff.push("\n");
+         var catoms = sg.getAtoms();
+         for(var i=0;i<catoms.length;i+=8){
+            var salAtoms=Math.min(catoms.length,i+8)-i;
+            buff.push("M  SAL");
+            buff.push(("    "+num).substr(-4));
+            buff.push(("    "+salAtoms).substr(-3));
+            for(var j=i;j<Math.min(catoms.length,i+8);j++){
+               var indx=catoms[j].getIndexInParent()+1;
+               buff.push(("   "+ indx).substr(-4));
+            }
+            buff.push("\n");
+         }
+         var datoms=sg.getDisplayAtoms();
+         if(datoms.length!==catoms.length){
+            catoms = datoms;
+            for(var i=0;i<catoms.length;i+=8){
+               var salAtoms=Math.min(catoms.length,i+8)-i;
+               buff.push("M  SPA");
+               buff.push(("    "+num).substr(-4));
+               buff.push(("    "+salAtoms).substr(-3));
+               for(var j=i;j<Math.min(catoms.length,i+8);j++){
+                  var indx=catoms[j].getIndexInParent()+1;
+                  buff.push(("   "+ indx).substr(-4));
+               }
+               buff.push("\n");
+            }
+         }
+         if(lab){
+            buff.push("M  SMT");
+            buff.push(("    "+num).substr(-4));
+            buff.push(" " + lab);
+            buff.push("\n");
+         }
+         bloc.map(bl=>{
+            //M  SDI   1  4
+            buff.push("M  SDI");
+            buff.push(("    "+num).substr(-4));
+            buff.push("  4");
+            buff.push(JSChemify.Util.toMolDouble(bl[0][0]));
+            buff.push(JSChemify.Util.toMolDouble(bl[0][1]));
+            buff.push(JSChemify.Util.toMolDouble(bl[1][0]));
+            buff.push(JSChemify.Util.toMolDouble(bl[1][1]));
+            buff.push("\n");
+         });
+         if(con){
+            
+            buff.push("M  SCN");
+            buff.push("  1");
+            buff.push(("    "+num).substr(-4));
+            buff.push(" ");
+            buff.push((con+"   ").substr(0,3));
+            buff.push("\n");
+         }
+        
+     });
+     return buff.join("");
+  };
   ret.molMBlocks=function(){
-      var buff=[];
+    var buff=[];
     //Charges
-      var catoms=ret.getAtoms().filter(at=>at.getCharge()!==0);
+    var catoms=ret.getAtoms()
+                  .filter(at=>at.getCharge()!==0);
     if(catoms.length>0){
         for(var i=0;i<catoms.length;i+=8){
           //"M  CHG  2  11  -1  21   1"
           buff.push("M  CHG  ");
-        var chgAtoms=Math.min(catoms.length,i+8)-i;
-        buff.push(chgAtoms);
+          var chgAtoms=Math.min(catoms.length,i+8)-i;
+          buff.push(chgAtoms);
           for(var j=i;j<Math.min(catoms.length,i+8);j++){
             var indx=catoms[j].getIndexInParent()+1;
-          var chg=catoms[j].getCharge();
-          buff.push(("   "+ indx).substr(-4));
-          buff.push(("   "+ chg).substr(-4));
-        }
-        buff.push("\n");
+            var chg=catoms[j].getCharge();
+            buff.push(("   "+ indx).substr(-4));
+            buff.push(("   "+ chg).substr(-4));
+          }
+          buff.push("\n");
       }
     }
     //isotopes
@@ -3764,7 +3838,6 @@ M  SCN  2   1 HT    2 HT
     return smi;
   };
   ret.toSmiles=function(){
-     console.log("make smiles");
       if(ret.getAtomCount()==0)return "";
       var startAtom = ret.getAtom(0);
       var chain=[];
@@ -3806,7 +3879,6 @@ M  SCN  2   1 HT    2 HT
                branchStarts.push(chain.length-1);
              }
               
-             console.log((newAtom.atom.getIndexInParent() + 1));
              if(closedRings.findIndex(cr=>cr.bond ===newAtom.bond)>=0){
                  return true;
              }
