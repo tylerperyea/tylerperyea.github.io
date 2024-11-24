@@ -666,15 +666,15 @@ JSChemify.Util = {
     return JSChemify.Util.addVector(a,b,-1);
   },
   normVector:function(a){
-      var sumSq=0;
-      for(var i=0;i<a.length;i++){
-        sumSq+=a[i]*a[i];
-    }
-    var nMag=1/Math.sqrt(sumSq);
-    for(var i=0;i<a.length;i++){
-        a[i]=a[i]*nMag;
-    }
-    return a;
+       var sumSq=0;
+       for(var i=0;i<a.length;i++){
+           sumSq+=a[i]*a[i];
+       }
+       var nMag=1/Math.sqrt(sumSq);
+       for(var i=0;i<a.length;i++){
+           a[i]=a[i]*nMag;
+       }
+       return a;
   },
   dotVector:function(a,b){
       var dot=0;
@@ -3509,7 +3509,9 @@ JSChemify.Chemical = function(arg){
     var at=JSChemify.Atom().setSymbol(symbol);
     return ret.addAtom(at);
   };
-   
+  ret.getSGroups = function(){
+      return ret._sgroups;
+  };
   ret.addNewSGroup = function(num){
     var sg=JSChemify.SGroup()
                     .setIndex(num);
@@ -3599,23 +3601,29 @@ M  SPA   1  6  24  25  26  27  28  29
 M  SDI   1  4    7.4880   -6.1360    7.4880   -1.1960
 M  SDI   1  4   12.6360   -1.1960   12.6360   -6.1360
 M  SMT   1 2
+M  SCN  2   1 HT    2 HT 
                   */
-            if(mtype === "CHG" || mtype === "ISO" || mtype === "STY"){
+            if(mtype === "CHG" || mtype === "ISO" 
+               || mtype === "STY" || mtype === "SCN"){
                for(let k=0;k<mvals.length;k+=8){
                   let at=mvals.substr(k,4).trim()-0;
-                  let val=mvals.substr(k+4,4).trim()-0;
+                  let val=mvals.substr(k+4,4).trim();
                   if(mtype==="CHG"){
-                     ret.getAtom(at-1).setCharge(val);
+                     ret.getAtom(at-1).setCharge(val-0);
                   }else if(mtype==="ISO"){
-                     ret.getAtom(at-1).setIsotope(val);
+                     ret.getAtom(at-1).setIsotope(val-0);
                   }else if(mtype==="STY"){
                      ret.addNewSGroup(at)
                         .setType(val);
+                  }else if(mtype==="SCN"){
+                     ret.getSGroupByIndex(at)
+                        .setConnectivity(val);
                   }
                }
             }else if(mtype[0] === "S"){
                let sid = mcount.trim()-0;
                let sgroup = ret.getSGroupByIndex(sid);
+               //
                if(mtype === "SMT"){
                   let lab = mvals.substr(0,3).trim();
                   sgroup.setLabel(lab);
@@ -3963,6 +3971,13 @@ JSChemify.SGroup=function(){
    };
    ret.getLabel=function(){
       return ret._label;
+   };
+   ret.setConnectivity=function(c){
+      ret._connectivity=c;
+      return ret;
+   };
+   ret.getConnectivity=function(){
+      return ret._connectivity;
    };
    ret.setLabel=function(l){
       ret._label=l;
@@ -6117,6 +6132,7 @@ JSChemify.Renderer=function(){
   ret._dcount=6;
   ret._dashSpace=1/8;
   ret._showAtomMapNumbers=true;
+  ret._bracketWidth=0.3;
 
   
   ret._colorScheme={symbols:{}};
@@ -6314,6 +6330,7 @@ JSChemify.Renderer=function(){
          const cleareRad=offx*ret._cleareRad;
          const wedge=ret._getWedge();
          const dash=ret._getDash();
+         const bwidth=ret._bracketWidth*scale;
          // Set line width
          ctx.lineWidth = scale*ret._lineWidth;  
                
@@ -6503,6 +6520,7 @@ JSChemify.Renderer=function(){
              }
               
         }
+         
         if(at.getAtomMap()){
           if(ret._showAtomMapNumbers){
             ctx.font = fsize/2+"px sans-serif";
@@ -6518,6 +6536,37 @@ JSChemify.Renderer=function(){
         }
         
       });     
+      chem.getSGroups().map(sg=>{
+            const brackets = affine.transform(sg.getBracketLocation());
+            const label=sg.getLabel();
+            let mult=1;
+            brackets.map((bb,ii)=>{
+               let delt=[bb[1][0]-bb[0][0],
+                         bb[1][1]-bb[0][1]];
+               delt=JSChemify.Util.normVector(delt);
+               delt=[-delt[1],delt[0]];
+                         
+               ctx.strokeStyle="black";
+               ctx.beginPath();
+               moveTo(bb[0][0]+mult*bwidth*delt[0], bb[0][1]+mult*bwidth*delt[1]);
+               lineTo(bb[0][0], bb[0][1]);
+               lineTo(bb[1][0], bb[1][1]);
+               lineTo(bb[1][0]+mult*bwidth*delt[0], bb[1][1]+mult*bwidth*delt[1]);
+               
+               ctx.stroke();
+
+               if(ii===1 && label){
+                  let loc=[bb[1][0]-mult*bwidth*delt[0],
+                           bb[1][1]-mult*bwidth*delt[1]];
+                  ctx.fillStyle = "black";
+                  ctx.fillText(label,loc[0]-offx,loc[1]-offy);
+                  ctx.fillStyle = "black";
+                  //ctx.font = fsize+"px sans-serif";
+               }
+               //mult=mult*-1;
+            });
+            
+      });
             
   }; //End render function
   return ret;
