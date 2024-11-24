@@ -40,6 +40,11 @@ Basic I/O:
 20. Edit distance
 21. [done] fix ++ and -- reading of smiles
 22. gzip base64 support for molfiles
+23. [partial] molfile SGroup support
+24. Improve dearomatization / aromatization
+25. Add basic resolver? NCATS? GSRS? Pubchem?
+26. Simple editor?
+27. Simple Namer?
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -55,7 +60,7 @@ Coordinates and Rendering:
     where possible
 11. [partial] Draw aromatic circles and bonds
 12. [partial] Coordinates: Multiple components
-13. Brackets
+13. [partial] Brackets
 14. Coordinates: hex grid rings alignment
 15. [partial] Coordinates: bug when 3 substituents follow 
     4 substituents
@@ -70,6 +75,7 @@ Coordinates and Rendering:
 22. [done] Path Notation:  Multiple components
 23. Place subscripts a little down
 24. [done] isotopes in render
+25. Path Notation: Brackets
 
 **/
 
