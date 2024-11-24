@@ -188,6 +188,30 @@ JSChemify.ShapeUtils=function(){
       var rej = delta1[0]*delta2[1]-delta1[1]*delta2[0];
       return rej;
   };
+  ret.getBoundingBox=function(pts, pad){
+    if(typeof pad === "undefined"){
+       pad=1;
+    }
+    if(pts && pts.length>0 && typeof (pts[0].getX) === "function"){
+      pts=pts.map(pp=>[pp.getX(),pp.getY()]);
+    }
+    let bb= pts.map(at=>[at[0],at[1],at[0],at[1]])
+               .reduce((a,b)=>{
+        a[0]=Math.min(a[0],b[0]);
+        a[1]=Math.min(a[1],b[1]);
+        a[2]=Math.max(a[2],b[2]);
+        a[3]=Math.max(a[3],b[3]);
+        return a;
+          },[1000,1000,-1000,-1000]);
+     if(bb[0]>bb[2] || pts.length===1){
+        if(pts.length===1){
+           let at=pts[0];
+           return [pts[0]-pad,pts[1]-pad,pts[0]+pad,pts[1]+pad];
+        }
+        return [-pad,-pad,pad,pad];
+     }
+     return bb;
+  };
   ret.canonicalPathCCW=function(pts){
       let fp=pts.map((p,i)=>[p,i]).reduce((ap,bp)=>{
           let a=ap[0];
@@ -344,16 +368,16 @@ JSChemify.PathNotation=function(){
         if(d==="S"){
             return [0,0];
         }
-        if(d==="R"){
+        if(d==="L"){
           ang=Math.PI/3;
-        }else if(d==="L"){
+        }else if(d==="R"){
           ang=-Math.PI/3;
         }else if(d==="F"){
           ang=0;
         }else if(d.startsWith("R") || d.startsWith("L") || d.startsWith("r") || d.startsWith("l")){
           let div=d.substr(1)-0;
           ang=2*Math.PI/div;
-          if(d[0]==="L" || d[0] ==="l"){
+          if(d[0]==="R" || d[0] ==="r"){
             ang=-ang;
           }
           if(d.toLowerCase()==d){
@@ -396,15 +420,15 @@ JSChemify.PathNotation=function(){
          magN=1/magN;
        }
        magN=magN*100;
-       var dnm="R";
-       var dnm2="r";
+       var dnm="L";
+       var dnm2="l";
        if(c<0){
-         dnm="L";
+         dnm="R";
          c=-c;
        }
         if(c2<0){
           c2=-c2;
-          dnm2="l";
+          dnm2="r";
         }
        var rc=Math.round(c*ret._roundAngle)/ret._roundAngle;
        var rc2=Math.round(c2*ret._roundAngle)/ret._roundAngle;
@@ -452,6 +476,7 @@ JSChemify.CONSTANTS={
   CHEM_TYPE_ATOM : 1,
   CHEM_TYPE_BOND : 2,
   CHEM_TYPE_CHEMICAL : 3,
+  CHEM_TYPE_SGROUP : 4,
   
   BOND_STEREO_WEDGE : 6,
   BOND_STEREO_DASH : 1,
@@ -1771,7 +1796,7 @@ JSChemify.Bond = function(){
     return ret.$smallestRingSize;
   };
   ret.getSmallestRings=function(){
-      var rsize=ret.getSmallestRingSize();
+    var rsize=ret.getSmallestRingSize();
     return ret.getParent().getRings()
        .filter(r=>r.hasBond(ret))
        .filter(r=>r.getSize()===rsize);
@@ -1782,8 +1807,9 @@ JSChemify.Bond = function(){
   };
   
   ret.getCenterPoint=function(){
-      var cpt=ret.getAtoms().map(at=>[at.getX(),at.getY(),1])
-                                .reduce(JSChemify.Util.addVector);
+    var cpt=ret.getAtoms()
+               .map(at=>[at.getX(),at.getY(),1])
+               .reduce(JSChemify.Util.addVector);
     cpt[0]=cpt[0]/cpt[2];
     cpt[1]=cpt[1]/cpt[2];
     cpt.pop();
@@ -1923,6 +1949,7 @@ JSChemify.Chemical = function(arg){
   ret._chemType = JSChemify.CONSTANTS.CHEM_TYPE_CHEMICAL;
   ret._atoms=[];
   ret._bonds=[];
+  ret._sgroups=[];
   ret._name=null;
   ret.$bondTypes=null;
   ret.$atomComponentTypes=null;
@@ -2937,23 +2964,7 @@ JSChemify.Chemical = function(arg){
      return renderer.getSVG(ret,width,height);
   };
   ret.getBoundingBox=function(){
-    let bb= ret.getAtoms()
-          .map(at=>[at.getX(),at.getY(),at.getX(),at.getY()])
-          .reduce((a,b)=>{
-        a[0]=Math.min(a[0],b[0]);
-        a[1]=Math.min(a[1],b[1]);
-        a[2]=Math.max(a[2],b[2]);
-        a[3]=Math.max(a[3],b[3]);
-        return a;
-          },[1000,1000,-1000,-1000]);
-     if(bb[0]>bb[2] || ret.getAtomCount()===1){
-        if(ret.getAtomCount()===1){
-           let at=ret.getAtom(0);
-           return [at.getX()-1,at.getY()-1,at.getX()+1,at.getY()+1];
-        }
-        return [-1,-1,1,1];
-     }
-     return bb;
+    return JSChemify.ShapeUtils().getBoundingBox(ret.getAtoms(),1);
   };
   ret.getComponentCount=function(){
       if(!ret.$componentCount){
@@ -3464,13 +3475,22 @@ JSChemify.Chemical = function(arg){
   };
   
   ret.addAtom = function(at){
-      if(at && at._chemType && at._chemType === JSChemify.CONSTANTS.CHEM_TYPE_ATOM){
+    if(at && at._chemType && at._chemType === JSChemify.CONSTANTS.CHEM_TYPE_ATOM){
         ret._atoms.push(at);
-      at.setParent(ret);
+        at.setParent(ret);
     }
     ret.$markDirty();
     //should this return the parent molecule or the atom?
     return at;
+  };
+
+  ret.addSGroup = function(sg){
+    if(sg && sg._chemType && sg._chemType === JSChemify.CONSTANTS.CHEM_TYPE_SGROUP){
+      ret._sgroups.push(sg);
+      sg.setParent(ret);
+    }
+    ret.$markDirty();
+    return sg;
   };
   
   ret.addBond = function(bd){
@@ -3486,8 +3506,17 @@ JSChemify.Chemical = function(arg){
     return ret.addBond(bd);
   };
   ret.addNewAtom = function(symbol){
-      var at=JSChemify.Atom().setSymbol(symbol);
+    var at=JSChemify.Atom().setSymbol(symbol);
     return ret.addAtom(at);
+  };
+   
+  ret.addNewSGroup = function(num){
+    var sg=JSChemify.SGroup()
+                    .setIndex(num);
+    return ret.addSGroup(at);
+  };
+  ret.getSGroupByIndex=function(n){
+     return ret._sgroups.find(sg=>sg.getIndex()===n);
   };
   
   ret.getBondsTo=function(at){
@@ -3561,13 +3590,55 @@ JSChemify.Chemical = function(arg){
             let mtype=mline[1];
             let mcount=mline[2];
             let mvals=mline[3];
-            for(let k=0;k<mvals.length;k+=8){
-               var at=mvals.substr(k,4).trim()-0;
-               var val=mvals.substr(k+4,4).trim()-0;
-               if(mtype==="CHG"){
-                  ret.getAtom(at-1).setCharge(val);
-               }else if(mtype==="ISO"){
-                  ret.getAtom(at-1).setIsotope(val);
+         
+               /*
+M  STY  1   1 MUL
+M  SAL   1  8  24  25  26  27  28  29  30  31
+M  SAL   1  4  32  33  34  35
+M  SPA   1  6  24  25  26  27  28  29
+M  SDI   1  4    7.4880   -6.1360    7.4880   -1.1960
+M  SDI   1  4   12.6360   -1.1960   12.6360   -6.1360
+M  SMT   1 2
+                  */
+            if(mtype === "CHG" || mtype === "ISO" || mtype === "STY"){
+               for(let k=0;k<mvals.length;k+=8){
+                  let at=mvals.substr(k,4).trim()-0;
+                  let val=mvals.substr(k+4,4).trim()-0;
+                  if(mtype==="CHG"){
+                     ret.getAtom(at-1).setCharge(val);
+                  }else if(mtype==="ISO"){
+                     ret.getAtom(at-1).setIsotope(val);
+                  }else if(mtype==="STY"){
+                     ret.addNewSGroup(at)
+                        .setType(val);
+                  }
+               }
+            }else if(mtype[0] === "S"){
+               let sid = mcount.trim()-0;
+               let sgroup = ret.getSGroupByIndex(sid);
+               if(mtype === "SMT"){
+                  let lab = mvals.substr(0,3).trim();
+                  sgroup.setLabel(lab);
+               }else if(mytype === "SDI"){
+                  mvals = mvals.substr(3);
+                  let cord=[];
+                  for(let k=0;k<mvals.length;k+=10){
+                     let pos=mvals.substr(k,10).trim()-0;
+                     cord.push(pos);
+                  }
+                  sgroup.addBracketXY([pos[0],pos[1]],[pos[2],pos[3]]);
+               }else if(mytype === "SAL" || mtype === "SPA"){
+                  let cnt = mvals.substr(0,3).trim()-0;
+                  mvals = mvals.substr(3);
+                  for(let k=0;k<mvals.length;k+=4){
+                     let at=mvals.substr(k,4).trim()-0;
+                     let sgro
+                     if(mtype === "SAL"){
+                        sgroup.addAtom(ret.getAtom(at-1));
+                     }else if(mtype==="SPA"){
+                        sgroup.addDisplayAtom(ret.getAtom(at-1));
+                     }
+                  }
                }
             }
       }
@@ -3844,6 +3915,154 @@ JSChemify.Chemical = function(arg){
   }
   return ret;
 };
+/*******************************
+/* SGroup
+/*******************************
+Status: IN PROGRESS
+
+A wrapper around the atoms, bonds
+that might come in a group
+   
+*******************************/
+JSChemify.SGroup=function(){
+   let ret={};
+   
+   ret._chemType = JSChemify.CONSTANTS.CHEM_TYPE_SGROUP;
+   ret._type=null;
+   ret._index=null;
+   ret._atoms=[];
+   ret._crossBonds=null;
+   ret._connectivity=null;
+   ret._displayAtoms=null;
+   ret._label=null;
+   ret._bracket1=null;
+   ret._bracket2=null;
+   ret._parent=null;
+
+   ret.getIndex=function(){
+      return ret._index;
+   };  
+   ret.setIndex=function(s){
+      ret._index=s;
+      return ret;
+   };
+   ret.addAtom=function(a){
+      ret._atoms.push(a);
+      return ret;
+   };
+   ret.setAtoms=function(a){
+      ret._atoms=a;
+      return ret;
+   };
+   ret.setType=function(t){
+      ret._type=t;
+      return ret;
+   }
+   ret.getType=function(){
+      return ret._type;
+   };
+   ret.getLabel=function(){
+      return ret._label;
+   };
+   ret.setLabel=function(l){
+      ret._label=l;
+      return ret;
+   };
+   ret.setParent=function(c){
+      ret._parent=c;
+      return ret;
+   };
+   
+   ret.getParent=function(){
+      return ret._parent;
+   };
+   
+   ret.getAtoms=function(){
+         return ret._atoms;
+   };
+   ret.hasAtom=function(a){
+         return ret.getAtoms().indexOf(a)>=0;
+   };
+   ret.hasBond=function(b){
+         return ret.getBonds().indexOf(b)>=0;
+   };
+   ret.getBonds=function(){
+      if(!ret.$bonds){
+         ret.$bonds = JSChemify.Util.distinct(ret.getAtoms()
+            .flatMap(a=>a.getBonds())
+            .filter(a=>a.getAtoms().filter(aa=>ret.hasAtom(aa)).length==2));
+      }
+      return ret.$bonds;
+   };
+   ret.addBracketXY=function(pt1,pt2){
+      if(!ret._bracket1){
+         ret._bracket1=[pt1,pt2];
+      }else if(!ret._bracket2){
+         ret._bracket2=[pt1,pt2];
+      }else{
+         throw "Cannot specify 3rd bracket position for SGroup, 2 already specified";
+      }
+      return ret;
+   };
+   //for now, calculate based on contained atoms if not set explicitly
+   
+   ret.getCrossBonds=function(){
+      if(!ret._crossBonds){
+         ret._crossBonds=JSChemify.Util.distinct(ret.getAtoms()
+            .flatMap(a=>a.getBonds())
+            .filter(b=>!ret.hasBond(b)));
+      }
+      return ret._crossBonds;
+   };
+   ret.getDisplayAtoms=function(){
+      if(!ret._displayAtoms){
+         ret._displayAtoms=ret.getAtoms();
+      }
+      return ret._displayAtoms;
+   };
+   ret.addDisplayAtom=function(a){
+      if(!ret._displayAtoms){
+         ret._displayAtoms=[];
+      }
+      ret._displayAtoms.push(a);
+      return ret;
+   };
+   ret.getBoundingBox=function(){
+      return JSChemify.ShapeUtils()
+                      .getBoundingBox(ret.getAtoms(),1);
+   };
+   ret.getCenterPoint=function(){
+      if(!ret.$center){
+         let bbox=ret.getBoundingBox();
+         ret.$center=[(bbox[2]+bbox[0])/2,(bbox[3]+bbox[1])/2];
+      }
+      return ret.$center;
+   };
+   ret.getBracketLocation=function(){
+      if(!ret._bracket1){
+            var cbonds=ret.getCrossBonds();
+            if(cbonds===2){
+               let b1=cbonds[0];
+               let b2=cbonds[1];
+               var c1=b1.getCenterPoint();
+               var c2=b2.getCenterPoint();
+               var d1=b1.getDeltaVector();
+               var d2=b2.getDeltaVector();
+               ret._bracket1=[[c1[0]-d1[1]/2,c1[1]+d1[1]/2],
+                              [c1[0]+d1[1]/2,c1[1]-d1[1]/2]];
+                              
+               ret._bracket2=[[c2[0]-d2[1]/2,c2[1]+d2[1]/2],
+                              [c2[0]+d2[1]/2,c2[1]-d2[1]/2]];
+               
+            }
+      }
+      return [ret._bracket1,ret._bracket2];
+   };
+   
+   
+
+   return ret;
+};
 
 /*******************************
 /* RingBond
@@ -4071,8 +4290,8 @@ JSChemify.Ring=function(arg){
   };
   
   ret.getCenterPoint=function(){
-      if(!ret.$center){
-        var sumV=ret.getAtoms()
+    if(!ret.$center){
+      var sumV=ret.getAtoms()
          .map(a=>[a.getX(),a.getY(),1])
          .reduce(JSChemify.Util.addVector);
       sumV[0]=sumV[0]/sumV[2];
