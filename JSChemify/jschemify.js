@@ -44,7 +44,7 @@ Basic I/O:
 24. Improve dearomatization / aromatization
 25. Add basic resolver? NCATS? GSRS? Pubchem?
 26. Simple editor?
-27. Simple Namer?
+27. Simple namer?
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -76,6 +76,30 @@ Coordinates and Rendering:
 23. Place subscripts a little down
 24. [done] isotopes in render
 25. Path Notation: Brackets
+       Some notes about brackets...
+          B1. SGroups are always collections of ATOMS
+          B2. Sometimes they have 2 cross bond locations
+          B3. Sometimes they cover whole molecules
+          B4. In B2 and B3, we could specify the group 
+              with [ and ] alone
+          B5. If there is are 3+ cross bond locations
+              I don't know what to do. Same with 1 cross
+              bond.
+          B6. Actual bracket location hard to specify
+          B7. If MUL maybe [component]M1...{M1}...{M1}
+              Label will be sum of M1 appearences (or M2, M3, etc)
+          B8. If SRU maybe LRLR[LRL](lab)LR where lab is the label?
+              Would use cross bonds for specifying
+              LRLRL[LRLR[LR](lab)LRRL](lab)LRLRL possible
+          B9. For SRU, also may want connectivity (though HT is almost always what we want)
+              maybe [](lab_[HTE]) where H means head-to-head, T means Head-to-tail, and E
+              means either? Probably default to T
+          B10.For SRU location, we could make a few distinctions:
+                 S1. BBOX of atoms
+                 S2. vertical/horizonta at cross bonds
+                 S3. Angled at cross bonds, same angle
+                 S4. Angled at cross bonds, perp angle
+              
 
 **/
 
@@ -4893,11 +4917,29 @@ JSChemify.ChemicalSearcher=function(){
          //bond of qbond, and seeing if there's a
          //neighbor bond of tbondTry that fits that
          //criteria
-         let qBondLeft=ret._queryBondLeft[qBondIndex];
-         let qBondRight=ret._queryBondRight[qBondIndex];
+         let qBondsLeft=ret._queryBondLeft[qBondIndex];
+         let qBondsRight=ret._queryBondRight[qBondIndex];
+
+         let tbond = tbondTry[0].getIndexInParent();
          
-         let tBondLeft=ret._queryBondLeft[qBondIndex];
-         let tBondRight=ret._queryBondRight[qBondIndex];
+         let tBondsLeft=targetBondLeft[tbond];
+         let tBondsRight=targetBondRight[tbond];
+
+         
+         
+         //Options:
+         // each qLeft has a matching tLeft
+         //    try one, add to stack
+         //
+         
+         if(qBondLeft.length>0){
+            if(forward){
+               if(tBondsLeft.length>0){
+                  //we gotta try each
+               }
+            }
+         }
+         
          //TODO FINISH
          //if(qBondLeft.length
          
@@ -6567,7 +6609,7 @@ JSChemify.Renderer=function(){
                if((dig-0)===1){
                   return String.fromCodePoint(0x00B9);
                }
-               if(Math.abs(dig-0)<=3){
+               if(Math.abs(dig-0)<=3 && Math.abs(dig-0)>0){
                    return String.fromCodePoint(0x00B0+Math.abs(dig-0));
                }else{
                    return String.fromCodePoint(0x2070+Math.abs(dig-0));
