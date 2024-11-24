@@ -206,7 +206,7 @@ JSChemify.ShapeUtils=function(){
      if(bb[0]>bb[2] || pts.length===1){
         if(pts.length===1){
            let at=pts[0];
-           return [pts[0]-pad,pts[1]-pad,pts[0]+pad,pts[1]+pad];
+           return [at[0]-pad,at[1]-pad,at[0]+pad,at[1]+pad];
         }
         return [-pad,-pad,pad,pad];
      }
@@ -1245,6 +1245,9 @@ JSChemify.Atom = function(){
       return ret._x;
   };
   ret.setXYZ=function(x,y,z){
+    if(x+""==="NaN"){
+      throw "WAT";
+    }
     ret._x=x;
     ret._y=y;
     if(z){
@@ -2566,6 +2569,9 @@ JSChemify.Chemical = function(arg){
                oAtom.setXYZ(x,y);
             });
        });
+       ret.getSGroups().map(sg=>{
+         sg.resetBracketLocation();
+       });
        return ret;
     }
      
@@ -2872,7 +2878,10 @@ JSChemify.Chemical = function(arg){
     
     
     ret.getAtoms().map(a=>a.setStereoBondFromParity());
-    
+    ret.getSGroups().map(sg=>{
+         sg.resetBracketLocation();
+       });
+     
     return ret;
   };
   
@@ -2964,7 +2973,16 @@ JSChemify.Chemical = function(arg){
      return renderer.getSVG(ret,width,height);
   };
   ret.getBoundingBox=function(){
-    return JSChemify.ShapeUtils().getBoundingBox(ret.getAtoms(),1);
+    let pts=ret.getAtoms().map(at=>at.getPoint());
+    ret.getSGroups().map(sg=>{
+         sg.getBracketLocation().map(bloc=>{
+             pts.push(bloc[0]);
+             pts.push(bloc[1]);
+         });
+    });
+     
+    return JSChemify.ShapeUtils()
+                    .getBoundingBox(pts,1);
   };
   ret.getComponentCount=function(){
       if(!ret.$componentCount){
@@ -4125,22 +4143,44 @@ JSChemify.SGroup=function(){
       }
       return ret.$center;
    };
+   ret.resetBracketLocation=function(){
+      ret._bracket1=null;
+      ret._bracket2=null;
+      
+      return ret;
+   };
    ret.getBracketLocation=function(){
       if(!ret._bracket1){
             var cbonds=ret.getCrossBonds();
-            if(cbonds===2){
+            if(cbonds.length===2){
+
+               //TODO: make bracket snap to a cardinal direction
+               // probably?
+               
                let b1=cbonds[0];
                let b2=cbonds[1];
                var c1=b1.getCenterPoint();
                var c2=b2.getCenterPoint();
                var d1=b1.getDeltaVector();
                var d2=b2.getDeltaVector();
-               ret._bracket1=[[c1[0]-d1[1]/2,c1[1]+d1[1]/2],
-                              [c1[0]+d1[1]/2,c1[1]-d1[1]/2]];
+               ret._bracket1=[[c1[0]-d1[1]/2,c1[1]+d1[0]/2],
+                              [c1[0]+d1[1]/2,c1[1]-d1[0]/2]];
                               
-               ret._bracket2=[[c2[0]-d2[1]/2,c2[1]+d2[1]/2],
-                              [c2[0]+d2[1]/2,c2[1]-d2[1]/2]];
+               ret._bracket2=[[c2[0]+d2[1]/2,c2[1]-d2[0]/2],
+                             [c2[0]-d2[1]/2,c2[1]+d2[0]/2]];
+               if(c1[0]>c2[0]){
+                  let t= ret._bracket1;
+                  ret._bracket1=ret._bracket2;
+                  ret._bracket2=t;
+               }
                
+            }else{
+               let bbox=ret.getBoundingBox();
+               ret._bracket1=[[bbox[0],bbox[1]],
+                              [bbox[0],bbox[3]]];
+               
+               ret._bracket2=[[bbox[2],bbox[3]],
+                             [bbox[2],bbox[1]]];
             }
       }
       return [ret._bracket1,ret._bracket2];
