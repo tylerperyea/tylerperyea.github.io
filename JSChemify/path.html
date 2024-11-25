@@ -539,6 +539,9 @@ M  END`
       var ePath=JSChemify.PathNotation()
 	           .expand(path);
       ePath.map(pp=>{
+	if(pp[0][0]==="["||pp[0][0]==="]"){
+		return;
+	}
       	let d=pp[0];
       	let m=pp[1];
       	let w=pp[2];
@@ -553,9 +556,9 @@ M  END`
           numeric="";
         }
         var nd=alpha+numeric;
-        if(nd==="D6"){ 
+        if(nd==="R6"){ 
           nd="R";
-        }else if(nd==="S6"){
+        }else if(nd==="L6"){
           nd="L";
         }
         pp[0]=nd;
