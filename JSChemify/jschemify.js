@@ -380,7 +380,10 @@ JSChemify.PathNotation=function(f){
            if(pth[oindex]==="["){
                
                regex.lastIndex=oindex+1;
-               fpath.push("[");
+               fpath.push(["["]);
+           }else if(pth[oindex]==="," && pth[oindex+1]==="["){
+               regex.lastIndex=oindex+2;
+               fpath.push([",["]);
            }else if(pth[oindex]==="]"){
                let regex2=/\]M[0-9][0-9]*/y;
                regex2.lastIndex=oindex;
@@ -389,7 +392,15 @@ JSChemify.PathNotation=function(f){
                   regex.lastIndex=regex2.lastIndex;
                   fpath.push([m2[0]]);
                }else{
-                  throw "Unexpected Path Notation:" + pth;
+                  let regex3=/\]\([^\)]*\)*/y;
+                  regex3.lastIndex=oindex;
+                  let m3=regex3.exec(pth);
+                  if(m3){
+                     regex.lastIndex=regex3.lastIndex;
+                     fpath.push([m3[0]]);
+                  }else{
+                     throw "Unexpected Path Notation:" + pth;
+                  }
                }
            }else{
                throw "Unexpected Path Notation:" + pth;
@@ -412,7 +423,7 @@ JSChemify.PathNotation=function(f){
     };
     ret.collapse=function(pth){
           return pth.map(v=>{
-                  if(v[0][0]==="[" || v[0][0]==="]"){
+                  if(v[0][0]==="[" || v[0][0]==="]" || v[0][0]===","){
                      return v[0];
                   }
                   if(v[0]==="R6"){
@@ -2467,20 +2478,47 @@ JSChemify.Chemical = function(arg){
      var startDx=1;
      var startDy=0;
      var sgroupLookup={};
+     var sgroupStack=[];
+     var csgroup=null;
      
      while(startAtom){
         let comp={};
         gotAtoms[startAtom.getIndexInParent()]=true;
         comp[startAtom.getIndexInParent()]=true;
         let sgroupStart=false;
-        if(pn[pthIndex] && pn[pthIndex][0]==="["){
+        if(pn[pthIndex] && pn[pthIndex][0].startsWith(",[")){
            pthIndex++;
            sgroupStart=true;
         }
         startAtom.$allPathsDepthFirst((path)=>{
-             if(got[path[path.length-1].bond.getIndexInParent()]){
+             let nnbondIdx=path[path.length-1].bond.getIndexInParent();
+             if(got[nnbondIdx]){
                return true;
-             }  
+             } 
+             if(pn[pthIndex][0]==="["){
+               if(csgroup){
+                  sgroupStack.push(csgroup);
+               }
+               csgroup=ret.addNewSGroup()
+                          .setType("SRU")
+                          .addCrossBond(ret.getBond(nnbondIdx));
+                
+               pthIndex++;
+             }
+             if(pn[pthIndex][0][0]==="]"){
+                let lab=pn[pthIndex][0].substr(2).replace(")","");
+                
+                csgroup.setLabel(lab)
+                       .addCrossBond(ret.getBond(nnbondIdx))
+                       .setAtomsFromCrossBonds();
+                if(sgroupStack.length>0){
+                   csgroup=sgroupStack.pop();
+                }else{
+                   csgroup=null;
+                }
+                pthIndex++;  
+             }
+           
            
              var atom1=path[path.length-2].atom;
              gotAtoms[atom1.getIndexInParent()]=true;
@@ -2540,7 +2578,7 @@ JSChemify.Chemical = function(arg){
             }
         }
         if(startAtom){
-            if(pn[pthIndex][0]==="["){
+            if(pn[pthIndex][0].startsWith(",[")){
                pthIndex++;
                sgroupStart=true;
             }
@@ -2580,6 +2618,17 @@ JSChemify.Chemical = function(arg){
      var startDx=1;
      var startDy=0;
      var mgroupIndexes=[];
+     var crossBondSIndex={};
+     
+     ret.getSGroups()
+         .map(sg=>[sg,sg.getCrossBonds()])
+         .filter(ar=>ar[1].length===2)
+         .map(ar=>{
+            crossBondSIndex[ar[1][0].getIndexInParent()] = ar[0];
+            crossBondSIndex[ar[1][1].getIndexInParent()] = ar[0];
+         });
+
+     let sgroupsOpen={};
      
      let startPathIndex=dpath.length;
      while(startAtom){
@@ -2587,9 +2636,22 @@ JSChemify.Chemical = function(arg){
         gotAtoms[startAtom.getIndexInParent()]=true;
         comp[startAtom.getIndexInParent()]=true;
         startAtom.$allPathsDepthFirst((path)=>{
-           if(got[path[path.length-1].bond.getIndexInParent()]){
+           let nnbondIdx=path[path.length-1].bond.getIndexInParent();
+           if(got[nnbondIdx]){
              return true;
            } 
+           let bsgroup=crossBondSIndex[nnbondIdx];
+
+           if(bsgroup){
+               if(sgroupsOpen[bsgroup.getIndex()]){
+                  let lab=bsgroup.getLabel();
+                  dpath.push(["](" + lab + ")"]);
+               }else{
+                  sgroupsOpen[bsgroup.getIndex()]=true;
+                  dpath.push(["["]);
+               }
+           }
+           
            var atom1=path[path.length-2].atom;
            gotAtoms[atom1.getIndexInParent()]=true;
            comp[atom1.getIndexInParent()]=true;
@@ -2628,7 +2690,7 @@ JSChemify.Chemical = function(arg){
           }else{
             aindex=oindex+1;
           }
-          dpath.splice(startPathIndex, 0, ["["]);
+          dpath.splice(startPathIndex, 0, [",["]);
           dpath.push(["]M" + aindex]); 
         }
         startPathIndex=dpath.length;
@@ -3404,8 +3466,8 @@ JSChemify.Chemical = function(arg){
     return false;
   };
   ret.getShortestAtomDistance=function(atom1,atom2){
-          var ai1=atom1.getIndexInParent();
-      var ai2=atom1.getIndexInParent();
+      var ai1=atom1.getIndexInParent();
+      var ai2=atom2.getIndexInParent();
       ret.$calculateDistances();
      
       var sDist= ret.$atomDistances[ai1][ai2];
@@ -3519,8 +3581,8 @@ JSChemify.Chemical = function(arg){
                      
   };
   ret.$calculateDistances = function(){
-    var MAX_DISTANCE=20;
-      if(ret.$atomDistances)return ret;
+    var MAX_DISTANCE=30;
+    if(ret.$atomDistances)return ret;
     var soFar=[];
     var shortest=[];
     for(var i=0;i<ret._atoms.length;i++){
@@ -4190,6 +4252,49 @@ JSChemify.SGroup=function(){
    ret._bracket2=null;
    ret._parent=null;
 
+   ret.addCrossBond=function(cb){
+      if(!ret._crossBonds){
+         ret._crossBonds=[];
+      }
+      ret._crossBonds.push(cb);
+      return ret;
+   };
+   
+   ret.setAtomsFromCrossBonds=function(){
+      ret._atoms=[];
+      ret._displayAtoms=null;
+      let cbs=ret.getCrossBonds();
+      if(cbs.length!==2){
+         throw "Only support setting SGroup atoms from crossbonds when there are 2";
+      }
+      let b1a1=cbs[0].getAtom1();
+      let b1a2=cbs[0].getAtom2();
+      let b2a1=cbs[1].getAtom1();
+      let b2a2=cbs[1].getAtom2();
+      let d1=b1a1.getShortestAtomDistance(b2a1);
+      let d2=b1a2.getShortestAtomDistance(b2a1);
+      let startAtom=b1a1;
+      if(d1>d2){
+         startAtom=b1a2;
+      }
+      ret.addAtom(startAtom);
+      let got={};
+      got[cbs[0].getIndexInParent()]=true;
+      got[cbs[1].getIndexInParent()]=true;
+      startAtom.$allPathsDepthFirst((path)=>{
+         let nnbondIdx=path[path.length-1].bond.getIndexInParent();
+         if(got[nnbondIdx]){
+            return true;
+         }
+         
+         got[nnbondIdx]=true;
+         let natom=path[path.length-1].atom;
+         ret.addAtom(natom);
+         if(natom===b2a1 || natom===b2a2){
+            return true;
+         }
+      });
+   };
    
    ret.getIndex=function(){
       return ret._index;
