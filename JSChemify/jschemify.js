@@ -225,7 +225,7 @@ JSChemify.ShapeUtils=function(){
     if(pts && pts.length>0 && typeof (pts[0].getX) === "function"){
       pts=pts.map(pp=>[pp.getX(),pp.getY()]);
     }
-    let bb= pts.map(at=>[at[0],at[1],at[0],at[1]])
+    let bb= pts.map(at=>[at[0]-pad,at[1]-pad,at[0]+pad,at[1]+pad])
                .reduce((a,b)=>{
         a[0]=Math.min(a[0],b[0]);
         a[1]=Math.min(a[1],b[1]);
@@ -356,24 +356,47 @@ JSChemify.PathNotation=function(){
       let regex=/([LRDSFsd][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
       //regex.lastIndex=0;
       while(regex.lastIndex<pth.length){
+        let oindex=regex.lastIndex;
         let m=regex.exec(pth);
-        if(!m) throw "Unexpected Path Notation:" + pth;
-        let parr=[];
-        parr.push(m[1]);
-        if(m[2]){
-          parr[1]=m[2];
+        if(!m){
+           if(pth[oindex]==="["){
+               
+               regex.lastIndex=oindex+1;
+               fpath.push("[");
+           }else if(pth[oindex]==="]"){
+               let regex2=/\]M[0-9][0-9]*/y;
+               regex2.lastIndex=oindex;
+               let m2=regex2.exec(pth);
+               if(m2){
+                  regex.lastIndex=regex2.lastIndex;
+                  fpath.push([m2[0]]);
+               }else{
+                  throw "Unexpected Path Notation:" + pth;
+               }
+           }else{
+               throw "Unexpected Path Notation:" + pth;
+           }
         }else{
-          parr[1]="";
+           let parr=[];
+           parr.push(m[1]);
+           if(m[2]){
+             parr[1]=m[2];
+           }else{
+             parr[1]="";
+           }
+           if(m[3]){
+             parr[2]=m[3];
+           }
+           fpath.push(parr);
         }
-        if(m[3]){
-          parr[2]=m[3];
-        }
-        fpath.push(parr);
       }
       return fpath;
     };
     ret.collapse=function(pth){
           return pth.map(v=>{
+                  if(v[0][0]==="[" || v[0][0]==="]"){
+                     return v[0];
+                  }
                   if(v[0]==="R6"){
                     v[0]="R";
                   }else if(v[0]==="L6"){
@@ -2422,10 +2445,17 @@ JSChemify.Chemical = function(arg){
      var pthIndex=0;
      var startDx=1;
      var startDy=0;
+     var sgroupLookup={};
      
      while(startAtom){
-        
+        let comp={};
         gotAtoms[startAtom.getIndexInParent()]=true;
+        comp[startAtom.getIndexInParent()]=true;
+        let sgroupStart=false;
+        if(pn[pthIndex] && pn[pthIndex][0]==="["){
+           pthIndex++;
+           sgroupStart=true;
+        }
         startAtom.$allPathsDepthFirst((path)=>{
              if(got[path[path.length-1].bond.getIndexInParent()]){
                return true;
@@ -2433,10 +2463,12 @@ JSChemify.Chemical = function(arg){
            
              var atom1=path[path.length-2].atom;
              gotAtoms[atom1.getIndexInParent()]=true;
+             comp[atom1.getIndexInParent()]=true;
              if(path.length>2){
                 
                var atom2=path[path.length-1].atom;
                gotAtoms[atom2.getIndexInParent()]=true;
+               comp[atom2.getIndexInParent()]=true;
                var pth=pn[pthIndex];
                pthIndex++;
                var obond=path[path.length-2].bond;
@@ -2455,6 +2487,29 @@ JSChemify.Chemical = function(arg){
              }
              got[path[path.length-1].bond.getIndexInParent()]=true;
             });
+        if(pn[pthIndex] && pn[pthIndex][0][0]==="]"){
+           let brack= pn[pthIndex][0];
+           if(brack[1]==="M"){
+               let grp=brack.substr(2);
+               let rgrp=sgroupLookup[grp];
+               if(!rgrp){
+                   rgrp=ret.addNewSGroup()
+                           .setType("MUL")
+                           .setLabel(0);
+                   sgroupLookup[grp]=rgrp;
+                   Object.keys(comp)
+                         .map(ai=>ret.getAtom(ai))
+                         .map(aa=>rgrp.addDisplayAtom(aa));
+               }
+               Object.keys(comp)
+                         .map(ai=>ret.getAtom(ai))
+                         .map(aa=>rgrp.addAtom(aa));
+              rgrp.setLabel(rgrp.getLabel()-0+1);
+           }
+           pthIndex++;
+        }
+        
+           
         let latom=startAtom;
         startAtom=null;
         for(let i=0;i<ret.getAtomCount();i++){
@@ -2464,6 +2519,10 @@ JSChemify.Chemical = function(arg){
             }
         }
         if(startAtom){
+            if(pn[pthIndex][0]==="["){
+               pthIndex++;
+               sgroupStart=true;
+            }
             let pdx=startDx;
             let pdy=startDy;
             var pth=pn[pthIndex];
@@ -2497,19 +2556,25 @@ JSChemify.Chemical = function(arg){
      var got={};
      var startDx=1;
      var startDy=0;
+     var mgroupIndexes=[];
      
+     let startPathIndex=dpath.length;
      while(startAtom){
-        
+        let comp={};
         gotAtoms[startAtom.getIndexInParent()]=true;
+        comp[startAtom.getIndexInParent()]=true;
         startAtom.$allPathsDepthFirst((path)=>{
            if(got[path[path.length-1].bond.getIndexInParent()]){
              return true;
            } 
            var atom1=path[path.length-2].atom;
            gotAtoms[atom1.getIndexInParent()]=true;
+           comp[atom1.getIndexInParent()]=true;
+           
            if(path.length>2){
              var atom2=path[path.length-1].atom;
              gotAtoms[atom2.getIndexInParent()]=true;
+             comp[atom2.getIndexInParent()]=true;
              var obond=path[path.length-2].bond;
              var nbond=path[path.length-1].bond;
              var satom=path[path.length-2].atom;
@@ -2520,6 +2585,30 @@ JSChemify.Chemical = function(arg){
            }
            got[path[path.length-1].bond.getIndexInParent()]=true;
         });
+
+        let sgroups =ret.getSGroups()
+           .filter(sg=>sg.getType()==="MUL")
+           .filter(sg=>Object.keys(comp)
+                             .map(ai=>ret.getAtom(ai))
+              //find a case where it doesn't have this 
+              //atom
+                       .findIndex(aa=>!sg.hasAtom(aa))<0);
+        //only consider cases where there's 1 MUL group
+        if(sgroups.length===1){
+          let mgroup=sgroups[0];
+          let gindex=mgroup.getIndex();
+          let aindex=0;
+          let oindex=mgroupIndexes.indexOf(gindex);
+          if(oindex<0){
+            mgroupIndexes.push(gindex);
+            aindex=mgroupIndexes.length;
+          }else{
+            aindex=oindex+1;
+          }
+          dpath.splice(startPathIndex, 0, ["["]);
+          dpath.push(["]M" + aindex]); 
+        }
+        startPathIndex=dpath.length;
         let latom=startAtom;
         startAtom=null;
         for(let i=0;i<ret.getAtomCount();i++){
@@ -3008,7 +3097,8 @@ JSChemify.Chemical = function(arg){
      }
      return renderer.getSVG(ret,width,height);
   };
-  ret.getBoundingBox=function(){
+  ret.getBoundingBox=function(pad){
+    if(!pad)pad=1;
     let pts=ret.getAtoms().map(at=>at.getPoint());
     ret.getSGroups().map(sg=>{
          sg.getBracketLocation().map(bloc=>{
@@ -3018,7 +3108,7 @@ JSChemify.Chemical = function(arg){
     });
      
     return JSChemify.ShapeUtils()
-                    .getBoundingBox(pts,1);
+                    .getBoundingBox(pts,pad);
   };
   ret.getComponentCount=function(){
       if(!ret.$componentCount){
@@ -4073,6 +4163,7 @@ JSChemify.SGroup=function(){
    ret._bracket2=null;
    ret._parent=null;
 
+   
    ret.getIndex=function(){
       return ret._index;
    };  
@@ -4119,13 +4210,13 @@ JSChemify.SGroup=function(){
    };
    
    ret.getAtoms=function(){
-         return ret._atoms;
+      return ret._atoms;
    };
    ret.hasAtom=function(a){
-         return ret.getAtoms().indexOf(a)>=0;
+      return ret.getAtoms().indexOf(a)>=0;
    };
    ret.hasBond=function(b){
-         return ret.getBonds().indexOf(b)>=0;
+      return ret.getBonds().indexOf(b)>=0;
    };
    ret.getBonds=function(){
       if(!ret.$bonds){
@@ -4155,6 +4246,13 @@ JSChemify.SGroup=function(){
       }
       return ret._crossBonds;
    };
+   ret.getHiddenAtoms=function(){
+      let dats=ret.getDisplayAtoms();
+      let ats=ret.getAtoms();
+      if(ats.length===dats.length)return [];
+      let hide= ats.filter(aa=>dats.indexOf(aa)<0);
+      return hide;
+   };
    ret.getDisplayAtoms=function(){
       if(!ret._displayAtoms){
          ret._displayAtoms=ret.getAtoms();
@@ -4168,9 +4266,12 @@ JSChemify.SGroup=function(){
       ret._displayAtoms.push(a);
       return ret;
    };
-   ret.getBoundingBox=function(){
+   ret.getBoundingBox=function(pad){
+      if(typeof pad === "undefined"){
+          pad=1;  
+      }
       return JSChemify.ShapeUtils()
-                      .getBoundingBox(ret.getAtoms(),1);
+                      .getBoundingBox(ret.getAtoms(),pad);
    };
    ret.getCenterPoint=function(){
       if(!ret.$center){
@@ -4211,7 +4312,7 @@ JSChemify.SGroup=function(){
                }
                
             }else{
-               let bbox=ret.getBoundingBox();
+               let bbox=ret.getBoundingBox(1);
                ret._bracket1=[[bbox[0],bbox[1]],
                               [bbox[0],bbox[3]]];
                
@@ -6688,10 +6789,20 @@ JSChemify.Renderer=function(){
           }
           ppoint[0]=[x,y];
          };
-         
-    
+         let hide={};
+         chem.getSGroups()
+            .flatMap(sg=>sg.getHiddenAtoms())
+            .map(aa=>aa.getIndexInParent())
+            .map(ai=>{
+               hide[ai]=true;
+            });
          //draw bonds
          chem.getBonds().map(b=>{
+
+            if(hide[b.getAtom1().getIndexInParent()] || 
+               hide[b.getAtom2().getIndexInParent()]){  
+             return;
+            }
             const seg=affine.transform(b.getLineSegment());
             const bo = b.getBondOrder();
             const dseg=[seg[0][0]-seg[1][0],seg[0][1]-seg[1][1]];
@@ -6783,6 +6894,9 @@ JSChemify.Renderer=function(){
       
       chem.getAtoms().map(at=>{
           const sym=at.getSymbol();
+          if(hide[at.getIndexInParent()]){  
+             return;
+          }
           if(sym!=="C" || at.getCharge() || at.getIsotope()){
               const nv=at.getVectorToPoint([0,0]);
               nv[0]=-nv[0];
