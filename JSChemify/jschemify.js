@@ -569,6 +569,7 @@ JSChemify.CONSTANTS={
   VECTORS_BASIS:JSChemify.BaseVectors(),
   
   ELEMENTS:[
+  {atomicNumber:0,symbol:"*",mass:0,name:"StarAtom",period:0,group:0,valance:0,smiles:true},
   {atomicNumber:1,symbol:"H",mass:1.007,name:"Hydrogen",period:1,group:1,valance:1,smiles:true},
   {atomicNumber:2,symbol:"He",mass:4.002,name:"Helium",period:1,group:18,valance:0},
   {atomicNumber:3,symbol:"Li",mass:6.941,name:"Lithium",period:2,group:1,valance:1},
@@ -4319,6 +4320,12 @@ JSChemify.SGroup=function(){
       return ret._type;
    };
    ret.getLabel=function(){
+      if(!ret._label){
+         if(ret.getType()==="SRU"){
+            //TODO: is this right?
+            ret.setLabel("n");
+         }
+      }
       return ret._label;
    };
    ret.setConnectivity=function(c){
@@ -5696,7 +5703,7 @@ JSChemify.SmilesReader=function(){
   };
   
   ret.parseAtom=function(){
-      var m=ret.readNext(/^[A-Z][a-z]{0,1}/,(p)=>{
+      var m=ret.readNext(/^[A-Z*][a-z]{0,1}/,(p)=>{
           try{
               var el=JSChemify.Util.getElementFromSymbol(p[0]);
             return (el.smiles)?true:false;
@@ -5716,7 +5723,7 @@ JSChemify.SmilesReader=function(){
       if(m){
         return ret.addAtom({"atom":m[0].toUpperCase(),"type":"a"});
       }
-      m=ret.readNext(/^\[([0-9]{0,3})([A-Z][a-z]{0,2})([@]{1,2})?(H[0-9]*)?([+|-]{1,}[0-9]*)?([:][0-9]{1,3})?\]/);
+      m=ret.readNext(/^\[([0-9]{0,3})([A-Z*][a-z]{0,2})([@]{1,2})?(H[0-9]*)?([+|-]{1,}[0-9]*)?([:][0-9]{1,3})?\]/);
       if(m){
           if(m[5] && (m[5].startsWith("++") || m[5].startsWith("--"))){ 
                 m[5]=m[5][0]+[...m[5]].map(d=>Math.abs((d+"1")-0)).reduce((a,b)=>a+b,0);
