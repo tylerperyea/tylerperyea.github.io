@@ -344,13 +344,31 @@ process path notation for chem
 layout.
    
 *******************************/
-JSChemify.PathNotation=function(){
-    if(JSChemify.CONSTANTS && JSChemify.CONSTANTS.PATH){
+JSChemify.PathNotation=function(f){
+    if(!f && JSChemify.CONSTANTS && JSChemify.CONSTANTS.PATH){
       return JSChemify.CONSTANTS.PATH;
     }
     let ret={};
     ret._roundAngle=10;
     ret._roundMag=1;
+    ret.roundAngle=function(p){
+      if(ret===JSChemify.CONSTANTS.PATH){
+         return JSChemify.PathNotation(true)
+                         .roundAngle(p);
+      }else{
+         ret._roundAngle=p;
+         return ret;
+      }
+    };
+    ret.roundMag=function(p){
+      if(ret===JSChemify.CONSTANTS.PATH){
+         return JSChemify.PathNotation(true)
+                         .roundMag(p);
+      }else{
+         ret._roundMag=p;
+         return ret;
+      }
+    };
     ret.expand=function(pth){
       var fpath=[];
       let regex=/([LRDSFsd][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
@@ -1796,7 +1814,10 @@ JSChemify.Bond = function(){
     //wedge=wedge.toLowerCase();
         }
      }
-     var pn= JSChemify.PathNotation().pathFromDeltaVector(vec1,vec2);
+     var pn= JSChemify.PathNotation()
+                      .roundAngle(1000)
+                      .roundMag(10)
+                      .pathFromDeltaVector(vec1,vec2);
      if(wedge){
         pn.push(wedge);
      }
@@ -2544,6 +2565,8 @@ JSChemify.Chemical = function(arg){
                startDx=1;
                startDy=0;
             }
+            startDx=1;
+            startDy=0;
         }
      }
 
@@ -2625,12 +2648,16 @@ JSChemify.Chemical = function(arg){
             startDy=dvec[1];
            
             let npath=JSChemify.PathNotation()
+                               .roundAngle(1000)
+                               .roundMag(10)
                                .pathFromDeltaVector([pdx,pdy],
                                                     [startDx,startDy]);
             if(startDx===0 && startDy===0){
                startDx=1;
                startDy=0;
             }
+            startDx=1;
+            startDy=0;
             dpath.push(npath);
         }
      }
