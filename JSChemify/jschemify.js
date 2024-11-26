@@ -1127,7 +1127,10 @@ Status: WORKING
 An object/builder for a chemical atom.
    
 *******************************/
-JSChemify.Atom = function(){
+JSChemify.Atom = function(aaa){
+  if(aaa && aaa._chemType === JSChemify.CONSTANTS.CHEM_TYPE_ATOM){
+      return aaa;
+  }
   var ret={};
   ret._chemType = JSChemify.CONSTANTS.CHEM_TYPE_ATOM;
   
@@ -1166,6 +1169,19 @@ JSChemify.Atom = function(){
     nat._z=ret._z;
     nat._parity=ret._parity;
     return nat;
+  };
+  ret.setAtomTo=function(a){
+    ret._symbol=a._symbol;
+    ret._charge=a._charge;
+    ret._isotope=a._isotope;
+    ret._radical=a._radical;
+    ret._map=a._map;
+    
+    ret._x=a._x;
+    ret._y=a._y;
+    ret._z=a._z;
+    ret._parity=a._parity;
+    return ret;
   };
   
   ret.setSymbol=function(s){
@@ -1600,11 +1616,6 @@ JSChemify.Atom = function(){
     }
       return ret.$connectedNetworks;
   };
-  ret.areAtomsSplit=function(atoms){
-  //TODO: fix this
-      //ret.getConnectedNetworkAndBonds()
-            //.
-  };
   
   //will call cb for each subPart
   ret.$allPathsDepthFirst=function(cb,sofar,verbose,order, forcePop){
@@ -1738,7 +1749,10 @@ Status: WORKING
 An object/builder for a chemical bond.
    
 *******************************/
-JSChemify.Bond = function(){
+JSChemify.Bond = function(bbb){
+  if(bbb && bbb._chemType === JSChemify.CONSTANTS.CHEM_TYPE_BOND){
+      return bbb;
+  }
   var ret={};
   ret._chemType = JSChemify.CONSTANTS.CHEM_TYPE_BOND;
   //will be parent chemical
@@ -1754,12 +1768,23 @@ JSChemify.Bond = function(){
   ret.$dirty=-1;
   
   ret.clone=function(){
-      var bnd=JSChemify.Bond();
+    var bnd=JSChemify.Bond();
     bnd._order=ret._order;
     bnd._stereo=ret._stereo;
     bnd._atom1=ret._stereo;
     bnd._atom2=ret._stereo;
     return bnd;
+  };
+  ret.setBondTo=function(b){
+    ret._order=b._order;
+    ret._stereo=b._stereo;
+    if(b._atom1){
+       ret._atom1=b._atom1;
+    }
+    if(b._atom2){
+       ret._atom2=b._atom2;
+    }
+    return ret;
   };
   ret.setParent=function(p){
     ret._parent=p;
@@ -5005,6 +5030,56 @@ JSChemify.ChemicalFeatures=function(){
    };
    
    
+   return ret;
+};
+/*******************************
+/* ChemicalSearcher
+/*******************************
+Status: IN PROGRESS
+
+
+
+*/
+JSChemify.ChemicalDecorator=function(){
+   let ret={};
+   ret._chem=null;
+   ret._lambda=null;
+   
+   ret.setChemical=function(c){
+      ret._chem=JSChemify.Chemical(c);
+      return ret;
+   };
+   ret.setProperty=function(l){
+      ret._lambda=l;
+      return ret;
+   };
+   ret.decorate=function(c,l){
+      if(c)ret.setChemical(c);
+      if(l)ret.setLambda(l);
+      c=ret._chem;
+      l=ret._lambda;
+      let atDecorations=[];
+      let defAtom=JSChemify.Atom().setSymbol("C");
+      let defBond=JSChemify.Bond().setBondOrder(1);
+      let prop=l(c);
+      
+      for(let i=0;i<c.getAtomCount();i++){
+         let at=c.getAtom(i);
+         let bds=at.getBonds();
+         let cat=at.clone();
+         let bdsclone=bds.map(b=>b.clone());
+         at.setAtomTo(defAtom);
+         bds.map(b=>b.setBondTo(defBond));
+         //we can definitely be more
+         //efficient than this
+         c.$markDirty();
+         atDecorations[i]=prop-l(c);
+         at.setAtomTo(cat);
+         bds.map((b,i)=>b.setBondTo(bdsclone[i]));
+      }
+      return {"value": prop, "contributions": atDecorations};
+   };
+
    return ret;
 };
 /*******************************
