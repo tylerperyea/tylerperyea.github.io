@@ -742,8 +742,8 @@ JSChemify.Util = {
       }
       for(var i=0;i<a.length;i++){
         a[i]+=mul*b[i];
-    }
-    return a;
+      }
+      return a;
   },
   subtractVector:function(a,b){
     return JSChemify.Util.addVector(a,b,-1);
@@ -1310,7 +1310,7 @@ JSChemify.Atom = function(aaa){
     var sumV=ret.getNeighborAtomsAndBonds()
        .map(a=>a.atom)
        .map(a=>[a.getX(),a.getY(),1])
-       .reduce(JSChemify.Util.addVector);
+       .reduce((a,b)=>JSChemify.Util.addVector(a,b));
     sumV[0]=sumV[0]/sumV[2];
     sumV[1]=sumV[1]/sumV[2];
     sumV.pop();
@@ -1923,7 +1923,7 @@ JSChemify.Bond = function(bbb){
   ret.getCenterPoint=function(){
     var cpt=ret.getAtoms()
                .map(at=>[at.getX(),at.getY(),1])
-               .reduce(JSChemify.Util.addVector);
+               .reduce((a,b)=>JSChemify.Util.addVector(a,b));
     cpt[0]=cpt[0]/cpt[2];
     cpt[1]=cpt[1]/cpt[2];
     cpt.pop();
@@ -2914,7 +2914,7 @@ JSChemify.Chemical = function(arg){
                                   .reduce((a,b)=>a+b)>=sumR
                                   )
                  .map(f=>{
-                         var bb = f.getBonds()[0];
+                     var bb = f.getBonds()[0];
                      var bpt=bb.getCenterPoint();
                      var dd=JSChemify.Util.sqDist(bpt,centerPt);
                      return [dd,f];
@@ -3362,7 +3362,7 @@ JSChemify.Chemical = function(arg){
   ret.aromatize=function(){
       //TODO implement this
     var aRings=ret.getRings()
-                                .filter(r=>r.isAromatic());
+                  .filter(r=>r.isAromatic());
     aRings.flatMap(r=>r.getBonds())
                  .map(b=>b.setBondOrder(4));
            
@@ -3407,7 +3407,7 @@ JSChemify.Chemical = function(arg){
               .map(b=>b._atom1.getVectorTo(b._atom2))
               .map(b=>JSChemify.Util.sqMagVector(b))
               .map(b=>[Math.sqrt(b),1])
-              .reduce(JSChemify.Util.addVector);
+              .reduce((a,b)=>JSChemify.Util.addVector(a,b));
     return stat[0]/stat[1];
   };
   
@@ -3418,8 +3418,8 @@ JSChemify.Chemical = function(arg){
   };
   
   ret.getRingSystems=function(){
-      if(ret.$ringSystems){
-     return ret.$ringSystems;
+    if(ret.$ringSystems){
+      return ret.$ringSystems;
     }
     var rings = ret.getRings();
     var srings = rings.filter(r=>!r.isEnvelope());
@@ -3430,21 +3430,21 @@ JSChemify.Chemical = function(arg){
     for(var i=0;i<srings.length;i++){
         var tring=srings[i];
         for(var j=i+1;j<srings.length;j++){
-          var nring =srings[j];
-        var rbond = tring.getRingBond(nring);
-        if(rbond!=null){
-            rbonds.push({"idx":i,"rb":rbond});
-            var mi=Math.min(idx[j],idx[i]);
-          if(mi<idx[i]){
-              for(var k=0;k<srings.length;k++){
-                if(idx[k]===idx[i]){
-                  idx[k]=mi;
-              }
-            }
-          }
-          idx[i]=mi;
-          idx[j]=mi;
-        }
+           var nring =srings[j];
+           var rbond = tring.getRingBond(nring);
+           if(rbond!=null){
+                rbonds.push({"idx":i,"rb":rbond});
+                var mi=Math.min(idx[j],idx[i]);
+                if(mi<idx[i]){
+                    for(var k=0;k<srings.length;k++){
+                      if(idx[k]===idx[i]){
+                        idx[k]=mi;
+                    }
+                  }
+                }
+                idx[i]=mi;
+                idx[j]=mi;
+           }
       }
     }
     var rMap={};
@@ -4584,8 +4584,8 @@ Analogous to a Chemical
    
 *******************************/
 JSChemify.RingSystem=function(arg, rbs){
-      if(arg && arg._rings){
-      return arg;
+    if(arg && arg._rings){
+       return arg;
     }
     var ret={};
     ret._ringBonds=null;
@@ -4624,21 +4624,21 @@ JSChemify.RingSystem=function(arg, rbs){
     };
     ret.getCenterPoint=function(){
       if(!ret.$center){
-                var cpoint=ret.getRings().map(r=>r.getCenterPoint().map(a=>a))
-                            .map(cp=>{
-                    cp.push(1);
-                    return cp;
-                  })
-                  .reduce(JSChemify.Util.addVector);
-        cpoint[0]=cpoint[0]/cpoint[2];
-        cpoint[1]=cpoint[1]/cpoint[2];
-        cpoint.pop();
-        ret.$center=cpoint;
-           }
+          var cpoint=ret.getRings()
+                      .map(r=>r.getCenterPoint().map(a=>a))
+                      .map(cp=>{
+                          cp.push(1);
+                          return cp;
+                       })
+                      .reduce((a,b)=>JSChemify.Util.addVector(a,b));
+          cpoint[0]=cpoint[0]/cpoint[2];
+          cpoint[1]=cpoint[1]/cpoint[2];
+          cpoint.pop();
+          ret.$center=cpoint;
+      }
       return ret.$center;
     };
     ret.getRings=function(){
-        
       return ret._rings;
     };
     ret.getRingBonds=function(){
@@ -4729,7 +4729,7 @@ JSChemify.Ring=function(arg){
     if(!ret.$center){
       var sumV=ret.getAtoms()
          .map(a=>[a.getX(),a.getY(),1])
-         .reduce(JSChemify.Util.addVector);
+         .reduce((a,b)=>JSChemify.Util.addVector(a,b));
       sumV[0]=sumV[0]/sumV[2];
       sumV[1]=sumV[1]/sumV[2];
       sumV.pop();
@@ -4881,13 +4881,13 @@ JSChemify.Ring=function(arg){
             }
             return b;
          },null) ;
-         if(hetero1){
+      if(hetero1){
           if(s%2===1){
-        hetero1.getBonds()
-               .filter(b=>b.getBondOrder()===4)
-               .map(b=>b.setBondOrder(1));
-        startIndex=ret.getBonds().findIndex(b=>b.getOtherAtom(hetero1)!==null);   
-        }
+              hetero1.getBonds()
+                     .filter(b=>b.getBondOrder()===4)
+                     .map(b=>b.setBondOrder(1));
+              startIndex=ret.getBonds().findIndex(b=>b.getOtherAtom(hetero1)!==null);   
+          }
       }
          
          
@@ -4903,6 +4903,9 @@ JSChemify.Ring=function(arg){
     }
     return ret;
     
+  };
+  ret.isExplicitlyAromatic=function(){
+      return ret.getBonds().findIndex(b=>b.getBondOrder()!==4)<0;
   };
   ret.isAromatic=function(){
       var s=ret.getSize();
@@ -6800,6 +6803,7 @@ JSChemify.Renderer=function(){
   ret._dashSpace=1/8;
   ret._showAtomMapNumbers=true;
   ret._bracketWidth=0.3;
+  ret._aromaticCircles=true;
 
   
   ret._colorScheme={symbols:{}};
@@ -7045,6 +7049,26 @@ JSChemify.Renderer=function(){
             .map(ai=>{
                hide[ai]=true;
             });
+         //get aromatic circles
+         let drawCircles=[];
+         let circleAromaticBonds={};
+         if(ret._aromaticCircles){
+            let arings=chem.getRingSystems()
+                            .flatMap(rs=>rs.getRings())
+                            .filter(r=>r.isExplicitlyAromatic());
+            arings.flatMap(rr=>rr.getBonds())
+                  .map(b=>circleAromaticBonds[b.getIndexInParent()]=true);
+            
+            drawCircles=arings.map(rr=>{
+               let pt=rr.getCenterPoint();
+               let sqRad=rr.getBonds()
+                 .map(b=>b.getCenterPoint())
+                 .map(bb=>JSChemify.Util.sqDist(bb,pt))
+                 .reduce((a,b)=>(a<b)?a:b);
+              return [pt,Math.sqrt(sqRad)-ret._dblWidth];
+            });
+                
+         }
          //draw bonds
          chem.getBonds().map(b=>{
 
@@ -7117,9 +7141,14 @@ JSChemify.Renderer=function(){
             lineTo(seg[1][0], seg[1][1],styles[0],styles[1]);
             //ctx.closePath();
             ctx.stroke();
+
+            if(circleAromaticBonds[b.getIndexInParent()]){
+               return;
+            }
             
             //Draw double bond
             if(bo===2 || bo===3 || bo===4){
+              
               ctx.beginPath();
               if(bo===4){
                   let space=ret._dashSpace*scale;
@@ -7139,6 +7168,16 @@ JSChemify.Renderer=function(){
               //ctx.closePath();
               ctx.stroke();
             }
+      });
+
+      //draw circles
+      drawCircles.map(cc=>{
+         ctx.beginPath();
+         let loc=affine.transform(cc[0]);
+         //TODO: there's an issue with arcs on SVGs,
+         //should bypass and use circles
+         ctx.arc(loc[0], loc[1], scale*cc[1], 0, 2 * Math.PI);
+         ctx.stroke();
       });
       
       chem.getAtoms().map(at=>{
