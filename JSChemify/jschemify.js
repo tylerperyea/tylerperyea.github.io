@@ -3319,12 +3319,6 @@ JSChemify.Chemical = function(arg){
                          .mass;
      return wt+hs*hweight;
   };
-  ret.removeBond=function(b){
-      var ib=b.getIndexInParent();
-    ret._bonds.splice(ib,1);
-    return {"index": ib, "bond":b};
-  };
-  
   ret.$markDirty=function(){
     ret.$bondTypes=null;
     ret.$atomComponentTypes=null;
@@ -3333,6 +3327,8 @@ JSChemify.Chemical = function(arg){
     ret.$graphInvarient=null;
     ret.$$dirty++;
     ret.$EstateVector=null;
+    ret.$componentCount=null;
+    return ret;
   };
   ret.$dirtyNumber=function(){
       return ret.$$dirty;
@@ -3522,15 +3518,14 @@ JSChemify.Chemical = function(arg){
       return ret.getConnectivityIndex(order, (a)=>a.getDeltaV(),averager);
   };
   ret.getConnectivityIndex=function(order, deltaMaker, averager) {
-      var lookup = ret.getAtoms()
-                     .map(aa=>deltaMaker(aa));
+    var lookup = ret.getAtoms()
+                    .map(aa=>deltaMaker(aa));
     var matoms;
     var cType;
     order+="";
     if(order.endsWith("p") || order.endsWith("c")){
         cType = order.replace(/[0-9]/g, "");
-      order = order.replace(/[^0-9]/g,"")-0;
-      
+        order = order.replace(/[^0-9]/g,"")-0;
     }
     if(!cType)cType="p";//path
     
@@ -3545,41 +3540,41 @@ JSChemify.Chemical = function(arg){
     
     for(var i=0;i<order;i++){
         var cSet = {};
-      matoms= matoms.flatMap(ml=>{
-        var head = ml[0];
-        var tail = ml[ml.length-1];
-        var append=[];
-        var prepend = head.getNeighborAtomsAndBonds()
-        .map(na=>na.atom)
-        .filter(na=>ml.indexOf(na)<0);
-        var inserts=[];
-
-        if(head!==tail){
-            if(doCluster){
-              for(var j=1;j<ml.length-1;j++){
-               var inew= ml[j].getNeighborAtomsAndBonds()
-                   .map(na=>na.atom)
-                   .filter(na=>ml.indexOf(na)<0);
-               inserts.push({"idx":j, "atoms":inew});
-            }
-          }
-          append = head.getNeighborAtomsAndBonds()
-            .map(na=>na.atom)
-            .filter(na=>ml.indexOf(na)<0);
-        }
-        var plist = prepend.map(pp=>[pp].concat(ml));
-        var alist = append.map(pp=>ml.concat([pp]));
-        var ilist = inserts.flatMap(is=>{
-                var nhead= ml.slice(0,is.idx);
-            var ntail= ml.slice(is.idx,ml.length);
-            return is.atoms.map(a=>nhead.concat([a]).concat(ntail));
-        });
-        if(i==2 && !doPath){
-          return ilist;
-        }
-        return plist.concat(ilist)
-                    .concat(alist);
-      })
+        matoms= matoms.flatMap(ml=>{
+           var head = ml[0];
+           var tail = ml[ml.length-1];
+           var append=[];
+           var prepend = head.getNeighborAtomsAndBonds()
+                             .map(na=>na.atom)
+                             .filter(na=>ml.indexOf(na)<0);
+           var inserts=[];
+   
+           if(head!==tail){
+             if(doCluster){
+               for(var j=1;j<ml.length-1;j++){
+                  var inew= ml[j].getNeighborAtomsAndBonds()
+                      .map(na=>na.atom)
+                      .filter(na=>ml.indexOf(na)<0);
+                  inserts.push({"idx":j, "atoms":inew});
+               }
+             }
+             append = head.getNeighborAtomsAndBonds()
+                  .map(na=>na.atom)
+                  .filter(na=>ml.indexOf(na)<0);
+           }
+           var plist = prepend.map(pp=>[pp].concat(ml));
+           var alist = append.map(pp=>ml.concat([pp]));
+           var ilist = inserts.flatMap(is=>{
+                   var nhead= ml.slice(0,is.idx);
+                   var ntail= ml.slice(is.idx,ml.length);
+                   return is.atoms.map(a=>nhead.concat([a]).concat(ntail));
+           });
+           if(i==2 && !doPath){
+             return ilist;
+           }
+           return plist.concat(ilist)
+                       .concat(alist);
+         })
         .filter(ml=>{
           if(i<3 || !doCluster){
             var head = ml[0];
@@ -3587,7 +3582,7 @@ JSChemify.Chemical = function(arg){
             //deduplication
             return head.getIndexInParent()<tail.getIndexInParent();
           }else{
-              var canon=ml.map(at=>at.getIndexInParent()).sort().join(",");
+            var canon=ml.map(at=>at.getIndexInParent()).sort().join(",");
             if(cSet[canon]){
                 return false;
             }else{
@@ -3600,9 +3595,10 @@ JSChemify.Chemical = function(arg){
     
     var sum1= matoms.map(mal=>{
              var prod = mal.map(mm=>lookup[mm.getIndexInParent()])
-                                 .reduce((a,b)=>a*b,1);
-        return averager(prod,order);
-    }).reduce((a,b)=>a+b,0);
+                           .reduce((a,b)=>a*b,1);
+             return averager(prod,order);
+                   })
+                   .reduce((a,b)=>a+b,0);
     return sum1;        
                      
   };
@@ -3754,11 +3750,23 @@ JSChemify.Chemical = function(arg){
   
   ret.addBond = function(bd){
     if(JSChemify.Util.isBond(bd)){
-      ret._bonds.push(bd);
+      if(typeof bd.$oldIdx !=="undefined"){
+         ret._bonds.splice(bd.$oldIdx, 0, bd);
+         delete bd["$oldIdx"];
+      }else{
+         ret._bonds.push(bd);
+      }
       bd.setParent(ret);
     }
     ret.$markDirty();
     return bd;
+  };
+  ret.removeBond=function(bd){
+    let idx=bd.getIndexInParent();
+    ret._bonds.splice(idx, 1);
+    bd.$oldIdx=idx;
+    ret.$markDirty();
+    return ret;
   };
   ret.addNewBond = function(atom1,atom2, bondOrder, bondStereo){
       var bd=JSChemify.Bond().setParent(ret).setBond(atom1,atom2,bondOrder,bondStereo);
@@ -5053,16 +5061,22 @@ JSChemify.ChemicalDecorator=function(){
       ret._lambda=l;
       return ret;
    };
+   //This method will calculate how a given
+   //property calculation will change if each
+   //atom is replaced with a neutral C and 
+   //each bond attached to that atom with a 
+   //single bond
    ret.decorate=function(c,l){
       if(c)ret.setChemical(c);
       if(l)ret.setLambda(l);
       c=ret._chem;
       l=ret._lambda;
       let atDecorations=[];
+      let bdDecorations=[];
       let defAtom=JSChemify.Atom().setSymbol("C");
       let defBond=JSChemify.Bond().setBondOrder(1);
       let prop=l(c);
-      
+      let comp=c.getComponentCount();
       for(let i=0;i<c.getAtomCount();i++){
          let at=c.getAtom(i);
          let bds=at.getBonds();
@@ -5077,7 +5091,28 @@ JSChemify.ChemicalDecorator=function(){
          at.setAtomTo(cat);
          bds.map((b,i)=>b.setBondTo(bdsclone[i]));
       }
-      return {"value": prop, "contributions": atDecorations};
+      
+      for(let i=0;i<c.getBondCount();i++){
+         let bd=c.getBond(i);
+         
+         c.removeBond(bd);
+         if(c.getComponentCount()>comp){
+            let largest=c.getComponents().reduce((a,b)=>{
+               if(a.getMolWeight()>b.getMolWeight()){
+                  return a;
+               }
+               return b;
+            });
+            bdDecorations[i]=prop-l(largest);
+         }else{
+            bdDecorations[i]=prop-l(c);
+         }
+         c.addBond(bd);
+      }
+      return {"value": prop, 
+             "atomContributions": atDecorations, 
+             "bondContributions": bdDecorations, 
+             };
    };
 
    return ret;
