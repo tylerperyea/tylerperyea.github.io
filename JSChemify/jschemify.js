@@ -75,7 +75,7 @@ Coordinates and Rendering:
 22. [done] Path Notation:  Multiple components
 23. Place subscripts a little down
 24. [done] isotopes in render
-25. Path Notation: Brackets
+25. [partial] Path Notation: Brackets
        Some notes about brackets...
           B1. SGroups are always collections of ATOMS
           B2. Sometimes they have 2 cross bond locations
@@ -1416,10 +1416,10 @@ JSChemify.Atom = function(aaa){
  
   ret.getIndexInParent=function(){
       if(ret.$indexInParent===null || 
-       ret.getParent().$dirtyNumber()!=ret.$dirty){
-      ret.$dirty=ret.getParent().$dirtyNumber();
-        ret.$indexInParent=ret.getParent().getIndexOf(ret);
-    }
+         ret.getParent().$dirtyNumber()!=ret.$dirty){
+          ret.$dirty=ret.getParent().$dirtyNumber();
+          ret.$indexInParent=ret.getParent().getIndexOf(ret);
+      }
       return ret.$indexInParent;
   };
   
@@ -1899,8 +1899,8 @@ JSChemify.Bond = function(bbb){
     var bnd=JSChemify.Bond();
     bnd._order=ret._order;
     bnd._stereo=ret._stereo;
-    bnd._atom1=ret._stereo;
-    bnd._atom2=ret._stereo;
+    bnd._atom1=ret._atom1;
+    bnd._atom2=ret._atom2;
     return bnd;
   };
   ret.setBondTo=function(b){
@@ -1920,9 +1920,9 @@ JSChemify.Bond = function(bbb){
   };
   ret.getSharedAtom=function(b){
     if(b.hasAtom(ret._atom1)){
-  return ret._atom1;
+       return ret._atom1;
     }else if(b.hasAtom(ret._atom2)){
-  return ret._atom2;
+       return ret._atom2;
     }
     return null;
   };
@@ -1953,7 +1953,7 @@ JSChemify.Bond = function(bbb){
         
         if(wlow==="h"){
           ret.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_DASH);
-        }else  if(wlow==="w"){
+        }else if(wlow==="w"){
           ret.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_WEDGE);
         }
       }
@@ -2060,10 +2060,11 @@ JSChemify.Bond = function(bbb){
   
   ret.getIndexInParent=function(){
       if(ret.$indexInParent===null || 
-       ret.getParent().$dirtyNumber()!=ret.$dirty){
-      ret.$dirty=ret.getParent().$dirtyNumber();
-        ret.$indexInParent=ret.getParent().getIndexOf(ret);
-    }
+         ret.getParent().$dirtyNumber()!==ret.$dirty){
+        ret.$dirty=ret.getParent().$dirtyNumber();
+        ret.$indexInParent=ret.getParent()
+                              .getIndexOf(ret);
+      }
       return ret.$indexInParent;
   };
   
@@ -2084,7 +2085,7 @@ JSChemify.Bond = function(bbb){
     return ret;
   };
   ret.setBondOrder=function(o){
-          ret._order=o;
+      ret._order=o;
       return ret;
   };
   ret.getBondOrder=function(){
@@ -2097,7 +2098,7 @@ JSChemify.Bond = function(bbb){
       return ret._atom2;
   };
   ret.setBondStereo=function(st){
-      ret._stereo=st;
+    ret._stereo=st;
     return ret;
   };
   
@@ -5247,8 +5248,8 @@ JSChemify.ChemicalDecorator=function(){
       
       for(let i=0;i<c.getBondCount();i++){
          let bd=c.getBond(i);
-         
          c.removeBond(bd);
+         
          if(c.getComponentCount()>comp){
             let largest=c.getComponents().reduce((a,b)=>{
                if(a.getMolWeight()>b.getMolWeight()){
@@ -6989,7 +6990,7 @@ JSChemify.Renderer=function(){
 //     {color:"yellow", value:0.5},
 //     {color:"green", value:1},
      {color:"rgba(255,0,0,0.5)", value:0.0},
-     {color:"rgba(255,255,0,0.5)", value:0.5},
+     {color:"rgba(255,255,0,0.025)", value:0.5},
      {color:"rgba(0,255,0,0.5)", value:1},
      ];
 
@@ -7315,10 +7316,11 @@ JSChemify.Renderer=function(){
                let bondHaloWidth=ret._highlightBondHaloWidth*ctx.lineWidth;
                ctx.lineWidth=bondHaloWidth;
                let abonds=Object.keys(annotate.bonds).map(i=>annotate.bonds[i]);
-               let minV=(annotate.bondMin)?annotate.bondMin:
+               let minV=(annotate.bondMin||annotate.bondMin===0)?annotate.bondMin:
                            abonds.reduce((a,b)=>Math.min(a,b));
-               let maxV=(annotate.bondMax)?annotate.bondMax:
+               let maxV=(annotate.bondMax||annotate.bondMax===0)?annotate.bondMax:
                            abonds.reduce((a,b)=>Math.max(a,b));
+               if(maxV-minV>0){
                Object.keys(annotate.bonds)
                      .map((i)=>{
                            let bb=chem.getBond(i);
@@ -7339,6 +7341,36 @@ JSChemify.Renderer=function(){
                            ctx.stroke();
                      });
                ctx.lineWidth=owidth;
+               }
+         }
+         let atomHalos={};
+         if(annotate && annotate.atoms && ret._highlightAtomHalo){
+               let atomHaloRadius=ret._highlightAtomHaloRadius*cleareRad;
+               let ostyle=ctx.fillStyle;
+               let aatoms=Object.keys(annotate.atoms).map(i=>annotate.atoms[i]);
+               let minV=(annotate.atomMin||annotate.atomMin===0)?annotate.atomMin:
+                           abonds.reduce((a,b)=>Math.min(a,b));
+               let maxV=(annotate.atomMax||annotate.atomMax===0)?annotate.atomMax:
+                           abonds.reduce((a,b)=>Math.max(a,b));
+               if(maxV-minV>0){
+               Object.keys(annotate.atoms)
+                     .map((i)=>{
+                           let aa=chem.getAtom(i);
+                           let v=annotate.atoms[i];
+                           if(hide[i]){  
+                              return;
+                           }
+                           let scaleV=(v-minV)/(maxV-minV);
+                           let hex=ret.sampleGradient(scaleV).toHex();
+                           const loc=affine.transform(aa.getPoint());
+                           ctx.fillStyle = hex;
+                           ctx.beginPath();
+                           ctx.arc(loc[0], loc[1], cleareRad, 0, 2 * Math.PI);
+                           ctx.fill();
+                           atomHalos[i]={"loc":loc, style:hex, rad:atomHaloRadius};
+                     });
+               ctx.fillStyle=ostyle;
+               }
          }
      
          //draw bonds
@@ -7454,7 +7486,8 @@ JSChemify.Renderer=function(){
       
       chem.getAtoms().map(at=>{
           const sym=at.getSymbol();
-          if(hide[at.getIndexInParent()]){  
+          const atomIdx=at.getIndexInParent();
+          if(hide[atomIdx]){  
              return;
           }
           if(sym!=="C" || at.getCharge() || at.getIsotope()){
@@ -7484,6 +7517,14 @@ JSChemify.Renderer=function(){
               ctx.beginPath();
               ctx.arc(loc[0], loc[1], cleareRad, 0, 2 * Math.PI);
               ctx.fill();
+
+              if(atomHalos[atomIdx]){
+                  let nhal=atomHalos[atomIdx];
+                  ctx.fillStyle = nhal.style;
+                  ctx.beginPath();
+                  ctx.arc(nhal.loc[0], nhal.loc[1], nhal.rad, 0, 2 * Math.PI);
+                  ctx.fill();
+              }
         
               ctx.fillStyle = ret.getStyleFor(at);
         
