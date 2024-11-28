@@ -194,6 +194,133 @@ JSChemify.Shape=function(arg,c){
 };
 
 /*******************************
+/* Color
+/*******************************
+Status: IN PROGRESS
+
+Basic color object
+   
+*******************************/
+JSChemify.Color=function(arg){
+   if(arg && arg._rgba)return arg;
+   
+   let ret={};
+   ret._rgba=null;
+   ret.getRGBA=function(){
+      if(ret._rgba)return ret._rgba;
+      return [0,0,0,255];
+   };
+   ret.setColor=function(c){
+      if(c._rgba){
+         ret._rgba=c._rgba;
+      }else{
+         ret._rgba=JSChemify.ColorUtils()
+                            .colorToRGBA(c);
+      }
+      return ret;
+   };
+   ret.toHex=function(suppressAlpha){
+      let rgba=ret.getRGBA();
+      return JSChemify.ColorUtils()
+                      .colorToHex(rgba,!suppressAlpha);
+   };
+   ret.getAlpha=function(){
+      return ret.getRGBA()[3];
+   };
+   ret.getTransparency=function(){
+      return (255-ret.getAlpha())/255;
+   };
+   ret.getOpacity=function(){
+      return 1-ret.getOpacity();
+   };
+   
+   if(arg){
+      return ret.setColor(arg);
+   }
+   return ret;
+};
+/*******************************
+/* ColorUtils
+/*******************************
+Status: WORKING
+
+Basic color utils
+   
+*******************************/
+JSChemify.ColorUtils=function(){
+  if(JSChemify.CONSTANTS && JSChemify.CONSTANTS.COLOR_UTILS){
+      return JSChemify.CONSTANTS.COLOR_UTILS;
+  }
+  let ret={};
+  if(JSChemify.CONSTANTS){   
+      JSChemify.CONSTANTS.COLOR_UTILS=ret;
+  }
+  ret.$cache={};
+   
+  ret.byteToHex= function(num) {
+      return ('0'+Math.round(num).toString(16)).slice(-2);
+  };
+  ret.colorToHex=function(rgba,includeAlpha) {
+    let hex;
+    hex = [0,1,2,3].filter(a=>(includeAlpha||a<3))
+                   .map((idx)=>ret.byteToHex(rgba[idx])).join('');
+    return "#"+hex;
+  };
+
+  ret.colorToRGBA= function(color) {
+        if(color && color._rgba){
+            return color.getRGBA();
+        }
+        if(Array.isArray(color) && color.length===4){
+            return color;
+        }
+        if(Array.isArray(color) && color.length===3){
+           let ncol=color.map(c=>c);
+           ncol.push(255);
+           return ncol;
+        }
+       // Returns the color as an array of [r, g, b, a] -- all range from 0 - 255
+       // color must be a valid canvas fillStyle. This will cover most anything
+       // you'd want to use.
+       // Examples:
+       // colorToRGBA('red')  # [255, 0, 0, 255]
+       // colorToRGBA('#f00') # [255, 0, 0, 255]
+       if(!ret.$cache[color]){
+          var cvs, ctx;
+          cvs = document.createElement('canvas');
+          cvs.height = 1;
+          cvs.width = 1;
+          ctx = cvs.getContext('2d');
+          ctx.fillStyle = color;
+          ctx.fillRect(0, 0, 1, 1);
+          let cres= ctx.getImageData(0, 0, 1, 1).data;
+          ret.$cache[color]=cres;
+       }
+        
+       return ret.$cache[color];
+  };
+
+  /*
+     Basic linear interpolation between c1
+     and c2
+  */
+  ret.interpolate=function(c1,c2,v){
+      c1=ret.colorToRGBA(c1);
+      c2=ret.colorToRGBA(c2);
+     
+      return [
+         c2[0]*v+c1[0]*(1-v),
+         c2[1]*v+c1[1]*(1-v),
+         c2[2]*v+c1[2]*(1-v),
+         c2[3]*v+c1[3]*(1-v)
+      ];
+  };
+
+  
+  return ret;
+};
+
+/*******************************
 /* ShapeUtils
 /*******************************
 Status: WORKING
@@ -1453,6 +1580,7 @@ JSChemify.Atom = function(aaa){
     
       return (fac*(val-hT)+1)/(sigma);    
   };
+
    
   ret.getEState=function(MAX_DEPTH){
     if(!MAX_DEPTH)MAX_DEPTH=15;
@@ -2077,6 +2205,7 @@ JSChemify.Chemical = function(arg){
   ret._rings=null;
   ret.$atomDistances=null;
   ret._properties={};
+  ret._annotations=null;
   
   
   ret.$ringSystems=null;
@@ -3801,6 +3930,24 @@ JSChemify.Chemical = function(arg){
   ret.getBondCount=function(){
       return ret._bonds.length;
   };
+
+   
+  ret.getAnnotations=function(){
+      return ret._annotations;
+  };
+
+  ret.setAnnotations=function(an){
+     ret._annotations=an; 
+     return ret;
+  };
+   
+  ret.computeContributions=function(lambda){
+     let annot=JSChemify.ChemicalDecorator()
+               .setChemical(ret)
+               .setLambda(lambda)
+               .decorate();
+     return ret.setAnnotations(annot);
+  };
   
   ret.getEStateVector=function(d){
     if(!ret.$EstateVector){
@@ -5064,6 +5211,9 @@ JSChemify.ChemicalDecorator=function(){
       ret._lambda=l;
       return ret;
    };
+   ret.setLambda=function(l){
+      return ret.setProperty(l);
+   };
    //This method will calculate how a given
    //property calculation will change if each
    //atom is replaced with a neutral C and 
@@ -5112,9 +5262,31 @@ JSChemify.ChemicalDecorator=function(){
          }
          c.addBond(bd);
       }
-      return {"value": prop, 
-             "atomContributions": atDecorations, 
-             "bondContributions": bdDecorations, 
+      let avg=atDecorations.map((a,i)=>{
+            let at=c.getAtom(i);
+            let sumBonds=at
+             .getBonds()
+             .map(b=>b.getIndexInParent())
+             .map(bi=>bdDecorations[bi])
+             .reduce((a,b)=>a+b);
+            return (sumBonds+a)/(1+at.getBondCount());
+      });
+      let amax=atDecorations.reduce((a,b)=>Math.max(Math.abs(a),Math.abs(b)));
+      let bmax=bdDecorations.reduce((a,b)=>Math.max(Math.abs(a),Math.abs(b)));
+
+      //console.log(bdDecorations);
+      
+      
+      return {
+             "value": prop, 
+             "atoms": atDecorations, 
+             "bonds": bdDecorations,
+             "bondMax":bmax,
+             "bondMin":-bmax,
+             "atomMax":amax,
+             "atomMin":-amax,
+         
+             "avgBoth":avg
              };
    };
 
@@ -5536,8 +5708,6 @@ JSChemify.InChIReader=function(){
       
     }
     all.push(bonds);
-    
-    
     return all;
   };
   
@@ -6804,7 +6974,47 @@ JSChemify.Renderer=function(){
   ret._showAtomMapNumbers=true;
   ret._bracketWidth=0.3;
   ret._aromaticCircles=true;
+  
+  ret._highlightBondItself=false;
+  ret._highlightBondHalo=true;
+  ret._highlightBondHaloWidth=4;
 
+  ret._highlightAtomItself=false;
+  ret._highlightAtomHalo=true;
+  ret._highlightAtomHaloRadius=1;
+  
+   
+  ret._colorGradient=[
+     {color:"red", value:0},
+     
+     {color:"yellow", value:0.5},
+//     {color:"rgba(255,0,0,0)", value:0.49},
+//     {color:"rgba(0,255,0,0)", value:0.51},
+     {color:"green", value:1}
+     ];
+
+  
+  ret.sampleGradient=function(v){
+     let pcol=null;
+     let ncol=null;
+     for(let i=0;i<ret._colorGradient.length;i++){
+         ncol=ret._colorGradient[i];
+         if(ncol.value>v || i===ret._colorGradient.length-1){
+            break;
+         }
+         
+         pcol=ncol;
+     }
+     let nv=(v-pcol.value)/(ncol.value-pcol.value);
+     console.log("int:" + nv);
+     console.log(pcol.color);
+     console.log(ncol.color);
+     
+     let icol=JSChemify.ColorUtils()
+              .interpolate(pcol.color,ncol.color,nv);
+     
+     return JSChemify.Color(icol);
+  };
   
   ret._colorScheme={symbols:{}};
     /*
@@ -6937,6 +7147,10 @@ JSChemify.Renderer=function(){
      return ctx.toSVG();
   };
 
+  ret.getColorForNumber=function(n){
+      
+  };
+
   ret.getStyleFor=function(at){
       var sym= at.getSymbol();
       var style=ret._colorScheme.symbols[sym];
@@ -6986,6 +7200,36 @@ JSChemify.Renderer=function(){
   **/
   ret.render = function(chem,ctx,startx,starty,scale){
          chem=JSChemify.Chemical(chem);
+
+         let annotate=chem.getAnnotations();
+
+         // There are 2 kinds of annotations:
+         //   atoms
+         //   bonds
+         // And there are 2 ways to annotate:
+         //   Categorical
+         //   Numeric
+         //
+         // There are then different ways to highlight these
+         //   coloring of bonds/atoms
+         //   highlight "blob" behind bonds/atoms
+         //   showing text labels near atoms/bonds
+         //  
+         // And, for each of these, there are different specifics
+         //   what colors are chosen when categorical? What
+         //   about continuous?
+         //   
+         // For now, we'll simplify and assume all annotations
+         // are continuous numbers, and that these numbers
+         // have a min, and a max. That min/max can be given
+         // or calculated if not given.
+         // A LACK of an annotation means we draw nothing
+         // If an annotation is present, for an atom, we 
+         // convert that annotation to a number between
+         // 0 and 1, by using an-min/(max-min). Then,
+         // we lookup the gradient color in the renderer
+         // and render accordingly
+     
          //Should we clone first? Maybe better
          //not to mutate ... IDK
          if(!chem.hasCoordinates()){
@@ -7069,6 +7313,38 @@ JSChemify.Renderer=function(){
             });
                 
          }
+         if(annotate && annotate.bonds && ret._highlightBondHalo){
+               let owidth=ctx.lineWidth;
+               let bondHaloWidth=ret._highlightBondHaloWidth*ctx.lineWidth;
+               ctx.lineWidth=bondHaloWidth;
+               let abonds=Object.keys(annotate.bonds).map(i=>annotate.bonds[i]);
+               let minV=(annotate.bondMin)?annotate.bondMin:
+                           abonds.reduce((a,b)=>Math.min(a,b));
+               let maxV=(annotate.bondMax)?annotate.bondMax:
+                           abonds.reduce((a,b)=>Math.max(a,b));
+               Object.keys(annotate.bonds)
+                     .map((i)=>{
+                           let bb=chem.getBond(i);
+                           let v=annotate.bonds[i];
+                           if(hide[bb.getAtom1().getIndexInParent()] || 
+                              hide[bb.getAtom2().getIndexInParent()]){  
+                              return;
+                           }
+                           let scaleV=(v-minV)/(maxV-minV);
+                           //scaleV=0.5;
+                           let hex=ret.sampleGradient(scaleV).toHex();
+                           console.log(i + ":" + scaleV + ":" + hex);
+                           const seg=affine.transform(bb.getLineSegment());
+                           
+                           ctx.strokeStyle=hex;
+                           ctx.beginPath();
+                           moveTo(seg[0][0], seg[0][1]);
+                           lineTo(seg[1][0], seg[1][1]);
+                           ctx.stroke();
+                     });
+               ctx.lineWidth=owidth;
+         }
+     
          //draw bonds
          chem.getBonds().map(b=>{
 
