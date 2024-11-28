@@ -6977,7 +6977,7 @@ JSChemify.Renderer=function(){
   
   ret._highlightBondItself=false;
   ret._highlightBondHalo=true;
-  ret._highlightBondHaloWidth=4;
+  ret._highlightBondHaloWidth=6;
 
   ret._highlightAtomItself=false;
   ret._highlightAtomHalo=true;
@@ -6985,12 +6985,12 @@ JSChemify.Renderer=function(){
   
    
   ret._colorGradient=[
-     {color:"red", value:0},
-     
-     {color:"yellow", value:0.5},
-//     {color:"rgba(255,0,0,0)", value:0.49},
-//     {color:"rgba(0,255,0,0)", value:0.51},
-     {color:"green", value:1}
+//     {color:"red", value:0},
+//     {color:"yellow", value:0.5},
+//     {color:"green", value:1},
+     {color:"rgba(255,0,0,0.5)", value:0.0},
+     {color:"rgba(255,255,0,0.5)", value:0.5},
+     {color:"rgba(0,255,0,0.5)", value:1},
      ];
 
   
@@ -7006,9 +7006,6 @@ JSChemify.Renderer=function(){
          pcol=ncol;
      }
      let nv=(v-pcol.value)/(ncol.value-pcol.value);
-     console.log("int:" + nv);
-     console.log(pcol.color);
-     console.log(ncol.color);
      
      let icol=JSChemify.ColorUtils()
               .interpolate(pcol.color,ncol.color,nv);
@@ -7333,7 +7330,6 @@ JSChemify.Renderer=function(){
                            let scaleV=(v-minV)/(maxV-minV);
                            //scaleV=0.5;
                            let hex=ret.sampleGradient(scaleV).toHex();
-                           console.log(i + ":" + scaleV + ":" + hex);
                            const seg=affine.transform(bb.getLineSegment());
                            
                            ctx.strokeStyle=hex;
