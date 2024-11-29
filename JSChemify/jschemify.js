@@ -6369,6 +6369,8 @@ JSChemify.ChemicalCollection=function(){
          <select id="jschemify-query-type">
          <option>E-State</option>
          </select>
+         <label for="jschemify-query-highlight">Highlight?</label>
+         <input name="jschemify-query-highlight" id="jschemify-query-highlight" unchecked>
          <select id="jschemify-query-estate-metric">
          <option>Euclidean Distance</option>
          <option>Cosine Distance</option>
@@ -6436,6 +6438,7 @@ JSChemify.ChemicalCollection=function(){
       let nextPageElm=$("#jschemify-page-next");
       let selectCountElm=$("#jschemify-rows-per-page");
       let editRawElm=$("#jschemify-edit");
+      
       $("#mfile").onchange=(e)=>{
            $("#mfile").style="display:none;"; 
            let file = e.target.files[0];
@@ -6586,7 +6589,7 @@ JSChemify.ChemicalCollection=function(){
          
          let cq=JSChemify.Chemical(smi).aromatize();
          let estate=cq.getEStateVector();
-
+         let high=$("#jschemify-query-highlight").checked;
          ret.computeNewProperty("Distance",(cc)=>{
             let tar=cc.getEStateVector();
             if(type==="Cosine Distance"){
@@ -6595,7 +6598,7 @@ JSChemify.ChemicalCollection=function(){
                return tar.distanceTo(estate);
             }
             
-         });
+         },high);
          ret._chems.sort((a,b)=>{
             return (a.getProperty("Distance")-0)- (b.getProperty("Distance")-0);
          });
