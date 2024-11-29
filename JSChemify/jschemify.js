@@ -5145,11 +5145,36 @@ JSChemify.Ring=function(arg){
   
   return ret;
 };
+/*****************************
+ChemicalFeatureFactory
+==============================
+Status: still thinking
+*****************************/
+JSChemify.ChemicalFeatureFactory=function(){
+   let ret={};
+
+   ret.makeFeatures=function(c){
+      
+   };
 
 
-JSChemify.ChemicalFeatures=function(){
+   return ret;
+};
+/*****************************
+ChemialFeatures
+==============================
+Status: in progress
+
+
+
+*****************************/
+JSChemify.ChemicalFeatures=function(arg){
+   if(arg && arg._counts){
+      return arg;
+   }
    let ret={};
    ret._counts={};
+   ret.$l2=null;
 
    //TODO: think this through
    ret._atomCounts={};
@@ -5164,7 +5189,10 @@ JSChemify.ChemicalFeatures=function(){
         }
         return hash;
    };
-
+   ret.setFeatures=function(counts){
+      ret._counts=counts;
+      return ret;
+   };
    ret.addFeature=function(f,nc){
       if(!nc)nc=1;
       let c= ret._counts[f];
@@ -5178,7 +5206,6 @@ JSChemify.ChemicalFeatures=function(){
       if(!size){
          size=1024;
       }
-      
       Object.keys(ret._counts)
             .map(k=>{
                let hnum=Math.abs(ret.$hash(k))%size;
@@ -5187,18 +5214,73 @@ JSChemify.ChemicalFeatures=function(){
       //TODO: make it binary?
       return fp;
    };
-   
+   ret.toBinaryFingerprint=function(size){
+      if(!size){
+         size=1024;
+      }
+      let fp=ret.toFoldedFingerprint(size);
+      var arr = new UintArray(Math.ceil(size/8));
+      fp.map((v,i)=>{
+         let pos=Math.floor(i/8);
+         let subpos=i%8;
+         arr[pos]=arr[pos] | (1<<subpos);
+      });
+      return arr;
+   };
+   ret.getFeatureSet=function(){
+      return Object.keys(ret._count);
+   };
+   ret.l2=function(){
+      if(!ret.$l2){
+         ret.$l2=Objects.values(ret._counts)
+                        .map(v=>v*v)
+                        .reduce((a,b)=>a+b);
+         ret.$l2=Math.sqrt(ret.$l2);
+      }
+      return ret.$l2;
+   };
+   ret.getFeatureCount=function(k){
+      let cnt=ret._count[k];
+      if(cnt||cnt===0)return cnt;
+      return 0;
+   };
+   ret.cosineTo=function(cf2){
+       cf2=JSChemify.EState(cf2);
+       var at1=ret.getFeatureSet();
+       var at2=v.getFeatureSet();
+       var allKeys = {};
+       at1.map(k=>allKeys[k]=1);
+       at2.map(k=>allKeys[k]=1);
+       var dotSum=0;
+       Object.keys(allKeys).map(k=>{
+           var dot=ret.getFeatureCount(k)*v.getFeatureCount(k);
+           dotSum+=dot;
+       });
+       return dotSum/(ret.l2()*v.l2());
+   };
+   if(arg && typeof arg==="object"){
+      return ret.setFeatures(arg);
+   }
    
    return ret;
 };
 /*******************************
-/* ChemicalSearcher
+/* ChemicalDecorator
 /*******************************
-Status: IN PROGRESS
+Status: PROTOTYPE
 
+This utility will take a property
+definition (a lambda) and produce
+the numeric value for a given
+chemical. Then it will perturb the
+chemical by changing the atoms and
+bonds and recalculating the property,
+annotating where the value changed
+and by how much. Each atom and bond
+receive a delta score for how much
+that property would change.
 
-
-*/
+**********************************/
 JSChemify.ChemicalDecorator=function(){
    let ret={};
    ret._chem=null;
@@ -6641,10 +6723,13 @@ JSChemify.ChemicalCollection=function(){
       
       return ret;
    };
-   ret.computeNewProperty=function(prop, calc){
+   ret.computeNewProperty=function(prop, calc, decorate){
       let t=0;
       ret.getChems().map(c=>{
          t++;
+         if(decorate){
+            c.computeContributions(calc);
+         }
          c.setProperty(prop,calc(c));
       });
       if(!ret._properties[prop]){
