@@ -39,6 +39,7 @@
         let form=document.getElementById("formula").value.trim();
 	let name=document.getElementById("formula-name").value.trim();
 	newProps.push(name);
+	console.log("going to compute");
         mcol.computeNewProperty(name,(c)=>{
 	    let ev=eval(form);
 	    if(ev && ev.serialize){
