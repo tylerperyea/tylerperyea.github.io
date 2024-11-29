@@ -6751,7 +6751,9 @@ JSChemify.ChemicalCollection=function(){
    ret.removeProperty=function(prop){
       ret.getChems().map(cc=>{
          cc.removeProperty(prop);
+         console.log("is " + prop + " = " + ret._decorateProperty);
          if(ret._decorateProperty === prop){
+            console.log("deleting annotations");
             cc.deleteAnnotations();
          }
       });
@@ -7409,9 +7411,7 @@ JSChemify.Renderer=function(){
             });
                 
          }
-     console.log("looking for annotations");
          if(annotate && annotate.bonds && ret._highlightBondHalo){
-            console.log("annotated");
                let owidth=ctx.lineWidth;
                let bondHaloWidth=ret._highlightBondHaloWidth*ctx.lineWidth;
                ctx.lineWidth=bondHaloWidth;
