@@ -6731,6 +6731,7 @@ JSChemify.ChemicalCollection=function(){
          if(decorate){
             console.log("computing");
             c.computeContributions(calc);
+            console.log(c.getAnnotations());
          }
          c.setProperty(prop,calc(c));
       });
