@@ -3933,7 +3933,11 @@ JSChemify.Chemical = function(arg){
       return ret._bonds.length;
   };
 
-   
+  ret.deleteAnnotations=function(){
+      ret.setAnnotations(null);
+      return ret;
+  };
+
   ret.getAnnotations=function(){
       return ret._annotations;
   };
@@ -5852,6 +5856,7 @@ JSChemify.SmilesReader=function(){
   ret._bondNumber=0;
   ret._bondOnDeck="!";
   ret._targetAtomIndex=null;
+  ret._decorateProperty=null;
   
   ret.setInput=function(s){
        ret._input=s;
@@ -6726,16 +6731,17 @@ JSChemify.ChemicalCollection=function(){
    };
    ret.computeNewProperty=function(prop, calc, decorate){
       let t=0;
-      console.log("decorate:" + decorate);
       ret.getChems().map(c=>{
          t++;
          if(decorate){
-            console.log("computing");
             c.computeContributions(calc);
             console.log(c.getAnnotations());
          }
          c.setProperty(prop,calc(c));
       });
+      if(decorate){
+         ret._decorateProperty=prop;
+      }
       if(!ret._properties[prop]){
          ret._propertyOrder.push(prop);
       }
@@ -6745,9 +6751,12 @@ JSChemify.ChemicalCollection=function(){
    ret.removeProperty=function(prop){
       ret.getChems().map(cc=>{
          cc.removeProperty(prop);
+         if(ret._decorateProperty === prop){
+            cc.deleteAnnotations();
+         }
       });
       delete ret._properties[prop];
-      ret._propertyOrder=ret._propertyOrder.filter(pp=>pp!==prop);
+            ret._propertyOrder=ret._propertyOrder.filter(pp=>pp!==prop);
       return ret;
    };
    ret.toSmilesFileBuilder=function(){
