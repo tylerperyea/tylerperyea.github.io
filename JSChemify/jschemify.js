@@ -6370,7 +6370,7 @@ JSChemify.ChemicalCollection=function(){
          <option>E-State</option>
          </select>
          <label for="jschemify-query-highlight">Highlight?</label>
-         <input name="jschemify-query-highlight" id="jschemify-query-highlight" unchecked>
+         <input type="checkbox" name="jschemify-query-highlight" id="jschemify-query-highlight" unchecked>
          <select id="jschemify-query-estate-metric">
          <option>Euclidean Distance</option>
          <option>Cosine Distance</option>
