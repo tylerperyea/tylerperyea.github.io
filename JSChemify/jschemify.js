@@ -6590,6 +6590,11 @@ JSChemify.ChemicalCollection=function(){
          let cq=JSChemify.Chemical(smi).aromatize();
          let estate=cq.getEStateVector();
          let high=$("#jschemify-query-highlight").checked;
+         if(high){
+            high=-1;
+         }else{
+            high=0;
+         }
          ret.computeNewProperty("Distance",(cc)=>{
             let tar=cc.getEStateVector();
             if(type==="Cosine Distance"){
@@ -6737,8 +6742,11 @@ JSChemify.ChemicalCollection=function(){
       ret.getChems().map(c=>{
          t++;
          if(decorate){
-            c.computeContributions(calc);
-            console.log(c.getAnnotations());
+            if(decorate<0){
+               c.computeContributions(c2=>-calc(c2));
+            }else{
+               c.computeContributions(calc);
+            }
          }
          c.setProperty(prop,calc(c));
       });
