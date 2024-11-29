@@ -2343,7 +2343,7 @@ JSChemify.Chemical = function(arg){
   };
   //TODO: Speed up
   ret.clone=function(){
-      var nchem = JSChemify.Chemical();
+    var nchem = JSChemify.Chemical();
     nchem.setName(ret.getName());
     nchem._properties=
         JSON.parse(JSON.stringify(ret._properties));
@@ -2364,6 +2364,7 @@ JSChemify.Chemical = function(arg){
           nchem.addBond(nbd);
 
         });
+     nchem.setAnnotations(ret.getAnnotations());
            
      return nchem;
   };
