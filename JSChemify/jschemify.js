@@ -4506,13 +4506,9 @@ JSChemify.SGroup=function(){
          if(got[nnbondIdx]){
             return true;
          }
-         
          got[nnbondIdx]=true;
          let natom=path[path.length-1].atom;
          ret.addAtom(natom);
-         if(natom===b2a1 || natom===b2a2){
-            return true;
-         }
       });
    };
    
@@ -4524,7 +4520,10 @@ JSChemify.SGroup=function(){
       return ret;
    };
    ret.addAtom=function(a){
-      ret._atoms.push(a);
+      //only add if not already present
+      if(ret._atoms.indexOf(a)<0){
+         ret._atoms.push(a);
+      }
       return ret;
    };
    ret.setAtoms=function(a){
@@ -7931,8 +7930,13 @@ JSChemify.Tests=function(){
     console.log("Tests passed:"+passed);
     console.log("Tests failed:"+failed);
   };
-  
+  // 
    //JSChemify.Chemical(JSChemify.Chemical("C").setProperty("abc", "val1\nval2").toSd()).toSd()
+
+  ret.tests.push(()=>{
+      let sgroup=JSChemify.Chemical("O([B](F)(F)F)[Si](N)(C)C [L2M74R4m61Fm61L4m61Fm83](n)FM65L4R4").getSGroups()[0];
+      ret.assertEquals(4,sgroup.getAtoms().length);
+  });
   ret.tests.push(()=>{
       let input="C1(=C(N(CCC(CC(CC(=O)O)O)O)C(=C(1)C2(C=CC=CC=2))C2(C=CC(=CC=2)F))C(C)C)C(NC1(C=CC=CC=1))=O R10m80L5RL7RLRLRRLRHRHL5L5L5R9RLLRRRRRLR13LRRRRRR5LRRRRRL5R7R7L7";
       let c = JSChemify.Chemical(input);
