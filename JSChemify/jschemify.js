@@ -570,19 +570,30 @@ JSChemify.PathNotation=function(f){
       }
       return fpath;
     };
+    
     ret.collapse=function(pth){
           return pth.map(v=>{
                   if(v[0][0]==="[" || v[0][0]==="]" || v[0][0]===","){
                      return v[0];
+                  }
+             
+                  if(v[0].length>1 && (v[0][0]==="R"||v[0][0]==="L")){
+                      var rc=Math.round((v[0].substr(1)-0)*ret._roundAngle)/ret._roundAngle;
+                      v[0]=v[0][0] + rc;
                   }
                   if(v[0]==="R6"){
                     v[0]="R";
                   }else if(v[0]==="L6"){
                     v[0]="L";
                   }
+                  if(v[1] && (v[1].length>1 && (v[1][0]==="M"||v[1][0]==="m"))){
+                      var rc=Math.round((v[1].substr(1)-0)*ret._roundAngle)/ret._roundAngle;
+                      v[1]=v[1][0] + rc;
+                  }
                   if(v[1]==="M100" || v[1]==="m100"){
                     v[1]="";
                   }
+             
                   if(!v[2]){
                     v[2]="";
                   }
