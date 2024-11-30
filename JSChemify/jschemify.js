@@ -166,7 +166,7 @@ TODO:
    
 *******************************/
 JSChemify.Shape=function(arg,c){
-  if(art._path)return arg;
+  if(arg._path)return arg;
   let ret={};
   ret._path=[];
   ret.closed=true;
@@ -178,8 +178,30 @@ JSChemify.Shape=function(arg,c){
     //TODO: intersection
   };
   ret.containsPoint=function(pt){
-    //TODO: containsPoint
+    //basic algo is iterate through delta vectors,
+    //compute delta vector from first point to given
+    //point, and then get the signed "rejection"
+    //if the sign is different from the previous sign
+    //then the point is NOT inside. Otherwise,
+    //if every sign is the same, the point is inside.
+    let ppoint=ret._path[0];
+    let psign=0;
+    for(let i=1;i<ret._path.length+1;i++){
+      let npoint=ret._path[i%ret._path.length];
+      let dvec=[npoint[0]-ppoint[0],npoint[1]-ppoint[1]];
+      let pdvec=[pt[0]-ppoint[0],pt[1]-ppoint[1]];
+      let rej=Math.sign(dvec[0]*pdvec[1]-dvec[1]*pdvec[0]);
+      if(psign!==0 && rej!==0){
+         if(rej!==psign){
+            return false;
+         }
+      }
+      psign=rej;
+      ppoint=npoint;
+    }
+    return true;
   };
+  
   ret.setPath=function(p,c){
     if(typeof c !== "undefined"){
         ret._closed=c;
@@ -4615,6 +4637,7 @@ JSChemify.SGroup=function(){
       if(!ret._bracket1){
             var cbonds=ret.getCrossBonds();
             if(cbonds.length===2){
+               let cpt=ret.getCenterPoint();
 
                //TODO: make bracket snap to a cardinal direction
                // probably?
@@ -4625,15 +4648,65 @@ JSChemify.SGroup=function(){
                var c2=b2.getCenterPoint();
                var d1=b1.getDeltaVector();
                var d2=b2.getDeltaVector();
+               /*
+               var vecB1d1=JSChemify.Util.sqMagVector(b1.getAtom1().getVectorToPoint(cpt));
+               var vecB1d2=JSChemify.Util.sqMagVector(b1.getAtom2().getVectorToPoint(cpt));
+               
+               var vecB2d1=JSChemify.Util.sqMagVector(b2.getAtom1().getVectorToPoint(cpt));
+               var vecB2d2=JSChemify.Util.sqMagVector(b2.getAtom2().getVectorToPoint(cpt));
+               */
+               
+               let mag1 = Math.sqrt(JSChemify.Util.sqMagVector(d1));
+               let mag2 = Math.sqrt(JSChemify.Util.sqMagVector(d2));
+
+               let dBrac= [
+                  c2[0]-c1[0],c2[1]-c1[1]
+               ];
+               let dCent= [
+                  1,1
+               ];
+               let dot=dBrac[0]*dCent[0]+dBrac[1]*dCent[1];
+               
+               
+               if(Math.abs(d1[0])>Math.abs(d1[1])){
+                  d1=[-Math.abs(mag1),0];
+               }else{
+                  d1=[0,-Math.abs(mag1)];
+               }
+               
+               
+               if(Math.abs(d2[0])>Math.abs(d2[1])){
+                  d2=[-Math.abs(mag2),0];
+               }else{
+                  d2=[0,-Math.abs(mag2)];
+               }
+               /*
+               if(vecB1d1>vecB1d2){
+                  d1[0]=-d1[0];
+                  d1[1]=-d1[1];
+               }
+               
+               if(vecB2d1>vecB2d2){
+                  d2[0]=-d2[0];
+                  d2[1]=-d2[1];
+               }
+               */
+               
                ret._bracket1=[[c1[0]-d1[1]/2,c1[1]+d1[0]/2],
                               [c1[0]+d1[1]/2,c1[1]-d1[0]/2]];
                               
                ret._bracket2=[[c2[0]+d2[1]/2,c2[1]-d2[0]/2],
                              [c2[0]-d2[1]/2,c2[1]+d2[0]/2]];
-               if(c1[0]>c2[0]){
+               if(dot<0){
                   let t= ret._bracket1;
                   ret._bracket1=ret._bracket2;
                   ret._bracket2=t;
+                  t=ret._bracket1[1];
+                  ret._bracket1[1]=ret._bracket1[0];
+                  ret._bracket1[0]=t;
+                  t=ret._bracket2[1];
+                  ret._bracket2[1]=ret._bracket2[0];
+                  ret._bracket2[0]=t;
                }
                
             }else{
