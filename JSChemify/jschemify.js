@@ -2002,7 +2002,7 @@ JSChemify.Bond = function(bbb){
         }
      }
      var pn= JSChemify.PathNotation()
-                      .roundAngle(1000)
+                      .roundAngle(100)
                       .roundMag(10)
                       .pathFromDeltaVector(vec1,vec2);
      if(wedge){
@@ -2889,7 +2889,7 @@ JSChemify.Chemical = function(arg){
             startDy=dvec[1];
            
             let npath=JSChemify.PathNotation()
-                               .roundAngle(1000)
+                               .roundAngle(100)
                                .roundMag(10)
                                .pathFromDeltaVector([pdx,pdy],
                                                     [startDx,startDy]);
