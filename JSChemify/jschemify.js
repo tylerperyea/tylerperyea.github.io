@@ -587,7 +587,7 @@ JSChemify.PathNotation=function(f){
                     v[0]="L";
                   }
                   if(v[1] && (v[1].length>1 && (v[1][0]==="M"||v[1][0]==="m"))){
-                      var rc=Math.round((v[1].substr(1)-0)*ret._roundAngle)/ret._roundAngle;
+                      var rc=Math.round((v[1].substr(1)-0)*ret._roundMag)/ret._roundMag;
                       v[1]=v[1][0] + rc;
                   }
                   if(v[1]==="M100" || v[1]==="m100"){
