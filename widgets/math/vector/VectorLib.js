@@ -133,31 +133,35 @@ VectorLib.Number=function(nn){
     if(nn && nn._isNumber)return nn;
     let ret={};
     ret._isNumber=true;
+    ret.a=(Number.isFinite(nn))?nn-0:0;
 
     //interface needs
     //all should return new numbers
     ret.make=function(raw){
-
+	return VectorLib.Number(raw);
     };
     ret.add=function(n){
-      
+        return ret.make(ret.make(n).a + ret.a);
     };
     ret.multiply=function(n){
-      
+        return ret.make(ret.make(n).a * ret.a);
     };
     ret.inverse=function(){
-
+	return ret.make(1/ret.a);
     };
     ret.scale=function(s){
-
+	return ret.make(s*ret.a);
     };
-    ret.mag=function(){
-
+    ret.sqMag=function(){
+	return ret.a*ret.a;
     };
     ret.toString=function(){
-
+	return a + "";
     };
-  
+
+    ret.mag=function(){
+	return Math.sqrt(ret.sqMag());
+    };
     ret.subtract=function(nm2){
       return ret.add(nm2.negate());
     };
@@ -179,7 +183,7 @@ VectorLib.ComplexNumber=function(r,i){
     if(r && r._isComplex)return r;
   	let ret=VectorLib.Number();
     ret.a=r;
-    ret.b=i;
+    ret.b=(Number.isFinite(i-0))?i-0:0;
     ret.make=function(raw){
         if(raw && raw._isComplex)return raw;
         if(raw && Array.isArray(raw)){
@@ -187,12 +191,15 @@ VectorLib.ComplexNumber=function(r,i){
         }
         if(raw && raw._isNumber){
             //TODO: need to think about this conversion
-            
+            return VectorLib.ComplexNumber(raw.a,0);
         }
         if(raw && typeof raw ==="string"){
           let comp=raw.split(" ");
           return VectorLib.ComplexNumber(comp[0]-0,comp[1].substr(0,comp[1].length-1)-0);
         }
+	if(raw && Number.isFinite(raw)){
+	  return VectorLib.ComplexNumber(raw-0,0); 
+	}
         
         return VectorLib.ComplexNumber(raw);
     };
@@ -200,17 +207,18 @@ VectorLib.ComplexNumber=function(r,i){
       let z2=ret.make(r);
       return VectorLib.ComplexNumber(ret.a+z2.a,ret.b+z2.b);
     };
-    ret.scale=function(s){
-      return VectorLib.ComplexNumber(s*ret.a,s*ret.b);
-    };
-    ret.mag=function(){
-      return ret.a*ret.a+ret.b*ret.b;
-    };
     ret.multiply=function(r){
-    	let z2=ret.make(r);
+      let z2=ret.make(r);
       return VectorLib.ComplexNumber(ret.a*z2.a-ret.b*z2.b,
                                           ret.a*z2.b+ret.b*z2.a);
     };
+    ret.scale=function(s){
+      return VectorLib.ComplexNumber(s*ret.a,s*ret.b);
+    };
+    ret.sqMag=function(){
+      return ret.a*ret.a+ret.b*ret.b;
+    };
+    
     ret.inverse=function(){
       //(a+bi)*(c+di)=1
       //ac-bd+ad+bc=1
