@@ -43,7 +43,7 @@ VectorLib.identityMatrix=function(n){
 //probably.
 //embed metric space into euclidean space
 VectorLib.embed = function(met){
-	var pts=[];
+  var pts=[];
   var nullDims=[];
   //first thing is probably to find highest variance
   //axis. This isn't easy with metric space only,
@@ -99,6 +99,11 @@ VectorLib.embed = function(met){
     //if dd<=0 then that means there's no new info
     //added by this point. This also means that the
     //dim should be 0 from here on out for this dim
+    //TODO: if dd is negative, that means we would
+    //need an imaginary dimension. Such a thing
+    //may be possible to implement well, but would
+    //need a better version of vectors which
+    //would be complex
     if(dd<=VectorLib.ZERO_TOLERANCE){
     	nullDims.push(i-1);
     }
@@ -118,6 +123,51 @@ VectorLib.embed = function(met){
   
 };
 
+
+
+/****************************
+
+STATUS:In progress
+*****************************/
+VectorLib.Number=function(nn){
+    if(nn && nn._isNumber)return nn;
+    let ret={};
+    ret._isNumber=true;
+
+    //interface needs
+    //all should return new numbers
+    ret.make=function(raw){
+
+    };
+    ret.add=function(n){
+      
+    };
+    ret.multiply=function(n){
+      
+    };
+    ret.inverse=function(){
+
+    };
+    ret.scale=function(s){
+
+    };
+    ret.mag=function(){
+
+    };
+    ret.toString=function(){
+
+    };
+  
+    ret.subtract=function(nm2){
+      return ret.add(nm2.negate());
+    };
+    ret.negate=function(){
+      return ret.scale(-1);
+    };
+  
+    return ret;
+};
+
 /******************************
 Complex Number
 ===============================
@@ -126,43 +176,81 @@ STATUS: In Progresss
 
 *******************************/
 VectorLib.ComplexNumber=function(r,i){
-  if(r && r._isComplex)return r;
-	let ret={};
-  ret.a=r;
-  ret.b=i;
-  ret.add=function(r,i){
-  	let z2=VectorLib.ComplexNumber(r,i);
-    return VectorLib.ComplexNumber(ret.a+z2.a,ret.b+z2.b);
-  };
-  ret.negate=function(){
-    return ret.scale(-1);
-  };
-  ret.scale=function(s){
-    return VectorLib.ComplexNumber(s*ret.a,s*ret.b);
-  };
-  ret.subtract=function(r,i){
-  	let z2=VectorLib.ComplexNumber(r,i);
-    return ret.add(z2.negate());
-  };
-  ret.mag=function(){
-    return ret.a*ret.a+ret.b*ret.b;
-  };
-  ret.multiply=function(r,i){
-  	let z2=VectorLib.ComplexNumber(r,i);
-    return VectorLib.ComplexNumber(ret.a*z2.a-ret.b*z2.b,
-                                        ret.a*z2.b+ret.b*z2.a);
-  };
-  ret.conjugate=function(){
-    return VectorLib.ComplexNumber(ret.a,-ret.b);
-  };
-  ret.real=function(){
-    return ret.a;
-  };
-  ret.imag=function(){
-    return ret.b;
-  };
+    if(r && r._isComplex)return r;
+  	let ret=VectorLib.Number();
+    ret.a=r;
+    ret.b=i;
+    ret.make=function(raw){
+        if(raw && raw._isComplex)return raw;
+        if(raw && Array.isArray(raw)){
+            return VectorLib.ComplexNumber(raw[0],raw[1]);
+        }
+        if(raw && raw._isNumber){
+            //TODO: need to think about this conversion
+            
+        }
+        if(raw && typeof raw ==="string"){
+          let comp=raw.split(" ");
+          return VectorLib.ComplexNumber(comp[0]-0,comp[1].substr(0,comp[1].length-1)-0);
+        }
+        
+        return VectorLib.ComplexNumber(raw);
+    };
+    ret.add=function(r){
+      let z2=ret.make(r);
+      return VectorLib.ComplexNumber(ret.a+z2.a,ret.b+z2.b);
+    };
+    ret.scale=function(s){
+      return VectorLib.ComplexNumber(s*ret.a,s*ret.b);
+    };
+    ret.mag=function(){
+      return ret.a*ret.a+ret.b*ret.b;
+    };
+    ret.multiply=function(r){
+    	let z2=ret.make(r);
+      return VectorLib.ComplexNumber(ret.a*z2.a-ret.b*z2.b,
+                                          ret.a*z2.b+ret.b*z2.a);
+    };
+    ret.inverse=function(){
+      //(a+bi)*(c+di)=1
+      //ac-bd+ad+bc=1
+      //ac-bd=1
+      //ad+bc=0
+      //d=-bc/a
+      //ac+b^2ca=1
+      //a(c+b^2c)=1
+      //ac(1+b^2)=1
+      //c=1/(a*(1+b^2))
+      //this won't work if a is 0
+      if(Math.abs(a)>VectorLib.ZERO_TOLERANCE){
+        let c= 1/(ret.a*(1+ret.b*ret.b));
+        let d= -ret.b*c/ret.a;
+        return VectorLib.ComplexNumber(c,d);
+      }
+      let theta = Math.atan2(ret.b,ret.a);
+      let mag=ret.mag();
+      let c=mag*Math.cos(-theta);
+      let d=mag*Math.sin(-theta);
+      return VectorLib.ComplexNumber(c,d);
+    };
+    ret.toString=function(){
+      return ret.a + " " +ret.b + "i";
+    };
   
-  return ret;
+    ret.theta=function(){
+      return Math.atan2(ret.b,ret.a);
+    };
+    ret.conjugate=function(){
+      return VectorLib.ComplexNumber(ret.a,-ret.b);
+    };
+    ret.real=function(){
+      return ret.a;
+    };
+    ret.imag=function(){
+      return ret.b;
+    };
+    
+    return ret;
 };
 
 /****************************
@@ -171,189 +259,189 @@ Vector
 
 *****************************/
 VectorLib.Vector=function(v){
-if(v && v._isVector)return v;
-var v2={};
-v2._isVector=true;
-v2._arr=v;
-v2._sqNorm=null;
-v2._norm=null;
-v2._normalized=null;
-v2._nullSpace=null;
-
-v2.sqNorm=function(){
-	if(v2._sqNorm===null){
-  	v2._sqNorm = v2._arr.map(x=>x*x)
-                        .reduce((a,b)=>a+b);
-  }
-  return v2._sqNorm;
-};
-v2.dim=function(){
-	return v2._arr.length;
-};
-v2.norm=function(){
-	if(v2._norm===null){
-  	v2._norm= Math.sqrt(v2.sqNorm());
-  }
-  return v2._norm;
-};
-
-v2.lNnorm=function(n){
-  var sum=v2._arr.map(x=>Math.pow(x,n))
-  								.reduce((a,b)=>a+b);
-  return Math.pow(sum, 1.0/(n));
-};
-v2.lInfNorm=function(n){
-  var sum=v2._arr.map(x=>Math.abs(x))
-  								.reduce((a,b)=>Math.max(a,b));
-  return sum;
-};
-
-v2.asColumnMatrix=function(){
-	return VectorLib.Matrix(v2);
-};
-
-v2.asRowMatrix=function(){
-	return v2.asColumnMatrix().transpose();
-};
-v2.dot=function(u2){
-	u2 = VectorLib.Vector(u2);
-  var ba=0;
-  var img=0;
-  for(var i=0;i<Math.min(v2.dim(),u2.dim());i++){
-  	ba+=v2._arr[i]*u2._arr[i];
-  }
-  return ba;
-};
-v2.addTo=function(arr){
-	if(arr.length>=v2._arr.length){
-  	v2._arr.map((x,i)=>arr[i]+=x);
-  }else{
-  	throw "Cannot add vector to smaller array";
-  }
-  return arr;
-};
-v2.proj=function(u2){
-	u2 = VectorLib.Vector(u2);
-  var un=u2.normalized();
-  var pp=un.dot(v2);
-  return un.scale(pp);
-};
-v2.slice=function(n){
-	return VectorLib.Vector(v2._arr.splice(0,n));
-};
-v2.resize=function(n){
-	if(n===v2._arr.length)return v2;
-  var b=v2._arr.clone();
-  b.length=n;
-  b.fill(0, Math.min(b.length,v2._arr.length),b.length);
-	return VectorLib.Vector(b);
-};
-//eliminates some dims
-v2.subspace=function(keep){
-	var narr=v2._arr.filter((a,i)=>keep[i]>0);
-  return VectorLib.Vector(narr);
-};
-v2.scale=function(k){
-	var ba=[];
-  for(var i=0;i<v2.dim();i++){
-  	ba[i]=k*v2._arr[i];
-  }
-  var s= VectorLib.Vector(ba);
-  if(v2._norm>=0)s._norm=v2._norm*Math.abs(k);
-  if(v2._sqNorm>=0)s._sqNorm=v2._sqNorm*k*k;
-  
-  return s;
-};
-v2.normalized=function(){
-	if(!v2._normalized){
-     v2._normalized=v2.scale(1.0/v2.norm());
-     v2._normalized._normalized=v2._normalized;
-     v2._normalized._norm=1;
-     v2._normalized._sqNorm=1;
-  }
-  return v2._normalized;
-};
-v2.negate=function(){
-	var u2=v2._arr.map(x=>-1*x);
-	u2 = VectorLib.Vector(u2);
-  u2._norm=v2._norm;
-  u2._sqNorm=v2._sqNorm;
-  return u2;
-};
-v2.add=function(u2){
-	u2 = VectorLib.Vector(u2);
-  var bb=[];
-  var maxlen = Math.max(v2.dim(),u2.dim());
-  var minlen = Math.min(v2.dim(),u2.dim());
-  bb.length=maxlen;
-  
-  for(var i=0;i<maxlen;i++){
-  	if(i<minlen){
-    	bb[i]=v2._arr[i]-(-u2._arr[i]);
-    }else{
-    	if(i>=v2.dim()){
-      	bb[i]=u2._arr[i];
+    if(v && v._isVector)return v;
+    var v2={};
+    v2._isVector=true;
+    v2._arr=v;
+    v2._sqNorm=null;
+    v2._norm=null;
+    v2._normalized=null;
+    v2._nullSpace=null;
+    
+    v2.sqNorm=function(){
+    	if(v2._sqNorm===null){
+      	v2._sqNorm = v2._arr.map(x=>x*x)
+                            .reduce((a,b)=>a+b);
+      }
+      return v2._sqNorm;
+    };
+    v2.dim=function(){
+    	return v2._arr.length;
+    };
+    v2.norm=function(){
+    	if(v2._norm===null){
+      	v2._norm= Math.sqrt(v2.sqNorm());
+      }
+      return v2._norm;
+    };
+    
+    v2.lNnorm=function(n){
+      var sum=v2._arr.map(x=>Math.pow(x,n))
+      								.reduce((a,b)=>a+b);
+      return Math.pow(sum, 1.0/(n));
+    };
+    v2.lInfNorm=function(n){
+      var sum=v2._arr.map(x=>Math.abs(x))
+      								.reduce((a,b)=>Math.max(a,b));
+      return sum;
+    };
+    
+    v2.asColumnMatrix=function(){
+    	return VectorLib.Matrix(v2);
+    };
+    
+    v2.asRowMatrix=function(){
+    	return v2.asColumnMatrix().transpose();
+    };
+    v2.dot=function(u2){
+    	u2 = VectorLib.Vector(u2);
+      var ba=0;
+      var img=0;
+      for(var i=0;i<Math.min(v2.dim(),u2.dim());i++){
+      	ba+=v2._arr[i]*u2._arr[i];
+      }
+      return ba;
+    };
+    v2.addTo=function(arr){
+    	if(arr.length>=v2._arr.length){
+      	v2._arr.map((x,i)=>arr[i]+=x);
       }else{
-      	bb[i]=v2._arr[i];
+      	throw "Cannot add vector to smaller array";
       }
-    }
-  }
-  return VectorLib.Vector(bb);
-};
- 
-v2.factorOut=function(u2){
-	u2 = VectorLib.Vector(u2);
-	var un=u2.normalized();
-  var p=un.dot(v2);
-  var npro=un.scale(-1*p);
-  return v2.add(npro);
-};
-
-//this is a set of vectors which
-//are all orthogonal to each other
-//and to the original vector
-//TODO:
-//While this is accomplished by
-//
-v2.orthoBasis=function(){
-  if(!v2._orthoBasis){
-    var nn=[];
-    var normed=v2.normalized();
-  	for(var i=0;i<v2.dim();i++){
-    	var p   =normed._arr[i];
-      var pro =normed.scale(-1*p);
-      var delt=pro.add(VectorLib.unitVector(i));
-      if(Math.abs(delt.norm())>VectorLib.ZERO_TOLERANCE){
-      	//nn.push(delt);
-        for(var j=0;j<nn.length;j++){
-          delt=delt.factorOut(nn[j]);
-        }
-        delt=delt.normalized();
-        
-        if(Math.abs(delt.dot(normed))<VectorLib.ZERO_TOLERANCE){
-        	nn.push(delt);
+      return arr;
+    };
+    v2.proj=function(u2){
+    	u2 = VectorLib.Vector(u2);
+      var un=u2.normalized();
+      var pp=un.dot(v2);
+      return un.scale(pp);
+    };
+    v2.slice=function(n){
+    	return VectorLib.Vector(v2._arr.splice(0,n));
+    };
+    v2.resize=function(n){
+    	if(n===v2._arr.length)return v2;
+      var b=v2._arr.clone();
+      b.length=n;
+      b.fill(0, Math.min(b.length,v2._arr.length),b.length);
+    	return VectorLib.Vector(b);
+    };
+    //eliminates some dims
+    v2.subspace=function(keep){
+    	var narr=v2._arr.filter((a,i)=>keep[i]>0);
+      return VectorLib.Vector(narr);
+    };
+    v2.scale=function(k){
+    	var ba=[];
+      for(var i=0;i<v2.dim();i++){
+      	ba[i]=k*v2._arr[i];
+      }
+      var s= VectorLib.Vector(ba);
+      if(v2._norm>=0)s._norm=v2._norm*Math.abs(k);
+      if(v2._sqNorm>=0)s._sqNorm=v2._sqNorm*k*k;
+      
+      return s;
+    };
+    v2.normalized=function(){
+    	if(!v2._normalized){
+         v2._normalized=v2.scale(1.0/v2.norm());
+         v2._normalized._normalized=v2._normalized;
+         v2._normalized._norm=1;
+         v2._normalized._sqNorm=1;
+      }
+      return v2._normalized;
+    };
+    v2.negate=function(){
+    	var u2=v2._arr.map(x=>-1*x);
+    	u2 = VectorLib.Vector(u2);
+      u2._norm=v2._norm;
+      u2._sqNorm=v2._sqNorm;
+      return u2;
+    };
+    v2.add=function(u2){
+    	u2 = VectorLib.Vector(u2);
+      var bb=[];
+      var maxlen = Math.max(v2.dim(),u2.dim());
+      var minlen = Math.min(v2.dim(),u2.dim());
+      bb.length=maxlen;
+      
+      for(var i=0;i<maxlen;i++){
+      	if(i<minlen){
+        	bb[i]=v2._arr[i]-(-u2._arr[i]);
+        }else{
+        	if(i>=v2.dim()){
+          	bb[i]=u2._arr[i];
+          }else{
+          	bb[i]=v2._arr[i];
+          }
         }
       }
-    }
-    v2._orthoBasis=nn;
-  }
-  return v2._orthoBasis;
-};
+      return VectorLib.Vector(bb);
+    };
+     
+    v2.factorOut=function(u2){
+    	u2 = VectorLib.Vector(u2);
+    	var un=u2.normalized();
+      var p=un.dot(v2);
+      var npro=un.scale(-1*p);
+      return v2.add(npro);
+    };
+    
+    //this is a set of vectors which
+    //are all orthogonal to each other
+    //and to the original vector
+    //TODO:
+    // While this is accomplished by
+    // 
+    v2.orthoBasis=function(){
+      if(!v2._orthoBasis){
+        var nn=[];
+        var normed=v2.normalized();
+      	for(var i=0;i<v2.dim();i++){
+        	var p   =normed._arr[i];
+          var pro =normed.scale(-1*p);
+          var delt=pro.add(VectorLib.unitVector(i));
+          if(Math.abs(delt.norm())>VectorLib.ZERO_TOLERANCE){
+          	//nn.push(delt);
+            for(var j=0;j<nn.length;j++){
+              delt=delt.factorOut(nn[j]);
+            }
+            delt=delt.normalized();
+            
+            if(Math.abs(delt.dot(normed))<VectorLib.ZERO_TOLERANCE){
+            	nn.push(delt);
+            }
+          }
+        }
+        v2._orthoBasis=nn;
+      }
+      return v2._orthoBasis;
+    };
+    
+    v2.nullSpace=function(){
+      if(!v2._nullSpace){
+       	var obasis= v2.orthoBasis();
+        //TOODO
+        var marr=[];
+        for(var i=0;i<obasis.length;i++){
+        	marr.push(obasis[i]._arr.slice(0,v2.dim()-1));     
+        }
+        v2._nullSpace=VectorLib.Matrix(marr).transpose();
+      }
+      return v2._nullSpace;
+    };
 
-v2.nullSpace=function(){
-  if(!v2._nullSpace){
-   	var obasis= v2.orthoBasis();
-    //TOODO
-    var marr=[];
-    for(var i=0;i<obasis.length;i++){
-    	marr.push(obasis[i]._arr.slice(0,v2.dim()-1));     
-    }
-    v2._nullSpace=VectorLib.Matrix(marr).transpose();
-  }
-  return v2._nullSpace;
-};
-
-return v2;
+    return v2;
 };
 
 /***************
@@ -363,330 +451,330 @@ Matrix
 
 ***************/
 VectorLib.Matrix=function(m){
-if(m && m._isMatrix)return m;
-if(m && m._isVector){
-	return VectorLib.Matrix([m._arr]).transpose();
-}
-var m2={};
-m2._isMatrix=true;
-m2._arr=m;
-m2._inverse=null;
-m2._ydim=m2._arr.length;
-m2._transpose=null;
-var maxX=0;
-var minX=10000;
-//first need to rank and order
-for(var i=0;i<m2._arr.length;i++){
-	var rv=m2._arr[i];
-  maxX=Math.max(rv.length,maxX);
-  minX=Math.min(rv.length,minX);
-}
-if(minX!=maxX){
-	for(var i=0;i<m2._arr.length;i++){
-		var rv=m2._arr[i];
-    rv.length=maxX;
-    for(var j=minX;j<maxX;j++){
-    	if(!rv[j])rv[j]=0;
+    if(m && m._isMatrix)return m;
+    if(m && m._isVector){
+    	return VectorLib.Matrix([m._arr]).transpose();
     }
-  }
-}
-m2._xdim=maxX;
-
-m2.scale=function(s){
-	var res2= m2._arr.map(v=>v.map(c=>c*s));
-  return VectorLib.Matrix(res2);
-};
-
-//this mutates, which isn't usually what we want
-m2.addScaleRow=function(s, r1,r2){
-	var row1=m2._arr[r1];
-  var row2=m2._arr[r2];
-  for(var i=0;i<row2.length;i++){
-  	row2[i]=row2[i]+s*row1[i];
-  }
-  return m2;
-};
-m2.addScaleCol=function(s, c1,c2){
-	var col1=m2._arr.map(r=>r[c1]);
-  var col2=m2._arr.map(r=>r[c2]);
-  for(var i=0;i<col1.length;i++){
-  	m2._arr[i][c2]=m2._arr[i][c2]+s*m2._arr[i][c1];
-  }
-  return m2;
-};
-//this mutates, which isn't usually what we want
-m2.scaleRow=function(s, r1){
-	var row1=m2._arr[r1];
-  for(var i=0;i<row1.length;i++){
-  	row1[i]=s*row1[i];
-  }
-  return m2;
-};
-//this mutates, which isn't usually what we want
-m2.swapRows=function(r1,r2){
-	var row1=m2._arr[r1];
-  var row2=m2._arr[r2];
-  m2._arr[r1]=row2;
-  m2._arr[r2]=row1;
-  
-  return m2;
-};
-m2.transpose=function(){
-	if(!m2._transpose){
-  	var arr2=[];
-    for(var i=0;i<m2._xdim;i++){
-    	for(var j=0;j<m2._ydim;j++){
-      	if(!arr2[i]){
-      		arr2[i]=[];
-      	}
-      	arr2[i][j]=m2._arr[j][i];
-    	}	
+    var m2={};
+    m2._isMatrix=true;
+    m2._arr=m;
+    m2._inverse=null;
+    m2._ydim=m2._arr.length;
+    m2._transpose=null;
+    var maxX=0;
+    var minX=10000;
+    //first need to rank and order
+    for(var i=0;i<m2._arr.length;i++){
+    	var rv=m2._arr[i];
+      maxX=Math.max(rv.length,maxX);
+      minX=Math.min(rv.length,minX);
     }
-    m2._transpose=VectorLib.Matrix(arr2);
-    m2._transpose._transpose=m2;
-  }
-  return m2._transpose;
-};
-
-m2.clone=function(){
-	var m2clone= VectorLib.Matrix(m2._arr.map(a=>a.map(b=>b)));
-  if(m2._inverse){
-    //may need to clone
-  	m2clone._inverse=m2._inverse;
-  }
-  return m2clone;
-};
-m2.asVector=function(){
-	if(m2._ydim===1){
-  	return m2.transpose().asVector(); 
-  }else if(m2._xdim===1){
-  	return VectorLib.Vector(m2._arr);
-  }
-  throw "can only make vectors out of 1xn and nx1 matrices";
-
-};
-//010
-//000
-//100
-m2.inverse=function(){
-	return m2.inverseP(false).inverse;
-};
-m2.inverseP=function(b){
-
-	if(!m2._inverse){
-    var nDiag=[];
-  	if(m2._xdim!==m2._ydim){
-    	throw "Cannot invert non-square matrix!";
-    }
-    var cop=m2.clone();
-    var iden = VectorLib.identityMatrix(m2._xdim);
-    var idenT = VectorLib.identityMatrix(m2._xdim);
-		for (var i=0;i<m2._xdim;i++){
-      //only works if non-zero!!!
-      var found=false;
-      var nn=0.0;
-      for(var k=i;k<m2._xdim;k++){
-      	nn=cop._arr[k][i];
-        if(Math.abs(nn)>VectorLib.ZERO_TOLERANCE){
-      		found=true;
-          if(k!==i){
-          	cop.swapRows(i,k);
-            iden.swapRows(i,k);
-          }
-          break;
-        }
-      }
-      if(!found){
-        if(!b)throw "Matrix is not invertible";
-      	nDiag.push(i);
-      }else{
-    		var scale=1/nn;
-      	cop.scaleRow(scale,i);
-      	//console.log(cop.clone()._arr);
-      	iden.scaleRow(scale,i);
-      	for (var j=i+1;j<m2._xdim;j++){
-      		var scale2=cop._arr[j][i];
-        	cop.addScaleRow(-scale2,i,j);
-        	iden.addScaleRow(-scale2,i,j);
-      	}
-      }
-    }
-    for (var i=m2._xdim-1;i>0;i--){
-    	if(nDiag.indexOf(i)<0){
-        for (var j=i-1;j>=0;j--){
-          var scale2=cop._arr[j][i];
-          cop.addScaleRow(-scale2,i,j);
-          iden.addScaleRow(-scale2,i,j);
+    if(minX!=maxX){
+    	for(var i=0;i<m2._arr.length;i++){
+    		var rv=m2._arr[i];
+        rv.length=maxX;
+        for(var j=minX;j<maxX;j++){
+        	if(!rv[j])rv[j]=0;
         }
       }
     }
-    if(nDiag.length>0){
-      for (var i=0;i<m2._xdim;i++){
-        if(nDiag.indexOf(i)<0){
-          for (var j=i+1;j<m2._xdim;j++){
-            var scale2=cop._arr[i][j];
-            cop.addScaleCol(-scale2,i,j);
-            idenT.addScaleCol(-scale2,i,j);
-          }
-        }
-      }
-    }
+    m2._xdim=maxX;
     
-    m2._inverse=iden;
-    if(nDiag.length===0){
-    	iden._inverse=m2;
-    }
-    m2._invertT=idenT;
-    m2._nullDiag=nDiag;
-    //console.log(cop);
-  }
-  return {
-  "inverse":m2._inverse,
-  "inverseT":m2._invertT,
-  "nullDiag":m2._nullDiag
-  };
-};
-
-m2.multiply=function(n2){
-   n2=VectorLib.Matrix(n2);
-   if(m2._xdim!=n2._ydim){
-   		throw "cannot multiply matrices of incompatible dimensions:(" + m2._xdim + "x" + m2._ydim + ") vs (" + n2._xdim + "x" + n2._ydim + ") " + m2._xdim + "!=" +n2._ydim;
-   }
-   var res=[];
-   res.length=m2._ydim;
-   for(var y=0;y<m2._ydim;y++){
-   		var rv=m2._arr[y];
-      res[y]=[];
-      res[y].length=n2._xdim;
-      
-      for(var x=0;x<n2._xdim;x++){
-      	var s=0;
-      	
-        //actual dot
-        for(var i=0;i<rv.length;i++){
-      		s+=rv[i]*n2._arr[i][x];
-      	}
-        if(!res[y]){
-        	res[y]=[s];
-        }else{
-        	res[y][x]=s;
-        }
+    m2.scale=function(s){
+    	var res2= m2._arr.map(v=>v.map(c=>c*s));
+      return VectorLib.Matrix(res2);
+    };
+    
+    //this mutates, which isn't usually what we want
+    m2.addScaleRow=function(s, r1,r2){
+    	var row1=m2._arr[r1];
+      var row2=m2._arr[r2];
+      for(var i=0;i<row2.length;i++){
+      	row2[i]=row2[i]+s*row1[i];
       }
-   }
-   return VectorLib.Matrix(res);
-};
-
-m2.nullSpace=function(){
-	var pInv=m2.inverseP(true);
-  var vv= pInv.nullDiag.map(d=>{
-  	var dv=VectorLib.unitVector(d).resize(m2._xdim);
-    //console.log(dv);
-  	return pInv.inverseT.multiply(dv).asVector().normalized();
-  });
-  for(var i=1;i<vv.length;i++){
-  	for(var j=0;j<i;j++){
-    	vv[i]=vv[i].factorOut(vv[j]);
-    }
-    vv[i]=vv[i].normalized();
-  }
-  return vv;
-};
-
-m2.eigendecompose=function(){
-   if(m2._xdim!=m2._ydim){
-   		throw "cannot decompose non-square matrix";
-   }
-   var matPow=[m2];
-   
-   var eigVec=[];
-   var eigVal=[];
-   
-   var nsp=m2.nullSpace();
-   
-   
-   for(var kk=0;kk<m2._ydim-nsp.length;kk++){
-   	 var rrvec=null;
-     var regen=true;
-     var ui=0;
-     var prev=0;
-     var pmag=0;
-     
-     while(regen){
-     	 regen=false;
-     	 rrvec=VectorLib.randomVector(m2._xdim);
-       for(var jj=0;jj<eigVec.length;jj++){
-          var eVec=eigVec[jj];
-          rrvec=rrvec.factorOut(eVec);
-          if(rrvec.norm()<1E-7){
-            regen=true;
-            ui++;
-            if(ui===m2._xdim){
-            	throw "Trouble finding eigenvector";
+      return m2;
+    };
+    m2.addScaleCol=function(s, c1,c2){
+    	var col1=m2._arr.map(r=>r[c1]);
+      var col2=m2._arr.map(r=>r[c2]);
+      for(var i=0;i<col1.length;i++){
+      	m2._arr[i][c2]=m2._arr[i][c2]+s*m2._arr[i][c1];
+      }
+      return m2;
+    };
+    //this mutates, which isn't usually what we want
+    m2.scaleRow=function(s, r1){
+    	var row1=m2._arr[r1];
+      for(var i=0;i<row1.length;i++){
+      	row1[i]=s*row1[i];
+      }
+      return m2;
+    };
+    //this mutates, which isn't usually what we want
+    m2.swapRows=function(r1,r2){
+    	var row1=m2._arr[r1];
+      var row2=m2._arr[r2];
+      m2._arr[r1]=row2;
+      m2._arr[r2]=row1;
+      
+      return m2;
+    };
+    m2.transpose=function(){
+    	if(!m2._transpose){
+      	var arr2=[];
+        for(var i=0;i<m2._xdim;i++){
+        	for(var j=0;j<m2._ydim;j++){
+          	if(!arr2[i]){
+          		arr2[i]=[];
+          	}
+          	arr2[i][j]=m2._arr[j][i];
+        	}	
+        }
+        m2._transpose=VectorLib.Matrix(arr2);
+        m2._transpose._transpose=m2;
+      }
+      return m2._transpose;
+    };
+    
+    m2.clone=function(){
+    	var m2clone= VectorLib.Matrix(m2._arr.map(a=>a.map(b=>b)));
+      if(m2._inverse){
+        //may need to clone
+      	m2clone._inverse=m2._inverse;
+      }
+      return m2clone;
+    };
+    m2.asVector=function(){
+    	if(m2._ydim===1){
+      	return m2.transpose().asVector(); 
+      }else if(m2._xdim===1){
+      	return VectorLib.Vector(m2._arr);
+      }
+      throw "can only make vectors out of 1xn and nx1 matrices";
+    
+    };
+    //010
+    //000
+    //100
+    m2.inverse=function(){
+    	return m2.inverseP(false).inverse;
+    };
+    m2.inverseP=function(b){
+    
+    	if(!m2._inverse){
+        var nDiag=[];
+      	if(m2._xdim!==m2._ydim){
+        	throw "Cannot invert non-square matrix!";
+        }
+        var cop=m2.clone();
+        var iden = VectorLib.identityMatrix(m2._xdim);
+        var idenT = VectorLib.identityMatrix(m2._xdim);
+    		for (var i=0;i<m2._xdim;i++){
+          //only works if non-zero!!!
+          var found=false;
+          var nn=0.0;
+          for(var k=i;k<m2._xdim;k++){
+          	nn=cop._arr[k][i];
+            if(Math.abs(nn)>VectorLib.ZERO_TOLERANCE){
+          		found=true;
+              if(k!==i){
+              	cop.swapRows(i,k);
+                iden.swapRows(i,k);
+              }
+              break;
             }
-            break;
-          }else if(rrvec.norm()<1E-3){
-            rrvec=rrvec.normalized();
+          }
+          if(!found){
+            if(!b)throw "Matrix is not invertible";
+          	nDiag.push(i);
+          }else{
+        		var scale=1/nn;
+          	cop.scaleRow(scale,i);
+          	//console.log(cop.clone()._arr);
+          	iden.scaleRow(scale,i);
+          	for (var j=i+1;j<m2._xdim;j++){
+          		var scale2=cop._arr[j][i];
+            	cop.addScaleRow(-scale2,i,j);
+            	iden.addScaleRow(-scale2,i,j);
+          	}
+          }
+        }
+        for (var i=m2._xdim-1;i>0;i--){
+        	if(nDiag.indexOf(i)<0){
+            for (var j=i-1;j>=0;j--){
+              var scale2=cop._arr[j][i];
+              cop.addScaleRow(-scale2,i,j);
+              iden.addScaleRow(-scale2,i,j);
+            }
+          }
+        }
+        if(nDiag.length>0){
+          for (var i=0;i<m2._xdim;i++){
+            if(nDiag.indexOf(i)<0){
+              for (var j=i+1;j<m2._xdim;j++){
+                var scale2=cop._arr[i][j];
+                cop.addScaleCol(-scale2,i,j);
+                idenT.addScaleCol(-scale2,i,j);
+              }
+            }
+          }
+        }
+        
+        m2._inverse=iden;
+        if(nDiag.length===0){
+        	iden._inverse=m2;
+        }
+        m2._invertT=idenT;
+        m2._nullDiag=nDiag;
+        //console.log(cop);
+      }
+      return {
+      "inverse":m2._inverse,
+      "inverseT":m2._invertT,
+      "nullDiag":m2._nullDiag
+      };
+    };
+    
+    m2.multiply=function(n2){
+       n2=VectorLib.Matrix(n2);
+       if(m2._xdim!=n2._ydim){
+       		throw "cannot multiply matrices of incompatible dimensions:(" + m2._xdim + "x" + m2._ydim + ") vs (" + n2._xdim + "x" + n2._ydim + ") " + m2._xdim + "!=" +n2._ydim;
+       }
+       var res=[];
+       res.length=m2._ydim;
+       for(var y=0;y<m2._ydim;y++){
+       		var rv=m2._arr[y];
+          res[y]=[];
+          res[y].length=n2._xdim;
+          
+          for(var x=0;x<n2._xdim;x++){
+          	var s=0;
+          	
+            //actual dot
+            for(var i=0;i<rv.length;i++){
+          		s+=rv[i]*n2._arr[i][x];
+          	}
+            if(!res[y]){
+            	res[y]=[s];
+            }else{
+            	res[y][x]=s;
+            }
           }
        }
-     }
-     
-     var rv=rrvec.resize(m2._xdim).asColumnMatrix();
-     var MAX=10;
-     for(var i=1;i<MAX;i++){
-        if(!matPow[i]){
-          matPow[i] = m2.multiply(matPow[i-1]);
-        }	
-        var nr = matPow[i].multiply(rv);
-        var asVec=nr.asVector();
-        
-        for(var jj=0;jj<eigVec.length;jj++){
-          var eVec=eigVec[jj];
-          asVec=asVec.factorOut(eVec);
+       return VectorLib.Matrix(res);
+    };
+    
+    m2.nullSpace=function(){
+    	var pInv=m2.inverseP(true);
+      var vv= pInv.nullDiag.map(d=>{
+      	var dv=VectorLib.unitVector(d).resize(m2._xdim);
+        //console.log(dv);
+      	return pInv.inverseT.multiply(dv).asVector().normalized();
+      });
+      for(var i=1;i<vv.length;i++){
+      	for(var j=0;j<i;j++){
+        	vv[i]=vv[i].factorOut(vv[j]);
         }
-        
-        
-        //console.log(asVec);
-        var vmag= asVec.norm();
-
-        if(pmag){
-          var rat = vmag/pmag;
-          var worked=false;
-          //console.log(rat + " vs " + prev);
-          if(Math.abs(rat-prev)<VectorLib.ZERO_TOLERANCE){
-            worked=true;
-          }else{
-          	if(i===MAX-1){
-            	worked=true;
-            }else{
-            	prev=rat;
+        vv[i]=vv[i].normalized();
+      }
+      return vv;
+    };
+    
+    m2.eigendecompose=function(){
+       if(m2._xdim!=m2._ydim){
+       		throw "cannot decompose non-square matrix";
+       }
+       var matPow=[m2];
+       
+       var eigVec=[];
+       var eigVal=[];
+       
+       var nsp=m2.nullSpace();
+       
+       
+       for(var kk=0;kk<m2._ydim-nsp.length;kk++){
+       	 var rrvec=null;
+         var regen=true;
+         var ui=0;
+         var prev=0;
+         var pmag=0;
+         
+         while(regen){
+         	 regen=false;
+         	 rrvec=VectorLib.randomVector(m2._xdim);
+           for(var jj=0;jj<eigVec.length;jj++){
+              var eVec=eigVec[jj];
+              rrvec=rrvec.factorOut(eVec);
+              if(rrvec.norm()<1E-7){
+                regen=true;
+                ui++;
+                if(ui===m2._xdim){
+                	throw "Trouble finding eigenvector";
+                }
+                break;
+              }else if(rrvec.norm()<1E-3){
+                rrvec=rrvec.normalized();
+              }
+           }
+         }
+         
+         var rv=rrvec.resize(m2._xdim).asColumnMatrix();
+         var MAX=10;
+         for(var i=1;i<MAX;i++){
+            if(!matPow[i]){
+              matPow[i] = m2.multiply(matPow[i-1]);
+            }	
+            var nr = matPow[i].multiply(rv);
+            var asVec=nr.asVector();
+            
+            for(var jj=0;jj<eigVec.length;jj++){
+              var eVec=eigVec[jj];
+              asVec=asVec.factorOut(eVec);
             }
-          }
-          if(worked){
-              var nEig=asVec.normalized();
-              var m2M=m2.multiply(nEig).asVector();
-              var lam=m2M.dot(nEig);
-              
-              eigVal.push(lam);
-              eigVec.push(nEig);
-            	break;
-          }
-        }
-        //rv=nr;
-        pmag=vmag;
-     }
-   }
-   nsp.map(nsv=>eigVec.push(nsv));
-   nsp.map(nsv=>eigVal.push(0));
-   
-   
-   return {
-   		"eVectors":eigVec,
-      "eValues":eigVal
-   };
-
-};
-
-return m2;
+            
+            
+            //console.log(asVec);
+            var vmag= asVec.norm();
+    
+            if(pmag){
+              var rat = vmag/pmag;
+              var worked=false;
+              //console.log(rat + " vs " + prev);
+              if(Math.abs(rat-prev)<VectorLib.ZERO_TOLERANCE){
+                worked=true;
+              }else{
+              	if(i===MAX-1){
+                	worked=true;
+                }else{
+                	prev=rat;
+                }
+              }
+              if(worked){
+                  var nEig=asVec.normalized();
+                  var m2M=m2.multiply(nEig).asVector();
+                  var lam=m2M.dot(nEig);
+                  
+                  eigVal.push(lam);
+                  eigVec.push(nEig);
+                	break;
+              }
+            }
+            //rv=nr;
+            pmag=vmag;
+         }
+       }
+       nsp.map(nsv=>eigVec.push(nsv));
+       nsp.map(nsv=>eigVal.push(0));
+       
+       
+       return {
+       		"eVectors":eigVec,
+          "eValues":eigVal
+       };
+    
+    };
+    
+    return m2;
 
 };
 
@@ -802,14 +890,20 @@ VectorLib.MetricSpace=function(){
     }
     return maxIndex;
   };
+  //find the index of the item
+  //with the smallest sum of
+  //squared distances to all
+  //other items
   ret.centroid=function(){
   	var minI=-1;
     var minSumSq=-1;
     for(var i=0;i<ret._count;i++){
     	var sqD=0;
     	for(var j=0;j<ret._count;j++){
-      	var d=ret.distance(i,j);
-        sqD+=d*d;
+        if(j!==i){
+      	  var d=ret.distance(i,j);
+          sqD+=d*d;
+        }
       }
       if(sqD<minSumSq || minSumSq<0){
     		minSumSq=sqD;
@@ -833,6 +927,7 @@ VectorLib.MetricSpace=function(){
     }
     return sumSqDiff;
   };
+  
   ret.embed=function(){
   	return VectorLib.embed(ret);
   };
