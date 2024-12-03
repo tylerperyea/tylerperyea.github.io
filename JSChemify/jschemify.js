@@ -2680,6 +2680,7 @@ JSChemify.Chemical = function(arg){
            pthIndex++;
            sgroupStart=true;
         }
+        closedRings=[];
         startAtom.$allPathsDepthFirst((path)=>{
              let nnbondIdx=path[path.length-1].bond.getIndexInParent();
              if(got[nnbondIdx]){
@@ -2708,7 +2709,11 @@ JSChemify.Chemical = function(arg){
                 }
                 pthIndex++;  
              }
-           
+
+             var newAtom = path[path.length-1];
+             if(closedRings.findIndex(cr=>cr.bond ===newAtom.bond)>=0){
+                  return true;
+             }
            
              var atom1=path[path.length-2].atom;
              gotAtoms[atom1.getIndexInParent()]=true;
@@ -2735,6 +2740,16 @@ JSChemify.Chemical = function(arg){
                bond.setCoordinatesFromPathNotation(pth,[startDx,startDy],datom);
              }
              got[path[path.length-1].bond.getIndexInParent()]=true;
+
+
+
+               
+               var rindx=path.findIndex(pa=>pa.atom===newAtom.atom);
+               if(rindx<path.length-1){
+                  closedRings.push(newAtom);
+                  return true;
+               }
+           
             });
         if(pn[pthIndex] && pn[pthIndex][0][0]==="]"){
            let brack= pn[pthIndex][0];
@@ -2825,8 +2840,11 @@ JSChemify.Chemical = function(arg){
         let comp={};
         gotAtoms[startAtom.getIndexInParent()]=true;
         comp[startAtom.getIndexInParent()]=true;
+        closedRings=[];
         startAtom.$allPathsDepthFirst((path)=>{
+           
            let nnbondIdx=path[path.length-1].bond.getIndexInParent();
+           
            if(got[nnbondIdx]){
              return true;
            } 
@@ -2845,6 +2863,12 @@ JSChemify.Chemical = function(arg){
            var atom1=path[path.length-2].atom;
            gotAtoms[atom1.getIndexInParent()]=true;
            comp[atom1.getIndexInParent()]=true;
+
+           
+           var newAtom = path[path.length-1];
+           if(closedRings.findIndex(cr=>cr.bond ===newAtom.bond)>=0){
+                return true;
+           }
            
            if(path.length>2){
              var atom2=path[path.length-1].atom;
@@ -2859,6 +2883,13 @@ JSChemify.Chemical = function(arg){
              dpath.push(nn);
            }
            got[path[path.length-1].bond.getIndexInParent()]=true;
+
+          
+            var rindx=path.findIndex(pa=>pa.atom===newAtom.atom);
+            if(rindx<path.length-1){
+               closedRings.push(newAtom);
+               return true;
+            }
         });
 
         let sgroups =ret.getSGroups()
@@ -4312,6 +4343,7 @@ M  SCN  2   1 HT    2 HT
           atomsGot[i]=false;
       }
       while(startAtom){
+         
         if(startAtom.getBondCount()<1){
                     chain.push({"atom":startAtom});
         }else{
@@ -4319,7 +4351,6 @@ M  SCN  2   1 HT    2 HT
           var startTime=true;
            var branchStarts=[];
            startAtom.$allPathsDepthFirst((p,type)=>{
-           
              var prevAtom = p[p.length-2];
              var newAtom = p[p.length-1];
              if(startTime){
@@ -7938,7 +7969,7 @@ JSChemify.Tests=function(){
       ret.assertEquals(4,sgroup.getAtoms().length);
   });
   ret.tests.push(()=>{
-      let input="C1(=C(N(CCC(CC(CC(=O)O)O)O)C(=C(1)C2(C=CC=CC=2))C2(C=CC(=CC=2)F))C(C)C)C(NC1(C=CC=CC=1))=O R10m80L5RL7RLRLRRLRHRHL5L5L5R9RLLRRRRRLR13LRRRRRR5LRRRRRL5R7R7L7";
+      let input="C2(=O)(N1(C(C(SC(H)(1)C(NC(CCCC(C(=O)O)N)=O)2)(C)C)C(O)=O)) L3m80Fm80L11.3m94R5.8M94RR4M60L4m60HR4m60Fm60FWR12LRLRLLRRWRR4L24L5LHRL7M90L3m80";
       let c = JSChemify.Chemical(input);
       let c2=JSChemify.Chemical(c.toMol());
       let smipp=c2.toSmilesPP();
