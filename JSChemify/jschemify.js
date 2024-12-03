@@ -2397,6 +2397,19 @@ JSChemify.Chemical = function(arg){
           nchem.addBond(nbd);
 
         });
+     ret.getSGroups()
+        .map(sg=>{
+            let cln = sg.clone();
+           
+            cln.setAtoms(cln.getAtoms().map(a=>bds[a.getIndexInParent()]));
+            cln.setDisplayAtoms(cln.getDisplayAtoms().map(a=>bds[a.getIndexInParent()]));
+            let cbonds=cln.getCrossBonds().map(b=>nchem.getBond(b.getIndexInParent()));
+            cln.setCrossBonds(cbonds);
+            cln.setParent(nchem);
+            nchem.addSGroup(cln);
+           
+        })
+        
      nchem.setAnnotations(ret.getAnnotations());
            
      return nchem;
@@ -4503,6 +4516,24 @@ JSChemify.SGroup=function(){
    ret._bracket2=null;
    ret._parent=null;
 
+   ret.clone=function(){
+      let clone=JSChemify.SGroup();
+      clone._chemType= ret._chemType;
+      clone._type= ret._type;
+      clone._atoms= ret._atoms;
+      clone._crossBonds= ret._crossBonds;
+      clone._connectivity= ret._connectivity;
+      clone._displayAtoms= ret._displayAtoms;
+      clone._label= ret._label;
+      clone._bracket1= ret._bracket1;
+      clone._bracket2= ret._bracket2;
+      clone._parent= ret._parent;
+      return clone;
+   };
+   ret.setCrossBonds=function(bds){
+      ret._crossBonds=bds;
+      return ret;
+   };
    ret.addCrossBond=function(cb){
       if(!ret._crossBonds){
          ret._crossBonds=[];
@@ -4640,6 +4671,10 @@ JSChemify.SGroup=function(){
       if(ats.length===dats.length)return [];
       let hide= ats.filter(aa=>dats.indexOf(aa)<0);
       return hide;
+   };
+   ret.setDisplayAtoms=function(ats){
+      ret._displayAtoms=ats;
+      return ret;
    };
    ret.getDisplayAtoms=function(){
       if(!ret._displayAtoms){
