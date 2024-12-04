@@ -42,7 +42,8 @@ VectorLib.identityMatrix=function(n){
 //TODO: Should this be a property of a metric?
 //probably.
 //embed metric space into euclidean space
-VectorLib.embed = function(met){
+VectorLib.embed = function(met, allowImag){
+  
   var pts=[];
   var nullDims=[];
   //first thing is probably to find highest variance
@@ -69,29 +70,62 @@ VectorLib.embed = function(met){
     //TODO
     var vb=[];
   	for(var j=1;j<i;j++){
+
+      //each projection along the origin->i->j triangle
     	var jp=VectorLib.proj(pd,met.distance(0,j),met.distance(j,i));
-      
+
+
+      //x-axis
       if(j==1){
       	vb.push(jp);
         continue;
       }
-      if(Math.abs(pts[j]._arr[j-1])<=VectorLib.ZERO_TOLERANCE){
+      //Every time we add a new point, we invent a new dimension
+      //So, on the 0th point we invented the origin
+      //on the 1st point, we invented the x-axis (dim=0)
+      //on the 2nd point, we invented the y-axis (dim=1)
+      //If we look back on the jth point and see that its
+      //new dimension (j-1) has 0 mag, that means all future
+      //things will also have 0 mag there
+      
+      if(pts[j]._arr[j-1].mag()<=VectorLib.ZERO_TOLERANCE){
       	vb.push(0);
         continue;
       }
+
+      //Get the "inventor" vector for this j dimension
+      //normalize it, and scale to the projection
+      //amount found for the new point
+      //this is the projection vector
       var pv=pts[j].normalized().scale(jp);
+
+      //find the set of vectors which are
+      //orthogonal to that vector
       var o = pts[j].orthoBasis();
-      
+
+      //the null space is really the
+      //same as the ortho basis, just
+      //as a set of row vectors
+      //I don't remember why an inverse
+      //makes sense. But the null space
+      //shouldn't be square ...
       var mm=pts[j].nullSpace().inverse();
       
       
       var yV=pv.negate().add(vb).slice(j-1);
+		
       var solved=mm.multiply(yV);
+		
       var np=pv._arr[j-1];
       
       for(var k=0;k<o.length;k++){
-      	np+=o[k]._arr[o[k].dim()-1]*solved._arr[k];
+        //add the solved fraction of each orthogonal vector
+        //to the total
+	      
+	      let t=o[k]._arr[o[k].dim()-1].multiply(solved._arr[k][0]);
+      	np=np.add(t);
       }
+		
       vb.push(np);
     }
     vb=VectorLib.Vector(vb);
@@ -104,10 +138,17 @@ VectorLib.embed = function(met){
     //may be possible to implement well, but would
     //need a better version of vectors which
     //would be complex
-    if(dd<=VectorLib.ZERO_TOLERANCE){
+    
+    let ddsr=Math.sqrt(Math.abs(dd));
+    if(ddsr<=VectorLib.ZERO_TOLERANCE || (!allowImag && dd<0) ){
     	nullDims.push(i-1);
     }
-    vb._arr[i-1]=Math.sqrt(Math.max(0,dd));
+    vb._arr[i-1]=ddsr;
+    if(allowImag && dd<0){
+      //imaginary dimension
+      vb._arr[i-1]=VectorLib.ComplexNumber(0,ddsr);
+    }
+    
     pts[i]=VectorLib.Vector(vb._arr);
   }
   var keep=[];
@@ -133,40 +174,66 @@ VectorLib.Number=function(nn){
     if(nn && nn._isNumber)return nn;
     let ret={};
     ret._isNumber=true;
+    ret._priority=0;
     ret.a=(Number.isFinite(nn))?nn-0:0;
 
     //interface needs
     //all should return new numbers
     ret.make=function(raw){
-	return VectorLib.Number(raw);
+	      return VectorLib.Number(raw);
     };
     ret.add=function(n){
-        return ret.make(ret.make(n).a + ret.a);
+        let nn=ret.make(n);
+        if(nn._priority>ret._priority) return nn.add(ret);
+        return ret.make(nn.a + ret.a);
     };
     ret.multiply=function(n){
-        return ret.make(ret.make(n).a * ret.a);
+        let nn=ret.make(n);
+        if(nn._priority>ret._priority) return nn.multiply(ret);
+        return ret.make(nn.a * ret.a);
     };
     ret.inverse=function(){
-	return ret.make(1/ret.a);
+	    return ret.make(1/ret.a);
     };
     ret.scale=function(s){
-	return ret.make(s*ret.a);
+	    return ret.make(s*ret.a);
     };
     ret.sqMag=function(){
-	return ret.a*ret.a;
+	    return ret.a*ret.a;
     };
     ret.toString=function(){
-	return a + "";
+	    return ret.a + "";
     };
 
     ret.mag=function(){
-	return Math.sqrt(ret.sqMag());
+	    return Math.sqrt(ret.sqMag());
     };
     ret.subtract=function(nm2){
+      let nn=ret.make(nm2);
       return ret.add(nm2.negate());
     };
     ret.negate=function(){
       return ret.scale(-1);
+    };
+
+    ret.pow=function(n){
+      let pro=ret;
+      for(let i=1;i<n;i++){
+        pro=pro.multiply(ret);
+      }
+      return pro;
+    };
+    ret.max=function(o){
+      if(ret.mag()>o.mag()){
+        return ret;
+      }
+      return o;
+    };
+    ret.min=function(o){
+      if(ret.mag()>=o.mag()){
+        return o;
+      }
+      return ret;
     };
   
     return ret;
@@ -182,6 +249,8 @@ STATUS: In Progresss
 VectorLib.ComplexNumber=function(r,i){
     if(r && r._isComplex)return r;
   	let ret=VectorLib.Number();
+    ret._priority=1;
+    ret._isComplex=true;
     ret.a=r;
     ret.b=(Number.isFinite(i-0))?i-0:0;
     ret.make=function(raw){
@@ -197,9 +266,9 @@ VectorLib.ComplexNumber=function(r,i){
           let comp=raw.split(" ");
           return VectorLib.ComplexNumber(comp[0]-0,comp[1].substr(0,comp[1].length-1)-0);
         }
-	if(raw && Number.isFinite(raw)){
-	  return VectorLib.ComplexNumber(raw-0,0); 
-	}
+	      if(raw && Number.isFinite(raw)){
+	          return VectorLib.ComplexNumber(raw-0,0); 
+	      }
         
         return VectorLib.ComplexNumber(raw);
     };
@@ -270,7 +339,7 @@ VectorLib.Vector=function(v){
     if(v && v._isVector)return v;
     var v2={};
     v2._isVector=true;
-    v2._arr=v;
+    v2._arr=v.map(vv=>VectorLib.Number(vv));
     v2._sqNorm=null;
     v2._norm=null;
     v2._normalized=null;
@@ -278,8 +347,8 @@ VectorLib.Vector=function(v){
     
     v2.sqNorm=function(){
     	if(v2._sqNorm===null){
-      	v2._sqNorm = v2._arr.map(x=>x*x)
-                            .reduce((a,b)=>a+b);
+      	v2._sqNorm = v2._arr.map(x=>x.multiply(x))
+                            .reduce((a,b)=>a.add(b));
       }
       return v2._sqNorm;
     };
@@ -288,19 +357,19 @@ VectorLib.Vector=function(v){
     };
     v2.norm=function(){
     	if(v2._norm===null){
-      	v2._norm= Math.sqrt(v2.sqNorm());
+      	v2._norm= Math.sqrt(v2.sqNorm().mag());
       }
       return v2._norm;
     };
     
     v2.lNnorm=function(n){
-      var sum=v2._arr.map(x=>Math.pow(x,n))
-      								.reduce((a,b)=>a+b);
+      var sum=v2._arr.map(x=>x.pow(n))
+      		           .reduce((a,b)=>a.add(b)).mag();
       return Math.pow(sum, 1.0/(n));
     };
     v2.lInfNorm=function(n){
-      var sum=v2._arr.map(x=>Math.abs(x))
-      								.reduce((a,b)=>Math.max(a,b));
+      var sum=v2._arr.map(x=>x.mag())
+      		           .reduce((a,b)=>a.max(b)).mag();
       return sum;
     };
     
@@ -313,16 +382,16 @@ VectorLib.Vector=function(v){
     };
     v2.dot=function(u2){
     	u2 = VectorLib.Vector(u2);
-      var ba=0;
+      var ba=VectorLib.Number(0);
       var img=0;
       for(var i=0;i<Math.min(v2.dim(),u2.dim());i++){
-      	ba+=v2._arr[i]*u2._arr[i];
+      	ba=ba.add(v2._arr[i].multiply(u2._arr[i]));
       }
       return ba;
     };
     v2.addTo=function(arr){
     	if(arr.length>=v2._arr.length){
-      	v2._arr.map((x,i)=>arr[i]+=x);
+      	v2._arr.map((x,i)=>arr[i]=arr[i].add(x));
       }else{
       	throw "Cannot add vector to smaller array";
       }
@@ -341,7 +410,7 @@ VectorLib.Vector=function(v){
     	if(n===v2._arr.length)return v2;
       var b=v2._arr.clone();
       b.length=n;
-      b.fill(0, Math.min(b.length,v2._arr.length),b.length);
+      b.fill(VectorLib.Number(0), Math.min(b.length,v2._arr.length),b.length);
     	return VectorLib.Vector(b);
     };
     //eliminates some dims
@@ -349,14 +418,15 @@ VectorLib.Vector=function(v){
     	var narr=v2._arr.filter((a,i)=>keep[i]>0);
       return VectorLib.Vector(narr);
     };
-    v2.scale=function(k){
+    v2.scale=function(k2){
     	var ba=[];
+      let k=VectorLib.Number(k2);
       for(var i=0;i<v2.dim();i++){
-      	ba[i]=k*v2._arr[i];
+      	ba[i]=v2._arr[i].multiply(k);
       }
       var s= VectorLib.Vector(ba);
-      if(v2._norm>=0)s._norm=v2._norm*Math.abs(k);
-      if(v2._sqNorm>=0)s._sqNorm=v2._sqNorm*k*k;
+      if(v2._norm!==null)s._norm=v2._norm*k.mag();
+      if(v2._sqNorm!==null)s._sqNorm=v2._sqNorm*k.sqMag();
       
       return s;
     };
@@ -370,7 +440,7 @@ VectorLib.Vector=function(v){
       return v2._normalized;
     };
     v2.negate=function(){
-    	var u2=v2._arr.map(x=>-1*x);
+    	var u2=v2._arr.map(x=>x.negate());
     	u2 = VectorLib.Vector(u2);
       u2._norm=v2._norm;
       u2._sqNorm=v2._sqNorm;
@@ -385,7 +455,7 @@ VectorLib.Vector=function(v){
       
       for(var i=0;i<maxlen;i++){
       	if(i<minlen){
-        	bb[i]=v2._arr[i]-(-u2._arr[i]);
+        	bb[i]=v2._arr[i].add(u2._arr[i]);
         }else{
         	if(i>=v2.dim()){
           	bb[i]=u2._arr[i];
@@ -465,7 +535,7 @@ VectorLib.Matrix=function(m){
     }
     var m2={};
     m2._isMatrix=true;
-    m2._arr=m;
+    m2._arr=m.map(r=>r.map(rr=>VectorLib.Number(rr)));
     m2._inverse=null;
     m2._ydim=m2._arr.length;
     m2._transpose=null;
@@ -489,16 +559,16 @@ VectorLib.Matrix=function(m){
     m2._xdim=maxX;
     
     m2.scale=function(s){
-    	var res2= m2._arr.map(v=>v.map(c=>c*s));
+    	var res2= m2._arr.map(v=>v.map(c=>c.scale(s)));
       return VectorLib.Matrix(res2);
     };
     
     //this mutates, which isn't usually what we want
-    m2.addScaleRow=function(s, r1,r2){
+    m2.addScaleRow=function(s, r1, r2){
     	var row1=m2._arr[r1];
       var row2=m2._arr[r2];
       for(var i=0;i<row2.length;i++){
-      	row2[i]=row2[i]+s*row1[i];
+      	row2[i]=row2[i].add(row1[i].scale(s));
       }
       return m2;
     };
@@ -506,7 +576,7 @@ VectorLib.Matrix=function(m){
     	var col1=m2._arr.map(r=>r[c1]);
       var col2=m2._arr.map(r=>r[c2]);
       for(var i=0;i<col1.length;i++){
-      	m2._arr[i][c2]=m2._arr[i][c2]+s*m2._arr[i][c1];
+      	m2._arr[i][c2]=m2._arr[i][c2].add(m2._arr[i][c1].scale(s));
       }
       return m2;
     };
@@ -514,7 +584,7 @@ VectorLib.Matrix=function(m){
     m2.scaleRow=function(s, r1){
     	var row1=m2._arr[r1];
       for(var i=0;i<row1.length;i++){
-      	row1[i]=s*row1[i];
+      	row1[i]=row1[i].scale(s);
       }
       return m2;
     };
@@ -583,7 +653,7 @@ VectorLib.Matrix=function(m){
           var nn=0.0;
           for(var k=i;k<m2._xdim;k++){
           	nn=cop._arr[k][i];
-            if(Math.abs(nn)>VectorLib.ZERO_TOLERANCE){
+            if(nn.sqMag()>VectorLib.ZERO_TOLERANCE*VectorLib.ZERO_TOLERANCE){
           		found=true;
               if(k!==i){
               	cop.swapRows(i,k);
@@ -656,11 +726,11 @@ VectorLib.Matrix=function(m){
           res[y].length=n2._xdim;
           
           for(var x=0;x<n2._xdim;x++){
-          	var s=0;
+          	var s=VectorLib.Number(0);
           	
             //actual dot
             for(var i=0;i<rv.length;i++){
-          		s+=rv[i]*n2._arr[i][x];
+          		s=s.add(rv[i].multiply(n2._arr[i][x]));
           	}
             if(!res[y]){
             	res[y]=[s];
@@ -936,8 +1006,8 @@ VectorLib.MetricSpace=function(){
     return sumSqDiff;
   };
   
-  ret.embed=function(){
-  	return VectorLib.embed(ret);
+  ret.embed=function(imag){
+  	return VectorLib.embed(ret,imag);
   };
   
   return ret;
@@ -1044,6 +1114,10 @@ VectorLib.Tests=function(){
     ret.assertEquals=function(a,b){
         if(a!==b) throw ("Assertion error:" + a + "!=" + b);
     };
+    ret.assertTrue=function(a,msg){
+        if(!msg) msg= a + " is not true";
+        if(!a) throw ("Assertion error:" + msg);
+    };
     ret.Test=function(ff,name){
       if(name && typeof name === "function"){
         let nm=ff;
@@ -1081,6 +1155,45 @@ VectorLib.Tests=function(){
       });
       let embed=ospace.embed();
       ret.assertEquals(0,embed.strain(ospace));
+      
+    });
+
+    ret.addTest("Embedding a real 10-D euclidiean metric should have no strain", ()=>{
+		    
+		    let ospace= VectorLib.TestMetrics().randomL2Metric(10,10);
+	      let embed=ospace.embed();
+	      let strain=embed.strain(ospace);
+	      console.log(embed);
+	      console.log(strain);
+	      ret.assertTrue(strain<VectorLib.ZERO_TOLERANCE);
+    });
+    ret.addTest("Embedding a real 10-D euclidiean metric with 20 points should be at most 12-D", ()=>{
+		    
+		    let ospace= VectorLib.TestMetrics().randomL2Metric(10,20);
+	      let embed=ospace.embed();
+        console.log(embed);
+        let ndim=embed._items[0].dim();
+        ret.assertEquals(embed._items.length,20);
+        ret.assertTrue(ndim>=10);
+        ret.assertTrue(ndim<=12);
+        console.log(ndim);
+	      let strain=embed.strain(ospace);
+	      console.log(embed);
+	      console.log(strain);
+	      ret.assertTrue(strain<VectorLib.ZERO_TOLERANCE);
+    });
+
+    ret.addTest("Embedded Linfinite Norm of 4 points should have no strain if using imaginary", ()=>{
+      let ospace= VectorLib.MetricSpace()
+                .setItems([[0,0],[2,1],[1,2],[1,1]])
+                .setDistance((a,b)=>{
+          return a.map((aa,i)=>Math.abs(b[i]-a[i])).reduce((x,y)=>Math.max(x,y));
+      });
+      let embed=ospace.embed(true);
+      let strain=embed.strain(ospace);
+      console.log(embed);
+      console.log(strain);
+      ret.assertEquals(0,strain);
       
     });
   
