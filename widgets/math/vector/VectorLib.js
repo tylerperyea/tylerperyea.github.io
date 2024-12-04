@@ -42,7 +42,8 @@ VectorLib.identityMatrix=function(n){
 //TODO: Should this be a property of a metric?
 //probably.
 //embed metric space into euclidean space
-VectorLib.embed = function(met){
+VectorLib.embed = function(met, allowImag){
+  
   var pts=[];
   var nullDims=[];
   //first thing is probably to find highest variance
@@ -112,14 +113,19 @@ VectorLib.embed = function(met){
       
       
       var yV=pv.negate().add(vb).slice(j-1);
+		
       var solved=mm.multiply(yV);
+		
       var np=pv._arr[j-1];
       
       for(var k=0;k<o.length;k++){
         //add the solved fraction of each orthogonal vector
         //to the total
-      	np=np.add(o[k]._arr[o[k].dim()-1].multiply(solved._arr[k]));
+	      
+	      let t=o[k]._arr[o[k].dim()-1].multiply(solved._arr[k][0]);
+      	np=np.add(t);
       }
+		
       vb.push(np);
     }
     vb=VectorLib.Vector(vb);
@@ -134,14 +140,12 @@ VectorLib.embed = function(met){
     //would be complex
     
     let ddsr=Math.sqrt(Math.abs(dd));
-    if(ddsr<=VectorLib.ZERO_TOLERANCE){
+    if(ddsr<=VectorLib.ZERO_TOLERANCE || (!allowImag && dd<0) ){
     	nullDims.push(i-1);
-      console.log("bad dim");
     }
     vb._arr[i-1]=ddsr;
-    if(dd<0){
-      console.log("imag");
-      //imaginary
+    if(allowImag && dd<0){
+      //imaginary dimension
       vb._arr[i-1]=VectorLib.ComplexNumber(0,ddsr);
     }
     
@@ -1002,8 +1006,8 @@ VectorLib.MetricSpace=function(){
     return sumSqDiff;
   };
   
-  ret.embed=function(){
-  	return VectorLib.embed(ret);
+  ret.embed=function(imag){
+  	return VectorLib.embed(ret,imag);
   };
   
   return ret;
@@ -1154,17 +1158,42 @@ VectorLib.Tests=function(){
       
     });
 
-    ret.addTest("Embedded Linfinite Norm of 4 points should have some strain", ()=>{
+    ret.addTest("Embedding a real 10-D euclidiean metric should have no strain", ()=>{
+		    
+		    let ospace= VectorLib.TestMetrics().randomL2Metric(10,10);
+	      let embed=ospace.embed();
+	      let strain=embed.strain(ospace);
+	      console.log(embed);
+	      console.log(strain);
+	      ret.assertTrue(strain<VectorLib.ZERO_TOLERANCE);
+    });
+    ret.addTest("Embedding a real 10-D euclidiean metric with 20 points should be at most 12-D", ()=>{
+		    
+		    let ospace= VectorLib.TestMetrics().randomL2Metric(10,20);
+	      let embed=ospace.embed();
+        console.log(embed);
+        let ndim=embed._items[0].dim();
+        ret.assertEquals(embed._items.length,20);
+        ret.assertTrue(ndim>=10);
+        ret.assertTrue(ndim<=12);
+        console.log(ndim);
+	      let strain=embed.strain(ospace);
+	      console.log(embed);
+	      console.log(strain);
+	      ret.assertTrue(strain<VectorLib.ZERO_TOLERANCE);
+    });
+
+    ret.addTest("Embedded Linfinite Norm of 4 points should have no strain if using imaginary", ()=>{
       let ospace= VectorLib.MetricSpace()
                 .setItems([[0,0],[2,1],[1,2],[1,1]])
                 .setDistance((a,b)=>{
           return a.map((aa,i)=>Math.abs(b[i]-a[i])).reduce((x,y)=>Math.max(x,y));
       });
-      let embed=ospace.embed();
+      let embed=ospace.embed(true);
       let strain=embed.strain(ospace);
       console.log(embed);
       console.log(strain);
-      ret.assertTrue(strain>0);
+      ret.assertEquals(0,strain);
       
     });
   
