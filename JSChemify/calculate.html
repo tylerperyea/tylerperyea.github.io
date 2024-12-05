@@ -32,7 +32,7 @@
     function load(){
 	let col=JSChemify.ChemicalCollection()
 		         .fromSmilesFile(document.getElementById("input").value.trim());
-    	document.getElementById("spreadsheet").innerHTML=col.$getTableHTML(10);
+    	document.getElementById("spreadsheet").innerHTML=col.$getTableHTML(20);
 	mcol=col;
     }
     function calculate(){
