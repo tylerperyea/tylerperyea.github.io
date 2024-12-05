@@ -3722,7 +3722,7 @@ JSChemify.Chemical = function(arg){
                   inserts.push({"idx":j, "atoms":inew});
                }
              }
-             append = head.getNeighborAtomsAndBonds()
+             append = tail.getNeighborAtomsAndBonds()
                   .map(na=>na.atom)
                   .filter(na=>ml.indexOf(na)<0);
            }
@@ -3740,20 +3740,20 @@ JSChemify.Chemical = function(arg){
                        .concat(alist);
          })
         .filter(ml=>{
-          if(i<3 || !doCluster){
-            var head = ml[0];
-            var tail = ml[ml.length-1];
-            //deduplication
-            return head.getIndexInParent()<tail.getIndexInParent();
-          }else{
             var canon=ml.map(at=>at.getIndexInParent()).sort().join(",");
-            if(cSet[canon]){
+            var canon2;
+            if(!doCluster){
+               var canon1=ml[0].getIndexInParent()+canon+ml[ml.length-1].getIndexInParent();
+               canon2=ml[ml.length-1].getIndexInParent()+canon+ml[0].getIndexInParent();
+               canon=canon1;
+            }
+            if(cSet[canon] || (canon2 && cSet[canon2])){
                 return false;
             }else{
                 cSet[canon]=true;
+                cSet[canon2]=true;
             }
             return true;
-          }
       });
     }
     
