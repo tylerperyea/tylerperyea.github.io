@@ -6471,6 +6471,8 @@ JSChemify.ChemicalCollection=function(){
          if(!maxRows)maxRows=20;
          maxRows=Math.min(maxRows,ret.getChemicalCount());
          JSChemify.Global[ret.getCollectionID()]=ret;
+         let rowCounts=JSChemify.Util.distinct([maxRows,10,20,50,"All"]);
+         
                
          let topPart=`<div id="` + ret._collectionID + `">
          <div class="jschemify-table-controls">
@@ -6500,12 +6502,9 @@ JSChemify.ChemicalCollection=function(){
          <div>
          <span>
          Display Rows
-         <select id="jschemify-rows-per-page">
-         <option>10</option>
-         <option>20</option>
-         <option>50</option>
-         <option>All</option>
-         </select>
+         <select id="jschemify-rows-per-page">` 
+            + rowCounts.map(rc=>"<option>" + rc + "</option>").join("\n") +
+         `</select>
          Showing <span id="jschemify-display-count">1-` +  maxRows + `</span> of <span id="total">` + ret.getChemicalCount() + `</span>
          <button id="jschemify-page-previous" disabled="">previous</button>
          <button id="jschemify-page-next">next</button></span>
@@ -6716,9 +6715,8 @@ JSChemify.ChemicalCollection=function(){
             ret.clear();
             let inp=$("#jschemify-raw").value.trim();
             ret.fromSmilesFile(inp);
-         
-            refreshTable();
             updateTopSkip(top,0);
+            refreshTable();
       };
       $("#jschemify-structure-type").onchange=()=>{
             let v=$("#jschemify-structure-type").value;
