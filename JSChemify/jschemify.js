@@ -7583,9 +7583,9 @@ JSChemify.Renderer=function(){
                ctx.lineWidth=bondHaloWidth;
                let abonds=Object.keys(annotate.bonds).map(i=>annotate.bonds[i]);
                let minV=(annotate.bondMin||annotate.bondMin===0)?annotate.bondMin:
-                           abonds.reduce((a,b)=>Math.min(a,b));
+                           annotate.bonds.reduce((a,b)=>Math.min(a,b));
                let maxV=(annotate.bondMax||annotate.bondMax===0)?annotate.bondMax:
-                           abonds.reduce((a,b)=>Math.max(a,b));
+                           annotate.bonds.reduce((a,b)=>Math.max(a,b));
                if(maxV-minV>0){
                Object.keys(annotate.bonds)
                      .map((i)=>{
@@ -7615,9 +7615,9 @@ JSChemify.Renderer=function(){
                let ostyle=ctx.fillStyle;
                let aatoms=Object.keys(annotate.atoms).map(i=>annotate.atoms[i]);
                let minV=(annotate.atomMin||annotate.atomMin===0)?annotate.atomMin:
-                           abonds.reduce((a,b)=>Math.min(a,b));
+                           annotate.atoms.reduce((a,b)=>Math.min(a,b));
                let maxV=(annotate.atomMax||annotate.atomMax===0)?annotate.atomMax:
-                           abonds.reduce((a,b)=>Math.max(a,b));
+                           annotate.atoms.reduce((a,b)=>Math.max(a,b));
                if(maxV-minV>0){
                Object.keys(annotate.atoms)
                      .map((i)=>{
