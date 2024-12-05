@@ -6468,7 +6468,7 @@ JSChemify.ChemicalCollection=function(){
         return rowHTML;
    };
    ret.$getTableHTML=function(maxRows){
-         if(!maxRows)maxRows=10;
+         if(!maxRows)maxRows=20;
          maxRows=Math.min(maxRows,ret.getChemicalCount());
          JSChemify.Global[ret.getCollectionID()]=ret;
                
@@ -6506,7 +6506,7 @@ JSChemify.ChemicalCollection=function(){
          <option>50</option>
          <option>All</option>
          </select>
-         Showing <span id="jschemify-display-count">1-10</span> of <span id="total">` + ret.getChemicalCount() + `</span>
+         Showing <span id="jschemify-display-count">1-` +  maxRows + `</span> of <span id="total">` + ret.getChemicalCount() + `</span>
          <button id="jschemify-page-previous" disabled="">previous</button>
          <button id="jschemify-page-next">next</button></span>
          
@@ -6716,8 +6716,9 @@ JSChemify.ChemicalCollection=function(){
             ret.clear();
             let inp=$("#jschemify-raw").value.trim();
             ret.fromSmilesFile(inp);
+         
             refreshTable();
-         //TODO: refresh table
+            updateTopSkip(top,0);
       };
       $("#jschemify-structure-type").onchange=()=>{
             let v=$("#jschemify-structure-type").value;
