@@ -6560,8 +6560,7 @@ JSChemify.ChemicalCollection=function(){
       ret._refreshListener();
    };
    ret.$registerEvents=function(){
-       let top=10;
-       let skip=0;
+       
        let download=function(blob, name = 'file.txt'){
         const blobUrl = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -6586,6 +6585,13 @@ JSChemify.ChemicalCollection=function(){
       let nextPageElm=$("#jschemify-page-next");
       let selectCountElm=$("#jschemify-rows-per-page");
       let editRawElm=$("#jschemify-edit");
+
+      
+      let top=$("jschemify-display-count").innerHTML.split("-")[1]-0;
+      let skip=$("jschemify-display-count").innerHTML.split("-")[0]-1;
+
+       
+      
       
       $("#mfile").onchange=(e)=>{
            $("#mfile").style="display:none;"; 
