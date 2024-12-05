@@ -7520,7 +7520,8 @@ JSChemify.Renderer=function(){
          const bwidth=ret._bracketWidth*scale;
          // Set line width
          ctx.lineWidth = scale*ret._lineWidth;  
-               
+
+         const kerning=ret._letterSpace*scale/30;
          const ppoint=[];
          const moveTo=(x,y,color)=>{
           ppoint[0]=[x,y];
@@ -7802,24 +7803,34 @@ JSChemify.Renderer=function(){
               
               if(at.getImplicitHydrogens()>0){
                 const h=at.getImplicitHydrogens();
-                const vec=at.getLeastOccupiedCardinalDirection();
-                nv[0]=nv[0]-vec[0]*ret._letterSpace;
-                nv[1]=nv[1]-vec[1]*ret._letterSpace;
+                let vec=at.getLeastOccupiedCardinalDirection();
+                if(at.getBondCount()===0 && 
+                   (at.getSymbol()==="O" ||
+                    at.getSymbol()==="S" ||
+                    at.getSymbol()==="F" ||
+                    at.getSymbol()==="Br" ||
+                    at.getSymbol()==="Cl" ||
+                    at.getSymbol()==="I"
+                   )){
+                    vec=[1,0];
+                }
+                nv[0]=nv[0]-vec[0]*kerning;
+                nv[1]=nv[1]-vec[1]*kerning;
                 let ntext="H";
                 if(h>1){
                   ntext+=String.fromCodePoint(8320+h);
                   if(vec[0]>0){
-                    nv[0]=nv[0]-vec[0]*ret._letterSpace*0.5;
+                    nv[0]=nv[0]-vec[0]*kerning*0.35;
                   }
                 }
                   
                 if(vec[0]>0){
-                    nv[0]=nv[0]-vec[0]*ret._letterSpace*(0.35*append.length);
+                    nv[0]=nv[0]-vec[0]*kerning*(0.35*append.length);
                     append=[...append].reverse().join("");
                     loc=affine.transform(nv);
                     ctx.fillText(append+ntext,loc[0]-offx,loc[1]-offy);
                 }else{
-                    nv[0]=nv[0]-vec[0]*ret._letterSpace*(0.35*(sym.length-1));
+                    nv[0]=nv[0]-vec[0]*kerning*(0.35*(sym.length-1));
                     loc=affine.transform(nv);
                     ctx.fillText(ntext+append,loc[0]-offx,loc[1]-offy);
                 }
