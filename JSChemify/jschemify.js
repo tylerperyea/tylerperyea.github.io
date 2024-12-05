@@ -6587,8 +6587,8 @@ JSChemify.ChemicalCollection=function(){
       let editRawElm=$("#jschemify-edit");
 
       
-      let top=$("jschemify-display-count").innerHTML.split("-")[1]-0;
-      let skip=$("jschemify-display-count").innerHTML.split("-")[0]-1;
+      let top=pageCountElm.innerHTML.split("-")[1]-0;
+      let skip=pageCountElm.innerHTML.split("-")[0]-1;
 
        
       
