@@ -50,7 +50,7 @@ Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
  2. Coordinates: in-line allenes
  3. [done] charges in render
- 4. Highlight atoms in render
+ 4. [done] Highlight atoms in render
  5. [done] Show atom map numbers in render
  6. [in progress] Add colors to render
  8. [done] Get SVG or PNG directly
@@ -1867,10 +1867,11 @@ JSChemify.Atom = function(aaa){
   
   
   ret.toSmiles=function(){
+    console.log("2smiles");
     var eH=ret.getImplicitHydrogens();
     var ehShow = (eH>1)?eH:"";
     var simpleOkay =ret.getElement().smiles;
-    if(simpleOkay && !ret._isotope && !ret._charge && !ret._map){
+    if(simpleOkay && !ret._isotope && !ret._charge && !ret._map && !ret._parity){
         if(ret.isAromatic()){
           return ret.getSymbol().toLowerCase();
       }
@@ -1884,11 +1885,44 @@ JSChemify.Atom = function(aaa){
     if(chargeStr==="-1")chargeStr="-";
     if(chargeStr==="+1")chargeStr="+";
     if(chargeStr=== "0")chargeStr="";
+
+
+    //the parity stored is the opposite of the parity
+    //expected by smiles if:
+    // 1. There's an implicit hydrogen (this counts as a new atom in
+    //    smiles, but not in the parsing)
+    // 2. There's a ring closing bond (with special exceptions)
+     
+    var parity = ret._parity;
+     if(parity){
+          var swap=1;
+          if(eH>0){
+            swap=swap*-1;
+          }
+          let rbc=ret.getBonds().filter(b=>b.isInRing()).count;
+          //if rbc =0,3, do nothing
+          //if rbc =2, swap
+          if(rbc===2)swap=swap*-1;
+      
+          if(swap<0){
+            if(parity===1)parity=2;
+            else if(parity===2)parity=1;
+          }
+          
+          if(parity-0===1){
+               parity="@";
+          }else if(parity-0===2){
+               parity="@@";
+          }else{
+               parity="";
+          }
+     }
      
     
     var rr= "["
       +((ret._isotope)?(ret._isotope):("")) +
       ret._symbol +
+      ((parity)?(parity):"") +
       ((eH)?("H"+ehShow):"") +
       ((chargeStr)?chargeStr:"") +
       ((ret._map)?(":"+ret._map):"") +
