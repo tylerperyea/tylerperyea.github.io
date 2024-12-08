@@ -1406,18 +1406,79 @@ JSChemify.Atom = function(aaa){
       return ret.getParent().getGraphInvariant()[ret.getIndexInParent()];
   };
 
-  ret.setParityFromStereoBond=function(){
+  ret.setParityFromStereoBond=function(keep){
+    if(ret.getParity()!==0 && keep)return ret;
     //TODO: figure this out. I thnk 
     var neighbors =ret.getNeighborAtomsAndBonds();
-    if(neighbors.length>=3){
-         
+    //start with the 3 case
+    // parity is 1 if there are only
+    // wedges
+    var parity=0;
+    if(neighbors.length===3){
+        parity=1;
+        let allW=[];
+        let allH=[];
+        neighbors.filter(ns=>ns.bond.getAtom1()===ret)
+                 .filter(ns=>ns.bond.getBondStereo()!==0)
+                 .map(ns=>{
+                    var bs=ns.bond.getBondStereo();
+                    if(bs === JSChemify.CONSTANTS.BOND_STEREO_WEDGE){
+                        allW.push(ns);
+                    }else if(bs === JSChemify.CONSTANTS.BOND_STEREO_DASH){
+                        allH.push(ns);
+                    }else{
+                        parity=0;  
+                    }
+                 });
+        if((allW.length===0 && allH.length===0) || parity ===0){
+            return ret;
+        }
+        if(allW.length>0 && allH.length>0){
+           //ambiguous stereo 
+           return ret;
+        }
+        if(allH.length>0)parity=parity*-1;
+        
+           
+               
         var pn=neighbors[0].atom;
         var nn=neighbors[1].atom;
         var ln=neighbors[2].atom;
         var chainDir = pn.getVectorTo(nn);
         var orthoDir = pn.getVectorTo(ln);
         var rej=chainDir[0]*orthoDir[1]-chainDir[1]*orthoDir[0];
+        if(rej<0){
+            parity=parity*-1;
+        }
+
+        let oSter=allW;
+        if(allH.length>0)oSter=allH;
+
+        oSter.map(b=>{
+            let oatoms=neighbors.filter(nb=>nb!==b).map(nb=>nb.atom);
+            for(let i=0;i<oatoms.length;i++){
+               for(let j=i+1;j<oatoms.length;j++){
+                  let atom1=oatoms[i];
+                  let atom2=oatoms[j];
+                  let dVec=atom1.getVectorTo(atom2);
+                  let wVec=atom1.getVectorTo(b.atom);
+                  let oVec=atom1.getVectorTo(ret);
+                  let nrej1= dVec[0]*wVec[1]-dVec[1]*wVec[0];
+                  let nrej2= dVec[0]*oVec[1]-dVec[1]*oVec[0];
+                  if(Math.sign(nrej1)!==Math.sign(nrej2)){
+                     parity=parity*-1;
+                  }
+               }   
+            }
+        });
     }
+     
+    if(parity===1){
+         return ret.setParity(2);
+    }else if(parity===-1){
+         return ret.setParity(1);
+    }
+    return ret.setParity(0);
     
   };
   
@@ -4244,7 +4305,7 @@ M  SCN  2   1 HT    2 HT
   };
   ret._toBase64GzippedPromise=function(fun){
       return (new Promise(ok=>{
-                  new Response(new Blob([fun()])
+                  new Response(new Blob([fun(ret)])
                      .stream()
                      .pipeThrough(new CompressionStream("gzip"))
                      )
@@ -4260,10 +4321,10 @@ M  SCN  2   1 HT    2 HT
            }));
   };
   ret.toBase64GzippedSDPromise=function(){
-     return ret._toBase64GzippedPromise(()=>ret.toSd());
+     return ret._toBase64GzippedPromise((r)=>r.toSd());
   };
   ret.toBase64GzippedMolPromise=function(){
-     return ret._toBase64GzippedPromise(()=>ret.toMol());
+     return ret._toBase64GzippedPromise((r)=>r.toMol());
   };
   ret.fromBase64GzippedMolPromise=function(gzipped){
        return (new Promise(ok=>{
@@ -4408,7 +4469,17 @@ M  SCN  2   1 HT    2 HT
   ret.toSd=function(){
       return ret.toMol() + "\n" + ret.getPropertiesSD()+ "\n$$$$";
   }
- 
+  ret.map=function(func){
+      let oo=func(ret);
+      if(oo){
+         return oo;
+      }
+      return ret;
+  };
+  ret.peek=function(func){
+      let oo=func(ret);
+      return ret;
+  };
   
   ret.fromSmiles=function(smi){
     let smiles=smi.split(" ");
@@ -4428,6 +4499,11 @@ M  SCN  2   1 HT    2 HT
   };
   ret.toSmiles=function(){
       if(ret.getAtomCount()==0)return "";
+
+      ret.getAtoms().map(aa=>{
+         aa.setParityFromStereoBond(true);
+      });
+      
       var startAtom = ret.getAtom(0);
       var chain=[];
       var atomsGot=[];
@@ -8086,6 +8162,8 @@ JSChemify.Tests=function(){
          }
       }
   };
+
+  
   
   ret.runAll=function(){
     var passed=0;
@@ -8105,14 +8183,52 @@ JSChemify.Tests=function(){
     console.log("Tests failed:"+failed);
   };
   // 
-   //JSChemify.Chemical(JSChemify.Chemical("C").setProperty("abc", "val1\nval2").toSd()).toSd()
-
+  //JSChemify.Chemical(JSChemify.Chemical("C").setProperty("abc", "val1\nval2").toSd()).toSd()
+  ret.assertSmilesMolSmilesSame=function(smi){
+      smi=JSChemify.Chemical(smi).toSmiles();
+      let smi2=JSChemify.Chemical(smi)
+         .generateCoordinates()
+         .peek(c=>c.getAtoms().map(aa=>aa.setParity(0)))
+         .map(c=>JSChemify.Chemical(c.toMol()))
+         .toSmiles();
+      ret.assertEquals(smi,smi2);
+  };
+   
+  ret.tests.push("simple stereo parity cis/trans ring preserved in smiles",()=>{
+      ret.assertSmilesMolSmilesSame("C1(C[C@H](C)CC[C@@H](1)C)");
+      ret.assertSmilesMolSmilesSame("C1(C[C@@H](C)CC[C@@H](1)C)");
+  });
+  ret.tests.push("simple stereo parity with 3 members preseved in smiles=>mol=>smiles",()=>{
+      let smi="CCCCC[C@@H](S)O";
+      let smi2=JSChemify.Chemical(smi)
+         .generateCoordinates()
+         .peek(c=>c.getAtoms().map(aa=>aa.setParity(0)))
+         .map(c=>JSChemify.Chemical(c.toMol()))
+         .toSmiles();
+      ret.assertEquals(smi,smi2);
+  });
+  ret.tests.push("simple stereo parity with 3 members preseved in smiles",()=>{
+      let smi="CCCCC[C@@H](S)O";
+      let smi2=JSChemify.Chemical(smi)
+         .generateCoordinates()
+         .peek(c=>c.getAtoms().map(aa=>aa.setParity(0)))
+         .toSmiles();
+      ret.assertEquals(smi,smi2);
+  });
+  ret.tests.push("simple invetedstereo parity with 3 members preseved in smiles",()=>{
+      let smi="CCCCC[C@H](S)O";
+      let smi2=JSChemify.Chemical(smi)
+         .generateCoordinates()
+         .peek(c=>c.getAtoms().map(aa=>aa.setParity(0)))
+         .toSmiles();
+      ret.assertEquals(smi,smi2);
+  });
   ret.tests.push(()=>{
       let sgroup=JSChemify.Chemical("O([B](F)(F)F)[Si](N)(C)C [L2M74R4m61Fm61L4m61Fm83](n)FM65L4R4").getSGroups()[0];
       ret.assertEquals(4,sgroup.getAtoms().length);
   });
   ret.tests.push(()=>{
-      let input="C2(=O)(N1(C(C(SC(H)(1)C(NC(CCCC(C(=O)O)N)=O)2)(C)C)C(O)=O)) L3m80Fm80L11.3m94R5.8M94RR4M60L4m60HR4m60Fm60FWR12LRLRLLRRWRR4L24L5LHRL7M90L3m80";
+      let input="C2(=O)(N1(C(C(SC(H)(1)C(NC(CCCC(C(=O)O)N)=O)2)(C)C)C(O)=O)) L3m80Fm80L11.3m94R5.8M94RR4M60L4m60R4m60Fm60FR12LRLRLLRRRR4L24L5LRL7M90L3m80";
       let c = JSChemify.Chemical(input);
       let c2=JSChemify.Chemical(c.toMol());
       let smipp=c2.toSmilesPP();
