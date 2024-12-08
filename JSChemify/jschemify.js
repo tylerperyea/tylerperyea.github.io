@@ -39,7 +39,21 @@ Basic I/O:
 19. Rgroup decomposition
 20. Edit distance
 21. [done] fix ++ and -- reading of smiles
-22. gzip base64 support for molfiles
+22. [partial] gzip base64 support for molfiles
+    22.1. This currently uses promises. While that's
+          technically fine, it means there's a mixmatch
+          of promises and synchronous code which will be
+          surprising to devs. It's possible to make this
+          synchronous, but it may need to have more hardcore
+          coding.
+    22.2. It's also a problem that the ability to "sniff"
+          a format is somewhat compromsied here. There's no
+          current mechanism to sniff a base64 string, but
+          if there were, it would have to return a promise
+          on loading that, which is different than other
+          cases. I wouldn't want to make it SOMETIMES return
+          a promise. But I also don't want it to return a 
+          promise unnecessarily.
 23. [partial] molfile SGroup support
 24. Improve dearomatization / aromatization
 25. Add basic resolver? NCATS? GSRS? Pubchem?
