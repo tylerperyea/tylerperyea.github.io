@@ -890,6 +890,16 @@ JSChemify.Util = {
     if(!e)throw "Unknown element '" + s +"'";
     return e;
   },
+  base64Decode:function(str){
+        //sometimes may need to rethink atob?
+        const binary_string = atob(str);
+        const len = binary_string.length;
+        const bytes = new Uint8Array(new ArrayBuffer(len));
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+  },
   toMolDouble:function(d){
     return ("     "+(Math.round(d * 10000) / 10000).toFixed(4)).substr(-10);
   },
@@ -1867,7 +1877,6 @@ JSChemify.Atom = function(aaa){
   
   
   ret.toSmiles=function(){
-    console.log("2smiles");
     var eH=ret.getImplicitHydrogens();
     var ehShow = (eH>1)?eH:"";
     var simpleOkay =ret.getElement().smiles;
@@ -4218,6 +4227,41 @@ M  SCN  2   1 HT    2 HT
          }
     }
     return {"cursor": cursor, "chem": ret};
+  };
+  ret._toBase64GzippedPromise=function(fun){
+      return (new Promise(ok=>{
+                  new Response(new Blob([fun()])
+                     .stream()
+                     .pipeThrough(new CompressionStream("gzip"))
+                     )
+                  .blob()
+                  .then(rr=>rr.arrayBuffer()
+                              .then(ab=>{
+                                  const compressedBase64 = btoa(
+                                      String.fromCharCode(
+                                       ...new Uint8Array(ab))
+                                  );
+                                  ok(compressedBase64);
+                  }));
+           }));
+  };
+  ret.toBase64GzippedSDPromise=function(){
+     return ret._toBase64GzippedPromise(()=>ret.toSd());
+  };
+  ret.toBase64GzippedMolPromise=function(){
+     return ret._toBase64GzippedPromise(()=>ret.toMol());
+  };
+  ret.fromBase64GzippedMolPromise=function(gzipped){
+       return (new Promise(ok=>{
+          let array=JSChemify.Util.base64Decode(gzipped);
+          new Response(new Blob([array]).stream()
+                           .pipeThrough(new DecompressionStream("gzip")))
+                           .blob().then(bb=>{
+                                 bb.text().then(txt=>{
+                                    ok(ret.fromMol(txt));
+                                 });
+                           });
+       }));
   };
   
   ret.toMol=function(){
