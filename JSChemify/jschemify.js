@@ -8270,18 +8270,37 @@ JSChemify.Tests=function(){
     var passed=0;
     var failed=0;
     var total=ret._tests.length;
+    let whenDone=()=>{
+       if(passed+failed===total){
+       console.log("Tests passed:"+passed);
+       console.log("Tests failed:"+failed);
+       }
+    };
+    
     ret._tests.map((t,i)=>{
         try{
-            t.test();
-            passed++;
-            console.log("Test " + t.name + " Passed");
+            let rr=t.test();
+            if(rr instanceof Promise){
+               rr.catch(e=>{
+                  console.log("Test " + t.name + " Failed:" + e);
+                  failed++;
+                  whenDone();
+               }).then(p=>{
+                  passed++;
+                  console.log("Test " + t.name + " Passed");
+                  whenDone();
+               });
+            }else{
+               passed++;
+               console.log("Test " + t.name + " Passed");
+               whenDone();
+            }
          }catch(e){
              console.log("Test " + t.name + " Failed:" + e);
              failed++;
+             whenDone();
          }
     });
-    console.log("Tests passed:"+passed);
-    console.log("Tests failed:"+failed);
   };
   // 
   //JSChemify.Chemical(JSChemify.Chemical("C").setProperty("abc", "val1\nval2").toSd()).toSd()
@@ -8305,6 +8324,34 @@ JSChemify.Tests=function(){
       ret.assertNotEquals(smi,smi2);
   };
    //C(=O)(N(CC2(C)C)[C@@]1([H])S2)C1
+
+  ret.tests.push("Base64 Parity Test works",()=>{
+      let atorv="H4sIAAAAAAAAA6VWS44UMQzd9ylyASJ/4jhZzwwLJIYFEjcAwYIDcHucxKmullhQ7lEv6o0rrxy/Zye3T19ffn7//evHH" +
+                "4CGSAW7AL3ebqlgKiUlOP3Of5C+EQDc7PEDZeJG66ki1RnPFoX0kh4p/v2bLJAblbpYRIueWN7/nwWzCJXFAo0klgvmLo" +
+                "TjiXOhplEWUGrOgthjLJR7F98RqmC0uiawbLU4mAtnrYiuNDSOaQSZqcDia6ItlEuyXFS7+6VjzHWpZKGqXl1WimqkRHt" +
+                "HBYMa3ZXGTF3OrvtyqQNqZ2cBju3IVqgwuNLSghpZdQHFc6mEoR2Z0uZd2B0AwVzM95XZd0QSVNq8CzRdV3LVElPaVjAT" + 
+                "PztfrLoIT9fFphRy8x0V4BiLmGP33JXHnr6gNObS2VkIgnWxFb2rT+9GrYQ1Ep3elQy1x04S21FVQGdp9Vzdj1e82zvSk" + 
+                "5NhVFfXrEPzH9cQy3TsOqef8a5NTIDdRxg91UZPq66+VIie9uYXXLPuGRbrRhbXiEsNzhfJWKtPKXlU+tI5zW0pXXJv0f" + 
+                "OoZMQii08fvXtpR4377mmk4M3D5gvMaTvUqhzr6ZGL1K1Rj95Ui3XydOzQvELIL5aE1RMXWE+0QJnAIzKxR+o5ovPfDto" + 
+                "ODtDnsgUQEuoBcOANaH9qAJ4E6ztYTrmN0/tOUAfHfk0TtiPSEt3Z+kxigXEt6nvNuAEca4jS6DWP8KT2SJnfdSCTw0Gd" + 
+                "7L5GB8f+qIFFjZOA+gbW2ni8xjjBIrDLER5Z293gBMrM1YFM4Gvq4NgRHew70sabO9IHh0fssstHQczFfNQ6yUnGEdFzd" + 
+                "Q5NB0HzNZ9Tent//Qv0plR7uQ0AAA==";
+      return new Promise((ok,bad)=>{
+         JSChemify.Chemical().fromBase64GzippedMolPromise(atorv)
+                             .then(c=>{
+                                let smi = c.toSmiles();
+                                let esmi= "C1(=C(N(CC[C@@H](C[C@@H](CC(=O)O)O)O)C(=C(1)C1(C=CC=CC=1))C1(C=CC(=CC=1)F))C(C)C)C(NC1(C=CC=CC=1))=O";
+                                ret.assertSameSmiles(smi,esmi);
+                                ret.assertEquals(c.getAtoms().filter(at=>at.getParity()!==0).length,2);
+                                ok();
+                             }).catch(e=>{
+                               bad(e); 
+                             });
+      });
+     
+  });
+  
+   
   ret.tests.push("stereo parity in ring system preserved",()=>{
       ret.assertSmilesMolSmilesSame("C(=O)(N(CC2(C)C)[C@]1([H])S2)C1");
       ret.assertSmilesMolSmilesDifferent("C(=O)(N(CC2(C)C)[C@@]1([H])S2)C1","C(=O)(N(CC2(C)C)[C@]1([H])S2)C1");
