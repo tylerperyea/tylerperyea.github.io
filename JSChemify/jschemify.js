@@ -1409,33 +1409,71 @@ JSChemify.Atom = function(aaa){
   ret.setParityFromStereoBond=function(keep){
     if(ret.getParity()!==0 && keep)return ret;
     //TODO: figure this out. I thnk 
-    var neighbors =ret.getNeighborAtomsAndBonds();
+    let neighbors =ret.getNeighborAtomsAndBonds();
     //start with the 3 case
     // parity is 1 if there are only
     // wedges
-    var parity=0;
+    let parity=0;
+    let allW=[];
+    let allH=[];
+    let mult=false;
+
+    if(neighbors.length>=3){
+      parity=1;
+    }
+     
+    if(neighbors.length===4){
+         neighbors=neighbors.filter((ns,i)=>{
+                    if(allW.length>0 || allH.length>0)return true;
+                    var bs=ns.bond.getBondStereo();
+                    if(bs === JSChemify.CONSTANTS.BOND_STEREO_WEDGE){
+                        allW.push(ns);
+                        if(i%2!==0){
+                           parity=parity*-1;
+                        }
+                        mult=true;
+                        return false;
+                    }else if(bs === JSChemify.CONSTANTS.BOND_STEREO_DASH){
+                        allH.push(ns);
+                        if(i%2!==0){
+                           parity=parity*-1;
+                        }
+                        mult=true;
+                        return false;
+                    }
+                    return true;
+                 });
+          if(!mult){
+            return ret.setParity(0);
+          }
+          if(mult){
+            parity=parity*-1;
+          }
+    }
+     
     if(neighbors.length===3){
-        parity=1;
-        let allW=[];
-        let allH=[];
         neighbors.filter(ns=>ns.bond.getAtom1()===ret)
                  .filter(ns=>ns.bond.getBondStereo()!==0)
                  .map(ns=>{
                     var bs=ns.bond.getBondStereo();
                     if(bs === JSChemify.CONSTANTS.BOND_STEREO_WEDGE){
-                        allW.push(ns);
+                        if(!mult){
+                           allW.push(ns);
+                        }
                     }else if(bs === JSChemify.CONSTANTS.BOND_STEREO_DASH){
-                        allH.push(ns);
+                        if(!mult){
+                           allH.push(ns);
+                        }
                     }else{
                         parity=0;  
                     }
                  });
         if((allW.length===0 && allH.length===0) || parity ===0){
-            return ret;
+            return ret.setParity(0);
         }
         if(allW.length>0 && allH.length>0){
            //ambiguous stereo 
-           return ret;
+           return ret.setParity(0);
         }
         if(allH.length>0)parity=parity*-1;
         
@@ -1454,6 +1492,7 @@ JSChemify.Atom = function(aaa){
         let oSter=allW;
         if(allH.length>0)oSter=allH;
 
+        
         oSter.map(b=>{
             let oatoms=neighbors.filter(nb=>nb!==b).map(nb=>nb.atom);
             for(let i=0;i<oatoms.length;i++){
@@ -1471,12 +1510,13 @@ JSChemify.Atom = function(aaa){
                }   
             }
         });
+           
     }
      
-    if(parity===1){
-         return ret.setParity(2);
-    }else if(parity===-1){
+    if(parity===-1){
          return ret.setParity(1);
+    }else if(parity===1){
+         return ret.setParity(2);
     }
     return ret.setParity(0);
     
@@ -1951,7 +1991,7 @@ JSChemify.Atom = function(aaa){
   };
   
   
-  ret.toSmiles=function(){
+  ret.toSmiles=function(pp){
     var eH=ret.getImplicitHydrogens();
     var ehShow = (eH>1)?eH:"";
     var simpleOkay =ret.getElement().smiles;
@@ -1978,15 +2018,17 @@ JSChemify.Atom = function(aaa){
     // 2. There's a ring closing bond (with special exceptions)
      
     var parity = ret._parity;
-     if(parity){
-          var swap=1;
+    if(parity){
+          if(!pp)pp=1;
+          var swap=pp;
           if(eH>0){
             swap=swap*-1;
           }
-          let rbc=ret.getBonds().filter(b=>b.isInRing()).count;
+          //TODO: Consider reconsidering this
+          //let rbc=ret.getBonds().filter(b=>b.isInRing()).count;
           //if rbc =0,3, do nothing
           //if rbc =2, swap
-          if(rbc===2)swap=swap*-1;
+          //if(rbc===2)swap=swap*-1;
       
           if(swap<0){
             if(parity===1)parity=2;
@@ -3135,6 +3177,8 @@ JSChemify.Chemical = function(arg){
                oAtom.setXYZ(x,y);
             });
        });
+       
+       ret.getAtoms().map(a=>a.setStereoBondFromParity());
        ret.getSGroups().map(sg=>{
          sg.resetBracketLocation();
        });
@@ -4614,7 +4658,57 @@ M  SCN  2   1 HT    2 HT
             startAtom=null;
         }
       }
+
+      let canonClose={};
+      let canonMap={};
+      let nextLocant=(b)=>{
+         for(let i=1;i<999;i++){
+            if(!canonClose[i]){
+               canonClose[i]=b;
+               canonMap[b]=i;
+               return i;
+            }
+         }
+      };
+      let closeLocant=((ci)=>{
+            let std=canonMap[ci];
+            canonMap[ci]=null;
+            canonClose[std]=null;
+            return std;
+      });
+
+      let border=[];
+      chain.filter(cc=>cc.bond)
+           .map(cc=>cc.bond)
+           .map(bb=>{
+               let a1i=bb.getAtom1().getIndexInParent();
+               let a2i=bb.getAtom2().getIndexInParent();
+               if(!border[a1i])border[a1i]=[];
+               if(!border[a2i])border[a2i]=[];
+               border[a1i].push(bb);
+               border[a2i].push(bb);
+           });
+      let invParity={};
+      border.map((bs,i)=>{
+         let at=ret.getAtom(i);
+         if(at.getParity()!==0){
+            let obonds = ret.getAtom(i).getBonds();
+            let perm=1;
+            for(let j=0;j<obonds.length;j++){
+               let nbond=obonds[j];
+               let bind= bs.indexOf(nbond);
+               if(bind===j)continue;
+               perm=perm*-1;
+               
+               let tmp=bs[j];
+               bs[j]=nbond;
+               bs[bind]=tmp;
+            }
+            invParity[i]=perm;
+         }
+      });
       
+     
       let smi= chain.map(cc=>{
        
         if(cc==="BRANCH_START"){
@@ -4626,23 +4720,24 @@ M  SCN  2   1 HT    2 HT
         }else if(cc===""){
             return "";
         }
-        var loc=(cc.locants)?cc.locants.map(lo=>(lo>9)?"%"+lo:lo).join(""):"";
+        var loc=(cc.locants)?cc.locants.map(li=>nextLocant(li)).map(lo=>(lo>9)?"%"+lo:lo).join(""):"";
         if(!cc.bond){
-          return cc.atom.toSmiles()+loc;
+          return cc.atom.toSmiles(invParity[cc.atom.getIndexInParent()])+loc;
         }
         var bb=cc.bond.toSmiles();
         if(bb===":"){
-            var aro=cc.bond.getAtoms().map(at=>at.toSmiles()).join("");
+          var aro=cc.bond.getAtoms().map(at=>at.toSmiles()).join("");
           if(aro===aro.toLowerCase()){
               bb="";
           }
         }
         if(cc.closeLocant){
-          var cloc = ((cc.closeLocant-0)>9)?("%"+cc.closeLocant):cc.closeLocant;
+            let nloc=closeLocant(cc.closeLocant);
+            var cloc=((nloc-0)>9)?("%"+nloc):nloc;
             return bb + cloc;
         }
         
-        return bb + cc.atom.toSmiles()+loc;
+        return bb + cc.atom.toSmiles(invParity[cc.atom.getIndexInParent()])+loc;
       }).join("");
 
       return smi;
@@ -8093,6 +8188,12 @@ JSChemify.Tests=function(){
     }
         ret.assertTrue(a===b,msg);
     };
+  ret.assertNotEquals=function(a,b,msg){
+    if(!msg){
+        msg= a + " does Equals " + b;
+    }
+        ret.assertTrue(a!==b,msg);
+  };
   ret.assertToStringEquals=function(a,b,msg){
     if(!msg){
         msg= a + " does not Equal " + b;
@@ -8173,11 +8274,11 @@ JSChemify.Tests=function(){
         try{
             t.test();
             passed++;
+            console.log("Test " + t.name + " Passed");
          }catch(e){
              console.log("Test " + t.name + " Failed:" + e);
              failed++;
          }
-         console.log("Test " + t.name + " Passed");
     });
     console.log("Tests passed:"+passed);
     console.log("Tests failed:"+failed);
@@ -8193,7 +8294,29 @@ JSChemify.Tests=function(){
          .toSmiles();
       ret.assertEquals(smi,smi2);
   };
-   
+  ret.assertSmilesMolSmilesDifferent=function(smi,nsmi){
+      smi=JSChemify.Chemical(smi).toSmiles();
+      let smi2=JSChemify.Chemical(nsmi)
+         .generateCoordinates()
+         .peek(c=>c.getAtoms().map(aa=>aa.setParity(0)))
+         .map(c=>JSChemify.Chemical(c.toMol()))
+         .toSmiles();
+      
+      ret.assertNotEquals(smi,smi2);
+  };
+   //C(=O)(N(CC2(C)C)[C@@]1([H])S2)C1
+  ret.tests.push("stereo parity in ring system preserved",()=>{
+      ret.assertSmilesMolSmilesSame("C(=O)(N(CC2(C)C)[C@]1([H])S2)C1");
+      ret.assertSmilesMolSmilesDifferent("C(=O)(N(CC2(C)C)[C@@]1([H])S2)C1","C(=O)(N(CC2(C)C)[C@]1([H])S2)C1");
+     
+  });
+ 
+  ret.tests.push("simple stereo parity with 4 members preseved in smiles",()=>{
+      ret.assertSmilesMolSmilesSame("O[C@@](S)(P)C");
+  });
+  ret.tests.push("simple stereo parity with 4 members preseved in smiles",()=>{
+      ret.assertSmilesMolSmilesSame("O[C@](S)(P)C");
+  });
   ret.tests.push("simple stereo parity cis/trans ring preserved in smiles",()=>{
       ret.assertSmilesMolSmilesSame("C1(C[C@H](C)CC[C@@H](1)C)");
       ret.assertSmilesMolSmilesSame("C1(C[C@@H](C)CC[C@@H](1)C)");
@@ -8215,7 +8338,7 @@ JSChemify.Tests=function(){
          .toSmiles();
       ret.assertEquals(smi,smi2);
   });
-  ret.tests.push("simple invetedstereo parity with 3 members preseved in smiles",()=>{
+  ret.tests.push("simple inverted stereo parity with 3 members preseved in smiles",()=>{
       let smi="CCCCC[C@H](S)O";
       let smi2=JSChemify.Chemical(smi)
          .generateCoordinates()
@@ -8228,14 +8351,14 @@ JSChemify.Tests=function(){
       ret.assertEquals(4,sgroup.getAtoms().length);
   });
   ret.tests.push(()=>{
-      let input="C2(=O)(N1(C(C(SC(H)(1)C(NC(CCCC(C(=O)O)N)=O)2)(C)C)C(O)=O)) L3m80Fm80L11.3m94R5.8M94RR4M60L4m60R4m60Fm60FR12LRLRLLRRRR4L24L5LRL7M90L3m80";
+      let input="C1(=O)(N2(C(C(SC(H)(2)C(NC(CCCC(C(=O)O)N)=O)1)(C)C)C(O)=O)) L3m80Fm80L11.3m94R5.8M94RR4M60L4m60R4m60Fm60FR12LRLRLLRRRR4L24L5LRL7M90L3m80";
       let c = JSChemify.Chemical(input);
       let c2=JSChemify.Chemical(c.toMol());
       let smipp=c2.toSmilesPP();
       ret.assertEquals(smipp,input);
   });
   ret.tests.push(()=>{
-      let input="C2(C(C1(CCCCC1)C)CCC2) L4M60LRLLLLLR3R5R5R5R5";
+      let input="C1(C(C2(CCCCC2)C)CCC1) L4M60LRLLLLLR3R5R5R5R5";
       let c = JSChemify.Chemical(input);
       let c2=JSChemify.Chemical(c.toMol());
       let smipp=c2.toSmilesPP();
