@@ -23,6 +23,7 @@ Basic I/O:
          CCn1cc(c(=O)c2ccc(nc12)C)C(=O)O
          CCn1(cc(c(=O)c2(ccc(nc(12)C))C(=O)O) 
          CCn1cc(c(=O)c2ccc(nc12)C)C(=O)O 
+   5.3. When ending a ring, should remove extra parens
 6. [done?] Clone molecule
 7. [done] Split components
 8. Make ring&chain network
@@ -34,7 +35,7 @@ Basic I/O:
 14. MCS support
 15. Scaffold support
 16. Substructure support
-17. Molfile parity support
+17. [partial] Molfile parity support
 18. Molfile Chiral flag support
 19. Rgroup decomposition
 20. Edit distance
@@ -81,7 +82,7 @@ Coordinates and Rendering:
 16. Coordinates: overlapping bonds issue
 17. [done] Path Encoding
 18. [done] Parse simplified path encoding
-17. SVG Bug: clearing background
+17. [can't reproduce] SVG Bug: clearing background
 18. [done] Path Encoding wedge and hash support
 19. Path encoding smiles bond order discrepency?
 20. Path encoding extended angles (complements)
@@ -113,6 +114,7 @@ Coordinates and Rendering:
                  S2. vertical/horizonta at cross bonds
                  S3. Angled at cross bonds, same angle
                  S4. Angled at cross bonds, perp angle
+26. Path notation estimate / tune max error?
               
 
 **/
@@ -1957,14 +1959,17 @@ JSChemify.Atom = function(aaa){
           map=0;
         }
         if(ret.getCharge()!==0 && 
-           Math.abs(ret.getCharge())<=4)chg=4-ret.getCharge();
-              return JSChemify.Util.toMolDouble(ret._x)+
-        JSChemify.Util.toMolDouble(ret._y)+
-        JSChemify.Util.toMolDouble(ret._z)+" "+
-        (ret.getSymbol()+"  ").substr(0,3)+ 
-        " 0  " + chg+ "  0  0  0  0  0  0  0"+
-          ("   "+map).substr(-3) +
-          "  0  0";
+           Math.abs(ret.getCharge())<=4){
+           chg=4-ret.getCharge();
+        }
+        //TODO: Add parity?
+        return JSChemify.Util.toMolDouble(ret._x)+
+                 JSChemify.Util.toMolDouble(ret._y)+
+                 JSChemify.Util.toMolDouble(ret._z)+" "+
+                 (ret.getSymbol()+"  ").substr(0,3)+ 
+                 " 0  " + chg+ "  0  0  0  0  0  0  0"+
+                   ("   "+map).substr(-3) +
+                   "  0  0";
         //   27.5477   -5.8710    0.0000 O   0  7  0  0  0  0  0  0  0  0  0  0
     //
   };
