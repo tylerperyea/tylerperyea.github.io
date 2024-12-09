@@ -734,8 +734,8 @@ JSChemify.CONSTANTS={
   CHEM_TYPE_CHEMICAL : 3,
   CHEM_TYPE_SGROUP : 4,
   
-  BOND_STEREO_WEDGE : 6,
-  BOND_STEREO_DASH : 1,
+  BOND_STEREO_WEDGE : 1,
+  BOND_STEREO_DASH : 6,
   BOND_STEREO_WIGGLE : 4,
   BOND_STEREO_NONE : 0,
 
@@ -8340,7 +8340,7 @@ JSChemify.Tests=function(){
          JSChemify.Chemical().fromBase64GzippedMolPromise(atorv)
                              .then(c=>{
                                 let smi = c.toSmiles();
-                                let esmi= "C1(=C(N(CC[C@@H](C[C@@H](CC(=O)O)O)O)C(=C(1)C1(C=CC=CC=1))C1(C=CC(=CC=1)F))C(C)C)C(NC1(C=CC=CC=1))=O";
+                                let esmi= "C1(=C(N(CC[C@H](C[C@H](CC(=O)O)O)O)C(=C(1)C1(C=CC=CC=1))C1(C=CC(=CC=1)F))C(C)C)C(NC1(C=CC=CC=1))=O";
                                 ret.assertSameSmiles(smi,esmi);
                                 ret.assertEquals(c.getAtoms().filter(at=>at.getParity()!==0).length,2);
                                 ok();
