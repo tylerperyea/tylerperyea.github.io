@@ -1428,15 +1428,15 @@ JSChemify.Atom = function(aaa){
                     var bs=ns.bond.getBondStereo();
                     if(bs === JSChemify.CONSTANTS.BOND_STEREO_WEDGE){
                         allW.push(ns);
-                        if(i%2!==0){
-                           parity=parity*-1;
+                        if(i%2!==1){
+                           //parity=parity*-1;
                         }
                         mult=true;
                         return false;
                     }else if(bs === JSChemify.CONSTANTS.BOND_STEREO_DASH){
                         allH.push(ns);
-                        if(i%2!==0){
-                           parity=parity*-1;
+                        if(i%2!==1){
+                           //parity=parity*-1;
                         }
                         mult=true;
                         return false;
@@ -8314,7 +8314,11 @@ JSChemify.Tests=function(){
       ret.assertEquals(smi,smi2);
   };
   ret.assertSmilesMolSmilesDifferent=function(smi,nsmi){
-      smi=JSChemify.Chemical(smi).toSmiles();
+      smi=JSChemify.Chemical(smi)
+          .generateCoordinates()
+         .peek(c=>c.getAtoms().map(aa=>aa.setParity(0)))
+         .map(c=>JSChemify.Chemical(c.toMol()))
+                   .toSmiles();
       let smi2=JSChemify.Chemical(nsmi)
          .generateCoordinates()
          .peek(c=>c.getAtoms().map(aa=>aa.setParity(0)))
@@ -8354,6 +8358,8 @@ JSChemify.Tests=function(){
    
   ret.tests.push("stereo parity in ring system preserved",()=>{
       ret.assertSmilesMolSmilesSame("C(=O)(N(CC2(C)C)[C@]1([H])S2)C1");
+     
+      ret.assertSmilesMolSmilesSame("C(=O)(N(CC2(C)C)[C@@]1([H])S2)C1");
       ret.assertSmilesMolSmilesDifferent("C(=O)(N(CC2(C)C)[C@@]1([H])S2)C1","C(=O)(N(CC2(C)C)[C@]1([H])S2)C1");
      
   });
