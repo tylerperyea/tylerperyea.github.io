@@ -172,6 +172,9 @@ STATUS:In progress
 *****************************/
 VectorLib.Number=function(nn){
     if(nn && nn._isNumber)return nn;
+    if(typeof nn === "string" && nn.indexOf("i")>=0){
+        return VectorLib.ComplexNumber(nn);
+    }
     let ret={};
     ret._isNumber=true;
     ret._priority=0;
@@ -215,6 +218,9 @@ VectorLib.Number=function(nn){
     ret.negate=function(){
       return ret.scale(-1);
     };
+    ret.conjugate=function(){
+      return ret;
+    };
 
     ret.pow=function(n){
       let pro=ret;
@@ -248,10 +254,26 @@ STATUS: In Progresss
 *******************************/
 VectorLib.ComplexNumber=function(r,i){
     if(r && r._isComplex)return r;
+    if(typeof r === "string" && !i){
+        let comp=r.split(" ");
+        comp.map(cp=>{
+            if(cp.indexOf("i")>=0){
+                if(cp==="i"){
+                  i=1;
+                }else if(cp==="-i"){
+                  i=-1;
+                }else{
+                  i=cp.replace("i","")-0;
+                }
+            }else{
+                r=cp-0;
+            }
+        });
+    }
   	let ret=VectorLib.Number();
     ret._priority=1;
     ret._isComplex=true;
-    ret.a=r;
+    ret.a=(Number.isFinite(r-0))?r-0:0;
     ret.b=(Number.isFinite(i-0))?i-0:0;
     ret.make=function(raw){
         if(raw && raw._isComplex)return raw;
@@ -262,9 +284,8 @@ VectorLib.ComplexNumber=function(r,i){
             //TODO: need to think about this conversion
             return VectorLib.ComplexNumber(raw.a,0);
         }
-        if(raw && typeof raw ==="string"){
-          let comp=raw.split(" ");
-          return VectorLib.ComplexNumber(comp[0]-0,comp[1].substr(0,comp[1].length-1)-0);
+        if(raw && typeof raw ==="string" && raw.indexOf("i")>=0){
+          return VectorLib.ComplexNumber(raw);
         }
 	      if(raw && Number.isFinite(raw)){
 	          return VectorLib.ComplexNumber(raw-0,0); 
@@ -330,6 +351,41 @@ VectorLib.ComplexNumber=function(r,i){
     return ret;
 };
 
+VectorLib.Surreal=function(){
+  let ret={};
+
+  ret.toSurreal=function(n, sofar, parents, iter){
+      if(!iter && iter!==0){
+          iter=0;
+      }
+      if(iter>100)return sofar;
+      if(!parents){
+         parents=[null,0,null];
+      }
+      if(!sofar)sofar=[];
+      //need to abstract
+      if(parents[1]===n)return sofar;
+      if(n>parents[1]){
+          sofar.push("R");
+          if(parents[2]===null){
+              return surreal(n,sofar,[parents[1],parents[1]+1,null], iter+1);
+          }else{
+              return surreal(n,sofar,[parents[1],(parents[2]+parents[1])/2,parents[2]], iter+1);
+          }
+      }
+      if(n<parents[1]){
+          sofar.push("L");
+          if(parents[0]===null){
+              return surreal(n,sofar,[null,parents[1]-1,parents[1]], iter+1);
+          }else{
+              return surreal(n,sofar,[parents[0],(parents[1]+parents[0])/2,parents[1]], iter+1);
+          }
+      }
+          
+  };
+  return ret;
+};
+
 /****************************
 Vector
 =============================
@@ -347,6 +403,7 @@ VectorLib.Vector=function(v){
     
     v2.sqNorm=function(){
     	if(v2._sqNorm===null){
+        //is this right for complex numbers?
       	v2._sqNorm = v2._arr.map(x=>x.multiply(x))
                             .reduce((a,b)=>a.add(b));
       }
@@ -471,7 +528,7 @@ VectorLib.Vector=function(v){
     	u2 = VectorLib.Vector(u2);
     	var un=u2.normalized();
       var p=un.dot(v2);
-      var npro=un.scale(-1*p);
+      var npro=un.scale(p.negate().conjugate());
       return v2.add(npro);
     };
     
@@ -479,24 +536,37 @@ VectorLib.Vector=function(v){
     //are all orthogonal to each other
     //and to the original vector
     //TODO:
-    // While this is accomplished by
-    // 
+    // Doesn't work with complex vectors
+    // also, I don't understand how this works
+    // though I must have at some point
     v2.orthoBasis=function(){
       if(!v2._orthoBasis){
         var nn=[];
         var normed=v2.normalized();
       	for(var i=0;i<v2.dim();i++){
-        	var p   =normed._arr[i];
-          var pro =normed.scale(-1*p);
+          //[0,0,i]
+          // 0, then 0, then i
+          var p   =normed._arr[i];
+          //console.log(p);
+
+          //Not totally sure why we should
+          //do the conjugate here, but it seems
+          //to work
+          var pro =normed.scale(p.negate().conjugate());
+          //console.log(pro);
           var delt=pro.add(VectorLib.unitVector(i));
+          //console.log(delt.norm());
           if(Math.abs(delt.norm())>VectorLib.ZERO_TOLERANCE){
           	//nn.push(delt);
+            
             for(var j=0;j<nn.length;j++){
               delt=delt.factorOut(nn[j]);
             }
             delt=delt.normalized();
-            
-            if(Math.abs(delt.dot(normed))<VectorLib.ZERO_TOLERANCE){
+            //console.log(delt);
+            //let dot2=delt.dot(normed).mag();
+            //console.log("dot2:" + dot2);
+            if(Math.abs(delt.dot(normed).mag())<VectorLib.ZERO_TOLERANCE){
             	nn.push(delt);
             }
           }
@@ -1186,6 +1256,20 @@ VectorLib.Tests=function(){
     ret.addTest("Embedded Linfinite Norm of 4 points should have no strain if using imaginary", ()=>{
       let ospace= VectorLib.MetricSpace()
                 .setItems([[0,0],[2,1],[1,2],[1,1]])
+                .setDistance((a,b)=>{
+          return a.map((aa,i)=>Math.abs(b[i]-a[i])).reduce((x,y)=>Math.max(x,y));
+      });
+      let embed=ospace.embed(true);
+      let strain=embed.strain(ospace);
+      console.log(embed);
+      console.log(strain);
+      ret.assertEquals(0,strain);
+      
+    });
+
+    ret.addTest("Embedded Linfinite Norm of 8 points should have no strain if using imaginary", ()=>{
+      let ospace= VectorLib.MetricSpace()
+                .setItems([[0,0],[2,1],[1,2],[1,1],[1,0],[0,1]])
                 .setDistance((a,b)=>{
           return a.map((aa,i)=>Math.abs(b[i]-a[i])).reduce((x,y)=>Math.max(x,y));
       });
