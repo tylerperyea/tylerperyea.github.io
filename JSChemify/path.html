@@ -638,8 +638,7 @@ M  END`,
                       .roundMag(.1)
 	              .collapse(ePath);
       var c=JSChemify.Chemical(smi).setPathNotation(nPath);
-      path =c.getShortPathNotation();
-      document.getElementById("smiles-path").value=smi + " " + path;
+      document.getElementById("smiles-path").value=smi + " " + nPath;
       renderSmiPath();
 	
     }
