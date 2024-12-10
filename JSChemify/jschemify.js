@@ -536,7 +536,7 @@ JSChemify.PathNotation=function(f){
     };
     ret.expand=function(pth){
       var fpath=[];
-      let regex=/([LRDSFsd][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
+      let regex=/([LRDSFsdlr][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
       //regex.lastIndex=0;
       while(regex.lastIndex<pth.length){
         let oindex=regex.lastIndex;
@@ -592,8 +592,7 @@ JSChemify.PathNotation=function(f){
                   if(v[0][0]==="[" || v[0][0]==="]" || v[0][0]===","){
                      return v[0];
                   }
-             
-                  if(v[0].length>1 && (v[0][0]==="R"||v[0][0]==="L")){
+                  if(v[0].length>1 && (v[0][0]==="R"||v[0][0]==="L"||v[0][0]==="r"||v[0][0]==="l")){
                       var rc=Math.round((v[0].substr(1)-0)*ret._roundAngle)/ret._roundAngle;
                       v[0]=v[0][0] + rc;
                   }
@@ -623,6 +622,7 @@ JSChemify.PathNotation=function(f){
         var d=path[0];
         var m=path[1];
         var ang=0;
+        let inv=false;
         if(d==="S"){
             return [0,0];
         }
@@ -638,8 +638,9 @@ JSChemify.PathNotation=function(f){
           if(d[0]==="R" || d[0] ==="r"){
             ang=-ang;
           }
-          if(d.toLowerCase()==d){
-            ang=-Math.sign(ang)*(Math.PI-Math.abs(ang))/2;
+         
+          if(d.toLowerCase()===d){
+            inv=true;
           }
         }
         //
@@ -653,6 +654,7 @@ JSChemify.PathNotation=function(f){
             m=mm;
           }
         }
+        if(inv)m=-1*m;
         return [m*Math.cos(ang),m*Math.sin(ang)];
     };
     ret.pathFromDeltaVector=function(vec1,vec2){
@@ -661,14 +663,23 @@ JSChemify.PathNotation=function(f){
        }
        var dot=vec1[0]*vec2[0] + vec1[1]*vec2[1];
        var rej=vec1[0]*vec2[1] - vec1[1]*vec2[0];
+
+              
        var theta=Math.atan2(rej,dot);
-       var theta2=2*theta-Math.PI;
-       if(theta<0){
-          theta2=2*theta+Math.PI;
-       }
+       var theta2=Math.atan2(-rej,-dot);
+       
        
        var c=(Math.PI*2)/theta;
        var c2=(Math.PI*2)/theta2;
+
+       var diff1=Math.round(c*10)/10*Math.PI*2-theta;
+       var diff2=Math.round(c2*10)/10*Math.PI*2-theta2;
+       var inv=false;
+       if(Math.abs(diff2)>Math.abs(diff1)){
+         inv=true;
+         c=c2;
+       }
+       
        var mag1=JSChemify.Util.magVector(vec1);
        var mag2=JSChemify.Util.magVector(vec2);
        var magN=mag1/mag2;
@@ -684,27 +695,15 @@ JSChemify.PathNotation=function(f){
          dnm="R";
          c=-c;
        }
-        if(c2<0){
-          c2=-c2;
-          dnm2="r";
-        }
-       var rc=Math.round(c*ret._roundAngle)/ret._roundAngle;
-       var rc2=Math.round(c2*ret._roundAngle)/ret._roundAngle;
-       
-       if(Math.abs(rc2-c2) < Math.abs(rc-c) && false){
-         //TODO: there's something wrong here
-          dnm=dnm2;
-          c=rc2;
-          //c=rc;
-       }else{
-          c=rc;
+       if(inv){
+         dnm=dnm.toLowerCase();
        }
+       var rc=Math.round(c*ret._roundAngle)/ret._roundAngle;
+       c=rc;
+       
        magN=Math.round(magN*ret._roundMag)/ret._roundMag;
        var sig=dnm+c;
        if(c>50){
-          sig="F";
-       }
-       if(c<-50){
           sig="F";
        }
        if((magN+"")==="NaN"){
@@ -2843,8 +2842,8 @@ JSChemify.Chemical = function(arg){
      var got={};
      var gotAtoms={};
      var pthIndex=0;
-     var startDx=1;
-     var startDy=0;
+     var startDx=Math.cos((360/150)*Math.PI);
+     var startDy=Math.sin((360/150)*Math.PI);
      var sgroupLookup={};
      var sgroupStack=[];
      var csgroup=null;
@@ -2982,12 +2981,9 @@ JSChemify.Chemical = function(arg){
             let dvec=latom.getVectorTo(startAtom);
             startDx=dvec[0];
             startDy=dvec[1];
-            if(startDx===0 && startDy===0){
-               startDx=1;
-               startDy=0;
-            }
-            startDx=1;
-            startDy=0;
+            
+            startDx=Math.cos((360/150)*Math.PI);
+            startDy=Math.sin((360/150)*Math.PI);
         }
      }
 
@@ -2998,8 +2994,8 @@ JSChemify.Chemical = function(arg){
      var dpath=[];
      var gotAtoms={};
      var got={};
-     var startDx=1;
-     var startDy=0;
+     var startDx=Math.cos((360/150)*Math.PI);
+     var startDy=Math.sin((360/150)*Math.PI);
      var mgroupIndexes=[];
      var crossBondSIndex={};
      
@@ -3113,12 +3109,10 @@ JSChemify.Chemical = function(arg){
                                .roundMag(10)
                                .pathFromDeltaVector([pdx,pdy],
                                                     [startDx,startDy]);
-            if(startDx===0 && startDy===0){
-               startDx=1;
-               startDy=0;
-            }
-            startDx=1;
-            startDy=0;
+            
+            
+           startDx=Math.cos((360/150)*Math.PI);
+           startDy=Math.sin((360/150)*Math.PI);
             dpath.push(npath);
         }
      }
@@ -8409,14 +8403,14 @@ JSChemify.Tests=function(){
       ret.assertEquals(4,sgroup.getAtoms().length);
   });
   ret.tests.push(()=>{
-      let input="C1(=O)(N2(C(C(SC(H)(2)C(NC(CCCC(C(=O)O)N)=O)1)(C)C)C(O)=O)) L3m80Fm80L11.3m94R5.8M94RR4M60L4m60R4m60Fm60FR12LRLRLLRRRR4L24L5LRL7M90L3m80";
+      let input="C1(=O)(N2(C(C(SC(H)(2)C(NC(CCCC(C(=O)O)N)=O)1)(C)C)C(O)=O)) r6m80Fm80L11.3m94R5.8M94Rl4M60r4m60R4m60Fm60FR12LRLRLLRRRR4L24L5LRL7M90r6m80";
       let c = JSChemify.Chemical(input);
       let c2=JSChemify.Chemical(c.toMol());
       let smipp=c2.toSmilesPP();
       ret.assertEquals(smipp,input);
   });
   ret.tests.push(()=>{
-      let input="C1(C(C2(CCCCC2)C)CCC1) L4M60LRLLLLLR3R5R5R5R5";
+      let input="C1(C(C2(CCCCC2)C)CCC1) r4M60LRLLLLLl6R5R5R5R5";
       let c = JSChemify.Chemical(input);
       let c2=JSChemify.Chemical(c.toMol());
       let smipp=c2.toSmilesPP();
