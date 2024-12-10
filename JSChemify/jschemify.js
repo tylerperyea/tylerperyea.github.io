@@ -672,8 +672,8 @@ JSChemify.PathNotation=function(f){
        var c=(Math.PI*2)/theta;
        var c2=(Math.PI*2)/theta2;
 
-       var diff1=Math.round(c*10)/10*Math.PI*2-theta;
-       var diff2=Math.round(c2*10)/10*Math.PI*2-theta2;
+       var diff1=Math.round(c)*Math.PI*2-theta;
+       var diff2=Math.round(c2)*Math.PI*2-theta2;
        var inv=false;
        if(Math.abs(diff2)>Math.abs(diff1)){
          inv=true;
