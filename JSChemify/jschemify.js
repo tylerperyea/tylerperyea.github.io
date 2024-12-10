@@ -2137,13 +2137,13 @@ JSChemify.Bond = function(bbb){
       if(wedge){
         var wlow=wedge.toLowerCase();
         var par=1;
-        //TODO: something is wrong about this logic, but I don't
-        //know what
+         
         if(wedge===wedge.toLowerCase()){
-          //par=par*-1;
+          par=par*-1;
         }
-        if(ret._atom2!==a){
-          //par=par*-1;
+        //not entirely sure about this one
+        if(ret._atom1!==a){
+          par=par*-1;
         }
         if(par<0){
           ret.swap();
@@ -2174,7 +2174,7 @@ JSChemify.Bond = function(bbb){
         }
         if(ret._atom1!==a){
           //TODO: come back to this
-    //wedge=wedge.toLowerCase();
+          wedge=wedge.toLowerCase();
         }
      }
      var pn= JSChemify.PathNotation()
@@ -2200,9 +2200,9 @@ JSChemify.Bond = function(bbb){
         }else if(bs===JSChemify.CONSTANTS.BOND_STEREO_DASH){
           wedge="H";
         }
-        if(ret._atom2!==a){
+        if(b._atom1!==a){
           //TODO: come back to this
-          //wedge=wedge.toLowerCase();
+          wedge=wedge.toLowerCase();
         }
      }
      var pn= JSChemify.PathNotation().pathFromDeltaVector(vec1,vec2);
