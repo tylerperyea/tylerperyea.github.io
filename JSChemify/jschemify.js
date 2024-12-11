@@ -3873,6 +3873,7 @@ JSChemify.Chemical = function(arg){
   };
   
   ret.getAverageBondLength=function(){
+      if(ret.getBondCount()<1)return 1;
       var stat= ret.getBonds()
               .map(b=>b._atom1.getVectorTo(b._atom2))
               .map(b=>JSChemify.Util.sqMagVector(b))
