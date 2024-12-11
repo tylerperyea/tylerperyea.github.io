@@ -535,7 +535,7 @@ JSChemify.PathNotation=function(f){
     }
     let ret={};
     ret._roundAngle=10;
-    ret._roundMag=0.25;
+    ret._roundMag=0.5;
     ret.roundAngle=function(p){
       if(ret===JSChemify.CONSTANTS.PATH){
          return JSChemify.PathNotation(true)
