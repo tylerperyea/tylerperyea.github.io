@@ -383,6 +383,26 @@ JSChemify.ShapeUtils=function(){
       var rej = delta1[0]*delta2[1]-delta1[1]*delta2[0];
       return rej;
   };
+  ret.getIntersectionSegmentsCoeffs=function(line1,line2){
+      let dvec1=[line1[1][0]-line1[0][0],line1[1][1]-line1[0][1]];
+      let dvec2=[line2[1][0]-line2[0][0],line2[1][1]-line2[0][1]];
+      let adiff=[line2[0][0]-line1[0][0],line2[0][1]-line1[0][1]];
+      let mat=[[dvec1[0],dvec2[0]],[dvec1[1],dvec2[1]]];
+      let inv=JSChemify.Util.matrixInverse(mat);
+      let res=JSChemify.Util.matrixMultiply(inv,adiff);
+      if(res[0]<0 || res[0]>1)return null;
+      if(res[1]>0 || res[1]<-1)return null;
+      
+      return res;
+  };
+  ret.getIntersectionSegments=function(line1,line2){
+      let res=ret.getIntersectionSegmentsCoeffs(line1,line2);
+      let inter= [line1[0][0]+res[0]*dvec1[0],line1[0][1]+res[0]*dvec1[1]];
+      if(isNaN(inter[0]))return null;
+      
+      return inter;
+  };
+
   ret.getBoundingBox=function(pts, pad){
     if(typeof pad === "undefined"){
        pad=1;
@@ -1081,28 +1101,28 @@ JSChemify.Util = {
     return ident;
   },
   matrixMultiply:function(m1,m2T,t){
-      var oneVec=false;
-      if(!Array.isArray(m2T[0])){
-        m2T=[m2T];
-     oneVec=true;
+    var oneVec=false;
+    if(!Array.isArray(m2T[0])){
+      m2T=[m2T];
+      oneVec=true;
     }
     if(t){
         m2T=JSChemify.Util.matrixTranspose(m2T);
     }
     var pro=[];
     
-      for(var x=0;x<m1.length;x++){
+    for(var x=0;x<m1.length;x++){
         var row=m1[x];
-      var result=[];
-      for(var y=0;y<m2T.length;y++){
+        var result=[];
+        for(var y=0;y<m2T.length;y++){
           var column=m2T[y];
-        var dot=0;
-        for(var i=0;i<column.length;i++){
-            dot+=row[i]*column[i];
+          var dot=0;
+          for(var i=0;i<column.length;i++){
+              dot+=row[i]*column[i];
+          }
+          result.push(dot);
         }
-        result.push(dot);
-      }
-      pro.push(result);
+        pro.push(result);
     }
     if(oneVec){
         return pro.map(v=>v[0]);
@@ -7900,7 +7920,7 @@ JSChemify.Renderer=function(){
                ctx.fillStyle=ostyle;
                }
          }
-     
+         let done=[];
          //draw bonds
          chem.getBonds().map(b=>{
 
@@ -7908,14 +7928,42 @@ JSChemify.Renderer=function(){
                hide[b.getAtom2().getIndexInParent()]){  
              return;
             }
+            
             const seg=affine.transform(b.getLineSegment());
+            let over=false;
+            over=done.map(ss=>JSChemify.ShapeUtils().getIntersectionSegmentsCoeffs(seg,ss))
+                     .filter(cc=>cc!==null)
+                     .findIndex(cc=>cc[0]>0.2&&cc[0]<0.8) //only center-ish overlaps matter
+                     >=0;
+            done.push(seg);
+            
             const bo = b.getBondOrder();
             const dseg=[seg[0][0]-seg[1][0],seg[0][1]-seg[1][1]];
             const rej=[-ret._dblWidth*dseg[1],
-                      ret._dblWidth*dseg[0]];
+                        ret._dblWidth*dseg[0]];
+
+            if(over){
+                  //TODO: SVG doesn't really do this. You'd need to use a mask.
+                  //we could do this, but we'd need to add anything of this
+                  //nature to a global mask, and make sure to point all elements
+                  //to it. Also, we'd need to switch white to be black
+                  ctx.globalCompositeOperation = "destination-out";
+                  let owid=ctx.lineWidth;
+                  let bondHaloWidth=ret._highlightBondHaloWidth*ctx.lineWidth;
+                  ctx.lineWidth=bondHaloWidth;
+                  ctx.strokeStyle="white";
+                  ctx.beginPath();
+                  moveTo(seg[0][0]-rej[1], seg[0][1]-rej[0]);
+                  lineTo(seg[1][0]+rej[1], seg[1][1]+rej[0]);
+                  ctx.stroke(); 
+                  ctx.lineWidth=owid;
+                  ctx.globalCompositeOperation = "source-over";
+            }
+            
             let short=ret._dblShort;
             let styles=b.getAtoms().map(at=>ret.getStyleFor(at));
             ctx.strokeStyle="black";
+            
             //If there's stereo, draw dash or wedge
             if(b.getBondStereo()){
                   const affWedge=JSChemify.Util
@@ -7967,7 +8015,9 @@ JSChemify.Renderer=function(){
                   }
                 }
             }
-        
+
+            
+            
             ctx.beginPath();
             moveTo(seg[0][0], seg[0][1],styles[0],styles[1]);
             lineTo(seg[1][0], seg[1][1],styles[0],styles[1]);
@@ -8040,11 +8090,13 @@ JSChemify.Renderer=function(){
                     nudgeDy=0;
               }
              
-        
+              ctx.globalCompositeOperation = "destination-out";
               ctx.fillStyle = "white";
               ctx.beginPath();
               ctx.arc(loc[0], loc[1], cleareRad, 0, 2 * Math.PI);
               ctx.fill();
+             
+              ctx.globalCompositeOperation = "source-over";
 
               if(atomHalos[atomIdx]){
                   let nhal=atomHalos[atomIdx];
@@ -8327,7 +8379,10 @@ JSChemify.Tests=function(){
       ret.assertNotEquals(smi,smi2);
   };
    //C(=O)(N(CC2(C)C)[C@@]1([H])S2)C1
-
+  ret.tests.push("Line intersections",()=>{
+      let inter=JSChemify.ShapeUtils().getIntersectionSegments([[1,1],[0,0]],[[1,0],[0,1]]);
+      ret.assertToStringEquals([0.5,0.5],inter);
+  });
   ret.tests.push("Base64 Parity Test works",()=>{
       let atorv="H4sIAAAAAAAAA6VWS44UMQzd9ylyASJ/4jhZzwwLJIYFEjcAwYIDcHucxKmullhQ7lEv6o0rrxy/Zye3T19ffn7//evHH" +
                 "4CGSAW7AL3ebqlgKiUlOP3Of5C+EQDc7PEDZeJG66ki1RnPFoX0kh4p/v2bLJAblbpYRIueWN7/nwWzCJXFAo0klgvmLo" +
