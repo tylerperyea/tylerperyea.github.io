@@ -654,6 +654,9 @@ M  END`
       }
       var smiSVG=c.getSVG();
       document.getElementById("smiles-path-img").innerHTML=smiSVG;
+      var c2=JSChemify.Chemical(document.getElementById("molfile").value);
+      var rmse = c2.getAtomOverlapRMSE(c,true);
+      document.getElementById("rmse").innerHTML=rmse;
     }
     function renderMol(){
       var mol = document.getElementById("molfile").value;
@@ -831,6 +834,7 @@ M  END
   </div>
 <label for="smiles-path">Smiles Path Notation</label>
 <textarea id="smiles-path"></textarea>
+<div>RMSE: <span id="rmse"></span></div>
 <button id="render-smiles" onclick="renderSmiPath()">Render Image</button>
 <button id="generate-coordinates-smiles" onclick="generateCoordinatesSmi()">Generate Coordinates</button>
 <button id="round-path" onclick="round()">Round</button>
