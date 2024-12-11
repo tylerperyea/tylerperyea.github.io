@@ -6372,7 +6372,7 @@ JSChemify.SmilesReader=function(){
   ret._decorateProperty=null;
   
   ret.setInput=function(s){
-       ret._input=s;
+    ret._input=s;
     ret._slice=s;
     return ret;
   };
@@ -6380,12 +6380,15 @@ JSChemify.SmilesReader=function(){
     ret._head=i;
     return ret;
   };
+  ret.getHead=function(){
+      return ret._input.length-ret._slice.length;
+  };
   ret.readNext=function(regex,pred){
     var match=regex.exec(ret._slice);
     if(match){
         if(pred && !pred(match))return null;
-      ret._slice=ret._slice.substr(match[0].length);
-      return match;
+        ret._slice=ret._slice.substr(match[0].length);
+        return match;
     };
     return null;
   };
@@ -6724,11 +6727,18 @@ JSChemify.SmilesReader=function(){
           //TODO: Handle E/Z
           ret.readNext(/^\\/);
           ret.readNext(/^\//);
-         ret.parseBranchOrComponent();
-         ret.parseCloseLocants();
-         ret.parseBranchOrComponent();
-         ret.parseCloseLocants();
-         ret.parseBranchOrComponent();
+          let ohead=ret.getHead();
+
+          while(true){
+             ret.parseBranchOrComponent();
+             ret.parseCloseLocants();
+             if(ret.getHead()>ohead){
+                ohead=ret.getHead();
+             }else{
+                break;
+             }
+          }
+          
       };
       return ret.build(chem);
   };
