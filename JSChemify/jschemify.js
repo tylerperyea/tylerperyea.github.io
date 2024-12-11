@@ -2837,8 +2837,9 @@ JSChemify.Chemical = function(arg){
     return ret;
     
   };
+
   ret.transformCoordinates=function(m){
-      var basis1=m[0];
+    var basis1=m[0];
     var basis2=m[1];
     ret.getAtoms().map(at=>{
             var x=at.getX();
@@ -3008,6 +3009,90 @@ JSChemify.Chemical = function(arg){
      }
 
      return ret;
+  };
+
+  ret.getAtomOverlapRMSE=function(c2, normFirst){
+     let atoms1=JSChemify.Util.distinct(ret.getSmilesAtomBondOrder().map(p=>p.atom));
+     let atoms2=JSChemify.Util.distinct(c2.getSmilesAtomBondOrder().map(p=>p.atom));
+
+     let avgBL1=ret.getAverageBondLength();
+     let avgBL2=c2.getAverageBondLength();
+     
+     let affine=JSChemify.AffineTransformation();
+     if(normFirst){
+         let bbox1=ret.getBoundingBox();
+         let bbox2=c2.getBoundingBox();
+         let cc1=[ (bbox1[2]+bbox1[0])/2,
+                 (bbox1[3]+bbox1[1])/2];
+         let cc2=[ (bbox2[2]+bbox2[0])/2,
+                 (bbox2[3]+bbox2[1])/2];
+         affine=JSChemify.AffineTransformation()
+              .translate(cc1[0],cc1[1])
+              .scale(avgBL1/avgBL2,avgBL1/avgBL2)
+              .translate(-cc2[0],-cc2[1]);
+     }
+     
+     let sum=0;
+     for(let i=0;i<atoms1.length;i++){
+         let pt=affine.transform(atoms2[i].getPoint());
+         let vec=atoms1[i].getVectorToPoint(pt);
+         let err=JSChemify.Util.sqMagVector(vec)/(avgBL1*avgBL1);
+         sum+=err;
+     }
+     sum=sum/atoms1.length;
+     return Math.sqrt(sum);
+     
+  };
+   
+  ret.getSmilesAtomBondOrder=function(){
+     var startAtom=ret.getAtom(0);
+     var gotAtoms={};
+     var got={};
+     let stack=[];
+
+     while(startAtom){
+        gotAtoms[startAtom.getIndexInParent()]=true;
+        closedRings=[];
+        startAtom.$allPathsDepthFirst((path)=>{
+           let nnbondIdx=path[path.length-1].bond.getIndexInParent();
+           if(got[nnbondIdx]){
+             return true;
+           }
+           var atom1=path[path.length-2].atom;
+           gotAtoms[atom1.getIndexInParent()]=true;
+
+           
+           var newAtom = path[path.length-1];
+           if(closedRings.findIndex(cr=>cr.bond ===newAtom.bond)>=0){
+                return true;
+           }
+           
+           if(path.length>2){
+             var atom2=path[path.length-1].atom;
+             gotAtoms[atom2.getIndexInParent()]=true;
+             stack.push(path[path.length-1]);
+           }else if(path.length===2){
+             stack.push(path[0]);
+           }
+           stack.push(path[path.length-1]);
+           got[path[path.length-1].bond.getIndexInParent()]=true;
+            var rindx=path.findIndex(pa=>pa.atom===newAtom.atom);
+            if(rindx<path.length-1){
+               closedRings.push(newAtom);
+               return true;
+            }
+        });
+
+        let latom=startAtom;
+        startAtom=null;
+        for(let i=0;i<ret.getAtomCount();i++){
+            if(!gotAtoms[i]){
+               startAtom=ret.getAtom(i);
+               break;
+            }
+        }
+     }
+     return stack;
   };
   ret.getPathNotation=function(){
      var startAtom=ret.getAtom(0);
