@@ -2197,8 +2197,6 @@ JSChemify.Bond = function(bbb){
         }
      }
      var pn= JSChemify.PathNotation()
-                      .roundAngle(100)
-                      .roundMag(10)
                       .pathFromDeltaVector(vec1,vec2);
      if(wedge){
         pn.push(wedge);
@@ -3210,14 +3208,12 @@ JSChemify.Chemical = function(arg){
             startDy=dvec[1];
            
             let npath=JSChemify.PathNotation()
-                               .roundAngle(100)
-                               .roundMag(10)
                                .pathFromDeltaVector([pdx,pdy],
                                                     [startDx,startDy]);
             
             
-           startDx=Math.cos((360/150)*Math.PI);
-           startDy=Math.sin((360/150)*Math.PI);
+            startDx=Math.cos((360/150)*Math.PI);
+            startDy=Math.sin((360/150)*Math.PI);
             dpath.push(npath);
         }
      }
@@ -8038,8 +8034,9 @@ JSChemify.Renderer=function(){
                   ctx.lineWidth=bondHaloWidth;
                   ctx.strokeStyle="white";
                   ctx.beginPath();
-                  moveTo(seg[0][0]-rej[1], seg[0][1]-rej[0]);
-                  lineTo(seg[1][0]+rej[1], seg[1][1]+rej[0]);
+                  let overSpace=0.2;
+                  moveTo(seg[0][0]-overSpace*dseg[0], seg[0][1]-overSpace*dseg[1]);
+                  lineTo(seg[1][0]+overSpace*dseg[0], seg[1][1]+overSpace*dseg[1]);
                   ctx.stroke(); 
                   ctx.lineWidth=owid;
                   ctx.globalCompositeOperation = "source-over";
