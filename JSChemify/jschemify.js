@@ -556,7 +556,7 @@ JSChemify.PathNotation=function(f){
     };
     ret.expand=function(pth){
       var fpath=[];
-      let regex=/([LRDSFsdlr][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
+      let regex=/([LRDSFfsdlr][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
       //regex.lastIndex=0;
       while(regex.lastIndex<pth.length){
         let oindex=regex.lastIndex;
@@ -659,9 +659,10 @@ JSChemify.PathNotation=function(f){
             ang=-ang;
           }
          
-          if(d.toLowerCase()===d){
+          
+        }
+        if(d.toLowerCase()===d){
             inv=true;
-          }
         }
         //
         if(!m){
@@ -724,7 +725,11 @@ JSChemify.PathNotation=function(f){
        magN=Math.round(magN*ret._roundMag)/ret._roundMag;
        var sig=dnm+c;
        if(c>50){
-          sig="F";
+          if(inv){
+             sig="f";
+          }else{
+             sig="F";
+          }
        }
        if((magN+"")==="NaN"){
             return ["S","M100"];
