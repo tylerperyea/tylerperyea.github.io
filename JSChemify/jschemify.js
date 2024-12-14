@@ -14,7 +14,10 @@ Refactoring:
 
 Basic I/O:
 1. CIP designations (R/S)
-2. Read double bond geometry from smiles
+2. [partial] Read double bond geometry from smiles
+   2.1. Need to recalculate from bond 2d coordinates sometimes
+   2.2. [partial] Need to preserve on coordinate generation
+         2.2.1. Seems to work for simple cases, need to try complex ones
 3. [started] InChI parser
 4. [just for fun] WLN parser 
 5. Simplify Smiles
@@ -2243,6 +2246,93 @@ JSChemify.Bond = function(bbb){
       ret._geom=g;
       return ret;
   };
+  ret.setBondGeometryFromCoordinates=function(keep, order){
+      if(ret.getBondGeometry() && keep)return ret;
+     
+      if(ret.getBondOrder()!==1){
+         return ret.setBondGeometry(0);
+      }
+      if(!order){
+         order=(o)=>o;
+      }
+      if(typeof order === "object"){
+         let oo=order;
+         order = (o)=>oo[o];
+      }
+      let thisIndex=order(ret.getIndexInParent());
+      let a1=ret.getAtom1();
+      let a2=ret.getAtom2();
+      let vec=a1.getVectorTo(a2);
+      let indexes=[];
+      let rej1=ret.getAtom1().getNeighborAtomsAndBonds()
+                    .filter(bb=>bb.atom!==a2)
+                    .filter(bb=>bb.bond.getBondOrder()===2)
+                    .filter(bb=>{
+                        let size=bb.bond.getSmallestRingSize();
+                        if(size>0 && size<8)return false;
+                        if(bb.atom.getBonds().length<=1)return false;
+                        return true;
+                    })
+                    .map(bb=>{
+                        let oIndex=order(bb.bond.getIndexInParent());
+                        indexes[0]=oIndex;
+                        let adj=1;
+                        if(oIndex>thisIndex)adj=adj*-1;
+                        let ovec=bb.bond.getDeltaVector();
+                        let rej=vec[0]*ovec[1]-vec[1]*ovec[0];
+                        return adj*rej;
+                    });
+      let rej2=ret.getAtom2().getNeighborAtomsAndBonds()
+                    .filter(bb=>bb.atom!==a1)
+                    .filter(bb=>bb.bond.getBondOrder()===2)
+                    .filter(bb=>{
+                        let size=bb.bond.getSmallestRingSize();
+                        if(size>0 && size<8)return false;
+                        if(bb.atom.getBonds().length<=1)return false;
+                        return true;
+                    })
+                    .map(bb=>{
+                        let oIndex=order(bb.bond.getIndexInParent());
+                        indexes[1]=oIndex;
+                        let adj=1;
+                        if(oIndex>thisIndex)adj=adj*-1;
+                        let ovec=bb.bond.getDeltaVector();
+                        let rej=vec[0]*ovec[1]-vec[1]*ovec[0];
+                        return adj*rej;
+                    });
+      
+      if(rej1.length===1 && rej2.length===0){
+         if(rej1[0]>0){
+            return ret.setBondGeometry(JSChemify.CONSTANTS.BOND_GEOM_UP);
+         }else if(rej1[0]<0){
+            return ret.setBondGeometry(JSChemify.CONSTANTS.BOND_GEOM_DOWN);
+         }
+      }else if(rej2.length===1 && rej1.length===0){
+         if(rej2[0]>0){
+            return ret.setBondGeometry(JSChemify.CONSTANTS.BOND_GEOM_DOWN);
+         }else if(rej2[0]<0){
+            return ret.setBondGeometry(JSChemify.CONSTANTS.BOND_GEOM_UP);
+         }
+      }else if(rej1.length===1 && rej2.length===1){
+         //TODO: need to consider this kind of case ... 
+         //the thing that matters is relative stuff
+         //probably prioritize the lower one
+         let uRej=rej1;
+         let adj=1;
+         if(indexes[0]<indexes[1]){
+            adj=adj*-1;
+            uRej=rej2;
+         }
+         if(uRej[0]*adj>0){
+            return ret.setBondGeometry(JSChemify.CONSTANTS.BOND_GEOM_DOWN);
+         }else if(uRej[0]*adj<0){
+            return ret.setBondGeometry(JSChemify.CONSTANTS.BOND_GEOM_UP);
+         }
+      }
+      
+      return ret.setBondGeometry(0);
+  };
+  
   ret.hasAtom=function(a){
      return ret.getAtoms().indexOf(a)>=0;
   };
@@ -4753,6 +4843,7 @@ M  SCN  2   1 HT    2 HT
       ret.getAtoms().map(aa=>{
          aa.setParityFromStereoBond(true);
       });
+
       
       var startAtom = ret.getAtom(0);
       var chain=[];
@@ -4883,10 +4974,12 @@ M  SCN  2   1 HT    2 HT
             return std;
       });
 
+      let bIndexOrder={};
       let border=[];
       chain.filter(cc=>cc.bond)
            .map(cc=>cc.bond)
-           .map(bb=>{
+           .map((bb,i)=>{
+               bIndexOrder[bb.getIndexInParent()]=i;
                let a1i=bb.getAtom1().getIndexInParent();
                let a2i=bb.getAtom2().getIndexInParent();
                if(!border[a1i])border[a1i]=[];
@@ -4914,6 +5007,9 @@ M  SCN  2   1 HT    2 HT
          }
       });
       
+      ret.getBonds().map(bb=>{
+         bb.setBondGeometryFromCoordinates(true, bIndexOrder);
+      });
      
       let smi= chain.map(cc=>{
        
@@ -8606,6 +8702,56 @@ JSChemify.Tests=function(){
                              });
       });
      
+  });
+  ret.tests.push("E/Z on toSmiles preserved cis",()=>{
+      let omol=`
+  -INDIGO-12142417232D
+
+  4  3  0  0  0  0  0  0  0  0999 V2000
+    7.3157   -8.0735    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    7.9818   -7.5985    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    8.9818   -7.5985    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    9.5068   -8.1325    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0  0  0  0
+  2  3  2  0  0  0  0
+  3  4  1  0  0  0  0
+M  END
+`;
+      let nsmi=JSChemify.Chemical(omol).toSmiles();
+      let expected1="C/C=C\\C";
+      let expected2="C\\C=C/C";
+
+      try{
+         ret.assertEquals(nsmi,expected1);
+      }catch(e){
+         ret.assertEquals(nsmi,expected2);
+      }
+  });
+  ret.tests.push("E/Z on toSmiles preserved trans",()=>{
+      let omol=`
+  -INDIGO-12142417312D
+
+  4  3  0  0  0  0  0  0  0  0999 V2000
+    7.7487   -5.8735    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    8.7487   -5.8735    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    7.2487   -6.7395    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    9.2487   -5.0075    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  2  0  0  0  0
+  1  3  1  0  0  0  0
+  2  4  1  0  0  0  0
+M  END
+`;
+      let nsmi=JSChemify.Chemical(omol).toSmiles();
+     //TODO: consider if this makes sense
+      let expected1="C(=C/C)\\C";
+      let expected2="C(=C\\C)/C";
+     
+
+      try{
+         ret.assertEquals(nsmi,expected1);
+      }catch(e){
+         ret.assertEquals(nsmi,expected2);
+      }
   });
   ret.tests.push("parse E/Z same on smiles preserved",()=>{
       let osmi="F/C=C/F";
