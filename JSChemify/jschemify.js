@@ -527,6 +527,11 @@ Status: WORKING
 Basic utility type to parse and 
 process path notation for chem
 layout.
+
+TODO: this should allow for setting
+a maximum deviation, and round to
+that, rather than an arbitrary 
+universal precision. 
    
 *******************************/
 JSChemify.PathNotation=function(f){
@@ -534,6 +539,11 @@ JSChemify.PathNotation=function(f){
       return JSChemify.CONSTANTS.PATH;
     }
     let ret={};
+   //This sets the absolute allowed
+   //deviation for any given atom,
+   // but it needs more work
+   //ret._maxDeviation=0.001;
+   //ret._maxDeviation=0.00001;
     ret._roundAngle=10;
     ret._roundMag=1;
     ret.roundAngle=function(p){
@@ -684,7 +694,7 @@ JSChemify.PathNotation=function(f){
        }
        var dot=vec1[0]*vec2[0] + vec1[1]*vec2[1];
        var rej=vec1[0]*vec2[1] - vec1[1]*vec2[0];
-
+       
               
        var theta=Math.atan2(rej,dot);
        var theta2=Math.atan2(-rej,-dot);
@@ -696,6 +706,8 @@ JSChemify.PathNotation=function(f){
        var diff1=Math.round(c)*Math.PI*2-theta;
        var diff2=Math.round(c2)*Math.PI*2-theta2;
        var inv=false;
+       var neg=false;
+       var smaller=false;
        if(Math.abs(diff2)>Math.abs(diff1)){
          inv=true;
          c=c2;
@@ -703,11 +715,14 @@ JSChemify.PathNotation=function(f){
        
        var mag1=JSChemify.Util.magVector(vec1);
        var mag2=JSChemify.Util.magVector(vec2);
-       var magN=mag1/mag2;
+       var magR=mag1/mag2;
+       var magN=magR;
        var nm="M";
+       
        if(magN>1){
          nm="m";
          magN=1/magN;
+         smaller=true;
        }
        magN=magN*100;
        var dnm="L";
@@ -715,14 +730,78 @@ JSChemify.PathNotation=function(f){
        if(c<0){
          dnm="R";
          c=-c;
+         neg=true;
        }
        if(inv){
          dnm=dnm.toLowerCase();
        }
-       var rc=Math.round(c*ret._roundAngle)/ret._roundAngle;
+       let rAng=ret._roundAngle;
+       let rMag=ret._roundMag;
+       let rc=null;
+       let rM=null;
+       if(ret._maxDeviation){
+         let rdVec=[magR*dot/(mag2*mag1),magR*rej/(mag1*mag2)];
+         //the deviation is found by applying
+         //the rounded transformation to the
+         //source with successive rounding
+         //until the result is less than 
+         //the deviation
+         let thetaB=0;
+         let round=1;
+         while(true){
+            rc=Math.round(c*round)/round;
+            thetaB=2*Math.PI/rc;
+            if(neg)thetaB=-thetaB;
+            if(inv)thetaB=thetaB+Math.PI;
+            let nvec=[magR*Math.cos(thetaB),magR*Math.sin(thetaB)];
+            let diffV=[nvec[0]-rdVec[0],nvec[1]-rdVec[1]];
+            let dev=Math.sqrt(diffV[0]*diffV[0]+diffV[1]*diffV[1]);
+            //console.log(round + ":" + dev);
+            //console.log(diffV);
+            if(dev<ret._maxDeviation){
+               break;
+            }
+            round=round*10;
+            if(round>100000000)break;
+         }
+         round=0.1;
+         let nextM=2;
+         while(true){
+            let tryM1=Math.round(magN*round)/round;
+            let tryM=tryM1/100;
+            if(smaller){
+               tryM=1/tryM;
+            }
+            let nvec=[tryM*Math.cos(thetaB),tryM*Math.sin(thetaB)];
+            let diffV=[nvec[0]-rdVec[0],nvec[1]-rdVec[1]];
+            let dev=Math.sqrt(diffV[0]*diffV[0]+diffV[1]*diffV[1]);
+            if(isNaN(dev))break;
+            //console.log(tryM);
+            //console.log(round + ":" + dev);
+            //console.log(diffV);
+            rM=tryM1;
+            if(dev<ret._maxDeviation){
+               
+               break;
+            }
+            round=round*nextM;
+            if(nextM===2){
+               nextM=5;
+            }else if(nextM===5){
+               nextM=2;
+            }
+            if(round>100000)break;
+         }
+         
+          
+       }
+       if(!rc){
+          rc=Math.round(c*rAng)/rAng;
+       }
        c=rc;
-       
-       magN=Math.round(magN*ret._roundMag)/ret._roundMag;
+       if(!rM){
+          rM=Math.round(magN*rMag)/rMag;
+       }
        var sig=dnm+c;
        if(c>50){
           if(inv){
@@ -731,13 +810,13 @@ JSChemify.PathNotation=function(f){
              sig="F";
           }
        }
-       if((magN+"")==="NaN"){
+       if((rM+"")==="NaN"){
             return ["S","M100"];
        }
-       if(magN===0){
+       if(rM===0){
             return ["S","M100"];
        }
-       return [sig, nm + magN];
+       return [sig, nm + rM];
     };
   
     return ret;
