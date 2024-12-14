@@ -397,6 +397,8 @@ JSChemify.ShapeUtils=function(){
   };
   ret.getIntersectionSegments=function(line1,line2){
       let res=ret.getIntersectionSegmentsCoeffs(line1,line2);
+     
+      let dvec1=[line1[1][0]-line1[0][0],line1[1][1]-line1[0][1]];
       let inter= [line1[0][0]+res[0]*dvec1[0],line1[0][1]+res[0]*dvec1[1]];
       if(isNaN(inter[0]))return null;
       
@@ -542,7 +544,7 @@ JSChemify.PathNotation=function(f){
    //This sets the absolute allowed
    //deviation for any given atom,
    // but it needs more work
-   //ret._maxDeviation=0.001;
+   //ret._maxDeviation=0.00001;
    //ret._maxDeviation=0.00001;
     ret._roundAngle=10;
     ret._roundMag=1;
@@ -843,6 +845,10 @@ JSChemify.CONSTANTS={
   BOND_STEREO_DASH : 6,
   BOND_STEREO_WIGGLE : 4,
   BOND_STEREO_NONE : 0,
+   
+  BOND_GEOM_UP : 1,
+  BOND_GEOM_DOWN : 2,
+   
 
   PATH:JSChemify.PathNotation(),
   VECTORS_BASIS:JSChemify.BaseVectors(),
@@ -2188,6 +2194,7 @@ JSChemify.Bond = function(bbb){
   ret._parent=null;
   ret._order=1;
   ret._stereo=JSChemify.CONSTANTS.BOND_STEREO_NONE;
+  ret._geom=null; 
   ret._atom1=null;
   ret._atom2=null;
   
@@ -2202,11 +2209,13 @@ JSChemify.Bond = function(bbb){
     bnd._stereo=ret._stereo;
     bnd._atom1=ret._atom1;
     bnd._atom2=ret._atom2;
+    bnd._geom=ret._geom;
     return bnd;
   };
   ret.setBondTo=function(b){
     ret._order=b._order;
     ret._stereo=b._stereo;
+    ret._geom=b._geom;
     if(b._atom1){
        ret._atom1=b._atom1;
     }
@@ -2226,6 +2235,13 @@ JSChemify.Bond = function(bbb){
        return ret._atom2;
     }
     return null;
+  };
+  ret.getBondGeometry=function(){
+      return ret._geom;
+  };
+  ret.setBondGeometry=function(g){
+      ret._geom=g;
+      return ret;
   };
   ret.hasAtom=function(a){
      return ret.getAtoms().indexOf(a)>=0;
@@ -2460,6 +2476,11 @@ JSChemify.Bond = function(bbb){
   ret.toSmiles=function(force){
     //TODO: Deal with stereo
     if(ret._order==1){
+        if(ret._geom ===JSChemify.CONSTANTS.BOND_GEOM_UP){
+            return "/";
+        }else if(ret._geom ===JSChemify.CONSTANTS.BOND_GEOM_DOWN){
+            return "\\";
+        }
         if(force)return "-";
         return "";
     }else if(ret._order==2){
@@ -6443,7 +6464,6 @@ JSChemify.SmilesReader=function(){
   var ret={};
   ret._input=null;
   ret._head=0;
-  ret._slice=null;
   ret._atoms=[];
   ret._bonds=[];
   ret._branchIndex=[];
@@ -6452,12 +6472,13 @@ JSChemify.SmilesReader=function(){
   ret._locantBondNumber={};
   ret._bondNumber=0;
   ret._bondOnDeck="!";
+  ret._geomOnDeck="!";
   ret._targetAtomIndex=null;
   ret._decorateProperty=null;
   
   ret.setInput=function(s){
     ret._input=s;
-    ret._slice=s;
+    ret._head=0;
     return ret;
   };
   ret.setHead=function(i){
@@ -6465,13 +6486,17 @@ JSChemify.SmilesReader=function(){
     return ret;
   };
   ret.getHead=function(){
-      return ret._input.length-ret._slice.length;
+      return ret._head;
   };
   ret.readNext=function(regex,pred){
-    var match=regex.exec(ret._slice);
+    regex.lastIndex=ret._head;
+     
+    var match=regex.exec(ret._input);
     if(match){
         if(pred && !pred(match))return null;
-        ret._slice=ret._slice.substr(match[0].length);
+        //ret._slice=ret._slice.substr(match[0].length);
+        ret._head=ret._head+match[0].length;
+        
         return match;
     };
     return null;
@@ -6486,16 +6511,17 @@ JSChemify.SmilesReader=function(){
       return "-";
   };
   ret.addAtom=function(atom){
-          if(ret._targetAtomIndex!==null){
+      if(ret._targetAtomIndex!==null){
           var bt=ret.getBondOnDeck(atom);
+         
           ret._bonds.push({"type":bt,
-        "atom1":ret._targetAtomIndex,
-        "atom2":ret._atoms.length,
-        "num":ret._bondNumber
-        });
+           "atom1":ret._targetAtomIndex,
+           "atom2":ret._atoms.length,
+           "num":ret._bondNumber
+           });
         
           ret._bondNumber++;
-        ret._bondOnDeck="!"; //always reset to single
+          ret._bondOnDeck="!"; //always reset to single
       }
       ret._atoms.push(atom);
       ret._targetAtomIndex=ret._atoms.length-1;
@@ -6512,7 +6538,7 @@ JSChemify.SmilesReader=function(){
   };
   ret.addBond=function(t){
       ret._bondOnDeck=t;
-    return ret;
+      return ret;
   };
   ret.addLocant=function(l){
     //it already exists, close the bond
@@ -6538,14 +6564,14 @@ JSChemify.SmilesReader=function(){
     }else{
         //mark this locant for later
         ret._locantIndex[l]=ret._targetAtomIndex;
-      ret._locantBondNumber[l]=ret._bondNumber;
-      ret._bondNumber++;
-      if(ret._bondOnDeck!="!"){
+        ret._locantBondNumber[l]=ret._bondNumber;
+        ret._bondNumber++;
+        if(ret._bondOnDeck!=="!"){
             ret._locantBond[l]=ret._bondOnDeck;
-      }else{
+        }else{
             ret._locantBond[l]="!!";
-      }
-      ret._bondOnDeck="!";
+        }
+        ret._bondOnDeck="!";
     }
     return ret;
   };
@@ -6580,18 +6606,18 @@ JSChemify.SmilesReader=function(){
         //TODO:Not sure about this
         //throw "No locant by index '" + l + "'";
       
-      //mark this locant for later
+        //mark this locant for later
         ret._locantIndex[l]=ret._targetAtomIndex;
-      ret._locantBondNumber[l]=ret._bondNumber;
-      ret._bondNumber++;
+        ret._locantBondNumber[l]=ret._bondNumber;
+        ret._bondNumber++;
         if(ret._bondOnDeck!="!"){
             ret._locantBond[l]=ret._bondOnDeck;
-      }else{
+        }else{
             ret._locantBond[l]="!!";
-      }
-      ret._bondOnDeck="!";
+        }
+        ret._bondOnDeck="!";
     }
-      return ret;
+    return ret;
   };
   ret.build=function(chemical){
           //TODO:Checks
@@ -6642,17 +6668,23 @@ JSChemify.SmilesReader=function(){
            var nbd=chemical.addNewBond(bd.atom1,bd.atom2,1);
            if(bd.type=="-"){
                    nbd.setBondOrder(1);
-           }else  if(bd.type=="="){
+           }else if(bd.type=="="){
                    nbd.setBondOrder(2);
-           }else  if(bd.type=="#"){
+           }else if(bd.type=="#"){
                    nbd.setBondOrder(3);
-           }else  if(bd.type==":"){
+           }else if(bd.type==":"){
                    nbd.setBondOrder(4);
-           }else  if(bd.type=="~"){
+           }else if(bd.type=="~"){
                    nbd.setBondOrder(0);
-           }else  if(bd.type=="a:"){
+           }else if(bd.type=="\/"){
+                   nbd.setBondOrder(1);
+                   nbd.setBondGeometry(JSChemify.CONSTANTS.BOND_GEOM_UP);
+           }else if(bd.type=="\\"){
+                   nbd.setBondOrder(1);
+                   nbd.setBondGeometry(JSChemify.CONSTANTS.BOND_GEOM_DOWN);
+           }else if(bd.type=="a:"){
                    nbd.setBondOrder(4);
-              bdsToCheck[i]=true;
+                   bdsToCheck[i]=true;
            }
            if(lastB>(bd.num-1)){
                chemical.getAtom(bd.atom1).swapParity();
@@ -6675,7 +6707,7 @@ JSChemify.SmilesReader=function(){
   };
   
   ret.parseAtom=function(){
-      var m=ret.readNext(/^[A-Z*][a-z]{0,1}/,(p)=>{
+      var m=ret.readNext(/[A-Z*][a-z]{0,1}/y,(p)=>{
           try{
               var el=JSChemify.Util.getElementFromSymbol(p[0]);
             return (el.smiles)?true:false;
@@ -6687,15 +6719,15 @@ JSChemify.SmilesReader=function(){
       if(m){
          return ret.addAtom({"atom":m[0]});
       }
-      m=ret.readNext(/^[C|N|O|S|P|I|F]/);
+      m=ret.readNext(/[C|N|O|S|P|I|F]/y);
       if(m){
         return ret.addAtom({"atom":m[0]});
       }
-      m=ret.readNext(/^[c|n|o|s|p]/);
+      m=ret.readNext(/[c|n|o|s|p]/y);
       if(m){
         return ret.addAtom({"atom":m[0].toUpperCase(),"type":"a"});
       }
-      m=ret.readNext(/^\[([0-9]{0,3})([A-Z*][a-z]{0,2})([@]{1,2})?(H[0-9]*)?([+|-]{1,}[0-9]*)?([:][0-9]{1,3})?\]/);
+      m=ret.readNext(/\[([0-9]{0,3})([A-Z*][a-z]{0,2})([@]{1,2})?(H[0-9]*)?([+|-]{1,}[0-9]*)?([:][0-9]{1,3})?\]/y);
       if(m){
           if(m[5] && (m[5].startsWith("++") || m[5].startsWith("--"))){ 
                 m[5]=m[5][0]+[...m[5]].map(d=>Math.abs((d+"1")-0)).reduce((a,b)=>a+b,0);
@@ -6707,7 +6739,7 @@ JSChemify.SmilesReader=function(){
                               "charge":m[5],
                               "map":m[6]});
       }
-      m=ret.readNext(/^\[([0-9]{0,3})([a-z]{1})([@]{1,2})?(H[0-9]*)?([+|-]{1,}[0-9]*)?([:][0-9]{1,3})?\]/);
+      m=ret.readNext(/\[([0-9]{0,3})([a-z]{1})([@]{1,2})?(H[0-9]*)?([+|-]{1,}[0-9]*)?([:][0-9]{1,3})?\]/y);
       if(m){
           if(m[5] && (m[5].startsWith("++") || m[5].startsWith("--"))){
                 m[5]=m[5][0]+[...m[5]].map(d=>Math.abs((d+"1")-0)).reduce((a,b)=>a+b,0);
@@ -6720,18 +6752,18 @@ JSChemify.SmilesReader=function(){
         "map":m[6],
         "type":"a"});
       }
-      throw "parse error, unexpected atom format:" + ret._slice;
+      throw "parse error, unexpected atom format:" + ret._input.substr(ret._head);
   }
   ret.parseLocants=function(){
           var got1=true;
           while(got1){
         got1=false;
-        var m=ret.readNext(/^[%][0-9][0-9]/);
+        var m=ret.readNext(/[%][0-9][0-9]/y);
         if(m){
            ret.addLocant(m[0].substr(1));
            got1=true;
         }
-        m=ret.readNext(/^[0-9]/);
+        m=ret.readNext(/[0-9]/y);
         if(m){
            ret.addLocant(m[0]);
            got1=true;
@@ -6744,12 +6776,12 @@ JSChemify.SmilesReader=function(){
       var got1=true;
       while(got1){
         got1=false;
-        var m=ret.readNext(/^[%][0-9][0-9]/);
+        var m=ret.readNext(/[%][0-9][0-9]/y);
         if(m){
            ret.addCloseLocant(m[0].substr(1));
            got1=true;
         }
-        m=ret.readNext(/^[0-9]/);
+        m=ret.readNext(/[0-9]/y);
         if(m){
            ret.addCloseLocant(m[0]);
            got1=true;
@@ -6759,7 +6791,7 @@ JSChemify.SmilesReader=function(){
       return ret;
   };
   ret.parseBond=function(){
-      var m=ret.readNext(/^[-:=#~]/);
+      var m=ret.readNext(/[-:=#~\\\/]/y);
       if(m){
         ret.addBond(m[0]);
       }else{
@@ -6768,49 +6800,40 @@ JSChemify.SmilesReader=function(){
       return ret;
   };
   ret.parseBranchOrComponent=function(){
-      var m=ret.readNext(/^\(/);
+      var m=ret.readNext(/\(/y);
       if(m){
         ret.startBranch();
         ret.parseBond();
       }else{
-          m=ret.readNext(/^\)/);
+          m=ret.readNext(/\)/y);
         if(m){
             ret.endBranch();
           ret.parseBranchOrComponent();
           ret.parseBond();
         }else{
-          m=ret.readNext(/^\./);
+          m=ret.readNext(/\./y);
            if(m){
               ret.startComponent();
            }else{
-                    ret.parseBond();
+              ret.parseBond();
            }
         }
       }
       return ret;
   };
   ret.isEnd=function(){
-      return ret._slice.length==0;
+      return ret._head>=ret._input.length;
   };
   ret.parse=function(smiles, chem){
       ret.setInput(smiles);
       while(!ret.isEnd()){
          
          if(ret.isEnd())break;
-          //TODO: Handle E/Z
-          ret.readNext(/^\\/);
-          ret.readNext(/^\//);
           ret.parseAtom();
         
-          //TODO: Handle E/Z
-          ret.readNext(/^\\/);
-          ret.readNext(/^\//);
           ret.parseBond();
           ret.parseLocants();
         
-          //TODO: Handle E/Z
-          ret.readNext(/^\\/);
-          ret.readNext(/^\//);
           let ohead=ret.getHead();
 
           while(true){
@@ -7374,14 +7397,13 @@ JSChemify.ChemicalCollection=function(){
    ret.removeProperty=function(prop){
       ret.getChems().map(cc=>{
          cc.removeProperty(prop);
-         console.log("is " + prop + " = " + ret._decorateProperty);
          if(ret._decorateProperty === prop){
             console.log("deleting annotations");
             cc.deleteAnnotations();
          }
       });
       delete ret._properties[prop];
-            ret._propertyOrder=ret._propertyOrder.filter(pp=>pp!==prop);
+      ret._propertyOrder=ret._propertyOrder.filter(pp=>pp!==prop);
       return ret;
    };
    ret.toSmilesFileBuilder=function(){
@@ -8585,7 +8607,16 @@ JSChemify.Tests=function(){
       });
      
   });
-  
+  ret.tests.push("parse E/Z same on smiles preserved",()=>{
+      let osmi="F/C=C/F";
+      let nsmi=JSChemify.Chemical(osmi).toSmiles();
+      ret.assertEquals(nsmi,osmi);
+  });
+  ret.tests.push("parse E/Z opposite on smiles preserved",()=>{
+      let osmi="F/C=C\\F";
+      let nsmi=JSChemify.Chemical(osmi).toSmiles();
+      ret.assertEquals(nsmi,osmi);
+  });
    
   ret.tests.push("stereo parity in ring system preserved",()=>{
       ret.assertSmilesMolSmilesSame("C(=O)(N(CC2(C)C)[C@]1([H])S2)C1");
