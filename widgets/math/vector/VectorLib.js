@@ -1,7 +1,48 @@
-var VectorLib={};
+/**
+VectorLib - a "pretty pedestrian" basic linear algebra
+library for dealing with vectors and matrices.
+
+TODO:
+1. Add better support for complex numbers on matrix operations
+   1.1. PCA and especially embeddings ALMOST make sense now
+        but some of the ways that L2 norms work with complex
+	vectors is inconsistent. Sometimes we want to consider
+        possibly negative L2s, but not ALWAYS. Unclear if there
+	actually IS a solution here.
+2. Add support for other kinds of numbers:
+    2.1. Rational numbers
+    2.2. Algebraic numbers
+    2.3. Surreal numbers (!)
+    2.4. Random variable distributions
+       2.4.1. Gaussian
+       2.4.2. Diract delta
+       2.4.3. Uniform
+       2.4.4. Sampled distros
+    2.5. Symbolic numbers (PI, e, a few others)
+    2.6. Common functions (ln, exp, sin, cos)
+
+
+**/
+let VectorLib={};
 
 
 VectorLib.ZERO_TOLERANCE=1E-11;
+//This is a projection using distances
+//Imagine you have vectors a,b. The vector
+//between them is then (a-b). 
+// Let's get the square magnitude of (a-b) by dotting
+// it with itself (*). 
+// (a-b) * (a-b) = (a * a) - 2*(a * b) + (b * b)
+// Lets solve for a * b:
+// (a * b) = [(a*a) + (b*b) - (a-b)*(a-b)]/2
+// Note that a*a is just |a|^2 and b*b is just |b|^2
+// (a * b) = [|a|^2 + |b|^2 - |a-b|^2] / 2
+// So we know that a dot b can be formulated based on
+// only the magnitude of these vectors. Or, equivalently,
+// the distances to the origin. Since a projection of
+// a onto b is just (a*b)/|b| we can say:
+// a proj b = [|a|^2 + |b|^2 - |a-b|^2] / (2*|b|)
+// QED
 VectorLib.proj=function(d1,d2,d3){
 	return (d1*d1+d2*d2-d3*d3)/(2*d2);
 };
@@ -23,7 +64,7 @@ VectorLib.randomVector=function(i){
   return VectorLib.Vector(bb);
 };
 VectorLib.identityMatrix=function(n){
-	var res=[];
+  var res=[];
   res.length=n;
   for(var i=0;i<res.length;i++){
   	res[i]=[];
