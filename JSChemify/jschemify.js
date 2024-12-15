@@ -5,7 +5,7 @@ written in native javascript.
 TODO:
 
 Refactoring:
-1. Use const instead of var where possible
+1. Use const instead of let where possible
 2. Use defined types instead of bespoke decorated
    objects (or maybe not)
 3. [done?] Make renderer an object 
@@ -349,7 +349,7 @@ JSChemify.ColorUtils=function(){
        // colorToRGBA('red')  # [255, 0, 0, 255]
        // colorToRGBA('#f00') # [255, 0, 0, 255]
        if(!ret.$cache[color]){
-          var cvs, ctx;
+          let cvs, ctx;
           cvs = document.createElement('canvas');
           cvs.height = 1;
           cvs.width = 1;
@@ -398,14 +398,14 @@ JSChemify.ShapeUtils=function(){
   let ret={}; 
   JSChemify.CONSTANTS.SHAPE_UTILS=ret;
   ret.rejection=function(pt1,pt2,pt3){
-      var delta1=[pt2[0]-pt1[0],pt2[1]-pt1[1]];
-      var delta2=[pt3[0]-pt2[0],pt3[1]-pt2[1]];
+      let delta1=[pt2[0]-pt1[0],pt2[1]-pt1[1]];
+      let delta2=[pt3[0]-pt2[0],pt3[1]-pt2[1]];
       if((delta1[0]===0 && delta1[1]===0) ||
          (delta2[0]===0 && delta2[1]===0)
         ){
         return null;
       }
-      var rej = delta1[0]*delta2[1]-delta1[1]*delta2[0];
+      let rej = delta1[0]*delta2[1]-delta1[1]*delta2[0];
       return rej;
   };
   ret.getIntersectionSegmentsCoeffs=function(line1,line2){
@@ -475,7 +475,7 @@ JSChemify.ShapeUtils=function(){
       });
       let ppi=(fp[1]+pts.length-1)%pts.length;
       let npi=(fp[1]+pts.length+1)%pts.length;
-      var rej=Math.sign(ret.rejection(pts[ppi],fp[0],pts[npi]));
+      let rej=Math.sign(ret.rejection(pts[ppi],fp[0],pts[npi]));
       if(rej===0)rej=1;
       return pts.map((p,i)=>{
           return pts[(fp[1]+pts.length+rej*i)%pts.length];
@@ -592,7 +592,7 @@ JSChemify.PathNotation=function(f){
       }
     };
     ret.expand=function(pth){
-      var fpath=[];
+      let fpath=[];
       let regex=/([LRDSFfsdlr][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
       //regex.lastIndex=0;
       while(regex.lastIndex<pth.length){
@@ -650,7 +650,7 @@ JSChemify.PathNotation=function(f){
                      return v[0];
                   }
                   if(v[0].length>1 && (v[0][0]==="R"||v[0][0]==="L"||v[0][0]==="r"||v[0][0]==="l")){
-                      var rc=Math.round((v[0].substr(1)-0)*ret._roundAngle)/ret._roundAngle;
+                      let rc=Math.round((v[0].substr(1)-0)*ret._roundAngle)/ret._roundAngle;
                       v[0]=v[0][0] + rc;
                   }
                   if(v[0]==="R6"){
@@ -659,7 +659,7 @@ JSChemify.PathNotation=function(f){
                     v[0]="L";
                   }
                   if(v[1] && (v[1].length>1 && (v[1][0]==="M"||v[1][0]==="m"))){
-                      var rc=Math.round((v[1].substr(1)-0)*ret._roundMag)/ret._roundMag;
+                      let rc=Math.round((v[1].substr(1)-0)*ret._roundMag)/ret._roundMag;
                       v[1]=v[1][0] + rc;
                   }
                   if(v[1]==="M100" || v[1]==="m100"){
@@ -676,9 +676,9 @@ JSChemify.PathNotation=function(f){
         if(!Array.isArray(path)){
           path=ret.expand(path);
         }
-        var d=path[0];
-        var m=path[1];
-        var ang=0;
+        let d=path[0];
+        let m=path[1];
+        let ang=0;
         let inv=false;
         if(d==="S"){
             return [0,0];
@@ -719,32 +719,32 @@ JSChemify.PathNotation=function(f){
        if(!vec2){
           vec2=[1,0];
        }
-       var dot=vec1[0]*vec2[0] + vec1[1]*vec2[1];
-       var rej=vec1[0]*vec2[1] - vec1[1]*vec2[0];
+       let dot=vec1[0]*vec2[0] + vec1[1]*vec2[1];
+       let rej=vec1[0]*vec2[1] - vec1[1]*vec2[0];
        
               
-       var theta=Math.atan2(rej,dot);
-       var theta2=Math.atan2(-rej,-dot);
+       let theta=Math.atan2(rej,dot);
+       let theta2=Math.atan2(-rej,-dot);
        
        
-       var c=(Math.PI*2)/theta;
-       var c2=(Math.PI*2)/theta2;
+       let c=(Math.PI*2)/theta;
+       let c2=(Math.PI*2)/theta2;
 
-       var diff1=Math.round(c)*Math.PI*2-theta;
-       var diff2=Math.round(c2)*Math.PI*2-theta2;
-       var inv=false;
-       var neg=false;
-       var smaller=false;
+       let diff1=Math.round(c)*Math.PI*2-theta;
+       let diff2=Math.round(c2)*Math.PI*2-theta2;
+       let inv=false;
+       let neg=false;
+       let smaller=false;
        if(Math.abs(diff2)>Math.abs(diff1)){
          inv=true;
          c=c2;
        }
        
-       var mag1=JSChemify.Util.magVector(vec1);
-       var mag2=JSChemify.Util.magVector(vec2);
-       var magR=mag1/mag2;
-       var magN=magR;
-       var nm="M";
+       let mag1=JSChemify.Util.magVector(vec1);
+       let mag2=JSChemify.Util.magVector(vec2);
+       let magR=mag1/mag2;
+       let magN=magR;
+       let nm="M";
        
        if(magN>1){
          nm="m";
@@ -752,8 +752,8 @@ JSChemify.PathNotation=function(f){
          smaller=true;
        }
        magN=magN*100;
-       var dnm="L";
-       var dnm2="l";
+       let dnm="L";
+       let dnm2="l";
        if(c<0){
          dnm="R";
          c=-c;
@@ -829,7 +829,7 @@ JSChemify.PathNotation=function(f){
        if(!rM){
           rM=Math.round(magN*rMag)/rMag;
        }
-       var sig=dnm+c;
+       let sig=dnm+c;
        if(c>50){
           if(inv){
              sig="f";
@@ -1036,7 +1036,7 @@ JSChemify.Util = {
       JSChemify.CONSTANTS.ELEMENTS.map(e=>cache[e.symbol]=e);
       JSChemify.Util.$eLookup=cache;
     }
-    var e= JSChemify.Util.$eLookup[s];
+    let e= JSChemify.Util.$eLookup[s];
     if(!e)throw "Unknown element '" + s +"'";
     return e;
   },
@@ -1069,37 +1069,37 @@ JSChemify.Util = {
     return JSChemify.Util.addVector(a,b,-1);
   },
   normVector:function(a){
-       var sumSq=0;
+       let sumSq=0;
        for(var i=0;i<a.length;i++){
            sumSq+=a[i]*a[i];
        }
-       var nMag=1/Math.sqrt(sumSq);
+       let nMag=1/Math.sqrt(sumSq);
        for(var i=0;i<a.length;i++){
            a[i]=a[i]*nMag;
        }
        return a;
   },
   dotVector:function(a,b){
-      var dot=0;
+      let dot=0;
       for(var i=0;i<a.length;i++){
         dot+=a[i]*b[i];
     }
     return dot;
   },
   rejDotVector:function(a,b){
-      var rVec= JSChemify.Util
+      let rVec= JSChemify.Util
                         .recipricolVector(b);
     return JSChemify.Util.dotVector(a,rVec);                
   },
   recipricolVector:function(a){
-      var n=[];
+      let n=[];
     n[0]=a[1];
     n[1]=-a[0];
     
     return n;
   },
   sqDist:function(a,b){
-      var sumSq=0;
+      let sumSq=0;
       for(var i=0;i<a.length;i++){
         sumSq+=(a[i]-b[i])*(a[i]-b[i]);
     }
@@ -1109,18 +1109,18 @@ JSChemify.Util = {
      return Math.sqrt(JSChemify.Util.sqMagVector(a));
   },
   sqMagVector:function(a){
-      var sumSq=0;
+      let sumSq=0;
       for(var i=0;i<a.length;i++){
         sumSq+=(a[i])*(a[i]);
     }
     return sumSq;
   },
   matrixTranspose:function(m){
-      var t=[];
+      let t=[];
     for(var i=0;i<m.length;i++){
-        var cvec=m[i];
+        let cvec=m[i];
       for(var j=0;j<cvec.length;j++){
-          var c=cvec[j];
+          let c=cvec[j];
         if(!t[j])t[j]=[];
            t[j][i]=c;
       }
@@ -1129,25 +1129,25 @@ JSChemify.Util = {
   },
   matrixOperate:function(m1,op){
     if(op.op==="swap"){
-        var oldR=op.rows[0];
-        var newR=op.rows[1];
-      var t=m1[newR];
+        let oldR=op.rows[0];
+        let newR=op.rows[1];
+      let t=m1[newR];
       m1[newR]=m1[oldR];
       m1[oldR]=t;
     }else if(op.op === "subtract"){
-        var headi=op.rows[0];
-        var taili=op.rows[1];
-      var headr=m1[headi];
-      var tailr=m1[taili];
-      var mult=op.mult;
+        let headi=op.rows[0];
+        let taili=op.rows[1];
+      let headr=m1[headi];
+      let tailr=m1[taili];
+      let mult=op.mult;
       for(var i=0;i<headr.length;i++){
-          var sub=headr[i]*mult;
+          let sub=headr[i]*mult;
         tailr[i]=tailr[i]-sub;
       }
     }else if(op.op === "multiply"){
-        var ri=op.row;
-      var mult=op.mult;
-      var row=m1[ri];
+        let ri=op.row;
+      let mult=op.mult;
+      let row=m1[ri];
       for(var i=0;i<row.length;i++){
           row[i]=row[i]*mult;
       }
@@ -1155,9 +1155,9 @@ JSChemify.Util = {
     return m1;
   },
   matrixIdentity:function(s){
-      var mat=[];
+      let mat=[];
     for(var i=0;i<s;i++){
-        var row=[];
+        let row=[];
       for(var j=0;j<s;j++){
                 row.push(0);
       }
@@ -1167,56 +1167,56 @@ JSChemify.Util = {
     return mat;
   },
   matrixInverse:function(m1){
-      var dcopy = m1.map(m=>m.map(a=>a));
-    var ident= JSChemify.Util.matrixIdentity(m1.length);
+      let dcopy = m1.map(m=>m.map(a=>a));
+    let ident= JSChemify.Util.matrixIdentity(m1.length);
     for(var pos=0;pos<m1.length-1;pos++){
-      var top = dcopy.map((r,i)=>[i,r[pos]])
+      let top = dcopy.map((r,i)=>[i,r[pos]])
       .filter(b=>(b[0]>=pos))
       .reduce((a,b)=>{
         if(Math.abs(a[1])>Math.abs(b[1]))return a;
         return b;
       });
       if(top[0]!==pos){
-        var op={"op":"swap", rows:[pos,top[0]]};
+        let op={"op":"swap", rows:[pos,top[0]]};
         JSChemify.Util.matrixOperate(dcopy,op);
         JSChemify.Util.matrixOperate(ident,op);
       }
-      var row = dcopy[pos];
-      var lead= row[pos];
+      let row = dcopy[pos];
+      let lead= row[pos];
       for(var i=pos+1;i<dcopy.length;i++){
-        var lead2=dcopy[i][pos];
+        let lead2=dcopy[i][pos];
         if(lead2===0)continue;
-        var rat=lead2/lead;
-        var op={"op":"subtract", rows:[pos,i], mult:rat};
+        let rat=lead2/lead;
+        let op={"op":"subtract", rows:[pos,i], mult:rat};
         JSChemify.Util.matrixOperate(dcopy,op);
         JSChemify.Util.matrixOperate(ident,op);
       }
     }
     //now the other way
     for(var pos=dcopy.length-1;pos>0;pos--){
-        var lead = dcopy[pos][pos];
+        let lead = dcopy[pos][pos];
       for(var i=pos-1;i>=0;i--){
-          var lead2=dcopy[i][pos];
+          let lead2=dcopy[i][pos];
         if(lead2===0)continue;
         
-        var rat=lead2/lead;
+        let rat=lead2/lead;
         
-        var op={"op":"subtract", rows:[pos,i], mult:rat};
+        let op={"op":"subtract", rows:[pos,i], mult:rat};
         JSChemify.Util.matrixOperate(dcopy,op);
         JSChemify.Util.matrixOperate(ident,op);
       }
     }
     //finally resize
     for(var i=0;i<dcopy.length;i++){
-        var rat=1/dcopy[i][i];
-        var op={"op":"multiply", row:i, mult:rat};
+        let rat=1/dcopy[i][i];
+        let op={"op":"multiply", row:i, mult:rat};
       JSChemify.Util.matrixOperate(dcopy,op);
       JSChemify.Util.matrixOperate(ident,op);
     }
     return ident;
   },
   matrixMultiply:function(m1,m2T,t){
-    var oneVec=false;
+    let oneVec=false;
     if(!Array.isArray(m2T[0])){
       m2T=[m2T];
       oneVec=true;
@@ -1224,14 +1224,14 @@ JSChemify.Util = {
     if(t){
         m2T=JSChemify.Util.matrixTranspose(m2T);
     }
-    var pro=[];
+    let pro=[];
     
     for(var x=0;x<m1.length;x++){
-        var row=m1[x];
-        var result=[];
+        let row=m1[x];
+        let result=[];
         for(var y=0;y<m2T.length;y++){
-          var column=m2T[y];
-          var dot=0;
+          let column=m2T[y];
+          let dot=0;
           for(var i=0;i<column.length;i++){
               dot+=row[i]*column[i];
           }
@@ -1245,19 +1245,19 @@ JSChemify.Util = {
     return pro;
   },
   getAffineTransformFromLineSegmentToLineSegment:function(s1,s2,inv){
-      var opoint=s1[0];
-    var npoint=s2[0];
-    var ovecDelta=[s1[1][0]-s1[0][0],s1[1][1]-s1[0][1]];
-    var nvecDelta=[s2[1][0]-s2[0][0],s2[1][1]-s2[0][1]];
-    var xvec=[1,0];
+      let opoint=s1[0];
+    let npoint=s2[0];
+    let ovecDelta=[s1[1][0]-s1[0][0],s1[1][1]-s1[0][1]];
+    let nvecDelta=[s2[1][0]-s2[0][0],s2[1][1]-s2[0][1]];
+    let xvec=[1,0];
     
     if(inv){
-        var  trans=JSChemify.Util.getTransformFromVectorToVector(
+        let  trans=JSChemify.Util.getTransformFromVectorToVector(
         ovecDelta,
         xvec
         );
-      var yInv=[[1,0],[0,-1]];
-      var  trans2=JSChemify.Util.getTransformFromVectorToVector(
+      let yInv=[[1,0],[0,-1]];
+      let  trans2=JSChemify.Util.getTransformFromVectorToVector(
         xvec,
         nvecDelta
         );
@@ -1268,11 +1268,11 @@ JSChemify.Util = {
                  .multiply(trans)
                  .translate(-opoint[0],-opoint[1]);
     }
-    var  trans=JSChemify.Util.getTransformFromVectorToVector(
+    let  trans=JSChemify.Util.getTransformFromVectorToVector(
     ovecDelta,
     nvecDelta
     );
-    var affine=JSChemify.AffineTransformation()
+    let affine=JSChemify.AffineTransformation()
                  .translate(npoint[0],npoint[1])
                  .multiply(trans)
                  .translate(-opoint[0],-opoint[1]);
@@ -1280,19 +1280,19 @@ JSChemify.Util = {
     return affine;
   },
   getTransformFromVectorToVector:function(v1,v2){
-      var dot=0;
-    var rej=0;
-    var alt=1;
+      let dot=0;
+    let rej=0;
+    let alt=1;
     //not sure about the generality here
     for(var i=0;i<v1.length;i++){
-        var si = (i+1)%v1.length;
+        let si = (i+1)%v1.length;
         dot+=v1[i]*v2[i];
       rej+=v1[i]*v2[si]*alt;
       alt=alt*-1;
     }
-    var mag1=JSChemify.Util.sqMagVector(v1);
-    var mag2=JSChemify.Util.sqMagVector(v2);
-    var adj=1/mag1;
+    let mag1=JSChemify.Util.sqMagVector(v1);
+    let mag2=JSChemify.Util.sqMagVector(v2);
+    let adj=1/mag1;
     dot=dot*adj;
     rej=rej*adj;
     
@@ -1314,7 +1314,7 @@ scale.
 *******************************/
 JSChemify.AffineTransformation = function(af){
     if(af && af._matrix)return af;
-    var ret={};
+    let ret={};
   ret._matrix=JSChemify.Util.matrixIdentity(3);
   ret.$inverse=null;
   
@@ -1334,8 +1334,8 @@ JSChemify.AffineTransformation = function(af){
         mm=mm.getMatrix();
     }else{
         if(mm.length==2){
-       var nmat=mm.map(c=>{
-           var nvec=c.map(cc=>cc);
+       let nmat=mm.map(c=>{
+           let nvec=c.map(cc=>cc);
         nvec.push(0);
         return nvec;
        });
@@ -1343,13 +1343,13 @@ JSChemify.AffineTransformation = function(af){
        mm=nmat;
       }
     }
-    var mat1=mm;
-    var mat2=ret.getMatrix();
+    let mat1=mm;
+    let mat2=ret.getMatrix();
     if(pre){
         mat1=mat2;
       mat2=mm;
     }
-    var nmat=JSChemify.Util
+    let nmat=JSChemify.Util
                        .matrixMultiply(mat2,mat1,true);
     ret._matrix=nmat; 
     return ret;
@@ -1358,7 +1358,7 @@ JSChemify.AffineTransformation = function(af){
       return ret.multiply(mm,true);
   };
   ret.translate=function(x,y,pre){
-      var nmat=[[1,0,x],[0,1,y],[0,0,1]];
+      let nmat=[[1,0,x],[0,1,y],[0,0,1]];
     return ret.multiply(nmat,pre);
   };
   ret.preTranslate=function(x,y){
@@ -1366,7 +1366,7 @@ JSChemify.AffineTransformation = function(af){
   };
   ret.scale=function(sx,sy){
       if(!sy)sy=sx;
-      var mat=ret.getMatrix();
+      let mat=ret.getMatrix();
     for(var i=0;i<mat.length-1;i++){
         for(var j=0;j<mat.length-1;j++){
           if(i===0)mat[i][j]*=sx;
@@ -1376,7 +1376,7 @@ JSChemify.AffineTransformation = function(af){
     return ret.setMatrix(mat);
   };
   ret.rotate=function(theta,pre){
-      var mat=[[ Math.cos(theta),Math.sin(theta)],
+      let mat=[[ Math.cos(theta),Math.sin(theta)],
                          [-Math.sin(theta),Math.cos(theta)]];
     return ret.multiply(mat,pre);
   };
@@ -1397,14 +1397,14 @@ JSChemify.AffineTransformation = function(af){
     }
     //up the space
     vec=[vec[0],vec[1],1];
-    var nv= JSChemify.Util
+    let nv= JSChemify.Util
                     .matrixMultiply(ret.getMatrix(),
                     vec);
     nv.pop();
     return nv;
   };
   ret.inverse=function(){
-    var mnew=JSChemify.Util.matrixInverse(ret.getMatrix());
+    let mnew=JSChemify.Util.matrixInverse(ret.getMatrix());
     //mnew=JSChemify.Util.matrixTranspose(mnew);
     ret.setMatrix(mnew);
     return ret;
@@ -1434,7 +1434,7 @@ TODO:
    
 *******************************/
 JSChemify.Element = function(def){
-  var ret={};
+  let ret={};
   ret._def=def;
   return ret;
 };
@@ -1451,7 +1451,7 @@ JSChemify.Atom = function(aaa){
   if(aaa && aaa._chemType === JSChemify.CONSTANTS.CHEM_TYPE_ATOM){
       return aaa;
   }
-  var ret={};
+  let ret={};
   ret._chemType = JSChemify.CONSTANTS.CHEM_TYPE_ATOM;
   
   //will be parent chemical
@@ -1477,7 +1477,7 @@ JSChemify.Atom = function(aaa){
   
   
   ret.clone=function(){
-    var nat=JSChemify.Atom();
+    let nat=JSChemify.Atom();
     nat._symbol=ret._symbol;
     nat._charge=ret._charge;
     nat._isotope=ret._isotope;
@@ -1561,7 +1561,7 @@ JSChemify.Atom = function(aaa){
     if(neighbors.length===4){
          neighbors=neighbors.filter((ns,i)=>{
                     if(allW.length>0 || allH.length>0)return true;
-                    var bs=ns.bond.getBondStereo();
+                    let bs=ns.bond.getBondStereo();
                     if(bs === JSChemify.CONSTANTS.BOND_STEREO_WEDGE){
                         allW.push(ns);
                         if(i%2!==1){
@@ -1591,7 +1591,7 @@ JSChemify.Atom = function(aaa){
         neighbors.filter(ns=>ns.bond.getAtom1()===ret)
                  .filter(ns=>ns.bond.getBondStereo()!==0)
                  .map(ns=>{
-                    var bs=ns.bond.getBondStereo();
+                    let bs=ns.bond.getBondStereo();
                     if(bs === JSChemify.CONSTANTS.BOND_STEREO_WEDGE){
                         if(!mult){
                            allW.push(ns);
@@ -1615,12 +1615,12 @@ JSChemify.Atom = function(aaa){
         
            
                
-        var pn=neighbors[0].atom;
-        var nn=neighbors[1].atom;
-        var ln=neighbors[2].atom;
-        var chainDir = pn.getVectorTo(nn);
-        var orthoDir = pn.getVectorTo(ln);
-        var rej=chainDir[0]*orthoDir[1]-chainDir[1]*orthoDir[0];
+        let pn=neighbors[0].atom;
+        let nn=neighbors[1].atom;
+        let ln=neighbors[2].atom;
+        let chainDir = pn.getVectorTo(nn);
+        let orthoDir = pn.getVectorTo(ln);
+        let rej=chainDir[0]*orthoDir[1]-chainDir[1]*orthoDir[0];
         if(rej<0){
             parity=parity*-1;
         }
@@ -1659,16 +1659,16 @@ JSChemify.Atom = function(aaa){
   };
   
   ret.setStereoBondFromParity=function(){
-      var par=ret.getParity();
+      let par=ret.getParity();
       if(par===1||par===2){
-        var neighbors =ret.getNeighborAtomsAndBonds();
-        var pn=neighbors[0].atom;
-        var nn=neighbors[1].atom;
-        var ln=neighbors[2].atom;
-        var chainDir = pn.getVectorTo(nn);
-        var orthoDir = pn.getVectorTo(ln);
-        var rej=chainDir[0]*orthoDir[1]-chainDir[1]*orthoDir[0];
-        var order=neighbors
+        let neighbors =ret.getNeighborAtomsAndBonds();
+        let pn=neighbors[0].atom;
+        let nn=neighbors[1].atom;
+        let ln=neighbors[2].atom;
+        let chainDir = pn.getVectorTo(nn);
+        let orthoDir = pn.getVectorTo(ln);
+        let rej=chainDir[0]*orthoDir[1]-chainDir[1]*orthoDir[0];
+        let order=neighbors
                     .filter(a=>a.bond.getBondStereo()===0)
                     .sort((a,b)=>
                       a.atom.getGraphInvariantMarker() - 
@@ -1719,7 +1719,7 @@ JSChemify.Atom = function(aaa){
   
   ret.getNeighborAtomsAndBonds=function(order){
       if(order){
-         var ss=ret.getBonds()
+         let ss=ret.getBonds()
             .map(b=>({"bond":b,"atom":b.getOtherAtom(ret)}))
             .sort(order);
          return ss;
@@ -1728,7 +1728,7 @@ JSChemify.Atom = function(aaa){
                 .map(b=>({"bond":b,"atom":b.getOtherAtom(ret)}));
   };
   ret.getCenterPointOfNeighbors=function(){
-    var sumV=ret.getNeighborAtomsAndBonds()
+    let sumV=ret.getNeighborAtomsAndBonds()
        .map(a=>a.atom)
        .map(a=>[a.getX(),a.getY(),1])
        .reduce((a,b)=>JSChemify.Util.addVector(a,b));
@@ -1738,8 +1738,8 @@ JSChemify.Atom = function(aaa){
     return sumV;
   };
   ret.getVectorAwayFromNeighborCenters=function(){
-    var cent=ret.getCenterPointOfNeighbors();
-    var vecTo=ret.getVectorToPoint(cent);
+    let cent=ret.getCenterPointOfNeighbors();
+    let vecTo=ret.getVectorToPoint(cent);
     //if the vector is 0,0, instead
     //point to the least occupied location
     if(vecTo[0]===0 && vecTo[1]===0){
@@ -1816,7 +1816,7 @@ JSChemify.Atom = function(aaa){
   
   
   ret.getAtomsCloserThan=function(dist){
-    var sqDist=dist*dist;
+    let sqDist=dist*dist;
     return ret.getParent().getAtoms()
                                  .filter(a=>a!==ret)
                    .map(a=>[a,ret.getVectorTo(a)])
@@ -1837,7 +1837,7 @@ JSChemify.Atom = function(aaa){
   };
   
   ret.isTerminal=function(){
-          var bnds=ret.getBonds();
+          let bnds=ret.getBonds();
       return bnds.length==1;
   };
   
@@ -1848,7 +1848,7 @@ JSChemify.Atom = function(aaa){
       if(ret.getBondCount()==0){
           return 0;
       }
-      var te=ret.getBonds().map(b=>b.getBondOrder()).map(bo=>(bo==4)?3:bo*2).reduce((a,b)=>a+b)/2;
+      let te=ret.getBonds().map(b=>b.getBondOrder()).map(bo=>(bo==4)?3:bo*2).reduce((a,b)=>a+b)/2;
       return te;
   };
   ret.getLonePairs=function(){
@@ -1856,21 +1856,21 @@ JSChemify.Atom = function(aaa){
   };
   
   ret.getDeltaV=function(){
-      var val=ret.getValance();
-      var hT=ret.getTotalHydrogenCount();
+      let val=ret.getValance();
+      let hT=ret.getTotalHydrogenCount();
       return val-hT;
   };
   ret.getDelta=function(){
       return ret.getBondCount()-ret.getExplicitHydrogens();
   };
   ret.getIntrinsicState=function(){
-      var val=ret.getValance();
-      var hI=ret.getImplicitHydrogens();
-      var hE=ret.getExplicitHydrogens();
-      var hT=hI+hE;
-      var n=ret.getElement().period;
-      var sigma = ret.getBondCount()-hE;
-      var fac = (2/n)*(2/n);
+      let val=ret.getValance();
+      let hI=ret.getImplicitHydrogens();
+      let hE=ret.getExplicitHydrogens();
+      let hT=hI+hE;
+      let n=ret.getElement().period;
+      let sigma = ret.getBondCount()-hE;
+      let fac = (2/n)*(2/n);
     
       return (fac*(val-hT)+1)/(sigma);    
   };
@@ -1878,17 +1878,17 @@ JSChemify.Atom = function(aaa){
    
   ret.getEState=function(MAX_DEPTH){
     if(!MAX_DEPTH)MAX_DEPTH=15;
-    var e0=ret.getIntrinsicState();
-    var eSum=e0;
+    let e0=ret.getIntrinsicState();
+    let eSum=e0;
     for(var i=1;i<MAX_DEPTH;i++){
-        var sqDist=1.0/((i+1)*(i+1));
+        let sqDist=1.0/((i+1)*(i+1));
         eSum+=ret.getAtomsAtDistance(i).map(at=>((e0-at.getIntrinsicState()))).reduce((a,b)=>a+b,0)*sqDist;
     }
     return eSum;
   };
   
   ret.getKierHallAtomType2=function(){
-  var prefix="E" + ret.getNeighborAtomsAndBonds().filter(ba=>ba.atom.getSymbol()!=="H")
+  let prefix="E" + ret.getNeighborAtomsAndBonds().filter(ba=>ba.atom.getSymbol()!=="H")
                     .map(ba=>ba.bond.getBondOrder())
                     .sort()
                     .map(b=>{
@@ -1897,7 +1897,7 @@ JSChemify.Atom = function(aaa){
                     if(b===3)return "t";
                     if(b===4)return "a";
                     }).join("");
-     var hcount=ret.getTotalHydrogenCount();      
+     let hcount=ret.getTotalHydrogenCount();      
      if(hcount>0){
          return prefix + ret.getElement().group + "H"+hcount;
      }else{
@@ -1905,7 +1905,7 @@ JSChemify.Atom = function(aaa){
      }
   };
   ret.getKierHallAtomType=function(){
-      var prefix=ret.getNeighborAtomsAndBonds().filter(ba=>ba.atom.getSymbol()!=="H")
+      let prefix=ret.getNeighborAtomsAndBonds().filter(ba=>ba.atom.getSymbol()!=="H")
                     .map(ba=>ba.bond.getBondOrder())
                     .sort()
                     .map(b=>{
@@ -1914,7 +1914,7 @@ JSChemify.Atom = function(aaa){
                     if(b===3)return "t";
                     if(b===4)return "a";
                     }).join("");
-     var hcount=ret.getTotalHydrogenCount();      
+     let hcount=ret.getTotalHydrogenCount();      
      if(hcount>0){
          return prefix + ret.getSymbol() + "H"+hcount;
      }else{
@@ -1928,8 +1928,8 @@ JSChemify.Atom = function(aaa){
       return ret.getNeighborAtomsAndBonds().filter(bb=>bb.atom.getSymbol()==="H").length;
   };
   ret.getImplicitHydrogens=function(){
-        var expectedBonds=ret.getValance()-(ret.getLonePairs()*2);
-        var explicit=ret.getElectronsInExplicitBonds();
+        let expectedBonds=ret.getValance()-(ret.getLonePairs()*2);
+        let explicit=ret.getElectronsInExplicitBonds();
         return Math.max(0,expectedBonds-explicit);
   };
   ret.getAtomsAtDistance=function(d){
@@ -1956,9 +1956,9 @@ JSChemify.Atom = function(aaa){
   
   //returns the delta vector
   ret.getLeastOccupiedVector=function(filt){
-      var bonds=ret.getBondsCCW(filt);
-      var maxAng=-1000;
-      var bAng=null;
+      let bonds=ret.getBondsCCW(filt);
+      let maxAng=-1000;
+      let bAng=null;
       if(bonds.length===0){
           return [1,0];
       }
@@ -1990,11 +1990,11 @@ JSChemify.Atom = function(aaa){
   };
   
   ret.getLeastOccupiedCardinalDirection=function(){
-      var up=[0,1];
-      var right=[1,0];
-      var gvec=ret.getLeastOccupiedVector();
-      var dot1=gvec[0]*up[0]+gvec[1]*up[1];
-      var dot2=gvec[0]*right[0]+gvec[1]*right[1];
+      let up=[0,1];
+      let right=[1,0];
+      let gvec=ret.getLeastOccupiedVector();
+      let dot1=gvec[0]*up[0]+gvec[1]*up[1];
+      let dot2=gvec[0]*right[0]+gvec[1]*right[1];
       if(ret.getBonds().length>1 && Math.abs(dot1)>Math.abs(dot2)){
           if(dot1<=0)return up;
           return [-up[0],-up[1]];
@@ -2013,15 +2013,15 @@ JSChemify.Atom = function(aaa){
           if(ret.$connectedNetworks===null || 
        ret.getParent().$dirtyNumber()!=ret.$dirty){
       ret.$dirty=ret.getParent().$dirtyNumber();
-      var tmp={};
+      let tmp={};
       ret.$allPathsDepthFirst((p)=>{
           if(p.length<2)return;
-          var head =p[p.length-1];
-          var root =p[1];
+          let head =p[p.length-1];
+          let root =p[1];
         //don't get root ring bonds as network
         if(root.bond.isInRing())return true;
-        var rootBondIndex=root.bond.getIndexInParent();
-        var onet=tmp[rootBondIndex];
+        let rootBondIndex=root.bond.getIndexInParent();
+        let onet=tmp[rootBondIndex];
         if(!onet){
             onet={};
             tmp[root.bond.getIndexInParent()]=onet;
@@ -2030,9 +2030,9 @@ JSChemify.Atom = function(aaa){
         onet[head.atom.getIndexInParent()]=true;
       });
       ret.$connectedNetworks=Object.keys(tmp).map(k=>{
-          var rbond = ret.getParent().getBond(k);
+          let rbond = ret.getParent().getBond(k);
         //var atoms = Object.keys(tmp[k]).map(ai=>ret.getParent().getAtom(ai));
-        var atoms = tmp[k];
+        let atoms = tmp[k];
         return {"bond":rbond,"network":atoms};
       });
     }
@@ -2045,12 +2045,12 @@ JSChemify.Atom = function(aaa){
     if(!sofar){
         sofar=[{"atom":ret,"bond":null}];
     }
-    var nbonds = ret.getNeighborAtomsAndBonds(order);
-    var okBonds = nbonds.filter(checkBond=>sofar.findIndex(sf=>sf.bond===checkBond.bond)<0);
+    let nbonds = ret.getNeighborAtomsAndBonds(order);
+    let okBonds = nbonds.filter(checkBond=>sofar.findIndex(sf=>sf.bond===checkBond.bond)<0);
     for(var i=0;i<okBonds.length;i++){
-        var checkBond = okBonds[i];
+        let checkBond = okBonds[i];
       //not part of the path
-            var type;
+            let type;
       if(okBonds.length===1){
           type= "CHAIN";
       }else{
@@ -2059,7 +2059,7 @@ JSChemify.Atom = function(aaa){
      
       sofar.push(checkBond);
       //STOP if return true
-      var eva=!cb(sofar,type);
+      let eva=!cb(sofar,type);
       if(eva){
         checkBond.atom.$allPathsDepthFirst(cb,sofar,verbose,order,forcePop);
       }
@@ -2087,8 +2087,8 @@ JSChemify.Atom = function(aaa){
   
   //TODO: Move out probably
   ret.toMolLine=function(){
-        var chg="0";
-        var map=ret.getAtomMap();
+        let chg="0";
+        let map=ret.getAtomMap();
         if(!map){
           map=0;
         }
@@ -2109,13 +2109,13 @@ JSChemify.Atom = function(aaa){
   };
   ret.fromMolLine=function(line){
 //   -3.8971    2.2500    0.0000 C   0  0  0  0  0  0  0  0  0  7  0  0
-    var x= line.substr(0,10).trim()-0;
-    var y= line.substr(10,10).trim()-0;
-    var z= line.substr(20,10).trim()-0;
-    var symbol= line.substr(31,3).trim();
-    var charge= line.substr(37,3).trim();
+    let x= line.substr(0,10).trim()-0;
+    let y= line.substr(10,10).trim()-0;
+    let z= line.substr(20,10).trim()-0;
+    let symbol= line.substr(31,3).trim();
+    let charge= line.substr(37,3).trim();
     
-    var map= line.substr(61,3).trim();
+    let map= line.substr(61,3).trim();
     if(map && map!=="0"){
         ret.setAtomMap(map);
     }
@@ -2131,16 +2131,16 @@ JSChemify.Atom = function(aaa){
   
   
   ret.toSmiles=function(pp){
-    var eH=ret.getImplicitHydrogens();
-    var ehShow = (eH>1)?eH:"";
-    var simpleOkay =ret.getElement().smiles;
+    let eH=ret.getImplicitHydrogens();
+    let ehShow = (eH>1)?eH:"";
+    let simpleOkay =ret.getElement().smiles;
     if(simpleOkay && !ret._isotope && !ret._charge && !ret._map && !ret._parity){
         if(ret.isAromatic()){
           return ret.getSymbol().toLowerCase();
       }
       return ret.getSymbol();
     }
-    var chargeStr=ret._charge+"";
+    let chargeStr=ret._charge+"";
     if(ret._charge>0){
         chargeStr="+" + ret._charge;
     }
@@ -2156,10 +2156,10 @@ JSChemify.Atom = function(aaa){
     //    smiles, but not in the parsing)
     // 2. There's a ring closing bond (with special exceptions)
      
-    var parity = ret._parity;
+    let parity = ret._parity;
     if(parity){
           if(!pp)pp=1;
-          var swap=pp;
+          let swap=pp;
           if(eH>0){
             swap=swap*-1;
           }
@@ -2184,7 +2184,7 @@ JSChemify.Atom = function(aaa){
      }
      
     
-    var rr= "["
+    let rr= "["
       +((ret._isotope)?(ret._isotope):("")) +
       ret._symbol +
       ((parity)?(parity):"") +
@@ -2213,7 +2213,7 @@ JSChemify.Bond = function(bbb){
   if(bbb && bbb._chemType === JSChemify.CONSTANTS.CHEM_TYPE_BOND){
       return bbb;
   }
-  var ret={};
+  let ret={};
   ret._chemType = JSChemify.CONSTANTS.CHEM_TYPE_BOND;
   //will be parent chemical
   ret._parent=null;
@@ -2229,7 +2229,7 @@ JSChemify.Bond = function(bbb){
   ret.$dirty=-1;
   
   ret.clone=function(){
-    var bnd=JSChemify.Bond();
+    let bnd=JSChemify.Bond();
     bnd._order=ret._order;
     bnd._stereo=ret._stereo;
     bnd._atom1=ret._atom1;
@@ -2359,15 +2359,15 @@ JSChemify.Bond = function(bbb){
      return ret.getAtoms().indexOf(a)>=0;
   };
   ret.setCoordinatesFromPathNotation=function(path,ovec,a){
-      var nvec=JSChemify.PathNotation().deltaVectorFromPath(path);
+      let nvec=JSChemify.PathNotation().deltaVectorFromPath(path);
       
-      var nat=ret.getOtherAtom(a);
-      var oldpt=a.getPoint();
-      var pvec=[-ovec[1],ovec[0]];
-      var wedge=path[2];
+      let nat=ret.getOtherAtom(a);
+      let oldpt=a.getPoint();
+      let pvec=[-ovec[1],ovec[0]];
+      let wedge=path[2];
       if(wedge){
-        var wlow=wedge.toLowerCase();
-        var par=1;
+        let wlow=wedge.toLowerCase();
+        let par=1;
          
         if(wedge===wedge.toLowerCase()){
           par=par*-1;
@@ -2387,7 +2387,7 @@ JSChemify.Bond = function(bbb){
         }
       }
         
-      var nnvec=[ovec[0]*nvec[0]+pvec[0]*nvec[1],ovec[1]*nvec[0]+pvec[1]*nvec[1]];
+      let nnvec=[ovec[0]*nvec[0]+pvec[0]*nvec[1],ovec[1]*nvec[0]+pvec[1]*nvec[1]];
       nat.setXYZ(oldpt[0]+nnvec[0],oldpt[1]+nnvec[1]);
       return ret;
   };
@@ -2408,7 +2408,7 @@ JSChemify.Bond = function(bbb){
           wedge=wedge.toLowerCase();
         }
      }
-     var pn= JSChemify.PathNotation()
+     let pn= JSChemify.PathNotation()
                       .pathFromDeltaVector(vec1,vec2);
      if(wedge){
         pn.push(wedge);
@@ -2434,7 +2434,7 @@ JSChemify.Bond = function(bbb){
           wedge=wedge.toLowerCase();
         }
      }
-     var pn= JSChemify.PathNotation().pathFromDeltaVector(vec1,vec2);
+     let pn= JSChemify.PathNotation().pathFromDeltaVector(vec1,vec2);
      if(wedge){
         pn.push(wedge);
      }
@@ -2442,7 +2442,7 @@ JSChemify.Bond = function(bbb){
   };
   
   ret.swap=function(){
-      var t=ret._atom1;
+      let t=ret._atom1;
       ret._atom1=ret._atom2;
       ret._atom2=t;
   };
@@ -2450,7 +2450,7 @@ JSChemify.Bond = function(bbb){
   ret.getSmallestRingSize=function(){
       if(ret.$smallestRingSize==null || 
        ret.getParent().$dirtyNumber()!==ret.$dirty){
-      var rings=ret.getParent().getRings();
+      let rings=ret.getParent().getRings();
       ret.$smallestRingSize=rings.filter(r=>r.hasBond(ret))
        .map(r=>r.getSize())
        .reduce((a,b)=>{
@@ -2465,7 +2465,7 @@ JSChemify.Bond = function(bbb){
     return ret.$smallestRingSize;
   };
   ret.getSmallestRings=function(){
-    var rsize=ret.getSmallestRingSize();
+    let rsize=ret.getSmallestRingSize();
     return ret.getParent().getRings()
        .filter(r=>r.hasBond(ret))
        .filter(r=>r.getSize()===rsize);
@@ -2476,7 +2476,7 @@ JSChemify.Bond = function(bbb){
   };
   
   ret.getCenterPoint=function(){
-    var cpt=ret.getAtoms()
+    let cpt=ret.getAtoms()
                .map(at=>[at.getX(),at.getY(),1])
                .reduce((a,b)=>JSChemify.Util.addVector(a,b));
     cpt[0]=cpt[0]/cpt[2];
@@ -2578,10 +2578,10 @@ JSChemify.Bond = function(bbb){
   };
   
   ret.fromMolLine=function(line){
-    var aindex1= line.substr(0,3).trim()-1;
-    var aindex2= line.substr(3,3).trim()-1;
-    var order= line.substr(6,3).trim()-0;
-    var stereo= line.substr(9,3).trim()-0;
+    let aindex1= line.substr(0,3).trim()-1;
+    let aindex2= line.substr(3,3).trim()-1;
+    let order= line.substr(6,3).trim()-0;
+    let stereo= line.substr(9,3).trim()-0;
     return ret.setBond(aindex1,aindex2,order,stereo);
   };
   
@@ -2626,7 +2626,7 @@ JSChemify.Chemical = function(arg){
   if(arg && arg._chemType===JSChemify.CONSTANTS.CHEM_TYPE_CHEMICAL){
       return arg;
   }
-  var ret={};
+  let ret={};
   ret._chemType = JSChemify.CONSTANTS.CHEM_TYPE_CHEMICAL;
   ret._atoms=[];
   ret._bonds=[];
@@ -2674,8 +2674,8 @@ JSChemify.Chemical = function(arg){
   };
   ret.$ringSystemCoordinates=function(ringSystem,satom,delta){
       
-    var atomSet=[];
-    var firstRing = null;
+    let atomSet=[];
+    let firstRing = null;
     if(satom){
         firstRing=ringSystem.getRings()
                           .filter(rr=>rr.hasAtom(satom))
@@ -2703,20 +2703,20 @@ JSChemify.Chemical = function(arg){
     
     ret.$ringCoordinates(firstRing,satom,null, delta);
     firstRing.getAtoms().map(aa=>atomSet.push(aa));
-    var stack = firstRing.getNeighborRingsAndBonds().map(nn=>nn);
+    let stack = firstRing.getNeighborRingsAndBonds().map(nn=>nn);
     
     while(stack.length>0){
-      var nRingConnection = stack.pop();
-      var newRing = nRingConnection.ring;
+      let nRingConnection = stack.pop();
+      let newRing = nRingConnection.ring;
       //If the new ring has unassiged atoms, process it.
       //otherwise continue down the stack
       if(newRing.getAtoms().findIndex(aa=>atomSet.indexOf(aa)<0)>=0){
-        var oldRing = nRingConnection.bond.getOtherRing(newRing);
-        var bridgeHeads = nRingConnection.bond.getBridgeHeads();
-        var delta=null;
-        var direction=1;
-        var internalDelta=false;
-        var centerVec = bridgeHeads[0].getVectorToPoint(oldRing.getCenterPoint());
+        let oldRing = nRingConnection.bond.getOtherRing(newRing);
+        let bridgeHeads = nRingConnection.bond.getBridgeHeads();
+        let delta=null;
+        let direction=1;
+        let internalDelta=false;
+        let centerVec = bridgeHeads[0].getVectorToPoint(oldRing.getCenterPoint());
         centerVec=JSChemify.Util.normVector(centerVec);
 
         if(bridgeHeads.length===1){ //Spiro
@@ -2746,16 +2746,16 @@ JSChemify.Chemical = function(arg){
   };
   ret.getLayoutAdjustableAtoms=function(){
       if(!ret.$adjustableAtoms){
-        var gInv=ret.getGraphInvariant();
+        let gInv=ret.getGraphInvariant();
         ret.$adjustableAtoms=ret.getAtoms()
          .filter(at=>!at.isInRing()) //TODO:maybe keep some?
          .filter(at=>at.getBonds().length>=2);
          /*
          .filter(at=>{
-            var counts=at.getNeighborAtomsAndBonds()
+            let counts=at.getNeighborAtomsAndBonds()
               .map(n=>gInv[n.atom.getIndexInParent()])
               .map(v=>{
-                  var m={};
+                  let m={};
                 m[v]=1;
                 return m;
               }).reduce((a,b)=>{
@@ -2765,7 +2765,7 @@ JSChemify.Chemical = function(arg){
                 });""
                 return a;
               });
-              var uniq = Object.values(counts);
+              let uniq = Object.values(counts);
               
             return Object.values(counts).findIndex(c=>c>1)<0;
          });
@@ -2775,22 +2775,22 @@ JSChemify.Chemical = function(arg){
   };
   //TODO: Speed up
   ret.clone=function(){
-    var nchem = JSChemify.Chemical();
+    let nchem = JSChemify.Chemical();
     nchem.setName(ret.getName());
     nchem._properties=
         JSON.parse(JSON.stringify(ret._properties));
-    var bds=[];
+    let bds=[];
     ret.getAtoms()
          .map((a,i)=>{
-                 var nat=nchem.addAtom(a.clone());
+                 let nat=nchem.addAtom(a.clone());
               bds[i]=nat;
          });
     ret.getBonds()
         .map(b=>{
-          var at1=bds[b._atom1.getIndexInParent()];
-          var at2=bds[b._atom2.getIndexInParent()];
+          let at1=bds[b._atom1.getIndexInParent()];
+          let at2=bds[b._atom2.getIndexInParent()];
 
-          var nbd=b.clone();
+          let nbd=b.clone();
           nbd._atom1=at1;
           nbd._atom2=at2;
           nchem.addBond(nbd);
@@ -2816,16 +2816,16 @@ JSChemify.Chemical = function(arg){
   
   //TODO:Need a way to orient things here
   ret.$hexRingPath=function(s){
-        var start="RLRRRLRRRLRR";
+        let start="RLRRRLRRRLRR";
       if(s<12)return start;
       if(s>=12 && s<=16){
-        var c=12;
+        let c=12;
         while(s>c){
           start=start.replace(/RRLRR/,"RLRRRLR");
           c+=2;
         }
       }else{
-           var c=18;
+           let c=18;
           start="LRRLRRLRRLRRLRRLRR";
         while(s>c){
           start=start.replace(/RRLRR/,"RLRRRLR");
@@ -2837,27 +2837,27 @@ JSChemify.Chemical = function(arg){
     
   ret.$ringCoordinates=function(ring,satom,eatom,delta,internalDelta,direction){
       
-    var ratoms = ring.getAtoms();
-    var ai=0;
-    var acountAng=ratoms.length;
-    var acountSet=ratoms.length;
-    var rev=false;
+    let ratoms = ring.getAtoms();
+    let ai=0;
+    let acountAng=ratoms.length;
+    let acountSet=ratoms.length;
+    let rev=false;
     if(!satom){
         satom=ratoms[0];
     }else{
         ai=ratoms.findIndex(at=>at===satom);
     }
     if(eatom){
-        var eIndex= ratoms.findIndex(at=>at===eatom);
+        let eIndex= ratoms.findIndex(at=>at===eatom);
       //[A,B,C,D,E,F]
       //Imagine start is D, end is E
-      var difference1 = ai-eIndex;             //3-4 =-1   1
-      var difference2 = difference1+acountAng; //9-4 = 5   7
+      let difference1 = ai-eIndex;             //3-4 =-1   1
+      let difference2 = difference1+acountAng; //9-4 = 5   7
       if(difference1>0){
           difference2 = difference1-acountAng;  //-3-4=-7  -5
       }
       //find the largest path
-      var dist = (Math.abs(difference1)>Math.abs(difference2))?
+      let dist = (Math.abs(difference1)>Math.abs(difference2))?
                                       difference1:difference2;
       if(dist>0){
           rev=true;
@@ -2869,22 +2869,22 @@ JSChemify.Chemical = function(arg){
       acountSet=dist;
     }
     
-    var ang=Math.PI*2/acountAng;
-    var outsideAng=Math.PI*2-ang;
+    let ang=Math.PI*2/acountAng;
+    let outsideAng=Math.PI*2-ang;
     
-    var adj =[Math.cos(ang), Math.sin(ang)];
-    var adjHalf=[Math.cos(outsideAng/2), Math.sin(outsideAng/2)];
+    let adj =[Math.cos(ang), Math.sin(ang)];
+    let adjHalf=[Math.cos(outsideAng/2), Math.sin(outsideAng/2)];
     
-    var deltaR =[Math.cos(Math.PI/3), 
+    let deltaR =[Math.cos(Math.PI/3), 
                               Math.sin(Math.PI/3)];
                   
-    var deltaL =[Math.cos(-Math.PI/3), 
+    let deltaL =[Math.cos(-Math.PI/3), 
                               Math.sin(-Math.PI/3)];
     
     if(direction && direction<0){
         adj[1]=-adj[1];
       adjHalf[1]=-adjHalf[1];
-      var t=deltaR;
+      let t=deltaR;
       deltaR=deltaL;ring
       deltaL=t;
       
@@ -2896,19 +2896,19 @@ JSChemify.Chemical = function(arg){
     if(!delta){
         delta=[0,1];
     }
-    var path=ret.$hexRingPath(acountSet);
+    let path=ret.$hexRingPath(acountSet);
     
-    var lastPoint=[satom.getX(),satom.getY()];
+    let lastPoint=[satom.getX(),satom.getY()];
    // satom.setXYZ(lastPoint[0],lastPoint[1]);
     if(!internalDelta){    
-      var ndelta=[-delta[1],delta[0]];
+      let ndelta=[-delta[1],delta[0]];
       delta=[
         -adjHalf[0]*ndelta[0] - adjHalf[1]*ndelta[1],
          adjHalf[1]*ndelta[0] - adjHalf[0]*ndelta[1]
       ];
     }
     for(var i=1;i<acountSet;i++){
-        var ni=(ai+i)%ratoms.length;
+        let ni=(ai+i)%ratoms.length;
       if(rev){
           ni=(ai-i+ratoms.length)%ratoms.length;
       }
@@ -2935,14 +2935,14 @@ JSChemify.Chemical = function(arg){
   };
   ret.$treeCoordinates=function(ai, cursor,delta,test, cb){
       if(!ai)ai=0;
-    var BASIS=JSChemify.CONSTANTS.VECTORS_BASIS;
+    let BASIS=JSChemify.CONSTANTS.VECTORS_BASIS;
     
     
-    var bangles =BASIS.bangles;
-    var altBangles=BASIS.altBangles;       
-    var altBanglesR=BASIS.altBanglesR;            
+    let bangles =BASIS.bangles;
+    let altBangles=BASIS.altBangles;       
+    let altBanglesR=BASIS.altBanglesR;            
     
-    var satom= ret.getAtom(ai);
+    let satom= ret.getAtom(ai);
     if(!cursor){
         cursor=[satom.getX(),satom.getY()];
     }else{
@@ -2953,24 +2953,24 @@ JSChemify.Chemical = function(arg){
         cb(satom);
     }
     
-    var emptyOrigin=false;
+    let emptyOrigin=false;
     //var delta=[Math.cos(Math.PI/6),-Math.sin(Math.PI/6)];
     if(!delta){
       delta=[-BASIS.up[1],BASIS.up[0]];
       emptyOrigin=true;
     }
     
-    var stackCursor=[];
-    var stackDelta=[];
-    var stackParity=[];
-    var stackBnums=[];
-    var parity=0;
-    var bnum=0;
-    var gInv=ret.getGraphInvariant();
+    let stackCursor=[];
+    let stackDelta=[];
+    let stackParity=[];
+    let stackBnums=[];
+    let parity=0;
+    let bnum=0;
+    let gInv=ret.getGraphInvariant();
     
-    var justPopped=false;
+    let justPopped=false;
     satom.$allPathsDepthFirst((p,t)=>{
-           var tbond =p[p.length-1];
+           let tbond =p[p.length-1];
       
       //skip ring bonds
       if(tbond.bond && tbond.bond.isInRing() || (test && !test(tbond)))return true;
@@ -2997,14 +2997,14 @@ JSChemify.Chemical = function(arg){
           justPopped=false;
         }
         
-         var ndelta;
+         let ndelta;
          if(bnum==2 && p.length<=2 && emptyOrigin){
              ndelta=[-delta[0],-delta[1]];
            bnum--;
            emptyOrigin=false;
          }else{
-           var buse=bangles;
-           var special=false;
+           let buse=bangles;
+           let special=false;
            if(p.length>=2){
               if(p[p.length-2].atom.getSymbol()!=="C" &&
                  p[p.length-2].atom.getBondCount()>=4 ){
@@ -3018,7 +3018,7 @@ JSChemify.Chemical = function(arg){
                }
            }
             
-           var bang = buse[parity][bnum];
+           let bang = buse[parity][bnum];
            ndelta=[ delta[0]*bang[0]+delta[1]*bang[1],
                    -delta[0]*bang[1]+delta[1]*bang[0]];
             if(bnum>1 && p[p.length-1].atom.getBondCount()==2){
@@ -3034,7 +3034,7 @@ JSChemify.Chemical = function(arg){
            
          cursor=[cursor[0]+ndelta[0],cursor[1]+ndelta[1]];
          delta=ndelta;
-        var newAtom = p[p.length-1];
+        let newAtom = p[p.length-1];
         newAtom.atom.setXYZ(cursor[0],cursor[1]);
         if(cb){
           cb(newAtom.atom);
@@ -3044,7 +3044,7 @@ JSChemify.Chemical = function(arg){
         
       }
     },null,true, (a,b)=>{
-        var ss= gInv[a.atom.getIndexInParent()]-gInv[b.atom.getIndexInParent()];
+        let ss= gInv[a.atom.getIndexInParent()]-gInv[b.atom.getIndexInParent()];
       
         
       return ss;
@@ -3054,13 +3054,13 @@ JSChemify.Chemical = function(arg){
   };
 
   ret.transformCoordinates=function(m){
-    var basis1=m[0];
-    var basis2=m[1];
+    let basis1=m[0];
+    let basis2=m[1];
     ret.getAtoms().map(at=>{
-            var x=at.getX();
-            var y=at.getY();
-        var dot1=x*basis1[0]+y*basis1[1];
-        var dot2=x*basis2[0]+y*basis2[1];
+            let x=at.getX();
+            let y=at.getY();
+        let dot1=x*basis1[0]+y*basis1[1];
+        let dot2=x*basis2[0]+y*basis2[1];
         at.setXYZ(dot1,dot2);
     });
     return ret;
@@ -3074,15 +3074,15 @@ JSChemify.Chemical = function(arg){
      if(!Array.isArray(pn)){
         pn=JSChemify.PathNotation().expand(pn);
      }
-     var startAtom=ret.getAtom(0);
-     var got={};
-     var gotAtoms={};
-     var pthIndex=0;
-     var startDx=Math.cos((360/150)*Math.PI);
-     var startDy=Math.sin((360/150)*Math.PI);
-     var sgroupLookup={};
-     var sgroupStack=[];
-     var csgroup=null;
+     let startAtom=ret.getAtom(0);
+     let got={};
+     let gotAtoms={};
+     let pthIndex=0;
+     let startDx=Math.cos((360/150)*Math.PI);
+     let startDy=Math.sin((360/150)*Math.PI);
+     let sgroupLookup={};
+     let sgroupStack=[];
+     let csgroup=null;
      
      while(startAtom){
         let comp={};
@@ -3123,33 +3123,33 @@ JSChemify.Chemical = function(arg){
                 pthIndex++;  
              }
 
-             var newAtom = path[path.length-1];
+             let newAtom = path[path.length-1];
              if(closedRings.findIndex(cr=>cr.bond ===newAtom.bond)>=0){
                   return true;
              }
            
-             var atom1=path[path.length-2].atom;
+             let atom1=path[path.length-2].atom;
              gotAtoms[atom1.getIndexInParent()]=true;
              comp[atom1.getIndexInParent()]=true;
              if(path.length>2){
                 
-               var atom2=path[path.length-1].atom;
+               let atom2=path[path.length-1].atom;
                gotAtoms[atom2.getIndexInParent()]=true;
                comp[atom2.getIndexInParent()]=true;
-               var pth=pn[pthIndex];
+               let pth=pn[pthIndex];
                pthIndex++;
-               var obond=path[path.length-2].bond;
-               var nbond=path[path.length-1].bond;
-               var satom=path[path.length-2].atom;
-               var ovec = obond.getOtherAtom(satom).getVectorTo(satom);
+               let obond=path[path.length-2].bond;
+               let nbond=path[path.length-1].bond;
+               let satom=path[path.length-2].atom;
+               let ovec = obond.getOtherAtom(satom).getVectorTo(satom);
                nbond.setCoordinatesFromPathNotation(pth,ovec,satom);
                
              }else if(path.length===2){
-               var pth=pn[pthIndex];
+               let pth=pn[pthIndex];
                pthIndex++;
-               var bond=path[path.length-1].bond;
-               var satom=path[path.length-1].atom;
-               var datom=bond.getOtherAtom(satom);
+               let bond=path[path.length-1].bond;
+               let satom=path[path.length-1].atom;
+               let datom=bond.getOtherAtom(satom);
                bond.setCoordinatesFromPathNotation(pth,[startDx,startDy],datom);
              }
              got[path[path.length-1].bond.getIndexInParent()]=true;
@@ -3157,7 +3157,7 @@ JSChemify.Chemical = function(arg){
 
 
                
-               var rindx=path.findIndex(pa=>pa.atom===newAtom.atom);
+               let rindx=path.findIndex(pa=>pa.atom===newAtom.atom);
                if(rindx<path.length-1){
                   closedRings.push(newAtom);
                   return true;
@@ -3202,16 +3202,16 @@ JSChemify.Chemical = function(arg){
             }
             let pdx=startDx;
             let pdy=startDy;
-            var pth=pn[pthIndex];
+            let pth=pn[pthIndex];
             pthIndex++;
            
-            var nvec=JSChemify.PathNotation()
+            let nvec=JSChemify.PathNotation()
                               .deltaVectorFromPath(pth);
            
-            var ovec=[pdx,pdy];
+            let ovec=[pdx,pdy];
            
-            var pvec=[-ovec[1],ovec[0]];
-            var nnvec=[ovec[0]*nvec[0]+pvec[0]*nvec[1],
+            let pvec=[-ovec[1],ovec[0]];
+            let nnvec=[ovec[0]*nvec[0]+pvec[0]*nvec[1],
                        ovec[1]*nvec[0]+pvec[1]*nvec[1]];
             startAtom.setXYZ(latom.getX()+nnvec[0],latom.getY()+nnvec[1]);
             let dvec=latom.getVectorTo(startAtom);
@@ -3260,9 +3260,9 @@ JSChemify.Chemical = function(arg){
   };
    
   ret.getSmilesAtomBondOrder=function(){
-     var startAtom=ret.getAtom(0);
-     var gotAtoms={};
-     var got={};
+     let startAtom=ret.getAtom(0);
+     let gotAtoms={};
+     let got={};
      let stack=[];
 
      while(startAtom){
@@ -3273,17 +3273,17 @@ JSChemify.Chemical = function(arg){
            if(got[nnbondIdx]){
              return true;
            }
-           var atom1=path[path.length-2].atom;
+           let atom1=path[path.length-2].atom;
            gotAtoms[atom1.getIndexInParent()]=true;
 
            
-           var newAtom = path[path.length-1];
+           let newAtom = path[path.length-1];
            if(closedRings.findIndex(cr=>cr.bond ===newAtom.bond)>=0){
                 return true;
            }
            
            if(path.length>2){
-             var atom2=path[path.length-1].atom;
+             let atom2=path[path.length-1].atom;
              gotAtoms[atom2.getIndexInParent()]=true;
              stack.push(path[path.length-1]);
            }else if(path.length===2){
@@ -3291,7 +3291,7 @@ JSChemify.Chemical = function(arg){
            }
            stack.push(path[path.length-1]);
            got[path[path.length-1].bond.getIndexInParent()]=true;
-            var rindx=path.findIndex(pa=>pa.atom===newAtom.atom);
+            let rindx=path.findIndex(pa=>pa.atom===newAtom.atom);
             if(rindx<path.length-1){
                closedRings.push(newAtom);
                return true;
@@ -3310,14 +3310,14 @@ JSChemify.Chemical = function(arg){
      return stack;
   };
   ret.getPathNotation=function(){
-     var startAtom=ret.getAtom(0);
-     var dpath=[];
-     var gotAtoms={};
-     var got={};
-     var startDx=Math.cos((360/150)*Math.PI);
-     var startDy=Math.sin((360/150)*Math.PI);
-     var mgroupIndexes=[];
-     var crossBondSIndex={};
+     let startAtom=ret.getAtom(0);
+     let dpath=[];
+     let gotAtoms={};
+     let got={};
+     let startDx=Math.cos((360/150)*Math.PI);
+     let startDy=Math.sin((360/150)*Math.PI);
+     let mgroupIndexes=[];
+     let crossBondSIndex={};
      
      ret.getSGroups()
          .map(sg=>[sg,sg.getCrossBonds()])
@@ -3354,32 +3354,32 @@ JSChemify.Chemical = function(arg){
                }
            }
            
-           var atom1=path[path.length-2].atom;
+           let atom1=path[path.length-2].atom;
            gotAtoms[atom1.getIndexInParent()]=true;
            comp[atom1.getIndexInParent()]=true;
 
            
-           var newAtom = path[path.length-1];
+           let newAtom = path[path.length-1];
            if(closedRings.findIndex(cr=>cr.bond ===newAtom.bond)>=0){
                 return true;
            }
            
            if(path.length>2){
-             var atom2=path[path.length-1].atom;
+             let atom2=path[path.length-1].atom;
              gotAtoms[atom2.getIndexInParent()]=true;
              comp[atom2.getIndexInParent()]=true;
-             var obond=path[path.length-2].bond;
-             var nbond=path[path.length-1].bond;
-             var satom=path[path.length-2].atom;
+             let obond=path[path.length-2].bond;
+             let nbond=path[path.length-1].bond;
+             let satom=path[path.length-2].atom;
              dpath.push(obond.pathNotationDirectionTo(nbond,satom));
            }else if(path.length===2){
-             var nn=path[path.length-1].bond.pathNotationDirectionFrom(startDx,startDy,path[0].atom);
+             let nn=path[path.length-1].bond.pathNotationDirectionFrom(startDx,startDy,path[0].atom);
              dpath.push(nn);
            }
            got[path[path.length-1].bond.getIndexInParent()]=true;
 
           
-            var rindx=path.findIndex(pa=>pa.atom===newAtom.atom);
+            let rindx=path.findIndex(pa=>pa.atom===newAtom.atom);
             if(rindx<path.length-1){
                closedRings.push(newAtom);
                return true;
@@ -3444,25 +3444,25 @@ JSChemify.Chemical = function(arg){
   };
   ret.generateCoordinates=function(){
     if(ret.getComponentCount()>1){
-       var comps=ret.getComponents();
+       let comps=ret.getComponents();
        comps.map(cc=>cc.generateCoordinates());
        //TODO determine best grid layout and whether
        //to have ionic moieties show near their 
        //counter ions?
-       var offsets=[];
-       var padding=1.5;
+       let offsets=[];
+       let padding=1.5;
        offsets.push([0,0]);
-       var lastBbox=comps[0].getBoundingBox();
-       var lastC=[(lastBbox[0]+lastBbox[2])/2,
+       let lastBbox=comps[0].getBoundingBox();
+       let lastC=[(lastBbox[0]+lastBbox[2])/2,
                   (lastBbox[1]+lastBbox[3])/2];
        //vector which points to the center
-       var lastV=[(lastBbox[2]-lastBbox[0])/2,
+       let lastV=[(lastBbox[2]-lastBbox[0])/2,
                   (lastBbox[3]-lastBbox[1])/2];
        for(let i=1;i<comps.length;i++){
            let bbox=comps[i].getBoundingBox();
            let c=[(bbox[0]+bbox[2])/2,
                   (bbox[1]+bbox[3])/2];
-           var v=[(bbox[2]-bbox[0])/2,
+           let v=[(bbox[2]-bbox[0])/2,
                   (bbox[3]-bbox[1])/2];
            let targetVector=[
               padding+lastV[0] 
@@ -3502,13 +3502,13 @@ JSChemify.Chemical = function(arg){
        return ret;
     }
      
-    var atomSet=[];
-    var natoms=[];
-    var ringSystems=ret.getRingSystems();
-    var lRingSystem=null;
+    let atomSet=[];
+    let natoms=[];
+    let ringSystems=ret.getRingSystems();
+    let lRingSystem=null;
     if(ringSystems.length>0){
         
-      var rs1= ringSystems[0];
+      let rs1= ringSystems[0];
       if(ringSystems.length>1){
         rs1= ringSystems.reduce((a,b)=>{
           if(a.getSize()>b.getSize())return a;
@@ -3516,8 +3516,8 @@ JSChemify.Chemical = function(arg){
         });
       }
       lRingSystem=rs1;
-      var startAtom=null;
-      var rdelta=null;
+      let startAtom=null;
+      let rdelta=null;
       
       while(rs1){
       rs1.getAtoms().map(a=>atomSet.push(a));
@@ -3528,8 +3528,8 @@ JSChemify.Chemical = function(arg){
       rs1.getExternalBonds()
         .map(eb=>{
             if(atomSet.indexOf(eb.bond.getOtherAtom(eb.atom))>=0)return;
-            var gbonds=[];
-            var delta=eb.atom.getLeastOccupiedVector((na)=>{
+            let gbonds=[];
+            let delta=eb.atom.getLeastOccupiedVector((na)=>{
                 if(atomSet.indexOf(na.atom)>=0){
                   return true;
                 }else{
@@ -3540,7 +3540,7 @@ JSChemify.Chemical = function(arg){
 
             //Single connection to ring
             if(gbonds.length===1){
-              var oat=gbonds[0].atom;
+              let oat=gbonds[0].atom;
               oat.setXYZ(eb.atom.getX()+delta[0],
                          eb.atom.getY()+delta[1]);
               ret.$treeCoordinates(oat.getIndexInParent(),null,delta,function(bb){
@@ -3565,7 +3565,7 @@ JSChemify.Chemical = function(arg){
         if(natoms.length>0){
            startAtom=natoms.pop();
            rs1 = ringSystems.filter(ra=>ra.hasAtom(startAtom))[0];
-           var co=startAtom.getLeastOccupiedVector(nb=>!nb.bond.isInRing());
+           let co=startAtom.getLeastOccupiedVector(nb=>!nb.bond.isInRing());
            rdelta=JSChemify.Util.normVector(co);
         }else{
             rs1=null;
@@ -3580,12 +3580,12 @@ JSChemify.Chemical = function(arg){
     
     //Now do final adjustments
     if(lRingSystem){
-      var fused =lRingSystem.getRingBonds()
+      let fused =lRingSystem.getRingBonds()
                             .filter(rb=>rb.getBonds().length===1);
-      var centerPt=lRingSystem.getCenterPoint();
+      let centerPt=lRingSystem.getCenterPoint();
         
       if(fused.length>1){
-          var sumR=fused.map(f=>f.getRings()
+          let sumR=fused.map(f=>f.getRings()
                          .map(r=>r.getSize())
                          .reduce((a,b)=>a+b)
                          )
@@ -3601,9 +3601,9 @@ JSChemify.Chemical = function(arg){
                                   .reduce((a,b)=>a+b)>=sumR
                                   )
                  .map(f=>{
-                     var bb = f.getBonds()[0];
-                     var bpt=bb.getCenterPoint();
-                     var dd=JSChemify.Util.sqDist(bpt,centerPt);
+                     let bb = f.getBonds()[0];
+                     let bpt=bb.getCenterPoint();
+                     let dd=JSChemify.Util.sqDist(bpt,centerPt);
                      return [dd,f];
                  }).reduce((a,b)=>{
                      if(a[0]<b[0]){
@@ -3615,17 +3615,17 @@ JSChemify.Chemical = function(arg){
       }    
                              
       if(fused.length===1){
-        var bb=fused[0].getBonds()[0];
-        var vec=bb.getAtoms()[1].getVectorTo(bb.getAtoms()[0]);
-        var dot1=vec[0];
-        var dot2=vec[1];
-        var rej1=Math.sqrt()
-        var trans=[
+        let bb=fused[0].getBonds()[0];
+        let vec=bb.getAtoms()[1].getVectorTo(bb.getAtoms()[0]);
+        let dot1=vec[0];
+        let dot2=vec[1];
+        let rej1=Math.sqrt()
+        let trans=[
         [-dot2,dot1],
         [dot1,dot2]
         ];
         
-        var nvec=[trans[0][0]*vec[0]+trans[0][1]*vec[1],
+        let nvec=[trans[0][0]*vec[0]+trans[0][1]*vec[1],
                              trans[1][0]*vec[0]+trans[1][1]*vec[1]];
         ret.transformCoordinates(trans);
         
@@ -3635,17 +3635,17 @@ JSChemify.Chemical = function(arg){
       }     
       
       //Now decide if we flip it horizontally
-      var flipHorizontal=1;
-      var flipVertical=1;
+      let flipHorizontal=1;
+      let flipVertical=1;
       centerPt=lRingSystem.getCenterPoint();
-      var smallestRingCenter = lRingSystem.getRings().reduce((a,b)=>{
+      let smallestRingCenter = lRingSystem.getRings().reduce((a,b)=>{
         if(a.getSize()<b.getSize())return a;
         return b;
         }).getCenterPoint();
       if(smallestRingCenter[0]<centerPt[0])flipHorizontal=-1;
       if(smallestRingCenter[1]<centerPt[1])flipVertical=-1;
       if(flipHorizontal + flipVertical<2){
-        var trans=[
+        let trans=[
           [flipHorizontal,0],
           [0,flipVertical]
           ];
@@ -3659,48 +3659,48 @@ JSChemify.Chemical = function(arg){
       //horizontal
     }
 
-    var isDebug=false;
-    var debug=0;
-    var maxdebug=200;
+    let isDebug=false;
+    let debug=0;
+    let maxdebug=200;
     //This will look if some atoms are too close
-    var clusters=ret.$getCloseClustersOfAtoms();
+    let clusters=ret.$getCloseClustersOfAtoms();
     //clusters=[];
     if(clusters.length>0){
-      var iters=0;
-      var MAX_ITERS=20;
+      let iters=0;
+      let MAX_ITERS=20;
 
       
       while(clusters.length>0){
         if(iters>MAX_ITERS)break;
         iters++;
-        var adjAtoms=ret.getLayoutAdjustableAtoms();
-        var cluster1=clusters.pop();
-        var atom1=cluster1[0];
-        var atom2=cluster1[1];
+        let adjAtoms=ret.getLayoutAdjustableAtoms();
+        let cluster1=clusters.pop();
+        let atom1=cluster1[0];
+        let atom2=cluster1[1];
         adjAtoms.sort((a,b)=>{
-            var diff=a.getBondCount()-b.getBondCount();
+            let diff=a.getBondCount()-b.getBondCount();
             if(diff!==0)return diff;
-            var d1a=a.getShortestAtomDistance(atom1);
-            var d2a=a.getShortestAtomDistance(atom2);
-            var d1b=b.getShortestAtomDistance(atom1);
-            var d2b=b.getShortestAtomDistance(atom2);
+            let d1a=a.getShortestAtomDistance(atom1);
+            let d2a=a.getShortestAtomDistance(atom2);
+            let d1b=b.getShortestAtomDistance(atom1);
+            let d2b=b.getShortestAtomDistance(atom2);
             if(Math.min(d1a,d2a)<Math.min(d1b,d2b)){
                 return -1;
             }
             return 1;
         });
-        var breakOut=false;
+        let breakOut=false;
         for(var i=0;i<adjAtoms.length;i++){
           if(breakOut)break;
-          var aatom=adjAtoms[i];
-          var network=aatom.getConnectedNetworkAndBonds();
-          var net1=network.find(bn=>{
+          let aatom=adjAtoms[i];
+          let network=aatom.getConnectedNetworkAndBonds();
+          let net1=network.find(bn=>{
               return bn.network[atom1.getIndexInParent()];
           });
-          var net2=network.find(bn=>{
+          let net2=network.find(bn=>{
               return bn.network[atom2.getIndexInParent()];
           });
-          var othernets = network.filter(nn=>nn!==net1 && nn!==net2);
+          let othernets = network.filter(nn=>nn!==net1 && nn!==net2);
           //TODO: consider the following:
           // 1. Rotate the blocking group to the area with most space
           //    if it were not present
@@ -3711,20 +3711,20 @@ JSChemify.Chemical = function(arg){
           
           if(net1!==net2 && (net1) && (net2)){
              debug++;
-            var nlist=[net1,net2];
+            let nlist=[net1,net2];
             for(var ii=0;ii<nlist.length;ii++){
               if(breakOut)break;
-              var smallerNet=nlist[ii];
-              var nvecs=[];
+              let smallerNet=nlist[ii];
+              let nvecs=[];
   
               if(aatom.getBonds().length===2){
                 nvecs.push({"net":null, "vec":(()=>{
-                   var rrvec=aatom.getVectorAwayFromNeighborCenters();
+                   let rrvec=aatom.getVectorAwayFromNeighborCenters();
                    return rrvec;
                    })});
               }else{
                 othernets.map(on=>{
-                  var cAtom = on.bond.getOtherAtom(aatom);
+                  let cAtom = on.bond.getOtherAtom(aatom);
                   nvecs.push({"net":on, "vec":(()=>aatom.getVectorTo(cAtom))});
                 })
               }
@@ -3732,15 +3732,15 @@ JSChemify.Chemical = function(arg){
                 ret.getAtoms().map(a=>a.setAtomMap(0));
               }
               while(nvecs.length>0){
-                var nvecT=nvecs.pop();
-                var nvec=nvecT.vec();
+                let nvecT=nvecs.pop();
+                let nvec=nvecT.vec();
   
-                var ovec=aatom.getVectorTo(smallerNet.bond.getOtherAtom(aatom));
-                var cVec=[aatom.getX(),aatom.getY()];
-                var mat=JSChemify.Util.getTransformFromVectorToVector(ovec,nvec);
-                var revmat=JSChemify.Util.getTransformFromVectorToVector(nvec,ovec);
-                var oldXY=ret.getAtoms().map(a=>[a.getX(),a.getY()]);
-                var vecs=Object.keys(smallerNet.network)
+                let ovec=aatom.getVectorTo(smallerNet.bond.getOtherAtom(aatom));
+                let cVec=[aatom.getX(),aatom.getY()];
+                let mat=JSChemify.Util.getTransformFromVectorToVector(ovec,nvec);
+                let revmat=JSChemify.Util.getTransformFromVectorToVector(nvec,ovec);
+                let oldXY=ret.getAtoms().map(a=>[a.getX(),a.getY()]);
+                let vecs=Object.keys(smallerNet.network)
                       .map(ai=>ret.getAtom(ai))
                       .map(at=>{
                          if(isDebug){
@@ -3757,7 +3757,7 @@ JSChemify.Chemical = function(arg){
                          .map((ai,i)=>ret.getAtom(ai).setXYZ(vecs[i][0],vecs[i][1]));
                  }
                 if(nvecT.net){;
-                  var vecs2=Object.keys(nvecT.net.network)
+                  let vecs2=Object.keys(nvecT.net.network)
                         .map(ai=>ret.getAtom(ai))
                         .map(at=>{
                             if(isDebug){
@@ -3773,7 +3773,7 @@ JSChemify.Chemical = function(arg){
                         .map((ai,i)=>ret.getAtom(ai).setXYZ(vecs2[i][0],vecs2[i][1]));
                   }
                 }
-                var nclusters=ret.$getCloseClustersOfAtoms();
+                let nclusters=ret.$getCloseClustersOfAtoms();
                  if(debug>maxdebug){
                     nclusters=[];
                  }
@@ -3819,22 +3819,22 @@ JSChemify.Chemical = function(arg){
       //This one ignores atom labels, bond order, stereo
       //I don't know why, but this one does a better
       //job estimating "bulkiness"
-      var blab = ret.getAtoms().map(a=>a.getBondCount());
-      var blab2 = blab.map(b=>b);
-      var tucount=0;
+      let blab = ret.getAtoms().map(a=>a.getBondCount());
+      let blab2 = blab.map(b=>b);
+      let tucount=0;
       for(var i=0;i<ret.getAtomCount();i++){
-        var mult=1;
+        let mult=1;
 
         for(var j=0;j<ret.getAtomCount();j++){
-          var nm = ret.getAtom(j)
+          let nm = ret.getAtom(j)
              .getNeighborAtomsAndBonds()
              .map(n=>n.atom.getIndexInParent())
              .map(ni=>mult*blab[ni])
              .reduce((a,b)=>a+b,0);
           blab2[j]=nm+blab[j];
         }
-        var ucount = JSChemify.Util.distinct(blab2).length;
-        var t=blab2;
+        let ucount = JSChemify.Util.distinct(blab2).length;
+        let t=blab2;
         blab2=blab;
         blab=t;
         if(ucount===tucount){
@@ -3925,13 +3925,13 @@ JSChemify.Chemical = function(arg){
       return cats.map(carr=>{
          let bonds=JSChemify.Util.distinct(carr.flatMap(at=>at.getBonds()));
          let chem =JSChemify.Chemical();
-         var oAmap=[];
+         let oAmap=[];
          carr.map(at=>{
-            var natom= chem.addAtom(at.clone());
+            let natom= chem.addAtom(at.clone());
             oAmap[at.getIndexInParent()]=natom;
          });
          bonds.map(bd=>{
-            var bbond= bd.clone();
+            let bbond= bd.clone();
             bbond._atom1=oAmap[bd._atom1.getIndexInParent()];
             bbond._atom2=oAmap[bd._atom2.getIndexInParent()];
             
@@ -3950,9 +3950,9 @@ JSChemify.Chemical = function(arg){
          //stuff
          ret.getRings();
       }
-     var cAtoms=[];
+     let cAtoms=[];
      ret.$atomComponentTypes.map((c,i)=>{
-         var cInd=c-1;
+         let cInd=c-1;
          if(!cAtoms[cInd]){
             cAtoms[cInd]=[];
          }
@@ -3964,18 +3964,18 @@ JSChemify.Chemical = function(arg){
       return ret._bonds;
   };
   ret.getMolFormula=function(){
-      var counts={};
-    var addTo=(s,v)=>{
+      let counts={};
+    let addTo=(s,v)=>{
         counts[s]=((counts[s])?counts[s]:0)+v;
     };
     ret.getAtoms()
        .map(a=>{
-           var iH=a.getImplicitHydrogens();
+           let iH=a.getImplicitHydrogens();
         addTo("H",iH);
         addTo(a.getSymbol(),1);
        });
-    var pref="";
-    var org=false;
+    let pref="";
+    let org=false;
     if(counts["C"]>0) {
         pref="C"  + ((counts["C"]>1)?counts["C"]:"");
          if(counts["H"]>0) {
@@ -3993,15 +3993,15 @@ JSChemify.Chemical = function(arg){
     
   };
   ret.getMolWeight=function(){
-     var wt= ret.getAtoms()
+     let wt= ret.getAtoms()
               .map(a=>a.getMass())
               .reduce((a,b)=>a+b,0);
-     var hs= ret.getAtoms()
+     let hs= ret.getAtoms()
          .map(a=>a.getImplicitHydrogens())
          .filter(h=>(h>0))
          .reduce((a,b)=>a+b,0);
          
-     var hweight=JSChemify.Util
+     let hweight=JSChemify.Util
               .getElementFromSymbol("H")
                          .mass;
      return wt+hs*hweight;
@@ -4023,7 +4023,7 @@ JSChemify.Chemical = function(arg){
   
   ret.$getCloseClustersOfAtoms=function(tooClose){
       if(!tooClose)tooClose=0.3;
-      var clusters=ret.getAtoms()
+      let clusters=ret.getAtoms()
        .map(a=>a.getAtomsCloserThan(tooClose).concat(a))
        .filter(aa=>aa.length>1)
        .map(aa=>aa.sort((a,b)=>{
@@ -4033,7 +4033,7 @@ JSChemify.Chemical = function(arg){
             return -1;
        }))
        .map(aa=>{
-           var mm={};
+           let mm={};
            mm[aa[0].getIndexInParent()]=aa;
            return mm;
        })
@@ -4057,16 +4057,16 @@ JSChemify.Chemical = function(arg){
   
   ret.dearomatize=function(){
     //TODO implement this better
-    var stack=ret.getRings()
+    let stack=ret.getRings()
                  .filter(r=>r.isAromatic())
                  .filter(r=>r.getBonds().filter(bb=>bb.getBondOrder()==4).length>0);
     
     stack.sort((a,b)=>{
         return a.getNeighborRingsAndBonds().length-b.getNeighborRingsAndBonds().length;
     });
-    var done=[];
+    let done=[];
     while(stack.length>0){
-      var nextRing=stack.pop();
+      let nextRing=stack.pop();
       if(done.indexOf(nextRing)<0){
       
         nextRing.dearomatize();
@@ -4090,7 +4090,7 @@ JSChemify.Chemical = function(arg){
   
   ret.getAverageBondLength=function(){
       if(ret.getBondCount()<1)return 1;
-      var stat= ret.getBonds()
+      let stat= ret.getBonds()
               .map(b=>b._atom1.getVectorTo(b._atom2))
               .map(b=>JSChemify.Util.sqMagVector(b))
               .map(b=>[Math.sqrt(b),1])
@@ -4108,20 +4108,20 @@ JSChemify.Chemical = function(arg){
     if(ret.$ringSystems){
       return ret.$ringSystems;
     }
-    var rings = ret.getRings();
-    var srings = rings.filter(r=>!r.isEnvelope());
+    let rings = ret.getRings();
+    let srings = rings.filter(r=>!r.isEnvelope());
     
-    var idx=srings.map((a,i)=>i);
-    var rbonds=[];
+    let idx=srings.map((a,i)=>i);
+    let rbonds=[];
     
     for(var i=0;i<srings.length;i++){
-        var tring=srings[i];
+        let tring=srings[i];
         for(var j=i+1;j<srings.length;j++){
-           var nring =srings[j];
-           var rbond = tring.getRingBond(nring);
+           let nring =srings[j];
+           let rbond = tring.getRingBond(nring);
            if(rbond!=null){
                 rbonds.push({"idx":i,"rb":rbond});
-                var mi=Math.min(idx[j],idx[i]);
+                let mi=Math.min(idx[j],idx[i]);
                 if(mi<idx[i]){
                     for(var k=0;k<srings.length;k++){
                       if(idx[k]===idx[i]){
@@ -4134,22 +4134,22 @@ JSChemify.Chemical = function(arg){
            }
       }
     }
-    var rMap={};
+    let rMap={};
     
     rbonds.map(irb=>{
-        var ii=irb.idx;
-        var rb=irb.rb;
-      var lindex=idx[ii];
-      var mm=rMap[lindex];
+        let ii=irb.idx;
+        let rb=irb.rb;
+      let lindex=idx[ii];
+      let mm=rMap[lindex];
       if(!mm){
        mm=[];
        rMap[lindex]=mm;
       }
       mm.push(irb.rb);
     });
-    var sRingsGrouped={};
+    let sRingsGrouped={};
     idx.map((a,i)=>{
-        var ma=sRingsGrouped[a];
+        let ma=sRingsGrouped[a];
       if(!ma){
           ma=[];
         sRingsGrouped[a]=ma;
@@ -4158,8 +4158,8 @@ JSChemify.Chemical = function(arg){
     });
     
     ret.$ringSystems= Object.keys(sRingsGrouped).map(k=>{
-        var rbonds = rMap[k];
-      var rrings = sRingsGrouped[k];
+        let rbonds = rMap[k];
+      let rrings = sRingsGrouped[k];
       if(!rbonds)rbonds=[];
         return JSChemify.RingSystem(rrings, rbonds);
     });
@@ -4167,7 +4167,7 @@ JSChemify.Chemical = function(arg){
   }
   
   ret.isRingBond=function(bd){
-      var bidx=bd.getIndexInParent();
+      let bidx=bd.getIndexInParent();
     ret.$detectRings();
     if(ret.$bondTypes[bidx]==="RING"){
         return true;
@@ -4175,16 +4175,16 @@ JSChemify.Chemical = function(arg){
     return false;
   };
   ret.getShortestAtomDistance=function(atom1,atom2){
-      var ai1=atom1.getIndexInParent();
-      var ai2=atom2.getIndexInParent();
+      let ai1=atom1.getIndexInParent();
+      let ai2=atom2.getIndexInParent();
       ret.$calculateDistances();
      
-      var sDist= ret.$atomDistances[ai1][ai2];
+      let sDist= ret.$atomDistances[ai1][ai2];
       if(sDist>=0)return sDist;
       return -1;
   };
   ret.getNeighborAtomsAtDistance=function(atom,d){
-      var ai1=atom.getIndexInParent();
+      let ai1=atom.getIndexInParent();
     ret.$calculateDistances();
     return ret.$atomDistances[ai1].map((d,i)=>[d,i]).filter(dd=>dd[0]===d).map(di=>ret.getAtom(di[1]));
     
@@ -4205,10 +4205,10 @@ JSChemify.Chemical = function(arg){
       return ret.getConnectivityIndex(order, (a)=>a.getDeltaV(),averager);
   };
   ret.getConnectivityIndex=function(order, deltaMaker, averager) {
-    var lookup = ret.getAtoms()
+    let lookup = ret.getAtoms()
                     .map(aa=>deltaMaker(aa));
-    var matoms;
-    var cType;
+    let matoms;
+    let cType;
     order+="";
     if(order.endsWith("p") || order.endsWith("c")){
         cType = order.replace(/[0-9]/g, "");
@@ -4216,8 +4216,8 @@ JSChemify.Chemical = function(arg){
     }
     if(!cType)cType="p";//path
     
-    var doPath= cType.startsWith("p") || order<=2;
-    var doCluster = (order>=3) && cType.endsWith("c")
+    let doPath= cType.startsWith("p") || order<=2;
+    let doCluster = (order>=3) && cType.endsWith("c")
     
     
     matoms = ret.getAtoms().map(aa=>[aa]);
@@ -4226,20 +4226,20 @@ JSChemify.Chemical = function(arg){
     
     
     for(var i=0;i<order;i++){
-        var cSet = {};
+        let cSet = {};
         matoms= matoms.flatMap(ml=>{
-           var head = ml[0];
-           var tail = ml[ml.length-1];
-           var append=[];
-           var prepend = head.getNeighborAtomsAndBonds()
+           let head = ml[0];
+           let tail = ml[ml.length-1];
+           let append=[];
+           let prepend = head.getNeighborAtomsAndBonds()
                              .map(na=>na.atom)
                              .filter(na=>ml.indexOf(na)<0);
-           var inserts=[];
+           let inserts=[];
    
            if(head!==tail){
              if(doCluster){
                for(var j=1;j<ml.length-1;j++){
-                  var inew= ml[j].getNeighborAtomsAndBonds()
+                  let inew= ml[j].getNeighborAtomsAndBonds()
                       .map(na=>na.atom)
                       .filter(na=>ml.indexOf(na)<0);
                   inserts.push({"idx":j, "atoms":inew});
@@ -4249,11 +4249,11 @@ JSChemify.Chemical = function(arg){
                   .map(na=>na.atom)
                   .filter(na=>ml.indexOf(na)<0);
            }
-           var plist = prepend.map(pp=>[pp].concat(ml));
-           var alist = append.map(pp=>ml.concat([pp]));
-           var ilist = inserts.flatMap(is=>{
-                   var nhead= ml.slice(0,is.idx);
-                   var ntail= ml.slice(is.idx,ml.length);
+           let plist = prepend.map(pp=>[pp].concat(ml));
+           let alist = append.map(pp=>ml.concat([pp]));
+           let ilist = inserts.flatMap(is=>{
+                   let nhead= ml.slice(0,is.idx);
+                   let ntail= ml.slice(is.idx,ml.length);
                    return is.atoms.map(a=>nhead.concat([a]).concat(ntail));
            });
            if(i==2 && !doPath){
@@ -4263,10 +4263,10 @@ JSChemify.Chemical = function(arg){
                        .concat(alist);
          })
         .filter(ml=>{
-            var canon=ml.map(at=>at.getIndexInParent()).sort().join(",");
-            var canon2;
+            let canon=ml.map(at=>at.getIndexInParent()).sort().join(",");
+            let canon2;
             if(!doCluster){
-               var canon1=ml[0].getIndexInParent()+canon+ml[ml.length-1].getIndexInParent();
+               let canon1=ml[0].getIndexInParent()+canon+ml[ml.length-1].getIndexInParent();
                canon2=ml[ml.length-1].getIndexInParent()+canon+ml[0].getIndexInParent();
                canon=canon1;
             }
@@ -4280,8 +4280,8 @@ JSChemify.Chemical = function(arg){
       });
     }
     
-    var sum1= matoms.map(mal=>{
-             var prod = mal.map(mm=>lookup[mm.getIndexInParent()])
+    let sum1= matoms.map(mal=>{
+             let prod = mal.map(mm=>lookup[mm.getIndexInParent()])
                            .reduce((a,b)=>a*b,1);
              return averager(prod,order);
                    })
@@ -4290,12 +4290,12 @@ JSChemify.Chemical = function(arg){
                      
   };
   ret.$calculateDistances = function(){
-    var MAX_DISTANCE=30;
+    let MAX_DISTANCE=30;
     if(ret.$atomDistances)return ret;
-    var soFar=[];
-    var shortest=[];
+    let soFar=[];
+    let shortest=[];
     for(var i=0;i<ret._atoms.length;i++){
-        var natoms=ret.getAtom(i).getNeighborAtomsAndBonds().map(a=>a.atom.getIndexInParent());
+        let natoms=ret.getAtom(i).getNeighborAtomsAndBonds().map(a=>a.atom.getIndexInParent());
       shortest[i]=[];
       shortest[i][i]=0;
       soFar[i]=[natoms];
@@ -4303,9 +4303,9 @@ JSChemify.Chemical = function(arg){
     }
     for(var d=0;d<MAX_DISTANCE;d++){
         for(var i=0;i<ret._atoms.length;i++){
-          var dVec=soFar[i];
-        var lastDVec=soFar[i][d];
-        var newIndexes=JSChemify.Util.distinct(lastDVec.flatMap(di=>soFar[di][0])
+          let dVec=soFar[i];
+        let lastDVec=soFar[i][d];
+        let newIndexes=JSChemify.Util.distinct(lastDVec.flatMap(di=>soFar[di][0])
                                                  .filter(ni=>!(shortest[i][ni]>=0)));
         newIndexes.map(ni=>shortest[i][ni]=d+2);
         soFar[i][d+1]=newIndexes;
@@ -4321,24 +4321,24 @@ JSChemify.Chemical = function(arg){
       for(var i=0;i<ret._bonds.length;i++){
           ret._bonds[i]._idx=i;
       }
-      var bTypes=[];
-      var aTypes=[];
-      var assigned=0;
-      var rings={};
+      let bTypes=[];
+      let aTypes=[];
+      let assigned=0;
+      let rings={};
       
-      var remainingBonds = ret._bonds.filter(b=>!bTypes[b._idx]);
-      var comp=1;
+      let remainingBonds = ret._bonds.filter(b=>!bTypes[b._idx]);
+      let comp=1;
       while(remainingBonds.length>0){
-        var startAtom = remainingBonds[0].getAtoms()[0];
+        let startAtom = remainingBonds[0].getAtoms()[0];
         
         startAtom.$allPathsDepthFirst((path)=>{
-          var lbond=path[path.length-1];
-          var first=path.findIndex(p=>p.atom===lbond.atom);
+          let lbond=path[path.length-1];
+          let first=path.findIndex(p=>p.atom===lbond.atom);
         
           if(first<path.length-1){
-              var nring=[];
+              let nring=[];
               for(var j=first+1;j<path.length;j++){
-                var pnode=path[j].bond;
+                let pnode=path[j].bond;
               if(!bTypes[pnode._idx]){
                   assigned++;
               }
@@ -4347,7 +4347,7 @@ JSChemify.Chemical = function(arg){
               aTypes[pnode._atom1.getIndexInParent()]=comp;
               aTypes[pnode._atom2.getIndexInParent()]=comp;
             }
-            var cRing=JSChemify.Ring(nring).canonicalize();
+            let cRing=JSChemify.Ring(nring).canonicalize();
             rings[cRing.toString()]=cRing;
             //stop going on this path
             return true;
@@ -4379,10 +4379,10 @@ JSChemify.Chemical = function(arg){
           for(var i=0;i<ret._bonds.length;i++){
           ret._bonds[i]._idx=i;
       };
-      var bcount = ret._bonds.length;
-          var removedBonds = ret._removeAllFoliage();
-      var bTypes=[];
-      var assigned=0;
+      let bcount = ret._bonds.length;
+          let removedBonds = ret._removeAllFoliage();
+      let bTypes=[];
+      let assigned=0;
       
       removedBonds.map(rb=>{
           bTypes[rb.index]="FOLIAGE";
@@ -4392,15 +4392,15 @@ JSChemify.Chemical = function(arg){
       
       //At this point anything left is either a linker or a ring
       //Now mark anything that has more than 2 bonds
-      var terts = ret.getAtoms().filter(at=>at.getBondCount()>=3);
-      var branchBonds=JSChemify.distinct(terts.flatMap(at=>at.getBonds()));
+      let terts = ret.getAtoms().filter(at=>at.getBondCount()>=3);
+      let branchBonds=JSChemify.distinct(terts.flatMap(at=>at.getBonds()));
       
-      var ringsPlusComponents = ()=>{
+      let ringsPlusComponents = ()=>{
           return ret._bonds.length.length + ret.getAtoms().filter(at=>at.getBondCount()>0).length +2;
       };
-      var RINGS_PLUS_COMPONENTS=ringsPlusComponents();
+      let RINGS_PLUS_COMPONENTS=ringsPlusComponents();
       for(var i=0;i<branchBonds.length;i++){
-          var toRemoveBond = branchBonds[i];
+          let toRemoveBond = branchBonds[i];
         
           //ret._removeAllFoliage
       }
@@ -4456,11 +4456,11 @@ JSChemify.Chemical = function(arg){
     return ret;
   };
   ret.addNewBond = function(atom1,atom2, bondOrder, bondStereo){
-      var bd=JSChemify.Bond().setParent(ret).setBond(atom1,atom2,bondOrder,bondStereo);
+      let bd=JSChemify.Bond().setParent(ret).setBond(atom1,atom2,bondOrder,bondStereo);
     return ret.addBond(bd);
   };
   ret.addNewAtom = function(symbol){
-    var at=JSChemify.Atom().setSymbol(symbol);
+    let at=JSChemify.Atom().setSymbol(symbol);
     return ret.addAtom(at);
   };
   ret.getSGroups = function(){
@@ -4470,7 +4470,7 @@ JSChemify.Chemical = function(arg){
     if(!num){
        num=ret._sgroups.length+1;
     }
-    var sg=JSChemify.SGroup()
+    let sg=JSChemify.SGroup()
                     .setIndex(num);
     return ret.addSGroup(sg);
   };
@@ -4513,7 +4513,7 @@ JSChemify.Chemical = function(arg){
   
   ret.getEStateVector=function(d){
     if(!ret.$EstateVector){
-       var vec={};
+       let vec={};
        if(!d)d=1;
        ret.getAtoms()
            .filter(at=>at.getSymbol()!=="H")
@@ -4525,7 +4525,7 @@ JSChemify.Chemical = function(arg){
                ].slice(0,d);
            })
            .map(vv=>{
-               var o=vec[vv[0]];
+               let o=vec[vv[0]];
                if(!o)o=0;
                o+=vv[1];
                vec[vv[0]]=o;
@@ -4548,8 +4548,8 @@ JSChemify.Chemical = function(arg){
     }
     //console.log(start);
     //console.log(lines[start]);
-    var acount=lines[3+start].substr(0,3).trim()-0;
-    var bcount=lines[3+start].substr(3,3).trim()-0;
+    let acount=lines[3+start].substr(0,3).trim()-0;
+    let bcount=lines[3+start].substr(3,3).trim()-0;
     let cursor=start;
     for(let i=0;i<acount;i++){
         ret.addNewAtom("A").fromMolLine(lines[3+i+1+cursor]);
@@ -4701,16 +4701,16 @@ M  SCN  2   1 HT    2 HT
   };
   
   ret.toMol=function(){
-    var d=new Date();
-    var mmddyyhhmm=("0"+d.getDate()).substr(-2) + ("0"+d.getMonth()).substr(-2)+ ("0"+d.getYear()).substr(-2)+ ("0"+d.getHours()).substr(-2)+ ("0"+d.getMinutes()).substr(-2);
-    var line2="JSChemify0"+mmddyyhhmm+"2D";
-    var counts=("   "+ret.getAtomCount()).substr(-3) + ("   "+ret.getBondCount()).substr(-3);
-    var mol="\n" + line2 + "\n\n"+counts+"  0  0  0  0              0 V2000\n";
+    let d=new Date();
+    let mmddyyhhmm=("0"+d.getDate()).substr(-2) + ("0"+d.getMonth()).substr(-2)+ ("0"+d.getYear()).substr(-2)+ ("0"+d.getHours()).substr(-2)+ ("0"+d.getMinutes()).substr(-2);
+    let line2="JSChemify0"+mmddyyhhmm+"2D";
+    let counts=("   "+ret.getAtomCount()).substr(-3) + ("   "+ret.getBondCount()).substr(-3);
+    let mol="\n" + line2 + "\n\n"+counts+"  0  0  0  0              0 V2000\n";
 
-    var atab=ret._atoms.map(at=>at.toMolLine()).join("\n");
+    let atab=ret._atoms.map(at=>at.toMolLine()).join("\n");
     if(atab)mol+=atab;
 
-    var btab=ret._bonds.map(bd=>bd.toMolLine()).join("\n");
+    let btab=ret._bonds.map(bd=>bd.toMolLine()).join("\n");
     if(atab)mol+="\n" +btab;
     if(btab)mol+="\n";
     mol+=ret.molMBlocks();
@@ -4719,7 +4719,7 @@ M  SCN  2   1 HT    2 HT
     return mol;
   };
   ret.molSBlocks=function(){
-     var buff=[];
+     let buff=[];
      ret.getSGroups().map(sg=>{
          let num = sg.getIndex();
          let type = sg.getType();
@@ -4730,28 +4730,28 @@ M  SCN  2   1 HT    2 HT
          buff.push(("    "+num).substr(-4));
          buff.push(("    "+type).substr(-4));
          buff.push("\n");
-         var catoms = sg.getAtoms();
+         let catoms = sg.getAtoms();
          for(var i=0;i<catoms.length;i+=8){
-            var salAtoms=Math.min(catoms.length,i+8)-i;
+            let salAtoms=Math.min(catoms.length,i+8)-i;
             buff.push("M  SAL");
             buff.push(("    "+num).substr(-4));
             buff.push(("    "+salAtoms).substr(-3));
             for(var j=i;j<Math.min(catoms.length,i+8);j++){
-               var indx=catoms[j].getIndexInParent()+1;
+               let indx=catoms[j].getIndexInParent()+1;
                buff.push(("   "+ indx).substr(-4));
             }
             buff.push("\n");
          }
-         var datoms=sg.getDisplayAtoms();
+         let datoms=sg.getDisplayAtoms();
          if(datoms.length!==catoms.length){
             catoms = datoms;
             for(var i=0;i<catoms.length;i+=8){
-               var salAtoms=Math.min(catoms.length,i+8)-i;
+               let salAtoms=Math.min(catoms.length,i+8)-i;
                buff.push("M  SPA");
                buff.push(("    "+num).substr(-4));
                buff.push(("    "+salAtoms).substr(-3));
                for(var j=i;j<Math.min(catoms.length,i+8);j++){
-                  var indx=catoms[j].getIndexInParent()+1;
+                  let indx=catoms[j].getIndexInParent()+1;
                   buff.push(("   "+ indx).substr(-4));
                }
                buff.push("\n");
@@ -4788,19 +4788,19 @@ M  SCN  2   1 HT    2 HT
      return buff.join("");
   };
   ret.molMBlocks=function(){
-    var buff=[];
+    let buff=[];
     //Charges
-    var catoms=ret.getAtoms()
+    let catoms=ret.getAtoms()
                   .filter(at=>at.getCharge()!==0);
     if(catoms.length>0){
         for(var i=0;i<catoms.length;i+=8){
           //"M  CHG  2  11  -1  21   1"
           buff.push("M  CHG  ");
-          var chgAtoms=Math.min(catoms.length,i+8)-i;
+          let chgAtoms=Math.min(catoms.length,i+8)-i;
           buff.push(chgAtoms);
           for(var j=i;j<Math.min(catoms.length,i+8);j++){
-            var indx=catoms[j].getIndexInParent()+1;
-            var chg=catoms[j].getCharge();
+            let indx=catoms[j].getIndexInParent()+1;
+            let chg=catoms[j].getCharge();
             buff.push(("   "+ indx).substr(-4));
             buff.push(("   "+ chg).substr(-4));
           }
@@ -4808,16 +4808,16 @@ M  SCN  2   1 HT    2 HT
       }
     }
     //isotopes
-    var iatoms=ret.getAtoms().filter(at=>at.getIsotope()!==0);
+    let iatoms=ret.getAtoms().filter(at=>at.getIsotope()!==0);
     if(iatoms.length>0){
         for(var i=0;i<iatoms.length;i+=8){
           //"M  ISO  1  16  11"
           buff.push("M  ISO  ");
-        var isoAtoms=Math.min(iatoms.length,i+8)-i;
+        let isoAtoms=Math.min(iatoms.length,i+8)-i;
         buff.push(isoAtoms);
           for(var j=i;j<Math.min(iatoms.length,i+8);j++){
-            var indx=iatoms[j].getIndexInParent()+1;
-          var iso=iatoms[j].getIsotope();
+            let indx=iatoms[j].getIndexInParent()+1;
+          let iso=iatoms[j].getIsotope();
           buff.push(("   "+ indx).substr(-4));
           buff.push(("   "+ iso).substr(-4));
         }
@@ -4866,12 +4866,12 @@ M  SCN  2   1 HT    2 HT
       });
 
       
-      var startAtom = ret.getAtom(0);
-      var chain=[];
-      var atomsGot=[];
-      var takenLocants=[];
-      var locantUsed=[];
-      var getLowestLocant = (at)=>{
+      let startAtom = ret.getAtom(0);
+      let chain=[];
+      let atomsGot=[];
+      let takenLocants=[];
+      let locantUsed=[];
+      let getLowestLocant = (at)=>{
           for(var i=1;i<100;i++){
             if(!takenLocants[i]){
               if(locantUsed[i]>=0){
@@ -4890,12 +4890,12 @@ M  SCN  2   1 HT    2 HT
         if(startAtom.getBondCount()<1){
                     chain.push({"atom":startAtom});
         }else{
-          var closedRings=[];
-          var startTime=true;
-           var branchStarts=[];
+          let closedRings=[];
+          let startTime=true;
+           let branchStarts=[];
            startAtom.$allPathsDepthFirst((p,type)=>{
-             var prevAtom = p[p.length-2];
-             var newAtom = p[p.length-1];
+             let prevAtom = p[p.length-2];
+             let newAtom = p[p.length-1];
              if(startTime){
                  prevAtom._idx=chain.length;
                  chain.push(prevAtom);
@@ -4914,7 +4914,7 @@ M  SCN  2   1 HT    2 HT
                //that I don't understand. We need a better
                //fix
                if(branchStarts.length>0){
-                 var pBranch=branchStarts.pop();
+                 let pBranch=branchStarts.pop();
                  if(chain[chain.length-1]!=="BRANCH_START"){
                    chain.push("BRANCH_END:"+pBranch);
                  }else{
@@ -4933,12 +4933,12 @@ M  SCN  2   1 HT    2 HT
              }
             
              //RING
-             var rindx=p.findIndex(pa=>pa.atom===newAtom.atom);
+             let rindx=p.findIndex(pa=>pa.atom===newAtom.atom);
              if(rindx<p.length-1){
                if(!p[rindx].locants){
                  p[rindx].locants=[];
                }
-               var loc=getLowestLocant(p[rindx]);
+               let loc=getLowestLocant(p[rindx]);
                p[rindx].locants.push(loc);
                newAtom.closeLocant=loc;
                locantUsed[loc]=chain.length;
@@ -4956,9 +4956,9 @@ M  SCN  2   1 HT    2 HT
            }
         /*
         for(var li=chain.length-1;li>=0;li--){
-          var last = chain[li];
+          let last = chain[li];
           if((last+"").startsWith("BRANCH_END")){
-            var index=last.split(":")[1]-0;
+            let index=last.split(":")[1]-0;
             chain[index]="";
             chain[li]="";
           }else{
@@ -4967,7 +4967,7 @@ M  SCN  2   1 HT    2 HT
         }*/
         chain.filter(cc=>cc.atom).map(ca=>atomsGot[ca.atom.getIndexInParent()]=true);
         
-        var ni = atomsGot.findIndex(g=>!g);
+        let ni = atomsGot.findIndex(g=>!g);
         if(ni>=0){
             startAtom=ret.getAtom(ni);
           
@@ -5043,20 +5043,20 @@ M  SCN  2   1 HT    2 HT
         }else if(cc===""){
             return "";
         }
-        var loc=(cc.locants)?cc.locants.map(li=>nextLocant(li)).map(lo=>(lo>9)?"%"+lo:lo).join(""):"";
+        let loc=(cc.locants)?cc.locants.map(li=>nextLocant(li)).map(lo=>(lo>9)?"%"+lo:lo).join(""):"";
         if(!cc.bond){
           return cc.atom.toSmiles(invParity[cc.atom.getIndexInParent()])+loc;
         }
-        var bb=cc.bond.toSmiles();
+        let bb=cc.bond.toSmiles();
         if(bb===":"){
-          var aro=cc.bond.getAtoms().map(at=>at.toSmiles()).join("");
+          let aro=cc.bond.getAtoms().map(at=>at.toSmiles()).join("");
           if(aro===aro.toLowerCase()){
               bb="";
           }
         }
         if(cc.closeLocant){
             let nloc=closeLocant(cc.closeLocant);
-            var cloc=((nloc-0)>9)?("%"+nloc):nloc;
+            let cloc=((nloc-0)>9)?("%"+nloc):nloc;
             return bb + cloc;
         }
         
@@ -5297,7 +5297,7 @@ JSChemify.SGroup=function(){
    };
    ret.getBracketLocation=function(){
       if(!ret._bracket1){
-            var cbonds=ret.getCrossBonds();
+            let cbonds=ret.getCrossBonds();
             if(cbonds.length===2){
                let cpt=ret.getCenterPoint();
 
@@ -5306,16 +5306,16 @@ JSChemify.SGroup=function(){
                
                let b1=cbonds[0];
                let b2=cbonds[1];
-               var c1=b1.getCenterPoint();
-               var c2=b2.getCenterPoint();
-               var d1=b1.getDeltaVector();
-               var d2=b2.getDeltaVector();
+               let c1=b1.getCenterPoint();
+               let c2=b2.getCenterPoint();
+               let d1=b1.getDeltaVector();
+               let d2=b2.getDeltaVector();
                /*
-               var vecB1d1=JSChemify.Util.sqMagVector(b1.getAtom1().getVectorToPoint(cpt));
-               var vecB1d2=JSChemify.Util.sqMagVector(b1.getAtom2().getVectorToPoint(cpt));
+               let vecB1d1=JSChemify.Util.sqMagVector(b1.getAtom1().getVectorToPoint(cpt));
+               let vecB1d2=JSChemify.Util.sqMagVector(b1.getAtom2().getVectorToPoint(cpt));
                
-               var vecB2d1=JSChemify.Util.sqMagVector(b2.getAtom1().getVectorToPoint(cpt));
-               var vecB2d2=JSChemify.Util.sqMagVector(b2.getAtom2().getVectorToPoint(cpt));
+               let vecB2d1=JSChemify.Util.sqMagVector(b2.getAtom1().getVectorToPoint(cpt));
+               let vecB2d2=JSChemify.Util.sqMagVector(b2.getAtom2().getVectorToPoint(cpt));
                */
                
                let mag1 = Math.sqrt(JSChemify.Util.sqMagVector(d1));
@@ -5400,7 +5400,7 @@ Analogous to a Bond
    
 *******************************/
 JSChemify.RingBond=function(){
-    var ret={};
+    let ret={};
     ret._ring1=null;
     ret._ring2=null;
     ret._bonds=null;
@@ -5440,11 +5440,11 @@ JSChemify.RingBond=function(){
           if(ret.getAtoms().length<=2){
             ret.$bridgeHeads=ret.getAtoms();
         }else{
-            var counts={};
+            let counts={};
           ret.getBonds()
              .flatMap(b=>b.getAtoms())
              .map(a=>{
-                 var cc=counts[a.getIndexInParent()];
+                 let cc=counts[a.getIndexInParent()];
               if(!cc)cc=0;
               cc++;
               counts[a.getIndexInParent()]=cc;
@@ -5475,7 +5475,7 @@ JSChemify.RingSystem=function(arg, rbs){
     if(arg && arg._rings){
        return arg;
     }
-    var ret={};
+    let ret={};
     ret._ringBonds=null;
     ret._rings=null;
     
@@ -5512,7 +5512,7 @@ JSChemify.RingSystem=function(arg, rbs){
     };
     ret.getCenterPoint=function(){
       if(!ret.$center){
-          var cpoint=ret.getRings()
+          let cpoint=ret.getRings()
                       .map(r=>r.getCenterPoint().map(a=>a))
                       .map(cp=>{
                           cp.push(1);
@@ -5568,7 +5568,7 @@ JSChemify.Ring=function(arg){
     if(arg && arg._ring){
       return arg;
   }
-  var ret={};
+  let ret={};
   ret._ring=null;
   
   ret.$atoms=null;
@@ -5592,7 +5592,7 @@ JSChemify.Ring=function(arg){
   
   ret.isEnvelope=function(){
       if(ret.$envelope===null){
-        var s=ret.getSize();
+        let s=ret.getSize();
         ret.$envelope=(ret.getBonds()
                        .filter(b=>b.getSmallestRingSize()===s)
                        .length==0);
@@ -5601,8 +5601,8 @@ JSChemify.Ring=function(arg){
   };
   
   ret.getRingBond=function(r2){
-      var cbs = ret.getConnectedBonds(r2);
-    var cas = ret.getConnectedAtoms(r2);
+      let cbs = ret.getConnectedBonds(r2);
+    let cas = ret.getConnectedAtoms(r2);
     if(cbs.length>0){
         return JSChemify.RingBond()
                                        .setRingBond(ret,r2,cbs,cas);
@@ -5615,7 +5615,7 @@ JSChemify.Ring=function(arg){
   
   ret.getCenterPoint=function(){
     if(!ret.$center){
-      var sumV=ret.getAtoms()
+      let sumV=ret.getAtoms()
          .map(a=>[a.getX(),a.getY(),1])
          .reduce((a,b)=>JSChemify.Util.addVector(a,b));
       sumV[0]=sumV[0]/sumV[2];
@@ -5677,11 +5677,11 @@ JSChemify.Ring=function(arg){
   };
   ret.getAtoms=function(){
     if(ret.$atoms)return ret.$atoms;
-    var atoms=[];
-    var bds=ret.getBonds();
-    var fbond = bds[0];
-    var swap=false;
-    var patoms=null;
+    let atoms=[];
+    let bds=ret.getBonds();
+    let fbond = bds[0];
+    let swap=false;
+    let patoms=null;
     bds.map((b,j)=>{
         if(j==bds.length-1)return;
         if(patoms==null){
@@ -5689,12 +5689,12 @@ JSChemify.Ring=function(arg){
           atoms.push(b.getAtoms()[1]);
           patoms=[b.getAtoms()[0],b.getAtoms()[1]];
         }else{
-          var atn;
+          let atn;
           if(patoms.length===1){
                atn=patoms.map(a=>b.getOtherAtom(a))
                         .filter(at=>at!==null);
           }else{
-               var oat=b.getOtherAtom(patoms[0]);
+               let oat=b.getOtherAtom(patoms[0]);
                if(oat){
                   swap=true;
                   atn=[oat];
@@ -5708,7 +5708,7 @@ JSChemify.Ring=function(arg){
         }
     });
     if(swap){
-         var f=atoms[0];
+         let f=atoms[0];
          atoms[0]=atoms[1];
          atoms[1]=f;
     }
@@ -5719,16 +5719,16 @@ JSChemify.Ring=function(arg){
       return ret._ring;
   };
   ret.getBondAt=function(bi){
-      var ni=(bi+2*ret.getSize())%ret.getSize();
+      let ni=(bi+2*ret.getSize())%ret.getSize();
     return ret._ring[ni];
   }
   ret.dearomatize=function(){
-    var s=ret.getSize();
+    let s=ret.getSize();
     if(s%2===0 || s%2===1){
-      var startOrder=1;
-      var startIndex=0;
+      let startOrder=1;
+      let startIndex=0;
       
-      var aset = ret.getBonds()
+      let aset = ret.getBonds()
                     .map((b,i)=>[b,i])
                     .filter(bb=>bb[0].getBondOrder()!=4);
       
@@ -5759,7 +5759,7 @@ JSChemify.Ring=function(arg){
                   });
          });
        
-      var hetero1=ret.getAtoms()
+      let hetero1=ret.getAtoms()
          .filter(a=>a.getSymbol()!=="C")
          .reduce((a,b)=>{
                  if(a===null)return b;
@@ -5780,7 +5780,7 @@ JSChemify.Ring=function(arg){
          
          
       for(var i=0;i<s;i++){
-        var b= ret.getBondAt(i+startIndex);
+        let b= ret.getBondAt(i+startIndex);
         if(b.getBondOrder()===4){
             b.setBondOrder(startOrder);
             startOrder=(startOrder)%2+1;
@@ -5796,12 +5796,12 @@ JSChemify.Ring=function(arg){
       return ret.getBonds().findIndex(b=>b.getBondOrder()!==4)<0;
   };
   ret.isAromatic=function(){
-      var s=ret.getSize();
+      let s=ret.getSize();
       if(s>6||s<5)return false;
     if(s%2===0){
         for(var i=0;i<s;i++){
-          var bo1=ret._ring[i].getBondOrder();
-          var bo2=ret._ring[(i+1)%s].getBondOrder();
+          let bo1=ret._ring[i].getBondOrder();
+          let bo2=ret._ring[(i+1)%s].getBondOrder();
         if((bo1===1||bo1===2)&&(bo2===1||bo2===2)&&(bo1!==bo2)){
             //alternating is aromatic
         }else if(bo1===4 && bo2===4){
@@ -5821,8 +5821,8 @@ JSChemify.Ring=function(arg){
     }
     if(s%2===1){
         for(var i=0;i<s;i++){
-          var bo1=ret._ring[i].getBondOrder();
-          var bo2=ret._ring[(i+1)%s].getBondOrder();
+          let bo1=ret._ring[i].getBondOrder();
+          let bo2=ret._ring[(i+1)%s].getBondOrder();
         if((bo1===1||bo1===2)&&(bo2===1||bo2===2)&&(bo1!==bo2)){
         
         }else if(bo1===4 && bo2===4){
@@ -5836,11 +5836,11 @@ JSChemify.Ring=function(arg){
         
             atoms1=ret._ring[i].getAtoms();
             atoms2=ret._ring[(i+1)%s].getAtoms();
-          var shared=atoms2[0];
+          let shared=atoms2[0];
           if(atoms1.indexOf(shared)<0){
               shared=atoms2[1];
           }
-          var sa=shared.getSymbol();
+          let sa=shared.getSymbol();
           if(sa==="N" || sa==="O" || sa==="S"){
           
           }else{
@@ -5854,20 +5854,20 @@ JSChemify.Ring=function(arg){
     }
   };
   ret.canonicalize=function(){
-      var lowest=ret._ring.map((b,i)=>[b.getIndexInParent(),i]).reduce((a,b)=>{
+      let lowest=ret._ring.map((b,i)=>[b.getIndexInParent(),i]).reduce((a,b)=>{
       if(a[0]<b[0])return a;
       return b;
     });
-    var gi1=(lowest[1]+1)%ret._ring.length;
-    var gi2=(lowest[1]-1+ret._ring.length)%ret._ring.length;
-    var rev=true;
+    let gi1=(lowest[1]+1)%ret._ring.length;
+    let gi2=(lowest[1]-1+ret._ring.length)%ret._ring.length;
+    let rev=true;
     if(ret._ring[gi1].getIndexInParent()<ret._ring[gi2].getIndexInParent()){
         rev=false;        
     }
-    var nring=[];
+    let nring=[];
     for(var j=0;j<ret._ring.length;j++){
-        var nj=(rev)?((lowest[1]-j)+ret._ring.length):lowest[1]+j;
-        var gi=nj%ret._ring.length;
+        let nj=(rev)?((lowest[1]-j)+ret._ring.length):lowest[1]+j;
+        let gi=nj%ret._ring.length;
       nring.push(ret._ring[gi]);
     }
       ret._ring=nring;
@@ -5959,7 +5959,7 @@ JSChemify.ChemicalFeatures=function(arg){
          size=1024;
       }
       let fp=ret.toFoldedFingerprint(size);
-      var arr = new UintArray(Math.ceil(size/8));
+      let arr = new UintArray(Math.ceil(size/8));
       fp.map((v,i)=>{
          let pos=Math.floor(i/8);
          let subpos=i%8;
@@ -5986,14 +5986,14 @@ JSChemify.ChemicalFeatures=function(arg){
    };
    ret.cosineTo=function(cf2){
        cf2=JSChemify.EState(cf2);
-       var at1=ret.getFeatureSet();
-       var at2=v.getFeatureSet();
-       var allKeys = {};
+       let at1=ret.getFeatureSet();
+       let at2=v.getFeatureSet();
+       let allKeys = {};
        at1.map(k=>allKeys[k]=1);
        at2.map(k=>allKeys[k]=1);
-       var dotSum=0;
+       let dotSum=0;
        Object.keys(allKeys).map(k=>{
-           var dot=ret.getFeatureCount(k)*v.getFeatureCount(k);
+           let dot=ret.getFeatureCount(k)*v.getFeatureCount(k);
            dotSum+=dot;
        });
        return dotSum/(ret.l2()*v.l2());
@@ -6320,7 +6320,7 @@ JSChemify.EState=function(arg){
   if(arg && arg._vec){
       return arg;
   }
-  var ret={};
+  let ret={};
   ret._vec=null;
   ret.toVector=function(v){
     if(v&&v._vec){
@@ -6360,10 +6360,10 @@ JSChemify.EState=function(arg){
     return ret;
   };
   ret.toEZVector=function(avgV,sigmaV){
-    var _nVec={};
+    let _nVec={};
     avgV.getAtomTypes().map(k=>{
-        var aa=avgV.getComponent(k);
-        var sa=sigmaV.getComponent(k);
+        let aa=avgV.getComponent(k);
+        let sa=sigmaV.getComponent(k);
         _nVec[k]=(ret.getComponent(k)-aa)/sa;
       });
     return JSChemify.EState(_nVec);
@@ -6380,36 +6380,36 @@ JSChemify.EState=function(arg){
   };
   ret.distanceTo=function(v){
     v=JSChemify.EState(v);
-    var at1=ret.getAtomTypes();
-    var at2=v.getAtomTypes();
-    var allKeys = {};
+    let at1=ret.getAtomTypes();
+    let at2=v.getAtomTypes();
+    let allKeys = {};
     at1.map(k=>allKeys[k]=1);
     at2.map(k=>allKeys[k]=1);
-    var sqDist=0;
+    let sqDist=0;
     Object.keys(allKeys).map(k=>{
-        var dc=ret.getComponent(k)-v.getComponent(k);
+        let dc=ret.getComponent(k)-v.getComponent(k);
       sqDist=sqDist+dc*dc;
     });
     return Math.sqrt(sqDist);
   };
   ret.l2=function(){
-    var mag=0;
+    let mag=0;
     ret.getAtomTypes().map(k=>{
-        var cc=ret.getComponent(k);
+        let cc=ret.getComponent(k);
         mag+=cc*cc;
     });
     return Math.sqrt(mag);
   };
   ret.cosineTo=function(v){
       v=JSChemify.EState(v);
-    var at1=ret.getAtomTypes();
-    var at2=v.getAtomTypes();
-    var allKeys = {};
+    let at1=ret.getAtomTypes();
+    let at2=v.getAtomTypes();
+    let allKeys = {};
     at1.map(k=>allKeys[k]=1);
     at2.map(k=>allKeys[k]=1);
-    var dotSum=0;
+    let dotSum=0;
     Object.keys(allKeys).map(k=>{
-        var dot=ret.getComponent(k)*v.getComponent(k);
+        let dot=ret.getComponent(k)*v.getComponent(k);
       dotSum+=dot;
     });
     return dotSum/(ret.l2()*v.l2());
@@ -6447,7 +6447,7 @@ TODO:
    
 *******************************/
 JSChemify.InChIReader=function(){
-    var ret={};
+    let ret={};
   ret._input=null;
   ret._bonds=[];
   ret._atoms=[];
@@ -6460,15 +6460,15 @@ JSChemify.InChIReader=function(){
   };
   
   ret.parseFormula=function(f){
-    var regex=/([A-Z][a-z]{0,1})([0-9]*)/y;
-    var all=[];
-    var order=[];
+    let regex=/([A-Z][a-z]{0,1})([0-9]*)/y;
+    let all=[];
+    let order=[];
     
     regex.lastIndex=0;
     while(regex.lastIndex<f.length){
-      var m=regex.exec(f);
+      let m=regex.exec(f);
       if(m){
-        var c=1;
+        let c=1;
         if(m[2]){
           c=m[2];
         }
@@ -6488,20 +6488,20 @@ JSChemify.InChIReader=function(){
   };
   ret.parseConnectivity=function(c){
     //this is the number
-    var regex=/([0-9][0-9]*)/y;
+    let regex=/([0-9][0-9]*)/y;
     regex.lastIndex=1;
-    var prevNum=-1;
-    var stack=[];
-    var all=[];
-    var bonds=[];
+    let prevNum=-1;
+    let stack=[];
+    let all=[];
+    let bonds=[];
     while(regex.lastIndex<f.length){
-      var m=regex.exec(c);
+      let m=regex.exec(c);
       if(m){
-          var num=m[0];
+          let num=m[0];
         if(prevNum>0){
             bonds.push([prevNum,num]);
           regex.lastIndex=regex.lastIndex+m[0].length;
-                    var next=c[regex.lastIndex];
+                    let next=c[regex.lastIndex];
           if(next==="-"){
               prevNum=num;
             regex.lastIndex++;
@@ -6538,16 +6538,16 @@ JSChemify.InChIReader=function(){
       if(s)ret.setInput(s);
     ret._input;
     //InChI=1S/C19H28O2/c1-18-9-7-13(20)11-12(18)3-4-14-15-5-6-17(21)19(15,2)10-8-16(14)18/h11,14-17,21H,3-10H2,1-2H3/t14-,15-,16-,17-,18-,19-/m0/s1
-    var layers=ret._input.split("/");
-    var version=layers[0];
-    var form=layers[1];
-    var connectivity=layers[2];
-    var fixedhydrogens=layers[3];
-    var relativeStereo=layers[4];
+    let layers=ret._input.split("/");
+    let version=layers[0];
+    let form=layers[1];
+    let connectivity=layers[2];
+    let fixedhydrogens=layers[3];
+    let relativeStereo=layers[4];
     
     
-    var symbols=ret.parseFormula(form);
-    var connections=ret.parseConnectivity(connectivity);
+    let symbols=ret.parseFormula(form);
+    let connections=ret.parseConnectivity(connectivity);
     //InChI=1S/C10H13N5O4/c11-8-5-9(13-2-12-8)15(3-14-5)10-7(18)6(17)4(1-16)19-10/h2-4,6-7,10,16-18H,1H2,(H2,11,12,13)/t4-,6-,7-,10-/m1/s1
     
   };
@@ -6578,7 +6578,7 @@ TODO:
    
 *******************************/
 JSChemify.SmilesReader=function(){
-  var ret={};
+  let ret={};
   ret._input=null;
   ret._head=0;
   ret._atoms=[];
@@ -6608,7 +6608,7 @@ JSChemify.SmilesReader=function(){
   ret.readNext=function(regex,pred){
     regex.lastIndex=ret._head;
      
-    var match=regex.exec(ret._input);
+    let match=regex.exec(ret._input);
     if(match){
         if(pred && !pred(match))return null;
         //ret._slice=ret._slice.substr(match[0].length);
@@ -6621,7 +6621,7 @@ JSChemify.SmilesReader=function(){
   ret.getBondOnDeck=function(atom){
       if(ret._bondOnDeck!=="!")return ret._bondOnDeck;
       if(!atom)return "-";
-      var oat=ret._atoms[ret._targetAtomIndex];
+      let oat=ret._atoms[ret._targetAtomIndex];
       if(oat.type==="a" && atom.type==="a"){
           return "a:";
       }
@@ -6629,7 +6629,7 @@ JSChemify.SmilesReader=function(){
   };
   ret.addAtom=function(atom){
       if(ret._targetAtomIndex!==null){
-          var bt=ret.getBondOnDeck(atom);
+          let bt=ret.getBondOnDeck(atom);
          
           ret._bonds.push({"type":bt,
            "atom1":ret._targetAtomIndex,
@@ -6660,14 +6660,14 @@ JSChemify.SmilesReader=function(){
   ret.addLocant=function(l){
     //it already exists, close the bond
       if(ret._locantIndex[l]>=0){
-            var l1=ret._locantIndex[l];
+            let l1=ret._locantIndex[l];
         
         if(ret._locantBond[l]!=="!!"){
             ret._bondOnDeck=ret._locantBond[l];
             ret._locantBond[l]="!!";
         }
-        var num = ret._locantBondNumber[l];
-        var bt=ret.getBondOnDeck(ret._atoms[l1]);
+        let num = ret._locantBondNumber[l];
+        let bt=ret.getBondOnDeck(ret._atoms[l1]);
         
         ret._bonds.push({"type":bt,
         "atom2":ret._targetAtomIndex,
@@ -6702,13 +6702,13 @@ JSChemify.SmilesReader=function(){
   };
   ret.addCloseLocant=function(l){
       if(ret._locantIndex[l-0]>=0){
-        var l1=ret._locantIndex[l-0];
+        let l1=ret._locantIndex[l-0];
         if(ret._locantBond[l]!=="!!"){
             ret._bondOnDeck=ret._locantBond[l];
             ret._locantBond[l]="!!";
         }
-        var num = ret._locantBondNumber[l];
-        var bt=ret.getBondOnDeck(ret._atoms[l1]);
+        let num = ret._locantBondNumber[l];
+        let bt=ret.getBondOnDeck(ret._atoms[l1]);
         ret._bonds.push({
         "type":bt,
         "atom2":ret._targetAtomIndex,
@@ -6748,14 +6748,14 @@ JSChemify.SmilesReader=function(){
       //});
       
       ret._atoms.map(at=>{
-          var nat=chemical.addNewAtom(at.atom);
+          let nat=chemical.addNewAtom(at.atom);
           if(at.charge && at.charge.length===1){
               nat.setCharge((at.charge+"1")-0);
           }else if(at.charge && at.charge.length>1){
               nat.setCharge((at.charge)-0);
           }
           if(at.isotope){
-              var iso=(at.isotope)-0;
+              let iso=(at.isotope)-0;
               nat.setIsotope(iso);
           }
           if(at.map){
@@ -6777,12 +6777,12 @@ JSChemify.SmilesReader=function(){
           }
           //TODO: MOre things
       });
-      var bdsToCheck={};
-      var lastB=-1;
+      let bdsToCheck={};
+      let lastB=-1;
       
       ret._bonds.map((bd,i)=>{
                
-           var nbd=chemical.addNewBond(bd.atom1,bd.atom2,1);
+           let nbd=chemical.addNewBond(bd.atom1,bd.atom2,1);
            if(bd.type=="-"){
                    nbd.setBondOrder(1);
            }else if(bd.type=="="){
@@ -6824,9 +6824,9 @@ JSChemify.SmilesReader=function(){
   };
   
   ret.parseAtom=function(){
-      var m=ret.readNext(/[A-Z*][a-z]{0,1}/y,(p)=>{
+      let m=ret.readNext(/[A-Z*][a-z]{0,1}/y,(p)=>{
           try{
-              var el=JSChemify.Util.getElementFromSymbol(p[0]);
+              let el=JSChemify.Util.getElementFromSymbol(p[0]);
             return (el.smiles)?true:false;
         }catch(e){
             return false;
@@ -6872,10 +6872,10 @@ JSChemify.SmilesReader=function(){
       throw "parse error, unexpected atom format:" + ret._input.substr(ret._head);
   }
   ret.parseLocants=function(){
-          var got1=true;
+          let got1=true;
           while(got1){
         got1=false;
-        var m=ret.readNext(/[%][0-9][0-9]/y);
+        let m=ret.readNext(/[%][0-9][0-9]/y);
         if(m){
            ret.addLocant(m[0].substr(1));
            got1=true;
@@ -6890,10 +6890,10 @@ JSChemify.SmilesReader=function(){
       return ret;
   };
   ret.parseCloseLocants=function(){
-      var got1=true;
+      let got1=true;
       while(got1){
         got1=false;
-        var m=ret.readNext(/[%][0-9][0-9]/y);
+        let m=ret.readNext(/[%][0-9][0-9]/y);
         if(m){
            ret.addCloseLocant(m[0].substr(1));
            got1=true;
@@ -6908,7 +6908,7 @@ JSChemify.SmilesReader=function(){
       return ret;
   };
   ret.parseBond=function(){
-      var m=ret.readNext(/[-:=#~\\\/]/y);
+      let m=ret.readNext(/[-:=#~\\\/]/y);
       if(m){
         ret.addBond(m[0]);
       }else{
@@ -6917,7 +6917,7 @@ JSChemify.SmilesReader=function(){
       return ret;
   };
   ret.parseBranchOrComponent=function(){
-      var m=ret.readNext(/\(/y);
+      let m=ret.readNext(/\(/y);
       if(m){
         ret.startBranch();
         ret.parseBond();
@@ -7006,7 +7006,7 @@ JSChemify.ChemicalCollection=function(){
          c=ret._inputStandardizer(c);
       }
       c.getPropertyKeys().map(k=>{
-        var old=ret._properties[k];
+        let old=ret._properties[k];
         if(!old){
            old={count:0, order:ret._propertyOrder.length};
            ret._propertyOrder.push(k);
@@ -7036,13 +7036,13 @@ JSChemify.ChemicalCollection=function(){
       </style>`;
    };
    ret.$getHeaderHTML=function(){
-        var headHTML = "<thead><tr><th>Structure</th><th>Name</th>"
+        let headHTML = "<thead><tr><th>Structure</th><th>Name</th>"
                + ret._propertyOrder.map(p=>"<th>" + p + "</th>").join("") 
                   + "</tr></thead>";
         return headHTML;
    };
    ret.$getRowHTML=function(ri){
-        var chem=ret.getChemical(ri);
+        let chem=ret.getChemical(ri);
         if(!chem.hasCoordinates()){
            try{
               chem.generateCoordinates();
@@ -7051,7 +7051,7 @@ JSChemify.ChemicalCollection=function(){
               console.log(chem.toSmiles());
            }
         }
-        var cchem=chem;
+        let cchem=chem;
         try{
            cchem=chem.clone().dearomatize();  
         }catch(e){
@@ -7059,7 +7059,7 @@ JSChemify.ChemicalCollection=function(){
            console.log(chem.toSmiles());
            
         }
-        var rowHTML = "<tr><td><div class='jschemify-tbl-image'>" + cchem.getSVG() + "</div><div class='jschemify-tbl-smiles'>" 
+        let rowHTML = "<tr><td><div class='jschemify-tbl-image'>" + cchem.getSVG() + "</div><div class='jschemify-tbl-smiles'>" 
                + cchem.toSmiles() +"</div></td><td>" + chem.getName() + "</td>"
                + ret._propertyOrder.map(p=>"<td>" + chem.getProperty(p) + "</td>").join("") 
                   + "</tr>";
@@ -7197,7 +7197,7 @@ JSChemify.ChemicalCollection=function(){
            if (!file) {
              return;
            }
-           var reader = new FileReader();
+           let reader = new FileReader();
            reader.onload =(ee)=>{
              let contents = ee.target.result;
              ret.clear();
@@ -7270,7 +7270,7 @@ JSChemify.ChemicalCollection=function(){
                      pA=a.getMolWeight();
                      pB=b.getMolWeight();
                   }
-                  var diff = pA-pB;
+                  let diff = pA-pB;
                   if(!isNaN(diff)){
                      return rev*diff;
                   }else if(Math.abs(pA)>=0){
@@ -7460,9 +7460,9 @@ JSChemify.ChemicalCollection=function(){
             header.map((v,i)=>headerIndex[v.toLowerCase()]=i);
             return null;
           }
-          var name=i;
-          var smiles=l[0];
-          var pnot=null;
+          let name=i;
+          let smiles=l[0];
+          let pnot=null;
           if(headerIndex["name"]>=0){
             name=l[headerIndex["name"]];
           }
@@ -7472,7 +7472,7 @@ JSChemify.ChemicalCollection=function(){
           if(headerIndex["path_notation"]>=0){
             pnot=l[headerIndex["path_notation"]];
           }
-          var chem= JSChemify.Chemical().fromSmiles(smiles).setName(name);
+          let chem= JSChemify.Chemical().fromSmiles(smiles).setName(name);
           if(pnot){
             chem.setPathNotation(pnot);
           }
@@ -7566,11 +7566,11 @@ JSChemify.ChemicalCollection=function(){
       };
       builder.build=function(){
          
-         var chems= ret.getChems();
+         let chems= ret.getChems();
          if(builder._map){
             chems=chems.map(builder._map);
          }
-         var headerProps=ret._propertyOrder
+         let headerProps=ret._propertyOrder
                                         .map(po=>{
                                              if(po.toLowerCase()==="smiles"){
                                                 return "verbatim_" + po;
@@ -7579,7 +7579,7 @@ JSChemify.ChemicalCollection=function(){
                                         })
                                         .join("\t");
          //TODO: need to think about computed properties
-         var header="SMILES\tName\t"+headerProps;
+         let header="SMILES\tName\t"+headerProps;
          if(builder._pathNotationColumn){
             header="SMILES\tPATH_NOTATION\tName\t"+headerProps;
          }
@@ -7636,7 +7636,7 @@ JSChemify.ChemicalCollection=function(){
          return builder;
       };
       builder.build=function(){
-         var chems= ret.getChems();
+         let chems= ret.getChems();
          if(builder._map){
             chems=chems.map(builder._map);
          }
@@ -7703,7 +7703,7 @@ JSChemify.SVGContext=function(width, height){
    
    ret.measureText=function(v){
       //Hacky
-      var size= (/[0-9]*/y.exec(ret.font.trim())[0])-0;
+      let size= (/[0-9]*/y.exec(ret.font.trim())[0])-0;
       return {width:(size)*10.8/15};
    };
 
@@ -7737,7 +7737,7 @@ JSChemify.SVGContext=function(width, height){
    };
    ret.stroke=function(){
       //<path d="M150 0 L75 200 L225 200 Z" style="fill:none;stroke:green;stroke-width:3" />
-      var p = ret._path.map(pp=>pp.map(f=>{
+      let p = ret._path.map(pp=>pp.map(f=>{
         if(typeof f === "number" && Math.round(f)!==f){
           return f.toFixed(2);
         }
@@ -7765,14 +7765,14 @@ JSChemify.SVGContext=function(width, height){
       cy=cy-rad*0.7;
       ret.moveTo(cx,cy);
       //A 100 100 0 1 0 100 122
-      var nudge=rad/1000;
+      let nudge=rad/1000;
       ret._path.push(["A", rad,rad,0,1,0,cx+nudge,cy-nudge, "Z"]);
       return ret;
    };
    
    ret.fill=function(){
       //<path d="M150 0 L75 200 L225 200 Z" style="fill:none;stroke:green;stroke-width:3" />
-      var p = ret._path.map(pp=>pp.map(f=>{
+      let p = ret._path.map(pp=>pp.map(f=>{
         if(typeof f === "number" && Math.round(f)!==f){
           return f.toFixed(2);
         }
@@ -7787,12 +7787,12 @@ JSChemify.SVGContext=function(width, height){
       return ret;
    };
    ret.fillText=function(txt,x,y){
-      var pelm = '<text x="' + x + '" y="' + y + '" style="font: ' + ret.font +';fill: ' +ret.fillStyle + ';">' + txt + '</text>';
+      let pelm = '<text x="' + x + '" y="' + y + '" style="font: ' + ret.font +';fill: ' +ret.fillStyle + ';">' + txt + '</text>';
       ret._components.push(pelm);
       return ret;
    };
    ret.toSVG=function(){
-      var insert=ret._components.join("\n");
+      let insert=ret._components.join("\n");
       return `<svg viewbox="0 0 ` + ret._width + ` `+ ret._height +`" xmlns="http://www.w3.org/2000/svg">` 
          + insert
          +`</svg>`;
@@ -7822,7 +7822,7 @@ TODO:
    
 *******************************/
 JSChemify.Renderer=function(){
-  var ret={};
+  let ret={};
   
   ret._labelSize=0.50;
   ret._cleareRad=1.9;
@@ -7904,13 +7904,13 @@ JSChemify.Renderer=function(){
   ret._getDash=function(){
       if(!ret.$dash){
         ret.$dash=[];
-      var cos=Math.cos(ret._ang);
-      var sin=Math.sin(ret._ang);
+      let cos=Math.cos(ret._ang);
+      let sin=Math.sin(ret._ang);
       
       for(var i=0;i<=ret._dcount;i++){
-          var rat=i/ret._dcount;
-          var max=rat*(sin-ret._swid)+ret._swid;
-          var xp=rat*(cos);
+          let rat=i/ret._dcount;
+          let max=rat*(sin-ret._swid)+ret._swid;
+          let xp=rat*(cos);
           ret.$dash.push([[xp,-max],[xp,max]]);
       }
     }
@@ -7922,7 +7922,7 @@ JSChemify.Renderer=function(){
          chem.generateCoordinates();
      }
      let scale=30; //average bond width in pixels
-     var pad=10;
+     let pad=10;
      const bbox=chem.getBoundingBox();
      //make room for some letters and 
      //stuff
@@ -7931,11 +7931,11 @@ JSChemify.Renderer=function(){
      bbox[1]=bbox[1]-1;
      bbox[2]=bbox[2]+1;
      bbox[3]=bbox[3]+1;
-     var cheight=bbox[3]-bbox[1];
-     var cwidth=bbox[2]-bbox[0];
+     let cheight=bbox[3]-bbox[1];
+     let cwidth=bbox[2]-bbox[0];
        
-     var nwidth=cwidth*scale;
-     var nheight=cheight*scale;
+     let nwidth=cwidth*scale;
+     let nheight=cheight*scale;
      
      if(!maxWidth){
         maxWidth=Math.ceil(nwidth+pad*2);
@@ -7959,7 +7959,7 @@ JSChemify.Renderer=function(){
      let padX=4*(centX-ocX);
      let padY=4*(centY-ocY);
      
-     var nret={chem:chem, scale:scale, maxWidth:maxWidth, maxHeight:maxHeight, padX:padX,padY:padY, bbox:bbox};
+     let nret={chem:chem, scale:scale, maxWidth:maxWidth, maxHeight:maxHeight, padX:padX,padY:padY, bbox:bbox};
      return nret;
   };
   /**
@@ -8012,8 +8012,8 @@ JSChemify.Renderer=function(){
   };
 
   ret.getStyleFor=function(at){
-      var sym= at.getSymbol();
-      var style=ret._colorScheme.symbols[sym];
+      let sym= at.getSymbol();
+      let style=ret._colorScheme.symbols[sym];
       if(style){
         return style;
       }
@@ -8130,9 +8130,9 @@ JSChemify.Renderer=function(){
          };
          const lineTo=(x,y, color1, color2)=>{
           if(color1 && color2 && color1!==color2){
-              var oldX=ppoint[0][0];
-              var oldY=ppoint[0][1];
-              var mid=[oldX+(x-oldX)/2,oldY+(y-oldY)/2];
+              let oldX=ppoint[0][0];
+              let oldY=ppoint[0][1];
+              let mid=[oldX+(x-oldX)/2,oldY+(y-oldY)/2];
               
               ctx.strokeStyle=color1;
               ctx.lineTo(mid[0],mid[1]);
@@ -8610,8 +8610,8 @@ JSChemify.Tests=function(){
   };
   
   ret.assertCleanCoordinates=function(a){
-      var c=JSChemify.Chemical(a).generateCoordinates();
-    var clusters=c.$getCloseClustersOfAtoms();
+      let c=JSChemify.Chemical(a).generateCoordinates();
+    let clusters=c.$getCloseClustersOfAtoms();
     ret.assertTrue(clusters.length===0,"overlapping atoms");
   };
 
@@ -8635,9 +8635,9 @@ JSChemify.Tests=function(){
   
   
   ret.runAll=function(){
-    var passed=0;
-    var failed=0;
-    var total=ret._tests.length;
+    let passed=0;
+    let failed=0;
+    let total=ret._tests.length;
     let whenDone=()=>{
        if(passed+failed===total){
        console.log("Tests passed:"+passed);
@@ -8849,48 +8849,48 @@ M  END
   });
   //C14(C(C2(CCC3(=C(C(CC1)(H)2)C=CC(O)=C3))(H))(CCC(4)O)H)C L3.9m80L6.5m96R6.2M96LLLLRLLR8L5L5L5R3m80WR7HR3HL3m80WLR3HRRRLRR
   ret.tests.push(()=>{
-      var nonConvex=[[0,0],[1,0],[1,1],[0,1]];
-      var convex=[[0,0],[1,0],[1,1],[0,1]];
+      let nonConvex=[[0,0],[1,0],[1,1],[0,1]];
+      let convex=[[0,0],[1,0],[1,1],[0,1]];
     
-      var nconvex=JSChemify.ShapeUtils().convexHull(nonConvex);
+      let nconvex=JSChemify.ShapeUtils().convexHull(nonConvex);
       ret.assertToStringEquals(nconvex,convex);
   });
   ret.tests.push(()=>{
-      var nonConvex=[[0,0],[1,0],[0.9,0.5],[1,1],[0,1]];
-      var convex=[[0,0],[1,0],[1,1],[0,1]];
+      let nonConvex=[[0,0],[1,0],[0.9,0.5],[1,1],[0,1]];
+      let convex=[[0,0],[1,0],[1,1],[0,1]];
     
-      var nconvex=JSChemify.ShapeUtils().convexHull(nonConvex);
+      let nconvex=JSChemify.ShapeUtils().convexHull(nonConvex);
       ret.assertToStringEquals(nconvex,convex);
   });
   ret.tests.push(()=>{
-      var nonConvex=[[0,0],[1,1],[1,0],[0,1]];
-      var convex=[[0,0],[1,0],[1,1],[0,1]];
+      let nonConvex=[[0,0],[1,1],[1,0],[0,1]];
+      let convex=[[0,0],[1,0],[1,1],[0,1]];
     
-      var nconvex=JSChemify.ShapeUtils().convexHull(nonConvex);
+      let nconvex=JSChemify.ShapeUtils().convexHull(nonConvex);
       ret.assertToStringEquals(nconvex,convex);
   });
   ret.tests.push(()=>{
-      var nonConvex=[[0.1214,0.33123],[0,0],[0.27,0.99],[0.11,0.36],[1,1],[1,0],[0,1],[0.11,0.37],[0.82,0.22222]];
-      var convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
-      var nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
+      let nonConvex=[[0.1214,0.33123],[0,0],[0.27,0.99],[0.11,0.36],[1,1],[1,0],[0,1],[0.11,0.37],[0.82,0.22222]];
+      let convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
+      let nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
       ret.assertToStringEquals(nconvex,convex);
   });
   ret.tests.push(()=>{
-      var nonConvex=[[0,0],[0,0],[1,1],[1,0],[0,1]];
-      var convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
-      var nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
+      let nonConvex=[[0,0],[0,0],[1,1],[1,0],[0,1]];
+      let convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
+      let nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
       ret.assertToStringEquals(nconvex,convex);
   });
   ret.tests.push(()=>{
-      var nonConvex=[[0,0],[0.5,0.5],[0.25,0.25],[1,1],[1,0],[0,1]];
-      var convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
-      var nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
+      let nonConvex=[[0,0],[0.5,0.5],[0.25,0.25],[1,1],[1,0],[0,1]];
+      let convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
+      let nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
       ret.assertToStringEquals(nconvex,convex);
   }); 
   ret.tests.push(()=>{
-      var nonConvex=[[0,0],[1,1],[1,0],[1,0.25],[1,0.1],[0,1]];
-      var convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
-      var nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
+      let nonConvex=[[0,0],[1,1],[1,0],[1,0.25],[1,0.1],[0,1]];
+      let convex=JSChemify.ShapeUtils().canonicalPathCCW([[0,0],[1,0],[1,1],[0,1]]);
+      let nconvex=JSChemify.ShapeUtils().canonicalPathCCW(JSChemify.ShapeUtils().convexHull(nonConvex));
       ret.assertToStringEquals(nconvex,convex);
   });
   
@@ -8905,44 +8905,44 @@ M  END
     ret.assertEquals(propChem.getProperty("def"),"okay");
   });
   ret.tests.push(()=>{
-    var osmi= "[11CH2+2]";
-    var nsmi=JSChemify.Chemical(JSChemify.Chemical(osmi).toSd()).toSmiles();
+    let osmi= "[11CH2+2]";
+    let nsmi=JSChemify.Chemical(JSChemify.Chemical(osmi).toSd()).toSmiles();
     ret.assertEquals(osmi,nsmi);
   });
   ret.tests.push(()=>{
-    var chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C.CCCC.O");
-    var split=chem1.getComponents();
+    let chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C.CCCC.O");
+    let split=chem1.getComponents();
     ret.assertTrue(split.length===3,"split components should have 3 chemicals if 3 molecules");
-    var splitSmiles=split.map(cc=>cc.toSmiles()).join(".");
-    var oSmiles=chem1.toSmiles();
+    let splitSmiles=split.map(cc=>cc.toSmiles()).join(".");
+    let oSmiles=chem1.toSmiles();
     ret.assertEquals(splitSmiles,oSmiles);
   });
   ret.tests.push(()=>{
-    var chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C");
+    let chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C");
     ret.assertTrue(!chem1.hasCoordinates(),"first read smiles shouldn't hae coordinates");
     chem1.generateCoordinates();
     ret.assertTrue(chem1.hasCoordinates(),"recently generated chem should have coordinates");
     
   });
   ret.tests.push(()=>{
-    var chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C");
+    let chem1 = JSChemify.Chemical("C(=CC=C1)C(=C1N=2)N(C2)C");
     chem1.setProperty("Test",123);
     chem1.setName("test");
     chem1.generateCoordinates();
-    var chem2 = chem1.clone();
-    var oldMol=chem1.toSd();
+    let chem2 = chem1.clone();
+    let oldMol=chem1.toSd();
     ret.assertEquals(oldMol,chem2.toSd());
     chem1.aromatize();
     chem1.setProperty("Another", 2);
     ret.assertEquals(oldMol,chem2.toSd());
   });
   ret.tests.push(()=>{
-      var wt=JSChemify.Chemical("C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2O)CCC4=CC(=O)CC[C@]34C").getMolWeight();
+      let wt=JSChemify.Chemical("C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2O)CCC4=CC(=O)CC[C@]34C").getMolWeight();
     wt=Math.round(wt * 100) / 100;
       ret.assertEquals(288.40,wt);
   });
   ret.tests.push(()=>{
-      var form=JSChemify.Chemical("C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2O)CCC4=CC(=O)CC[C@]34C").getMolFormula();
+      let form=JSChemify.Chemical("C[C@]12CC[C@H]3[C@H]([C@@H]1CC[C@@H]2O)CCC4=CC(=O)CC[C@]34C").getMolFormula();
       ret.assertEquals("C19H28O2",form);
     form=JSChemify.Chemical("C").getMolFormula();
       ret.assertEquals("CH4",form);
@@ -9021,107 +9021,107 @@ M  END
   });
   
   ret.tests.push(()=>{
-      var matrix=[[1,2,3],
+      let matrix=[[1,2,3],
                  [4,5,6],
                  [7,8,9]];
-      var matrixT=[[1,4,7],
+      let matrixT=[[1,4,7],
                  [2,5,8],
                  [3,6,9]];
-    var tmat=JSChemify.Util.matrixTranspose(matrix);
-    var smatO=tmat.map(c=>c.join(",")).join(",");
-    var tmatO=matrixT.map(c=>c.join(",")).join(",");
+    let tmat=JSChemify.Util.matrixTranspose(matrix);
+    let smatO=tmat.map(c=>c.join(",")).join(",");
+    let tmatO=matrixT.map(c=>c.join(",")).join(",");
     ret.assertEquals(smatO,tmatO);
   });
   
   ret.tests.push(()=>{
-      var matrix=[[1,0,0],
+      let matrix=[[1,0,0],
                  [0,1,0],
                  [0,0,1]];
-    var tmat=JSChemify.Util.matrixInverse(matrix);
-    var smatO=tmat.map(c=>c.join(",")).join(",");
-    var tmatO=matrix.map(c=>c.join(",")).join(",");
+    let tmat=JSChemify.Util.matrixInverse(matrix);
+    let smatO=tmat.map(c=>c.join(",")).join(",");
+    let tmatO=matrix.map(c=>c.join(",")).join(",");
     ret.assertEquals(smatO,tmatO);
   });
   
   ret.tests.push(()=>{
-      var matrix=[[1,1,0],
+      let matrix=[[1,1,0],
                  [0,1,0],
                  [1,0,1]];
-    var ident=[[1,0,0],
+    let ident=[[1,0,0],
                 [0,1,0],
                 [0,0,1]];
-    var tmat=JSChemify.Util.matrixInverse(matrix);
+    let tmat=JSChemify.Util.matrixInverse(matrix);
     tmat=JSChemify.Util.matrixMultiply(tmat,matrix,true);
-    var smatO=tmat.map(c=>c.join(",")).join(",");
-    var tmatO=ident.map(c=>c.join(",")).join(",");
+    let smatO=tmat.map(c=>c.join(",")).join(",");
+    let tmatO=ident.map(c=>c.join(",")).join(",");
     ret.assertEquals(smatO,tmatO);
   });
   
   ret.tests.push(()=>{
-      var affine=JSChemify.AffineTransformation();
-    var point=[1,2];
-    var npoint=affine.transform(point);
+      let affine=JSChemify.AffineTransformation();
+    let point=[1,2];
+    let npoint=affine.transform(point);
     ret.assertToStringEquals(point,npoint);
   });
   
   
   ret.tests.push(()=>{
-      var affine=JSChemify.AffineTransformation();
+      let affine=JSChemify.AffineTransformation();
     affine=affine.translate(1,0);
-    var point=[1,2];
-    var npointExp=[2,2];
-    var npoint=affine.transform(point);
+    let point=[1,2];
+    let npointExp=[2,2];
+    let npoint=affine.transform(point);
     ret.assertToStringEquals(npoint,npointExp);
   });
   ret.tests.push(()=>{
-      var affine=JSChemify.AffineTransformation();
+      let affine=JSChemify.AffineTransformation();
     affine=affine.scale(10);
-    var point=[1,2];
-    var npointExp=[10,20];
-    var npoint=affine.transform(point);
+    let point=[1,2];
+    let npointExp=[10,20];
+    let npoint=affine.transform(point);
     ret.assertToStringEquals(npoint,npointExp);
   });
   ret.tests.push(()=>{
-    var affine=JSChemify.AffineTransformation();
+    let affine=JSChemify.AffineTransformation();
     affine=affine.translate(10,2);
-    var point=[1,2];
-    var npoint=affine.transform(point);
+    let point=[1,2];
+    let npoint=affine.transform(point);
     npoint=affine.inverse().transform(npoint);
     ret.assertToStringEquals(point,npoint);
   });
   
   ret.tests.push(()=>{
-      var affine=JSChemify.AffineTransformation();
+      let affine=JSChemify.AffineTransformation();
     affine=affine.scale(2).translate(10,2);
-    var affine2=affine.clone().inverse();
-    var nothing=affine.clone().multiply(affine2);
+    let affine2=affine.clone().inverse();
+    let nothing=affine.clone().multiply(affine2);
     
-    var point=[0,0];
-    var npoint=nothing.transform(point);
+    let point=[0,0];
+    let npoint=nothing.transform(point);
     ret.assertToStringEquals(point,npoint);
   });
   
   ret.tests.push(()=>{
-      var affine=JSChemify.AffineTransformation();
+      let affine=JSChemify.AffineTransformation();
     affine=affine.scale(2).translate(10,2);
-    var affine2=affine.clone().inverse();
-    var nothing=affine.clone().multiply(affine2);
+    let affine2=affine.clone().inverse();
+    let nothing=affine.clone().multiply(affine2);
     
-    var point=[0,0];
-    var npoint=affine.transform(point);
+    let point=[0,0];
+    let npoint=affine.transform(point);
     npoint=affine2.transform(npoint);
     ret.assertToStringEquals(point,npoint);
   });
   
   ret.tests.push(()=>{
-      var affine=JSChemify.AffineTransformation();
+      let affine=JSChemify.AffineTransformation();
     affine=affine.scale(2).translate(10,2);
-    var affine2=JSChemify.AffineTransformation()
+    let affine2=JSChemify.AffineTransformation()
                                               .translate(-10,-2)
                           .scale(0.5);
     
-    var point=[0,0];
-    var npoint=affine.transform(point);
+    let point=[0,0];
+    let npoint=affine.transform(point);
     npoint=affine2.transform(npoint);
     ret.assertToStringEquals(point,npoint);
   });
@@ -9129,22 +9129,22 @@ M  END
   
   //TODO: Not sure about this one
   ret.tests.push(()=>{
-      var affine=JSChemify.AffineTransformation();
+      let affine=JSChemify.AffineTransformation();
     affine=affine.translate(10,2).scale(2).translate(1,1);
-    var affine2=JSChemify.AffineTransformation()
+    let affine2=JSChemify.AffineTransformation()
                           .translate(1,1)
                           .scale(2)
                           .translate(10,2);
     
-    var point=[0,0];
-    var npoint=affine.transform(point);
-    var npoint2=affine2.transform(point);
+    let point=[0,0];
+    let npoint=affine.transform(point);
+    let npoint2=affine2.transform(point);
     ret.assertToStringNotEquals(npoint,npoint2);
   });
   
   ret.tests.push(()=>{
   
-    var affine=JSChemify.Util
+    let affine=JSChemify.Util
              .getAffineTransformFromLineSegmentToLineSegment(
              [[0,1],[0,2]],
              [[0,0],[-3,7]],
