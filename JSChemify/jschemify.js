@@ -88,8 +88,29 @@ Coordinates and Rendering:
 17. [can't reproduce] SVG Bug: clearing background
 18. [done] Path Encoding wedge and hash support
 19. Path encoding smiles bond order discrepency?
-20. Path encoding extended angles (complements)
+20. [done] Path encoding extended angles (complements)
 21. Partial clean
+   21.1. Partial clean with "fixed" atoms/bonds
+   21.2. Pattial clean where the basics are kept,
+         but minor adjustments improve the view
+      21.2.1. This requires some thought. One way to
+              do this is to specify the ideal layout
+              for a given atom 
+              (2 bonds means 120 degrees)
+              (3 bonds still means 120)
+              (4 bonds means either 90 or 3-120 and one
+                 60)
+              Also consider average bond length.
+              For each atom which is found to be maximumly
+              deviating from these patterns, adjust.
+              It's worth considering a dynamics minimization
+              algo too. It could help elsewhere. to do this
+              we'd need to consider "springs" and displacements.
+              Things we want to correct are bad angles, bad
+              lengths, and overlapping bonds/atoms. This kind
+              of alogithm probably works well for finding local
+              minima, but bad for global ones. Swapping substituents
+              probably is needed first.
 22. [done] Path Notation:  Multiple components
 23. Place subscripts a little down
 24. [done] isotopes in render
@@ -117,12 +138,13 @@ Coordinates and Rendering:
                  S2. vertical/horizonta at cross bonds
                  S3. Angled at cross bonds, same angle
                  S4. Angled at cross bonds, perp angle
-26. Path notation estimate / tune max error?
+26. [partial] Path notation estimate / tune max error?
+27. Cut bonds short based on clear radius
               
 
 **/
 
-JSChemify={};
+let JSChemify={};
 window.JSChemify = JSChemify;
 
 /*******************************
@@ -4012,11 +4034,11 @@ JSChemify.Chemical = function(arg){
        }))
        .map(aa=>{
            var mm={};
-        mm[aa[0].getIndexInParent()]=aa;
+           mm[aa[0].getIndexInParent()]=aa;
            return mm;
        })
        .reduce((a,b)=>{
-            //TODO: technically this should probably
+          //TODO: technically this should probably
           //do transitive closure
           Object.keys(b).map(bk=>a[bk]=b[bk]);
           return a;
@@ -4025,12 +4047,11 @@ JSChemify.Chemical = function(arg){
   };
   
   ret.aromatize=function(){
-      //TODO implement this
-    var aRings=ret.getRings()
-                  .filter(r=>r.isAromatic());
-    aRings.flatMap(r=>r.getBonds())
-                 .map(b=>b.setBondOrder(4));
-           
+    ret.getRings()
+       .filter(r=>r.isAromatic())
+       .flatMap(r=>r.getBonds())
+       .map(b=>b.setBondOrder(4));
+
     return ret;
   };
   
@@ -8268,6 +8289,7 @@ JSChemify.Renderer=function(){
                   if(b.getBondStereo()===
                      JSChemify.CONSTANTS.BOND_STEREO_WEDGE){
                       const nwedge=affWedge.transform(wedge);
+                      ctx.beginPath();
                       ctx.moveTo(nwedge[0][0],nwedge[0][1]);
                       nwedge.map(w=>ctx.lineTo(w[0],w[1]));
                       ctx.closePath();
@@ -8299,7 +8321,7 @@ JSChemify.Renderer=function(){
                   const centerR=ring.getCenterPoint();
                   const dVec=JSChemify.Util
                                      .subtractVector(
-                                       b._atom1.getPoint(),
+                                       b.getAtom1().getPoint(),
                                        centerR);
                   const bVec=b.getDeltaVector();
                   const dd=JSChemify.Util.rejDotVector(dVec,bVec);
