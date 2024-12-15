@@ -597,7 +597,7 @@ JSChemify.PathNotation=function(f){
     };
     ret.expand=function(pth){
       let fpath=[];
-      let regex=/([LRDSFfsdlr][0-9.]*)([Mm][0-9.]*)*([WwHh])*/y;
+      let regex=/([LRDSFfsdlr][0-9.]*)([Mm][0-9.]*)*([WwHhEe])*/y;
       //regex.lastIndex=0;
       while(regex.lastIndex<pth.length){
         let oindex=regex.lastIndex;
@@ -2540,6 +2540,8 @@ JSChemify.Bond = function(bbb){
           ret.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_DASH);
         }else if(wlow==="w"){
           ret.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_WEDGE);
+        }else if(wlow==="e"){
+          ret.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_EITHER);
         }
       }
         
@@ -2558,8 +2560,10 @@ JSChemify.Bond = function(bbb){
           wedge="W";
         }else if(bs===JSChemify.CONSTANTS.BOND_STEREO_DASH){
           wedge="H";
+        }else if(bs===JSChemify.CONSTANTS.BOND_STEREO_EITHER){
+          wedge="E";
         }
-        if(ret._atom1!==a){
+        if(ret._atom1!==a && ret.getBondOrder()===1){
           //TODO: come back to this
           wedge=wedge.toLowerCase();
         }
@@ -2584,8 +2588,10 @@ JSChemify.Bond = function(bbb){
           wedge="W";
         }else if(bs===JSChemify.CONSTANTS.BOND_STEREO_DASH){
           wedge="H";
+        }else if(bs===JSChemify.CONSTANTS.BOND_STEREO_EITHER){
+          wedge="E";
         }
-        if(b._atom1!==a){
+        if(b._atom1!==a && b.getBondOrder()===1){
           //TODO: come back to this
           wedge=wedge.toLowerCase();
         }
