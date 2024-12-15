@@ -144,7 +144,7 @@ Coordinates and Rendering:
 
 **/
 
-let JSChemify={};
+var JSChemify={};
 window.JSChemify = JSChemify;
 
 /*******************************
@@ -869,10 +869,13 @@ JSChemify.CONSTANTS={
   BOND_STEREO_WEDGE : 1,
   BOND_STEREO_DASH : 6,
   BOND_STEREO_WIGGLE : 4,
+  BOND_STEREO_EITHER : 3,
   BOND_STEREO_NONE : 0,
    
   BOND_GEOM_UP : 1,
   BOND_GEOM_DOWN : 2,
+  BOND_GEOM_LOCAL_E : 3,
+  BOND_GEOM_LOCAL_Z : 4,
    
 
   PATH:JSChemify.PathNotation(),
@@ -1541,6 +1544,50 @@ JSChemify.Atom = function(aaa){
   ret.getGraphInvariantMarker=function(){
       return ret.getParent().getGraphInvariant()[ret.getIndexInParent()];
   };
+  
+  ret.swapSubstituentCoordinates=function(bond1,bond2){
+      let awayVec=null;
+      let homeVec=null;
+      let cPnt=ret.getPoint();
+      if(bond1 && !JSChemify.Util.isBond(bond1)){
+         bond1=ret.getBonds()[bond1];
+      }
+      if(bond2 && !JSChemify.Util.isBond(bond2)){
+         bond2=ret.getBonds()[bond2];
+      }
+      if(!bond2){
+         awayVec=ret.getLeastOccupiedVector();
+      }
+      homeVec=ret.getVectorTo(bond1.getOtherAtom(ret));
+      let network=ret.getConnectedNetworkAndBonds();
+      let net1=network.find(n=>n.bond===bond1);
+      let net2=null;
+      if(bond2){
+         net2=network.find(n=>n.bond===bond2);
+         awayVec=ret.getVectorTo(bond2.getOtherAtom(ret));
+      }
+      let mat=JSChemify.Util.getTransformFromVectorToVector(homeVec,awayVec);
+      let revmat=JSChemify.Util.getTransformFromVectorToVector(awayVec,homeVec);
+      let vecs=Object.keys(net1.network)
+                      .map(ai=>ret.getParent().getAtom(ai))
+                      .map(at=>at.getVectorTo(ret))
+                      .map(v=>JSChemify.Util.matrixMultiply(mat,v))
+                      .map(v=>JSChemify.Util.addVector(v,cPnt));
+      Object.keys(net1.network)
+            .map((ai,i)=>ret.getParent().getAtom(ai).setXYZ(vecs[i][0],vecs[i][1]));
+      let rvecs=null;
+      if(net2){
+         rvecs=Object.keys(net2.network)
+                      .map(ai=>ret.getParent().getAtom(ai))
+                      .map(at=>at.getVectorTo(ret))
+                      .map(v=>JSChemify.Util.matrixMultiply(mat,v))
+                      .map(v=>JSChemify.Util.addVector(v,cPnt));
+         Object.keys(net2.network)
+               .map((ai,i)=>ret.getParent().getAtom(ai).setXYZ(rvecs[i][0],rvecs[i][1]));
+      }
+      return ret;
+
+  };
 
   ret.setParityFromStereoBond=function(keep){
     if(ret.getParity()!==0 && keep)return ret;
@@ -2010,32 +2057,32 @@ JSChemify.Atom = function(aaa){
       //TODO: this is really expensive and 
       //can be simplified with better caching
       //still thinking about how to do that
-          if(ret.$connectedNetworks===null || 
+      if(ret.$connectedNetworks===null || 
        ret.getParent().$dirtyNumber()!=ret.$dirty){
-      ret.$dirty=ret.getParent().$dirtyNumber();
-      let tmp={};
-      ret.$allPathsDepthFirst((p)=>{
-          if(p.length<2)return;
-          let head =p[p.length-1];
-          let root =p[1];
-        //don't get root ring bonds as network
-        if(root.bond.isInRing())return true;
-        let rootBondIndex=root.bond.getIndexInParent();
-        let onet=tmp[rootBondIndex];
-        if(!onet){
-            onet={};
-            tmp[root.bond.getIndexInParent()]=onet;
-        }
-        //add atom as foliage
-        onet[head.atom.getIndexInParent()]=true;
-      });
-      ret.$connectedNetworks=Object.keys(tmp).map(k=>{
-          let rbond = ret.getParent().getBond(k);
-        //var atoms = Object.keys(tmp[k]).map(ai=>ret.getParent().getAtom(ai));
-        let atoms = tmp[k];
-        return {"bond":rbond,"network":atoms};
-      });
-    }
+         ret.$dirty=ret.getParent().$dirtyNumber();
+         let tmp={};
+         ret.$allPathsDepthFirst((p)=>{
+             if(p.length<2)return;
+             let head =p[p.length-1];
+             let root =p[1];
+           //don't get root ring bonds as network
+           if(root.bond.isInRing())return true;
+           let rootBondIndex=root.bond.getIndexInParent();
+           let onet=tmp[rootBondIndex];
+           if(!onet){
+               onet={};
+               tmp[root.bond.getIndexInParent()]=onet;
+           }
+           //add atom as foliage
+           onet[head.atom.getIndexInParent()]=true;
+         });
+         ret.$connectedNetworks=Object.keys(tmp).map(k=>{
+           let rbond = ret.getParent().getBond(k);
+           //var atoms = Object.keys(tmp[k]).map(ai=>ret.getParent().getAtom(ai));
+           let atoms = tmp[k];
+           return {"bond":rbond,"network":atoms};
+         });
+       }
       return ret.$connectedNetworks;
   };
   
@@ -2268,10 +2315,110 @@ JSChemify.Bond = function(bbb){
       ret._geom=g;
       return ret;
   };
+
+  ret.setDoubleBondLocalGeometry=function(keep,order){
+      if(ret.getBondGeometry() && keep)return ret;
+      if(ret.getBondOrder()!==2 && ret.getBondOrder()!==1)return ret.setBondGeometry(0);
+      if(ret.getBondOrder()!==2)return ret;
+      if(ret.getBondStereo()==JSChemify.CONSTANTS.BOND_STEREO_EITHER){
+         return ret.setBondGeometry(0);
+      }
+      if(!order){
+         order=(o)=>o;
+      }
+      if(typeof order === "object"){
+         let oo=order;
+         order = (o)=>oo[o];
+      }
+      let thisOrder=order(ret.getIndexInParent());
+      let side1Bs=ret.getAtom1().getBonds()
+                    .filter(bb=>bb.getBondOrder()===1)
+                    .map(bb=>[order(bb.getIndexInParent()),bb])
+                    .sort((a,b)=>a[0]-b[0])
+                    .map(bb=>[bb[0],bb[1].setBondGeometryFromCoordinates(keep,order)]);
+      let side2Bs=ret.getAtom2().getBonds()
+                    .filter(bb=>bb.getBondOrder()===1)
+                    .map(bb=>[order(bb.getIndexInParent()),bb])
+                    .sort((a,b)=>a[0]-b[0])
+                    .map(bb=>[bb[0],bb[1].setBondGeometryFromCoordinates(keep,order)]);
+      if(side1Bs.length===0 || side2Bs.length===0){
+         return ret.setBondGeometry(0);
+      }
+      let adj=1;
+      if(side1Bs.length>1){
+         let loc=1;
+         if(side1Bs[0][0]>thisOrder)loc=loc*-1;
+         if(side1Bs[0][1].getBondGeometry() === JSChemify.CONSTANTS.BOND_GEOM_UP){
+            loc=loc*-1;
+         }else if(side1Bs[0][1].getBondGeometry()===JSChemify.CONSTANTS.BOND_GEOM_DOWN){
+            loc=loc*1;
+         }else if(side1Bs[0][1].getBondGeometry()===0){
+            loc=loc*-1;
+            //not sure about this
+            if(side1Bs[1][0]>thisOrder)loc=loc*-1;
+            if(side1Bs[1][1].getBondGeometry() === JSChemify.CONSTANTS.BOND_GEOM_UP){
+               loc=loc*-1;
+            }else if(side1Bs[1][1].getBondGeometry()===JSChemify.CONSTANTS.BOND_GEOM_DOWN){
+               loc=loc*1;
+            }else{
+               loc=0;
+            }
+         }
+         adj=adj*loc;
+      }else if(side1Bs.length===1){
+         let loc=1;
+         if(side1Bs[0][0]>thisOrder)loc=loc*-1;
+         if(side1Bs[0][1].getBondGeometry()===JSChemify.CONSTANTS.BOND_GEOM_UP){
+            loc=loc*-1;
+         }else if(side1Bs[0][1].getBondGeometry()===JSChemify.CONSTANTS.BOND_GEOM_DOWN){
+            loc=loc*1;
+         }else{
+            loc=loc*0;
+         }
+         adj=adj*loc;
+      }
+      if(adj===0)return ret.setBondGeometry(0);
+      if(side2Bs.length>1){
+         let loc=1;
+         if(side2Bs[0][0]>thisOrder)loc=loc*-1;
+         if(side2Bs[0][1].getBondGeometry() === JSChemify.CONSTANTS.BOND_GEOM_UP){
+            loc=loc*-1;
+         }else if(side2Bs[0][1].getBondGeometry()===JSChemify.CONSTANTS.BOND_GEOM_DOWN){
+            loc=loc*1;
+         }else if(side2Bs[0][1].getBondGeometry()===0){
+            loc=loc*-1;
+            //not sure about this
+            if(side2Bs[1][0]>thisOrder)loc=loc*-1;
+            if(side2Bs[1][1].getBondGeometry() === JSChemify.CONSTANTS.BOND_GEOM_UP){
+               loc=loc*-1;
+            }else if(side2Bs[1][1].getBondGeometry()===JSChemify.CONSTANTS.BOND_GEOM_DOWN){
+               loc=loc*1;
+            }else{
+               loc=0;
+            }
+         }
+         adj=adj*loc;
+      }else if(side2Bs.length===1){
+         let loc=1;
+         if(side2Bs[0][0]>thisOrder)loc=loc*-1;
+         if(side2Bs[0][1].getBondGeometry()===JSChemify.CONSTANTS.BOND_GEOM_UP){
+            loc=loc*-1;
+         }else if(side2Bs[0][1].getBondGeometry()===JSChemify.CONSTANTS.BOND_GEOM_DOWN){
+            loc=loc*1;
+         }else{
+            loc=loc*0;
+         }
+         adj=adj*loc;
+      }
+      if(adj>0)return ret.setBondGeometry(JSChemify.CONSTANTS.BOND_GEOM_LOCAL_E);
+      if(adj<0)return ret.setBondGeometry(JSChemify.CONSTANTS.BOND_GEOM_LOCAL_Z);
+      return ret.setBondGeometry(0);
+  };
+  
   ret.setBondGeometryFromCoordinates=function(keep, order){
       if(ret.getBondGeometry() && keep)return ret;
      
-      if(ret.getBondOrder()!==1){
+      if(ret.getBondOrder()!==1 && ret.getBondOrder()!==2){
          return ret.setBondGeometry(0);
       }
       if(!order){
@@ -2289,6 +2436,7 @@ JSChemify.Bond = function(bbb){
       let rej1=ret.getAtom1().getNeighborAtomsAndBonds()
                     .filter(bb=>bb.atom!==a2)
                     .filter(bb=>bb.bond.getBondOrder()===2)
+                    .filter(bb=>bb.bond.getBondStereo()!==JSChemify.CONSTANTS.BOND_STEREO_EITHER)
                     .filter(bb=>{
                         let size=bb.bond.getSmallestRingSize();
                         if(size>0 && size<8)return false;
@@ -2307,6 +2455,7 @@ JSChemify.Bond = function(bbb){
       let rej2=ret.getAtom2().getNeighborAtomsAndBonds()
                     .filter(bb=>bb.atom!==a1)
                     .filter(bb=>bb.bond.getBondOrder()===2)
+                    .filter(bb=>bb.bond.getBondStereo()!==JSChemify.CONSTANTS.BOND_STEREO_EITHER)
                     .filter(bb=>{
                         let size=bb.bond.getSmallestRingSize();
                         if(size>0 && size<8)return false;
@@ -3443,6 +3592,11 @@ JSChemify.Chemical = function(arg){
       return ret;
   };
   ret.generateCoordinates=function(){
+    ret.getBonds().map(bb=>bb.setDoubleBondLocalGeometry(true));
+    let bondGeo={};
+    ret.getBonds().filter(bb=>bb.getBondOrder()===2)
+                  .map(bb=>bondGeo[bb.getIndexInParent()]=bb.getBondGeometry());
+     
     if(ret.getComponentCount()>1){
        let comps=ret.getComponents();
        comps.map(cc=>cc.generateCoordinates());
@@ -3577,6 +3731,39 @@ JSChemify.Chemical = function(arg){
             ret.$treeCoordinates(0);
       }
     }
+    //now fix E/Z stuff
+    ret.getBonds().map(bb=>bb.setDoubleBondLocalGeometry(false));
+    ret.getBonds().filter(bb=>bb.getBondOrder()===2)
+                  .map(bb=>{
+                     
+                     let oldGeo=bondGeo[bb.getIndexInParent()];
+                     let newGeo=bb.getBondGeometry();
+                     if(oldGeo===newGeo)return;
+                     //make 
+                     if(oldGeo===0 && newGeo!==0){
+                         //
+                         bb.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_EITHER);
+                         bb.setBondGeometry(0);
+                         //TODO: need to make colinear, that's not always easy
+                        
+                     }else if(oldGeo!==0 && newGeo!==0){
+                        //different
+                        //need to swap
+                        let tarAtom=bb.getAtom1();
+                        if(bb.getAtom1().getBondCount()>bb.getAtom2().getBondCount()){
+                           tarAtom=bb.getAtom2();
+                        }
+                        let oAtom=bb.getOtherAtom(tarAtom);
+                        if(!bb.isInRing()){
+                           //easy case ... kinda
+                           //need to swap the substituents
+                           let bds=tarAtom.getBonds().filter(b2=>b2!==bb);
+                           tarAtom.swapSubstituentCoordinates(bds[0],bds[1]);
+                        }
+                        bb.setDoubleBondLocalGeometry(false);
+                     }
+                  });
+    
     
     //Now do final adjustments
     if(lRingSystem){
@@ -3756,7 +3943,7 @@ JSChemify.Chemical = function(arg){
                    Object.keys(smallerNet.network)
                          .map((ai,i)=>ret.getAtom(ai).setXYZ(vecs[i][0],vecs[i][1]));
                  }
-                if(nvecT.net){;
+                if(nvecT.net){
                   let vecs2=Object.keys(nvecT.net.network)
                         .map(ai=>ret.getAtom(ai))
                         .map(at=>{
@@ -3867,7 +4054,7 @@ JSChemify.Chemical = function(arg){
     return ret._name;
   };
   ret.getIndexOf= function(o){
-      if(JSChemify.Util.isAtom(o)){
+    if(JSChemify.Util.isAtom(o)){
         return ret._atoms.indexOf(o);
     }else if(JSChemify.Util.isBond(o)){
         return ret._bonds.indexOf(o);
