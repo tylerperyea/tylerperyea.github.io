@@ -1557,6 +1557,7 @@ JSChemify.Atom = function(aaa){
       }
       if(!bond2){
          awayVec=ret.getLeastOccupiedVector();
+         awayVec=[-awayVec[0],-awayVec[1]];
       }
       homeVec=ret.getVectorTo(bond1.getOtherAtom(ret));
       let network=ret.getConnectedNetworkAndBonds();
