@@ -15,7 +15,7 @@ Refactoring:
 Basic I/O:
 1. CIP designations (R/S)
 2. [partial] Read double bond geometry from smiles
-   2.1. Need to recalculate from bond 2d coordinates sometimes
+   2.1. [partial] Need to recalculate from bond 2d coordinates sometimes
    2.2. [partial] Need to preserve on coordinate generation
          2.2.1. Seems to work for simple cases, need to try complex ones
 3. [started] InChI parser
@@ -63,6 +63,8 @@ Basic I/O:
 25. Add basic resolver? NCATS? GSRS? Pubchem?
 26. Simple editor?
 27. Simple namer?
+28. Support daylight extended stereo (tetrahedrals, square planar, allene, trigonal pyrimidal)
+29. 
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -87,7 +89,7 @@ Coordinates and Rendering:
 18. [done] Parse simplified path encoding
 17. [can't reproduce] SVG Bug: clearing background
 18. [done] Path Encoding wedge and hash support
-19. Path encoding smiles bond order discrepency?
+19. [done] Path encoding smiles bond order discrepency?
 20. [done] Path encoding extended angles (complements)
 21. Partial clean
    21.1. Partial clean with "fixed" atoms/bonds
@@ -140,7 +142,7 @@ Coordinates and Rendering:
                  S4. Angled at cross bonds, perp angle
 26. [partial] Path notation estimate / tune max error?
 27. Cut bonds short based on clear radius
-              
+28. Support double-either on double bonds
 
 **/
 
@@ -216,7 +218,9 @@ JSChemify.Shape=function(arg,c){
     return JSChemify.Shape(npath);
   };
   ret.intersection=function(s2){
-    //TODO: intersection
+    //TODO: intersection shape
+    
+     
   };
   ret.containsPoint=function(pt){
     //basic algo is iterate through delta vectors,
@@ -3787,6 +3791,7 @@ JSChemify.Chemical = function(arg){
                          }
                          
                          if(!fixed){
+                            //console.log("Not fixed");
                             //Need a better way to do this. Also need a setting
                             //to turn on/off
                             bb.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_EITHER);
@@ -8513,6 +8518,7 @@ JSChemify.Renderer=function(){
             }
             
             let short=ret._dblShort;
+            let dblEither=false;
             let styles=b.getAtoms().map(at=>ret.getStyleFor(at));
             ctx.strokeStyle="black";
             
@@ -8522,7 +8528,7 @@ JSChemify.Renderer=function(){
                     .getAffineTransformFromLineSegmentToLineSegment(
                     [[0,0],[1,0]],
                     seg);
-                  if(b.getBondStereo()===
+                   if(b.getBondStereo()===
                      JSChemify.CONSTANTS.BOND_STEREO_WEDGE){
                       const nwedge=affWedge.transform(wedge);
                       ctx.beginPath();
@@ -8530,6 +8536,7 @@ JSChemify.Renderer=function(){
                       nwedge.map(w=>ctx.lineTo(w[0],w[1]));
                       ctx.closePath();
                       ctx.fill();
+                      return;
                    }else if(b.getBondStereo()===
                       JSChemify.CONSTANTS.BOND_STEREO_DASH){
                       const ndash=affWedge.transform(dash);
@@ -8540,13 +8547,17 @@ JSChemify.Renderer=function(){
                       });
                       //ctx.closePath();
                       ctx.stroke();
+                      return;
+                   }else if(b.getBondStereo()===
+                      JSChemify.CONSTANTS.BOND_STEREO_EITHER){
+                      dblEither=true;
                    }
-                   return;
             }
+            let rej2=rej.map(r=>r);
             if(bo===2 || bo===4){
-                //If the double bond is in a ring
+                //If the double bond is NOT in a ring
                 //center it
-                if(!b.isInRing()){
+                if(!b.isInRing() || dblEither){
                     seg[0][0]-=rej[0]/2;
                     seg[1][0]-=rej[0]/2;
                     seg[0][1]-=rej[1]/2;
@@ -8565,10 +8576,18 @@ JSChemify.Renderer=function(){
                   if(dd>0){
                       rej[0]=-rej[0];
                       rej[1]=-rej[1];
+                      rej2[0]=-rej2[0];
+                      rej2[1]=-rej2[1];
                   }
                 }
+                if(dblEither){
+                     seg[1][0] = seg[1][0] + rej[0];
+                     seg[1][1] = seg[1][1] + rej[1];
+                     rej2[0]=-rej2[0];
+                     rej2[1]=-rej2[1];
+                }
             }
-
+            
             
             
             ctx.beginPath();
@@ -8590,7 +8609,7 @@ JSChemify.Renderer=function(){
                   ctx.setLineDash([space,space]);
               }
               moveTo(seg[0][0]+rej[0]-dseg[0]*short, seg[0][1]+rej[1]-dseg[1]*short,styles[0],styles[1]);
-              lineTo(seg[1][0]+rej[0]+dseg[0]*short, seg[1][1]+rej[1]+dseg[1]*short,styles[0],styles[1]);
+              lineTo(seg[1][0]+rej2[0]+dseg[0]*short, seg[1][1]+rej2[1]+dseg[1]*short,styles[0],styles[1]);
               //ctx.closePath();
               ctx.stroke();
               ctx.setLineDash([]);
