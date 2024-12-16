@@ -144,6 +144,22 @@ Coordinates and Rendering:
 27. Cut bonds short based on clear radius
 28. Support double-either on double bonds
 
+Basic Model Examples:
+1. Do KNN with a variety of metrics
+   1.1. Allow regression with either log space or
+        other invertible functions. Can specify function
+        and its inverse.
+   1.2. Allow classification.
+2. Do linear regression with e-topological descriptors
+3. Embedding 
+   3.1. MDS using distance geometry and a metric
+   3.2. FASTMAP
+   3.3. PCA of E-State Vectors
+   3.4. PCA of topological indices
+4. 
+
+   
+
 **/
 
 var JSChemify={};
