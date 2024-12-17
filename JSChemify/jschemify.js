@@ -8023,7 +8023,7 @@ JSChemify.SVGContext=function(width, height){
    ret.arc=function(cx,cy,rad,startAng,endAng){
       //ret.fillStyle="red";
       //
-      //        ctx.arc(loc[0], loc[1], cleareRad, 0, 2 * Math.PI);
+      //        ctx.arc(loc[0], loc[1], clearRad, 0, 2 * Math.PI);
       cx=cx-rad*0.7;
       cy=cy-rad*0.7;
       ret.moveTo(cx,cy);
@@ -8088,7 +8088,7 @@ JSChemify.Renderer=function(){
   let ret={};
   
   ret._labelSize=0.50;
-  ret._cleareRad=1.9;
+  ret._clearRad=1.9;
   ret._dblWidth=0.15;
   ret._dblShort=1/6;
   ret._letterSpace=0.4;
@@ -8374,7 +8374,7 @@ JSChemify.Renderer=function(){
          const text = ctx.measureText("C");
          const offx=text.width/2;
          const offy=-offx;
-         const cleareRad=offx*ret._cleareRad;
+         const clearRad=offx*ret._clearRad;
          const wedge=ret._getWedge();
          const dash=ret._getDash();
          const bwidth=ret._bracketWidth*scale;
@@ -8471,7 +8471,7 @@ JSChemify.Renderer=function(){
          }
          let atomHalos={};
          if(annotate && annotate.atoms && ret._highlightAtomHalo){
-               let atomHaloRadius=ret._highlightAtomHaloRadius*cleareRad;
+               let atomHaloRadius=ret._highlightAtomHaloRadius*clearRad;
                let ostyle=ctx.fillStyle;
                let aatoms=Object.keys(annotate.atoms).map(i=>annotate.atoms[i]);
                let minV=(annotate.atomMin||annotate.atomMin===0)?annotate.atomMin:
@@ -8491,7 +8491,7 @@ JSChemify.Renderer=function(){
                            const loc=affine.transform(aa.getPoint());
                            ctx.fillStyle = hex;
                            ctx.beginPath();
-                           ctx.arc(loc[0], loc[1], cleareRad, 0, 2 * Math.PI);
+                           ctx.arc(loc[0], loc[1], clearRad, 0, 2 * Math.PI);
                            ctx.fill();
                            atomHalos[i]={"loc":loc, style:hex, rad:atomHaloRadius};
                      });
@@ -8528,15 +8528,15 @@ JSChemify.Renderer=function(){
                   let uv=JSChemify.Util.normVector(delt);
                   let mag=JSChemify.Util.magVector(delt);
                   if(showIndexes[b.getAtom1().getIndexInParent()]){
-                     sp[0]=sp[0] - uv[0]*(cleareRad);
-                     sp[1]=sp[1] - uv[1]*(cleareRad);
+                     sp[0]=sp[0] - uv[0]*(clearRad);
+                     sp[1]=sp[1] - uv[1]*(clearRad);
                      seg[0]=sp;
-                     mag=mag-cleareRad;
+                     mag=mag-clearRad;
                   }
                   if(showIndexes[b.getAtom2().getIndexInParent()]){
                      let op=seg[1];
-                     op[0]=op[0] + uv[0]*cleareRad;
-                     op[1]=op[1] + uv[1]*cleareRad;
+                     op[0]=op[0] + uv[0]*clearRad;
+                     op[1]=op[1] + uv[1]*clearRad;
                      seg[1]=op;
                   }
                   
@@ -8719,7 +8719,7 @@ JSChemify.Renderer=function(){
               ctx.globalCompositeOperation = "destination-out";
               ctx.fillStyle = "white";
               ctx.beginPath();
-              ctx.arc(loc[0], loc[1], cleareRad, 0, 2 * Math.PI);
+              ctx.arc(loc[0], loc[1], clearRad, 0, 2 * Math.PI);
               ctx.fill();
              
               ctx.globalCompositeOperation = "source-over";
