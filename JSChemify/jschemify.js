@@ -8499,6 +8499,19 @@ JSChemify.Renderer=function(){
                }
          }
          let done=[];
+
+         let showIndexes={};
+         let showAtoms=chem.getAtoms().map(at=>{
+                const sym=at.getSymbol();
+                const atomIdx=at.getIndexInParent();
+                if(hide[atomIdx]){  
+                   return;
+                }
+                if(sym!=="C" || at.getCharge() || at.getIsotope()){
+                   showIndexes[atomIdx]=true;
+                }
+         });
+     
          //draw bonds
          chem.getBonds().map(b=>{
 
@@ -8508,6 +8521,27 @@ JSChemify.Renderer=function(){
             }
             
             const seg=affine.transform(b.getLineSegment());
+            
+            if(showIndexes[b.getAtom1().getIndexInParent()] || showIndexes[b.getAtom2().getIndexInParent()]){
+                  let sp=seg[0];
+                  let delt=[seg[0][0]-seg[1][0],seg[0][1]-seg[1][1]];
+                  let uv=JSChemify.Util.normVector(delt);
+                  let mag=JSChemify.Util.magVector(delt);
+                  if(showIndexes[b.getAtom1().getIndexInParent()]){
+                     sp[0]=sp[0] - uv[0]*(cleareRad);
+                     sp[1]=sp[1] - uv[1]*(cleareRad);
+                     seg[0]=sp;
+                     mag=mag-cleareRad;
+                  }
+                  if(showIndexes[b.getAtom2().getIndexInParent()]){
+                     let op=seg[1];
+                     op[0]=op[0] + uv[0]*cleareRad;
+                     op[1]=op[1] + uv[1]*cleareRad;
+                     seg[1]=op;
+                  }
+                  
+            }
+            
             let over=false;
             over=done.map(ss=>JSChemify.ShapeUtils().getIntersectionSegmentsCoeffs(seg,ss))
                      .filter(cc=>cc!==null)
@@ -8663,10 +8697,7 @@ JSChemify.Renderer=function(){
              return;
           }
           if(sym!=="C" || at.getCharge() || at.getIsotope()){
-              const nv=at.getVectorToPoint([0,0]);
-              nv[0]=-nv[0];
-              nv[1]=-nv[1];
-        
+              const nv=at.getPoint();
         
               let loc=affine.transform(nv);
               let append="";
@@ -8683,7 +8714,8 @@ JSChemify.Renderer=function(){
                     nudgeDx=-prepend.length*offx;
                     nudgeDy=0;
               }
-             
+
+             /*
               ctx.globalCompositeOperation = "destination-out";
               ctx.fillStyle = "white";
               ctx.beginPath();
@@ -8691,7 +8723,7 @@ JSChemify.Renderer=function(){
               ctx.fill();
              
               ctx.globalCompositeOperation = "source-over";
-
+*/
               if(atomHalos[atomIdx]){
                   let nhal=atomHalos[atomIdx];
                   ctx.fillStyle = nhal.style;
