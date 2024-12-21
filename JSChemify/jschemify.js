@@ -276,6 +276,44 @@ JSChemify.Shape=function(arg,c){
   return ret;
 };
 
+JSChemify.LinearRegression=function(){
+   let ret={};
+   ret._x;
+   ret._y;
+   ret.setX=function(x){
+      ret._x=x;
+      return ret;
+   };
+   
+   ret.setY=function(y){
+      ret._y=y;
+      return ret;
+   };
+   ret.calculate=function(){
+      let xT=JSChemify.Util.matrixTranspose(ret._x);
+      let yT=JSChemify.Util.matrixTranspose(ret._y);
+      let xxt=JSChemify.Util.matrixMultiply(xT,ret._x,true);
+      let inv=JSChemify.Util.matrixInverse(xxt);
+      let yxT=JSChemify.Util.matrixMultiply(yT,ret._x,true);
+      let sol=JSChemify.Util.matrixMultiply(inv,yxT);
+      
+      return sol;
+      /*
+         ax=y
+         e=y-ax
+         |e|^2=(y-ax)*(y-ax)T
+         |e|^2=(y-ax)*(yT-xTaT)
+         |e|^2=yyT-yXTaT-axyT+axxTaT
+         derivitive
+         d|e|^2/da=-yxT-xyT+2xxTaT
+         2yxT=2xxTaT
+         aT=(xxT^-1)*yxT
+      */
+      
+   };
+   return ret;
+};
+
 /*******************************
 /* Color
 /*******************************
