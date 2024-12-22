@@ -280,6 +280,9 @@ JSChemify.LinearRegression=function(){
    let ret={};
    ret._x;
    ret._y;
+   ret._pred;
+   ret._r=null;
+   ret._calculate;
    ret.setX=function(x){
       ret._x=x;
       return ret;
@@ -289,15 +292,57 @@ JSChemify.LinearRegression=function(){
       ret._y=y;
       return ret;
    };
+   ret.predict=function(nx){
+      if(!nx[0].length){
+         nx=[nx];
+      }
+      let calc=ret.calculate();
+      return JSChemify.Util.matrixTranspose(JSChemify.Util.matrixMultiply(JSChemify.Util.matrixTranspose(calc),nx));
+   };
+   ret.getPredicted=function(){
+      if(!ret._pred){
+         
+         let calc=ret.calculate();
+         ret._pred= JSChemify.Util.matrixTranspose(JSChemify.Util.matrixMultiply(JSChemify.Util.matrixTranspose(calc),ret._x));
+      }
+      return ret._pred;
+   };
+   ret.getR=function(){
+      if(ret._r===null){
+         let pred=ret.getPredicted();
+         let meanY1=ret._y.map(a=>[a[0],1])
+                        .reduce((a,b)=>{
+                           return [a[0]+b[0],a[1]+b[1]];
+                        });
+         let meanY2=pred.map(a=>[a[0],1])
+                        .reduce((a,b)=>{
+                           return [a[0]+b[0],a[1]+b[1]];
+                        });
+         let rm1=meanY1[0]/meanY1[1];
+         let rm2=meanY2[0]/meanY2[1];
+         let centY1=JSChemify.Util.normVector(ret._y.map(a=>[a[0]-rm1]));
+         let centY2=JSChemify.Util.normVector(pred.map(a=>[a[0]-rm2]));
+         let pearson= JSChemify.Util.dotVector(centY1,centY2);
+         ret._r=pearson;
+      }
+      return ret._r;
+   };
+   ret.getRSquared=function(){
+      return Math.pow(ret.getR(),2);
+   };
    ret.calculate=function(){
-      let xT=JSChemify.Util.matrixTranspose(ret._x);
-      let yT=JSChemify.Util.matrixTranspose(ret._y);
-      let xxt=JSChemify.Util.matrixMultiply(xT,ret._x,true);
-      let inv=JSChemify.Util.matrixInverse(xxt);
-      let yxT=JSChemify.Util.matrixMultiply(yT,ret._x,true);
-      let sol=JSChemify.Util.matrixMultiply(inv,yxT);
-      
-      return sol;
+      if(!ret._calculate){
+         let xT=JSChemify.Util.matrixTranspose(ret._x);
+         let yT=JSChemify.Util.matrixTranspose(ret._y);
+         let xxt=JSChemify.Util.matrixMultiply(xT,ret._x,true);
+         let inv=JSChemify.Util.matrixInverse(xxt);
+         let yxT=JSChemify.Util.matrixMultiply(yT,ret._x,true);
+         let sol=JSChemify.Util.matrixMultiply(inv,yxT);
+         
+         ret._calculate=sol;
+
+      }
+      return ret._calculate;
       /*
          ax=y
          e=y-ax
@@ -9042,6 +9087,48 @@ JSChemify.Tests=function(){
       
       ret.assertNotEquals(smi,smi2);
   };
+  ret.tests.push("Linear Regression with set m and b should return correct results",()=>{
+      let xs=[1,2,3,4,5,6,7,8];
+      let b=41.5;
+      let m=-7.3;
+      let nx=xs.map(x=>[x,1]);
+      let ny=nx.map(x=>[m*x[0]+b]);
+      let reg=JSChemify.LinearRegression()
+                         .setX(nx)
+                         .setY(ny);
+      let coeff=reg.calculate();
+      let rr=reg.getR();
+      ret.assertEquals(Math.round(m*100),Math.round(coeff[0]*100));
+      ret.assertEquals(Math.round(b*100),Math.round(coeff[1]*100));
+     
+      ret.assertEquals(100,Math.round(rr*100));
+  });
+  ret.tests.push("Linear Regression with defined noise gives correct results",()=>{
+      let xs=[1,2,3,4,5,6,7,8,9];
+      let ys=[10,
+21.00,
+27.00,
+34.00,
+36.00,
+45.00,
+49.00,
+62.00,
+61.00];
+     
+      let b=6.5;
+      let m=6.37;
+      let nx=xs.map(x=>[x,1]);
+      let ny=ys.map(y=>[y]);
+      let reg=JSChemify.LinearRegression()
+                         .setX(nx)
+                         .setY(ny);
+      let coeff=reg.calculate();
+      let rr=reg.getRSquared();
+      ret.assertEquals(Math.round(m*100),Math.round(coeff[0]*100));
+      ret.assertEquals(Math.round(b*100),Math.round(coeff[1]*100));
+     
+      ret.assertEquals(98,Math.round(rr*100));
+  });
    //C(=O)(N(CC2(C)C)[C@@]1([H])S2)C1
   ret.tests.push("Line intersections",()=>{
       let inter=JSChemify.ShapeUtils().getIntersectionSegments([[1,1],[0,0]],[[1,0],[0,1]]);
