@@ -8605,6 +8605,8 @@ JSChemify.Renderer=function(){
             
             const seg=affine.transform(b.getLineSegment());
             
+            const dseg=[seg[0][0]-seg[1][0],seg[0][1]-seg[1][1]];
+            
             if(showIndexes[b.getAtom1().getIndexInParent()] || showIndexes[b.getAtom2().getIndexInParent()]){
                   let sp=seg[0];
                   let delt=[seg[0][0]-seg[1][0],seg[0][1]-seg[1][1]];
@@ -8633,7 +8635,6 @@ JSChemify.Renderer=function(){
             done.push(seg);
             
             const bo = b.getBondOrder();
-            const dseg=[seg[0][0]-seg[1][0],seg[0][1]-seg[1][1]];
             const rej=[-ret._dblWidth*dseg[1],
                         ret._dblWidth*dseg[0]];
 
