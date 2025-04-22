@@ -64,7 +64,10 @@ Basic I/O:
 26. Simple editor?
 27. Simple namer?
 28. Support daylight extended stereo (tetrahedrals, square planar, allene, trigonal pyrimidal)
-29. 
+29. Some smiles strings seem to invert stereo
+    29.1. Like:
+      C(CCCCCCC(=O)N[C@@]1(H)([C@H](OC2(=C3(C=C4([C@@H](NC(=O)[C@H]5(NC(=O)[C@@H](CC6(=CC=C(O3)C=C6))NC([C@H]([N:1](C)N=O)C3(C=C(OC6(C=C(5)C(=C(C=6)O)Cl))C(=CC=3)O))=O))C(N[C@@H]3(C5(C=C(C6(=C(C=C(O)C=C(6)[C@H](NC([C@H]([C@@H](C6(=CC=C(OC(2)=C4)C(=C6)Cl))O)NC(3)=O)=O)C(=O)NCCCN(C)C)O[C@@H]2([C@@H](O)[C@@H](O)[C@H](O)[C@H](O2)CO)))C(O)=CC=5)))=O))))O[C@H](C(=O)O)[C@H]([C@@H](1)O)O))C(C)C
+   
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
