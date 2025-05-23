@@ -986,7 +986,7 @@ JSChemify.CONSTANTS={
   
   ELEMENTS:[
   {atomicNumber:0,symbol:"*",mass:0,name:"StarAtom",period:0,group:0,valance:0,smiles:true},
-  {atomicNumber:1,symbol:"H",mass:1.007,name:"Hydrogen",period:1,group:1,valance:1,smiles:true},
+  {atomicNumber:1,symbol:"H",mass:1.007,name:"Hydrogen",period:1,group:1,valance:1,smiles:false},
   {atomicNumber:2,symbol:"He",mass:4.002,name:"Helium",period:1,group:18,valance:0},
   {atomicNumber:3,symbol:"Li",mass:6.941,name:"Lithium",period:2,group:1,valance:1},
   {atomicNumber:4,symbol:"Be",mass:9.012,name:"Beryllium",period:2,group:2,valance:2},
@@ -4894,6 +4894,7 @@ JSChemify.Chemical = function(arg){
     if(!start)start=0;
     let name=lines[start].trim();
     if(name){
+	   
        ret.setName(name);
     }
     //console.log(start);
