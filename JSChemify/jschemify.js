@@ -4681,10 +4681,7 @@ JSChemify.Chemical = function(arg){
         let startAtom = remainingBonds[0].getAtoms()[0];
         
         startAtom.$allPathsDepthFirst((path)=>{
-          //TODO: this prevents explosions but should be more configurable
-          // and have a bit more thought.
-          if(path.length>25)return true;
-          
+		  if(path.length>25)return true;
           let lbond=path[path.length-1];
           let first=path.findIndex(p=>p.atom===lbond.atom);
         
@@ -4895,7 +4892,7 @@ JSChemify.Chemical = function(arg){
          lines= lines.split("\n");
     }
     if(!start)start=0;
-    let name=lines[start];
+    let name=lines[start].trim();
     if(name){
        ret.setName(name);
     }
