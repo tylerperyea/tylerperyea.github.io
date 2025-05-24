@@ -1408,6 +1408,13 @@ JSChemify.Util = {
   }
 };
 
+JSChemify.Util.isPromise=function(o){
+	if(o && typeof o === "object" && o.then && typeof o.then === "function"){
+		return true;
+	}
+	return false;
+};
+
 JSChemify.Util.loadLibrary=function(path, test){
      function dynamicallyLoadScript(url) {
 	    var script = document.createElement("script");  // create a script DOM node
@@ -7918,7 +7925,14 @@ JSChemify.ChemicalCollection=function(){
                c.computeContributions(calc);
             }
          }
-         c.setProperty(prop,calc(c));
+	 var res=calc(c);
+	 if(JSChemify.Util.isPromise(res)){
+	    res.then(rr=>{
+		c.setProperty(prop,rr);
+	    });
+	 }else{
+            c.setProperty(prop,res);
+	 }
       });
       if(decorate){
          ret._decorateProperty=prop;
