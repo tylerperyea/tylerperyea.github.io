@@ -56,8 +56,20 @@
 	    if(ev && ev.serialize){
 		ev=ev.serialize();
 	    }
-	    if(typeof ev ==="object"){
-		ev=JSON.stringify(ev);
+	    if(JSChemify.Util.isPromise(ev)){
+		    return ev.then(ee=>{
+                       if(ee && ee.serialize){
+                           ee=ee.serialize();
+		       }
+		       if(typeof ee === "object"){
+                             return JSON.stringify(ee);
+		       }
+		       return ee;
+		    });
+	    }else{
+		    if(typeof ev ==="object"){
+			ev=JSON.stringify(ev);
+		    }
 	    }
             return ev;
         },decorate);
