@@ -7410,9 +7410,16 @@ JSChemify.ChemicalCollection=function(){
            console.log(chem.toSmiles());
            
         }
+		let ifUndef=(vv,ee)=>{
+		   if(vv===undefined){
+		       return ee;
+		   }else{
+		       return vv;
+		   }
+		};
         let rowHTML = "<tr><td><div class='jschemify-tbl-image'>" + cchem.getSVG() + "</div><div class='jschemify-tbl-smiles'>" 
                + cchem.toSmiles() +"</div></td><td>" + chem.getName() + "</td>"
-               + ret._propertyOrder.map(p=>"<td>" + chem.getProperty(p) + "</td>").join("") 
+               + ret._propertyOrder.map(p=>"<td>" + ifUndef(chem.getProperty(p),"") + "</td>").join("") 
                   + "</tr>";
         return rowHTML;
    };
