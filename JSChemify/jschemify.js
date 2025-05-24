@@ -1408,6 +1408,28 @@ JSChemify.Util = {
   }
 };
 
+JSChemify.Util.loadLibrary=function(path, test){
+     function dynamicallyLoadScript(url) {
+	    var script = document.createElement("script");  // create a script DOM node
+	    script.src = url;  // set its src to the provided URL
+	   
+	    document.head.appendChild(script);  // add it to the end of the head section of the page (could change 'head' to 'body' to add it to the end of the body section instead)
+     }
+	//TODO: consider how to load differently if in different contexts
+    if(test()){
+	    
+    	return new Promise(ok=>{
+		ok();
+	}); 
+    }else{
+	dynamicallyLoadScript(path);
+	return new Promise(ok=>{
+		ok();
+	});
+    }
+};
+
+
 /*******************************
 /* AffineTransformation
 /*******************************
@@ -5209,6 +5231,27 @@ M  SCN  2   1 HT    2 HT
     }
     return smi;
   };
+  ret.toInChIObjectPromise=function(){
+      return new Promise(ok => {
+	JSChemify.Util.loadLibrary("inchi/inchi.js", ()=>{
+		if(inchiFromMolfile)return true;
+		return false;
+	}).then(()=>{
+		inchiFromMolfile(ret.toMol(),null,"1.07.3").then(r=>{
+			let nret={};
+			nret.inchi=r.inchi;
+			nret.auxinfo=r.auxinfo;
+			inchikeyFromInchi(nret.inchi,"1.07.3").then(rr=>{
+				nret.inchikey=rr.inchikey;
+				ok(nret);
+			});
+		});	
+	});
+      });
+  };
+  ret.toInChIKeyPromise=function(){
+	return ret.toInChIObjectPromise().then(r=>r.inchikey);
+  };
   ret.toSmiles=function(){
       if(ret.getAtomCount()==0)return "";
 
@@ -6799,7 +6842,7 @@ TODO:
    
 *******************************/
 JSChemify.InChIReader=function(){
-    let ret={};
+  let ret={};
   ret._input=null;
   ret._bonds=[];
   ret._atoms=[];
@@ -6914,6 +6957,8 @@ JSChemify.InChIReader=function(){
   }
   return ret;
 };
+
+
 
 /*******************************
 /* SmilesReader
