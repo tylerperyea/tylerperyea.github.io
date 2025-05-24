@@ -7417,8 +7417,8 @@ JSChemify.ChemicalCollection=function(){
 		       return vv;
 		   }
 		};
-        let rowHTML = "<tr><td><div class='jschemify-tbl-image'>" + cchem.getSVG() + "</div><div class='jschemify-tbl-smiles'>" 
-               + cchem.toSmiles() +"</div></td><td>" + chem.getName() + "</td>"
+        let rowHTML = "<tr><td><div class='jschemify-tbl-image'>" + cchem.getSVG() + "</div><textarea onclick='this.focus();this.select()' readonly='readonly' class='jschemify-tbl-smiles'>" 
+               + cchem.toSmiles() +"</textarea></td><td>" + chem.getName() + "</td>"
                + ret._propertyOrder.map(p=>"<td>" + ifUndef(chem.getProperty(p),"") + "</td>").join("") 
                   + "</tr>";
         return rowHTML;
