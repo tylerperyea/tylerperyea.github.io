@@ -5234,7 +5234,7 @@ M  SCN  2   1 HT    2 HT
   ret.toInChIObjectPromise=function(){
       return new Promise(ok => {
 	JSChemify.Util.loadLibrary("inchi/inchi.js", ()=>{
-		if(inchiFromMolfile)return true;
+		if(typeof inchiFromMolfile === "function")return true;
 		return false;
 	}).then(()=>{
 		inchiFromMolfile(ret.toMol(),null,"1.07.3").then(r=>{
