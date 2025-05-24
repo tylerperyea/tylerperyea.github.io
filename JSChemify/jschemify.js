@@ -1414,8 +1414,11 @@ JSChemify.Util.isPromise=function(o){
 	}
 	return false;
 };
-
+JSChemify.Util._loadCache={};
 JSChemify.Util.loadLibrary=function(path, test){
+     if(JSChemify.Util._loadCache[path]){
+          return JSChemify.Util._loadCache[path];
+     }
      function dynamicallyLoadScript(url) {
 	    var script = document.createElement("script");  // create a script DOM node
 	    script.src = url;  // set its src to the provided URL
@@ -1424,12 +1427,12 @@ JSChemify.Util.loadLibrary=function(path, test){
      }
     //TODO: consider how to load differently if in different contexts
     if(test()){
-	  	return new Promise(ok=>{
+	return new Promise(ok=>{
         ok();
 	    }); 
     }else{
 	    dynamicallyLoadScript(path);
-	    return new Promise(ok=>{
+	    let promise= new Promise(ok=>{
         let tempPoll = { "pol" : null};
         let pollLoad = ()=>{
           if(test()){
@@ -1447,6 +1450,8 @@ JSChemify.Util.loadLibrary=function(path, test){
             tempPoll.pol();
         }
 	    });
+        JSChemify.Util._loadCache[path]=promise;
+	return promise;
     }
 };
 
