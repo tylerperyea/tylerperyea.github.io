@@ -1415,17 +1415,31 @@ JSChemify.Util.loadLibrary=function(path, test){
 	   
 	    document.head.appendChild(script);  // add it to the end of the head section of the page (could change 'head' to 'body' to add it to the end of the body section instead)
      }
-	//TODO: consider how to load differently if in different contexts
+    //TODO: consider how to load differently if in different contexts
     if(test()){
-	    
-    	return new Promise(ok=>{
-		ok();
-	}); 
+	  	return new Promise(ok=>{
+        ok();
+	    }); 
     }else{
-	dynamicallyLoadScript(path);
-	return new Promise(ok=>{
-		ok();
-	});
+	    dynamicallyLoadScript(path);
+	    return new Promise(ok=>{
+        let tempPoll = { "pol" : null};
+        let pollLoad = ()=>{
+          if(test()){
+            ok();
+          }else{
+            setTimeout(()=>{
+              tempPoll.pol();
+            },20);
+          }
+        };
+        tempPoll.pol=pollLoad;
+        if(test()){
+            ok();
+        }else{
+            tempPoll.pol();
+        }
+	    });
     }
 };
 
