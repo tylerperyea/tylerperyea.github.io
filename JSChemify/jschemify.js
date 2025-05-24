@@ -5412,7 +5412,8 @@ M  SCN  2   1 HT    2 HT
         }
         
         return bb + cc.atom.toSmiles(invParity[cc.atom.getIndexInParent()])+loc;
-      }).join("");
+      }).join("")
+        .replace(/\(([0-9][0-9]*)\)/g,"$1");
 
       return smi;
   
