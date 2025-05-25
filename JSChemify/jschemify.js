@@ -7250,11 +7250,13 @@ JSChemify.SmilesReader=function(){
       let m=ret.readNext(/[A-Z*][a-z]{0,1}/y,(p)=>{
           try{
               let el=JSChemify.Util.getElementFromSymbol(p[0]);
-            return (el.smiles)?true:false;
-        }catch(e){
+			  //Allow "bare hydrogen" to be read
+			  if(p[0]==="H")return true;
+              return (el.smiles)?true:false;
+          }catch(e){
             return false;
-        }
-        return true;
+          }
+          return true;
       });
       if(m){
          return ret.addAtom({"atom":m[0]});
@@ -9387,7 +9389,7 @@ M  END
       ret.assertEquals(4,sgroup.getAtoms().length);
   });
   ret.tests.push(()=>{
-      let input="C1(=O)(N2(C(C(SC(H)(2)C(NC(CCCC(C(=O)O)N)=O)1)(C)C)C(O)=O)) r6m80Fm80L11.3m94R5.8M94Rl4M60r4m60R4m60Fm60FR12LRLRLLRRRR4L24L5LRL7M90r6m80";
+      let input="C1(=O)(N2(C(C(SC([H])2C(NC(CCCC(C(=O)O)N)=O)1)(C)C)C(O)=O)) r6m80Fm80L11.3m94R5.8M94Rl4M60r4m60R4m60Fm60FR12LRLRLLRRRR4L24L5LRL7M90r6m80";
       let c = JSChemify.Chemical(input);
       let c2=JSChemify.Chemical(c.toMol());
       let smipp=c2.toSmilesPP();
