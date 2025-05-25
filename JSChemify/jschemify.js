@@ -4725,25 +4725,38 @@ JSChemify.Chemical = function(arg){
       
       let remainingBonds = ret._bonds.filter(b=>!bTypes[b._idx]);
       let comp=1;
+	  let frontier = [];
+	  
       while(remainingBonds.length>0){
-        let startAtom = remainingBonds[0].getAtoms()[0];
+		let startAtom;		
+		if(frontier.length>0){
+		    startAtom=frontier.pop();
+		}else{
+            startAtom=remainingBonds[0].getAtoms()[0];
+		}
         
         startAtom.$allPathsDepthFirst((path)=>{
-		  if(path.length>25)return true;
+		  if(path.length>25){
+			let natom=path[path.length-1].atom;
+			if(frontier.indexOf(natom)<0){
+				frontier.push(natom);
+			}
+			return true;
+		  }
           let lbond=path[path.length-1];
           let first=path.findIndex(p=>p.atom===lbond.atom);
         
           if(first<path.length-1){
-              let nring=[];
-              for(var j=first+1;j<path.length;j++){
+            let nring=[];
+            for(var j=first+1;j<path.length;j++){
                 let pnode=path[j].bond;
-              if(!bTypes[pnode._idx]){
+                if(!bTypes[pnode._idx]){
                   assigned++;
-              }
-              nring.push(pnode);
-              bTypes[pnode._idx]="RING";
-              aTypes[pnode._atom1.getIndexInParent()]=comp;
-              aTypes[pnode._atom2.getIndexInParent()]=comp;
+                }
+                nring.push(pnode);
+                bTypes[pnode._idx]="RING";
+                aTypes[pnode._atom1.getIndexInParent()]=comp;
+                aTypes[pnode._atom2.getIndexInParent()]=comp;
             }
             let cRing=JSChemify.Ring(nring).canonicalize();
             rings[cRing.toString()]=cRing;
@@ -4751,6 +4764,7 @@ JSChemify.Chemical = function(arg){
             return true;
           }else{
                if(!bTypes[lbond.bond._idx]){
+			     lbond.bond.getIndexInParent();
                  bTypes[lbond.bond._idx]="CHAIN";
                  aTypes[lbond.bond._atom1.getIndexInParent()]=comp;
                  aTypes[lbond.bond._atom2.getIndexInParent()]=comp;
@@ -4759,7 +4773,10 @@ JSChemify.Chemical = function(arg){
           }
         });
         remainingBonds = ret._bonds.filter(b=>!bTypes[b._idx]);
-        comp++;
+		frontier=frontier.filter(aa=>aa.getBonds().filter(bb=>!bTypes[bb._idx]).length>0);
+		if(frontier.length<=0){
+			comp++;
+		}
       }
       ret.getAtoms().map((a,i)=>{
          if(!aTypes[i]){
