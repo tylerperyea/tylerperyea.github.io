@@ -26,7 +26,7 @@ Basic I/O:
          CCn1cc(c(=O)c2ccc(nc12)C)C(=O)O
          CCn1(cc(c(=O)c2(ccc(nc(12)C))C(=O)O) 
          CCn1cc(c(=O)c2ccc(nc12)C)C(=O)O 
-   5.3. When ending a ring, should remove extra parens
+   5.3. [done] When ending a ring, should remove extra parens
 6. [done?] Clone molecule
 7. [done] Split components
 8. Make ring&chain network
@@ -64,10 +64,20 @@ Basic I/O:
 26. Simple editor?
 27. Simple namer?
 28. Support daylight extended stereo (tetrahedrals, square planar, allene, trigonal pyrimidal)
-29. Some smiles strings seem to invert stereo
+29. [done] Some smiles strings seem to invert stereo
     29.1. Like:
       C(CCCCCCC(=O)N[C@@]1(H)([C@H](OC2(=C3(C=C4([C@@H](NC(=O)[C@H]5(NC(=O)[C@@H](CC6(=CC=C(O3)C=C6))NC([C@H]([N:1](C)N=O)C3(C=C(OC6(C=C(5)C(=C(C=6)O)Cl))C(=CC=3)O))=O))C(N[C@@H]3(C5(C=C(C6(=C(C=C(O)C=C(6)[C@H](NC([C@H]([C@@H](C6(=CC=C(OC(2)=C4)C(=C6)Cl))O)NC(3)=O)=O)C(=O)NCCCN(C)C)O[C@@H]2([C@@H](O)[C@@H](O)[C@H](O)[C@H](O2)CO)))C(O)=CC=5)))=O))))O[C@H](C(=O)O)[C@H]([C@@H](1)O)O))C(C)C
-   
+    29.2. Or simpler case:
+	  This
+	  P[C@H]1(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
+      Becomes
+	  P[C@@H]1(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
+	  
+	  
+	  This
+	  CCCCP[C@]1([H])(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
+      Becomes
+	  CCCCP[C@@]1([H])(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -4728,7 +4738,8 @@ JSChemify.Chemical = function(arg){
 	  let frontier = [];
 	  
       while(remainingBonds.length>0){
-		let startAtom;		
+		let startAtom;
+		
 		if(frontier.length>0){
 		    startAtom=frontier.pop();
 		}else{
@@ -4747,21 +4758,22 @@ JSChemify.Chemical = function(arg){
           let first=path.findIndex(p=>p.atom===lbond.atom);
         
           if(first<path.length-1){
-            let nring=[];
-            for(var j=first+1;j<path.length;j++){
-                let pnode=path[j].bond;
-                if(!bTypes[pnode._idx]){
-                  assigned++;
-                }
-                nring.push(pnode);
-                bTypes[pnode._idx]="RING";
-                aTypes[pnode._atom1.getIndexInParent()]=comp;
-                aTypes[pnode._atom2.getIndexInParent()]=comp;
-            }
-            let cRing=JSChemify.Ring(nring).canonicalize();
-            rings[cRing.toString()]=cRing;
-            //stop going on this path
-            return true;
+               let nring=[];
+               for(var j=first+1;j<path.length;j++){
+                   let pnode=path[j].bond;
+                   if(!bTypes[pnode._idx]){
+                      assigned++;
+                   }
+                   nring.push(pnode);
+                   bTypes[pnode._idx]="RING";
+                   aTypes[pnode._atom1.getIndexInParent()]=comp;
+                   aTypes[pnode._atom2.getIndexInParent()]=comp;
+               }
+               let cRing=JSChemify.Ring(nring).canonicalize();
+               rings[cRing.toString()]=cRing;
+			   
+               //stop going on this path
+               return true;
           }else{
                if(!bTypes[lbond.bond._idx]){
 			     lbond.bond.getIndexInParent();
@@ -5480,9 +5492,10 @@ M  SCN  2   1 HT    2 HT
         }else if(cc===""){
             return "";
         }
+		var tinv=invParity[cc.atom.getIndexInParent()];
         let loc=(cc.locants)?cc.locants.map(li=>nextLocant(li)).map(lo=>(lo>9)?"%"+lo:lo).join(""):"";
         if(!cc.bond){
-          return cc.atom.toSmiles(invParity[cc.atom.getIndexInParent()])+loc;
+          return cc.atom.toSmiles(tinv)+loc;
         }
         let bb=cc.bond.toSmiles();
         if(bb===":"){
@@ -5496,8 +5509,16 @@ M  SCN  2   1 HT    2 HT
             let cloc=((nloc-0)>9)?("%"+nloc):nloc;
             return bb + cloc;
         }
+		
+		//If there's a locant / ring-closure, it appears the parity tends to be inverted
+		//so this is a fudge factor to fix this. Unclear if this works in every case.
+		//TODO: investigate with mol=>smiles type conversions to confirm we're not
+		//inverting stereo here
+		if(loc){
+			tinv=-1*tinv;
+		}
         
-        return bb + cc.atom.toSmiles(invParity[cc.atom.getIndexInParent()])+loc;
+        return bb + cc.atom.toSmiles(tinv)+loc;
       }).join("")
         .replace(/\(([0-9][0-9]*)\)/g,"$1");
 
@@ -9583,6 +9604,18 @@ M  END
       ret.assertCleanCoordinates(
                                              "CC(C)CC(NC(=O)C(CC1(C=CC=CC=1))NC(=O)C(N)CC1(C=CC=CC=1))C(=O)NC(CCCCN)C(=O)N1(CCC(N)(CC1)C(O)=O)");
   });
+  
+  ret.tests.push("Smiles stereo not inverted on ring locants simple case", ()=>{
+      let smi1 = "CCCCP[C@]1([H])(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))";
+	  let chem1 = JSChemify.Chemical(smi1);
+	  ret.assertEquals(smi1,chem1.toSmiles());
+  });
+  ret.tests.push("Smiles stereo not inverted on ring locants complex case", ()=>{
+      let smi1 = "C(CCCCCCC(=O)N[C@@H]1([C@H](OC2(=C3(C=C4([C@@H](NC(=O)[C@H]5(NC(=O)[C@@H](CC6(=CC=C(O3)C=C6))NC([C@H]([N:1](C)N=O)C3(C=C(OC6(C=C5C(=C(C=6)O)Cl))C(=CC=3)O))=O))C(N[C@@H]3(C5(C=C(C6(=C(C=C(O)C=C6[C@H](NC([C@H]([C@@H](C6(=CC=C(OC2=C4)C(=C6)Cl))O)NC3=O)=O)C(=O)NCCCN(C)C)O[C@@H]2([C@@H](O)[C@@H](O)[C@H](O)[C@H](O2)CO)))C(O)=CC=5)))=O))))O[C@H](C(=O)O)[C@H]([C@@H]1O)O))C(C)C";
+	  let chem1 = JSChemify.Chemical(smi1);
+	  ret.assertEquals(smi1,chem1.toSmiles());
+  });
+  
   //
   
   // TODO: this one fails right now
@@ -9738,6 +9771,7 @@ M  END
     
     
   });
+  
   
   
   //Double bond on wrong side in rendering
