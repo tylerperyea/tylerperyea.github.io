@@ -7578,6 +7578,21 @@ JSChemify.ChemicalCollection=function(){
          <button id="jschemify-page-next">next</button></span>
          
          </div>
+
+         <div>
+         <span>
+           Calculate New Column
+           <select id="jschemify-calculate-newcolumn">
+	      <option value="c.toInChIKeyPromise()">InChIKey</option>
+              <option value="c.getMolWeight()">Molecular Weight</option>
+              <option value="c.getMolFormula()">Molecular Formula</option>	      
+	   </select>
+           <label for="jschemify-calculate-newcolumn-name">Column Name</label>
+           <input id="jschemify-calculate-newcolumn-name" value="">	   
+           <label for="jschemify-calculate-newcolumn-formula">Column Formula</label>
+           <input id="jschemify-calculate-newcolumn-formula" value="">
+           <button id="jschemify-calculate-newcolumn-add">Add Column</button>
+         </div>
          
          <div class="jschemify-table-query">
          Query Smiles
@@ -7658,9 +7673,43 @@ JSChemify.ChemicalCollection=function(){
       let top=pageCountElm.innerHTML.split("-")[1]-0;
       let skip=pageCountElm.innerHTML.split("-")[0]-1;
 
-       
-      
-      
+      $("#jschemify-calculate-newcolumn").onchange=(t)=>{
+	 console.log(t);
+         $("#jschemify-calculate-newcolumn-name").value=t.innerText;
+         $("#jschemify-calculate-newcolumn-formula").value=t.value;
+      };
+      //jschemify-calculate-newcolumn-add
+      $("#jschemify-calculate-newcolumn-add").onclick=()=>{
+	 let cname=$("#jschemify-calculate-newcolumn-name").value;
+         let cform=$("#jschemify-calculate-newcolumn-formula").value;
+         let decorate=false;
+	      
+         ret.computeNewProperty(cname,(c)=>{
+	    let ev=eval(cform);
+	    if(ev && ev.serialize){
+		ev=ev.serialize();
+	    }
+	    if(JSChemify.Util.isPromise(ev)){
+		    return ev.then(ee=>{
+                       if(ee && ee.serialize){
+                           ee=ee.serialize();
+		       }
+		       if(typeof ee === "object"){
+                             return JSON.stringify(ee);
+		       }
+		       return ee;
+		    });
+	    }else{
+		    if(typeof ev ==="object"){
+			ev=JSON.stringify(ev);
+		    }
+	    }
+            return ev;
+        },decorate);
+	      
+      };
+	   
+	   
       $("#mfile").onchange=(e)=>{
            $("#mfile").style="display:none;"; 
            let file = e.target.files[0];
