@@ -7795,9 +7795,9 @@ JSChemify.ChemicalCollection=function(){
 	    if(ev && ev.serialize){
 		ev=ev.serialize();
 	    }
-	    console.log(ev);
 	    if(JSChemify.Util.isPromise(ev)){
 		    return ev.then(ee=>{
+		   console.log(ee);
                        if(ee && ee.serialize){
                            ee=ee.serialize();
 		       }
@@ -7812,8 +7812,9 @@ JSChemify.ChemicalCollection=function(){
 		    }
 	    }
             return ev;
-        },decorate);
-	refreshTable();
+        },decorate).then((oo)=>{ 
+		refreshTable();
+	 });
       };
       let updateTopSkip=(t,s)=>{
             top=t;
@@ -8013,33 +8014,44 @@ JSChemify.ChemicalCollection=function(){
       return ret;
    };
    ret.computeNewProperty=function(prop, calc, decorate){
-      let t=0;
-      ret.getChems().map(c=>{
-         t++;
-         if(decorate){
-            if(decorate<0){
-               c.computeContributions(c2=>-calc(c2));
-            }else{
-               c.computeContributions(calc);
-            }
-         }
-	 var res=calc(c);
-	 if(JSChemify.Util.isPromise(res)){
-	    res.then(rr=>{
-		c.setProperty(prop,rr);
-	    });
-	 }else{
-            c.setProperty(prop,res);
-	 }
+      return new Promise(ok => {
+	      let t=ret.getChems().length;
+	      let left=t;
+	      let markNext = ()=>{
+		left--;
+		if(left<=0){
+	      		ret._properties[prop]=t;
+			ok();
+		}
+	      };
+	      if(decorate){
+	         ret._decorateProperty=prop;
+	      }
+	      if(!ret._properties[prop]){
+	         ret._propertyOrder.push(prop);
+	      }
+	      ret.getChems().map(c=>{
+	         if(decorate){
+	            if(decorate<0){
+	               c.computeContributions(c2=>-calc(c2));
+	            }else{
+	               c.computeContributions(calc);
+	            }
+	         }
+		 var res=calc(c);
+		 if(JSChemify.Util.isPromise(res)){
+		    res.then(rr=>{
+			c.setProperty(prop,rr);
+			markNext();
+		    });
+		 }else{
+	            c.setProperty(prop,res);
+		    markNext();
+		 }
+	      });
+	     
+	      
       });
-      if(decorate){
-         ret._decorateProperty=prop;
-      }
-      if(!ret._properties[prop]){
-         ret._propertyOrder.push(prop);
-      }
-      ret._properties[prop]=t;
-      return ret;
    };
    ret.removeProperty=function(prop){
       ret.getChems().map(cc=>{
