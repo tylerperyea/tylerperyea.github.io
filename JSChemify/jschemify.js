@@ -7795,6 +7795,7 @@ JSChemify.ChemicalCollection=function(){
 	    if(ev && ev.serialize){
 		ev=ev.serialize();
 	    }
+	    console.log(ev);
 	    if(JSChemify.Util.isPromise(ev)){
 		    return ev.then(ee=>{
                        if(ee && ee.serialize){
