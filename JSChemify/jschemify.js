@@ -7583,6 +7583,7 @@ JSChemify.ChemicalCollection=function(){
          <span>
            Calculate New Column
            <select id="jschemify-calculate-newcolumn">
+	      <option value="">-- cacluations --</option>
 	      <option value="c.toInChIKeyPromise()">InChIKey</option>
               <option value="c.getMolWeight()">Molecular Weight</option>
               <option value="c.getMolFormula()">Molecular Formula</option>	      
@@ -7674,9 +7675,10 @@ JSChemify.ChemicalCollection=function(){
       let skip=pageCountElm.innerHTML.split("-")[0]-1;
 
       $("#jschemify-calculate-newcolumn").onchange=(t)=>{
+	 t=t.target;
 	 console.log(t);
-         $("#jschemify-calculate-newcolumn-name").value=t.innerText;
-         $("#jschemify-calculate-newcolumn-formula").value=t.value;
+         $("#jschemify-calculate-newcolumn-name").value=t[t.selectedIndex].innerText;
+         $("#jschemify-calculate-newcolumn-formula").value=t[t.selectedIndex].value;
       };
       //jschemify-calculate-newcolumn-add
       $("#jschemify-calculate-newcolumn-add").onclick=()=>{
