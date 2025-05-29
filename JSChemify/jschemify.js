@@ -7680,36 +7680,7 @@ JSChemify.ChemicalCollection=function(){
          $("#jschemify-calculate-newcolumn-name").value=t[t.selectedIndex].innerText;
          $("#jschemify-calculate-newcolumn-formula").value=t[t.selectedIndex].value;
       };
-      //jschemify-calculate-newcolumn-add
-      $("#jschemify-calculate-newcolumn-add").onclick=()=>{
-	 let cname=$("#jschemify-calculate-newcolumn-name").value;
-         let cform=$("#jschemify-calculate-newcolumn-formula").value;
-         let decorate=false;
-	      
-         ret.computeNewProperty(cname,(c)=>{
-	    let ev=eval(cform);
-	    if(ev && ev.serialize){
-		ev=ev.serialize();
-	    }
-	    if(JSChemify.Util.isPromise(ev)){
-		    return ev.then(ee=>{
-                       if(ee && ee.serialize){
-                           ee=ee.serialize();
-		       }
-		       if(typeof ee === "object"){
-                             return JSON.stringify(ee);
-		       }
-		       return ee;
-		    });
-	    }else{
-		    if(typeof ev ==="object"){
-			ev=JSON.stringify(ev);
-		    }
-	    }
-            return ev;
-        },decorate);
-	      
-      };
+     
 	   
 	   
       $("#mfile").onchange=(e)=>{
@@ -7813,6 +7784,36 @@ JSChemify.ChemicalCollection=function(){
       };
       update=tt;
       tt();
+      //jschemify-calculate-newcolumn-add
+      $("#jschemify-calculate-newcolumn-add").onclick=()=>{
+	 let cname=$("#jschemify-calculate-newcolumn-name").value;
+         let cform=$("#jschemify-calculate-newcolumn-formula").value;
+         let decorate=false;
+	      
+         ret.computeNewProperty(cname,(c)=>{
+	    let ev=eval(cform);
+	    if(ev && ev.serialize){
+		ev=ev.serialize();
+	    }
+	    if(JSChemify.Util.isPromise(ev)){
+		    return ev.then(ee=>{
+                       if(ee && ee.serialize){
+                           ee=ee.serialize();
+		       }
+		       if(typeof ee === "object"){
+                             return JSON.stringify(ee);
+		       }
+		       return ee;
+		    });
+	    }else{
+		    if(typeof ev ==="object"){
+			ev=JSON.stringify(ev);
+		    }
+	    }
+            return ev;
+        },decorate);
+	refreshTable();
+      };
       let updateTopSkip=(t,s)=>{
             top=t;
             skip=Math.max(s,0);
