@@ -8003,7 +8003,7 @@ JSChemify.ChemicalCollection=function(){
 	            chem.setPathNotation(pnot);
 	          }
 	  }catch(e){
-		  chem= JSChemify.Chemical();
+		  chem= JSChemify.Chemical().setName(name);
 		  chem.setProperty("JSCHEMIFY_MESSAGE", e + "");
 	  }
           
