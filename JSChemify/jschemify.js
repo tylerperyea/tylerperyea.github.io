@@ -7996,10 +7996,16 @@ JSChemify.ChemicalCollection=function(){
           if(headerIndex["path_notation"]>=0){
             pnot=l[headerIndex["path_notation"]];
           }
-          let chem= JSChemify.Chemical().fromSmiles(smiles).setName(name);
-          if(pnot){
-            chem.setPathNotation(pnot);
-          }
+	  let chem;
+	  try{
+	          chem= JSChemify.Chemical().fromSmiles(smiles).setName(name);
+	          if(pnot){
+	            chem.setPathNotation(pnot);
+	          }
+	  }catch(e){
+		  chem= JSChemify.Chemical();
+		  chem.setProperty("JSCHEMIFY_MESSAGE", e + "");
+	  }
           
            
           for(var i=0;i<header.length;i++){
