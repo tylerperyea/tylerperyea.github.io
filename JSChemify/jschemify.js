@@ -7704,6 +7704,8 @@ JSChemify.ChemicalCollection=function(){
          $("#mfile").click();
       };
       $$(".jschemify-tbl-image").forEach(e=>{
+	      console.log("Adding listener to");
+	      console.log(e);
 		   e.onclick=()=>{
 			   console.log(e);
 		        if(!e.style || e.style.length<=1 ){
