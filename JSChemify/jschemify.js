@@ -7711,7 +7711,7 @@ JSChemify.ChemicalCollection=function(){
 		            e.style="";
 		        }
 		      };
-      };
+      });
 	   
       
       let update;
