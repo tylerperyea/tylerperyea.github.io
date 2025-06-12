@@ -7487,6 +7487,7 @@ JSChemify.ChemicalCollection=function(){
       return `<style id="jschemify-table-style">
       .jschemify-tbl-image{
          max-width:150px;
+	 cursor:pointer;
       }
       .jschemify-tbl td {
           border-bottom: 1px solid #dedede;
@@ -7702,7 +7703,7 @@ JSChemify.ChemicalCollection=function(){
          $("#mfile").style="";
          $("#mfile").click();
       };
-      $$("#jschemify-import").forEach(e=>{
+      $$(".jschemify-tbl-image").forEach(e=>{
 		   e.onclick=()=>{
 		        if(!e.style || e.style.length<=1 ){
 		           e.style=`max-width: 500px;width: 100%;position: fixed;z-index: 9999999;top: 0px;background-color: white;padding: 10px;left: 300px;border: 2px solid #fa0202;`;
