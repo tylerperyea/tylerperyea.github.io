@@ -7549,6 +7549,7 @@ JSChemify.ChemicalCollection=function(){
             <textarea id="jschemify-raw"></textarea>
          </div>
          <div id="js-full-table-view">
+         <div id="js-full-table-parent-controls">
          Show Structures
          <select id="jschemify-structure-type">
          <option>Smiles+Structure</option>
@@ -7564,9 +7565,7 @@ JSChemify.ChemicalCollection=function(){
          <div style="display:none;">
          Structure Size
          <input id="jschemify-structure-size" type="range" min="1" max="100" value="50">
-         </div>
-
-         
+         </div>         
          <div>
          <span>
          Display Rows
@@ -7609,6 +7608,7 @@ JSChemify.ChemicalCollection=function(){
          </select>
          <button id="jschemify-query-search">Search</button>
          <div id="jschemify-query-img" class="jschemify-tbl-image">
+         </div>
          </div>
          </div>
          `;
