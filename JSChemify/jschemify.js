@@ -7703,6 +7703,7 @@ JSChemify.ChemicalCollection=function(){
          $("#mfile").style="";
          $("#mfile").click();
       };
+      let resetZoom=()=>{
       $$(".jschemify-tbl-image").forEach(e=>{
 	      console.log("Adding listener to");
 	      console.log(e);
@@ -7715,8 +7716,9 @@ JSChemify.ChemicalCollection=function(){
 		        }
 		      };
       });
+      });
 	   
-      
+      resetZoom();
       let update;
       let sorted="";
       let sortDir="";
@@ -7741,6 +7743,7 @@ JSChemify.ChemicalCollection=function(){
             }
          });
          $("#jschemify-structure-type").onchange();
+	 resetZoom();
       };
       ret._refreshListener=refreshTable;
       let tt= ()=>{
