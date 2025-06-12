@@ -8004,7 +8004,7 @@ JSChemify.ChemicalCollection=function(){
 	          }
 	  }catch(e){
 		  chem= JSChemify.Chemical().setName(name);
-		  chem.setProperty("JSCHEMIFY_MESSAGE", e + "");
+		  chem.setProperty("JSCHEMIFY_MESSAGE", "trouble reading smiles:'" + smiles + "' " + e + "");
 	  }
           
            
