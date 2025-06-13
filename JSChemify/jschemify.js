@@ -5292,7 +5292,7 @@ M  SCN  2   1 HT    2 HT
 		if(typeof inchiFromMolfile === "function")return true;
 		return false;
 	}).then(()=>{
-		inchiFromMolfile(ret.toMol(),null,"1.07.3").then(r=>{
+		inchiFromMolfile(ret.clone().dearomatize().toMol(),null,"1.07.3").then(r=>{
 			let nret={};
 			nret.inchi=r.inchi;
 			nret.auxinfo=r.auxinfo;
