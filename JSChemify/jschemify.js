@@ -7705,10 +7705,7 @@ JSChemify.ChemicalCollection=function(){
       };
       let resetZoom=()=>{
 	      $$(".jschemify-tbl-image").forEach(e=>{
-		      console.log("Adding listener to");
-		      console.log(e);
 			   e.onclick=()=>{
-				   console.log(e);
 			        if(!e.style || e.style.length<=1 ){
 			           e.style="max-width: 500px;width: 100%;position: fixed;z-index: 9999999;top: 0px;background-color: white;padding: 10px;left: 300px;border: 2px solid #fa0202;";
 			        }else{
