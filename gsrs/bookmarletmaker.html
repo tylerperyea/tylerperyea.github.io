@@ -31,7 +31,7 @@ Un-Shrinkydink
 <script>
 	
 $("#map").onclick=((e)=>{
-  var m = map($("#input").val());
+  var m = map($("#input").value);
   $("#output").value=m;
   $("#bookmarklet").href=m;
 });
