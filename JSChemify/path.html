@@ -655,9 +655,11 @@ M  END`
       }
       var smiSVG=c.getSVG();
       document.getElementById("smiles-path-img").innerHTML=smiSVG;
+      makeInchiSmi();
       var c2=JSChemify.Chemical(document.getElementById("molfile").value);
       var rmse = c2.getAtomOverlapRMSE(c,true);
       document.getElementById("rmse").innerHTML=rmse;
+     
     }
     function renderMol(){
       var mol = document.getElementById("molfile").value;
@@ -667,6 +669,7 @@ M  END`
       }
       var molSVG=c.getSVG();
       document.getElementById("molfile-img").innerHTML=molSVG;
+      makeInchiMol();
     }
     function load(key){
     	  document.getElementById("molfile").value=examples[key];
@@ -838,10 +841,10 @@ M  END`
  40 38  2  0  0  0  0
 M  END
 </textarea>
+<div>InChIKey: <span id="inchiMol"></span></div>
 <button id="render-smiles" onclick="renderMol()">Render Image</button>
 <button id="generate-coordinates-molfile" onclick="generateCoordinatesMol()">Generate Coordinates</button>
 <button id="inchi-make-mol" onclick="makeInchiMol()">Get InChiKey</button>
-<div>InChIKey: <span id="inchiMol"></span></div>
 </div>
 <div class="panel middle">
   <button id="convert-to-path" onclick="convertMolToPath()">Convert to Path Notation =&gt;</button>
