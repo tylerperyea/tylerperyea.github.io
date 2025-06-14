@@ -8144,8 +8144,9 @@ JSChemify.ChemicalCollection=function(){
          if(builder._map){
             chems=chems.map(builder._map);
          }
-         let headerProps=Object.keys(ret._properties)
-		               .sort((a,b)=>ret._properties[a].order-ret._properties[b].order)
+	 let outputOrder=Object.keys(ret._properties)
+		               .sort((a,b)=>ret._properties[a].order-ret._properties[b].order);
+         let headerProps=outputOrder
                                         .map(po=>{
                                              if(po.toLowerCase()==="smiles"){
                                                 return "verbatim_" + po;
@@ -8180,9 +8181,9 @@ JSChemify.ChemicalCollection=function(){
                 }
             }
             if(builder._pathNotationColumn){
-               return smiMaker(c) + "\t" + pathNotationMaker(c) +"\t"+ c.getName()+"\t" + c.getProperties(ret._propertyOrder).join("\t");
+               return smiMaker(c) + "\t" + pathNotationMaker(c) +"\t"+ c.getName()+"\t" + c.getProperties(outputOrder).join("\t");
             }else{
-               return smiMaker(c) + "\t" + c.getName()+"\t" + c.getProperties(ret._propertyOrder).join("\t");
+               return smiMaker(c) + "\t" + c.getName()+"\t" + c.getProperties(outputOrder).join("\t");
             }
          }).join("\n");
       };
