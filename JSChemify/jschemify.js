@@ -2960,6 +2960,7 @@ JSChemify.Chemical = function(arg){
   ret._rings=null;
   ret.$atomDistances=null;
   ret._properties={};
+  	
   ret._annotations=null;
   
   
@@ -7449,6 +7450,7 @@ JSChemify.ChemicalCollection=function(){
    const ret={};
    ret._chems=[];
    ret._properties={};
+   
    ret._propertyOrder=[];
    ret._inputStandardizer=null;
    ret._filteredChems=[];
@@ -8072,6 +8074,16 @@ JSChemify.ChemicalCollection=function(){
 	     
 	      
       });
+   };
+   ret.hideProperty=function(prop){
+      ret._properties[prop].hidden=true;
+      ret._propertyOrder=ret._propertyOrder.map(pp=>!ret._properties[pp].hidden);
+      return ret;
+   };
+   ret.showProperty=function(prop){
+      ret._properties[prop].hidden=false;
+      ret._propertyOrder=ret._propertyOrder.map(pp=>!ret._properties[pp].hidden);
+      return ret;
    };
    ret.removeProperty=function(prop){
       ret.getChems().map(cc=>{
