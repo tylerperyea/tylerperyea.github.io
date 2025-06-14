@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="en" dir="ltr"><head><meta charSet="utf-8" data-next-head=""/>
 
   <script>
-let $ = document.querySelector;
+let $ = (a)=>document.querySelector(a);
   
 function map(inp){
 	return "javascript:(function(){eval(decodeURIComponent(atob('" + btoa(encodeURIComponent(inp)) + "')));})();"
