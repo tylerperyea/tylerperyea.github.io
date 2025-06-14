@@ -1,5 +1,37 @@
 <!DOCTYPE html><html lang="en" dir="ltr"><head><meta charSet="utf-8" data-next-head=""/>
+<style>
+body {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font: 16px Arial,sans-serif;
+  margin: 20px;
+}
 
+#input, #output {
+  flex: 1;
+  height: 80vh;
+  padding: 10px;
+  font-size: 1rem;
+  font-family: monospace;
+  resize: none;
+}
+
+#bookName {
+  align-self: flex-start;
+  margin-bottom: 10px;
+}
+
+#compChk, label[for="compChk"] {
+  display: block;
+  margin-bottom: 10px;
+}
+
+#map, #unmap {
+  display: block;
+  margin-bottom: 10px;
+}
+</style>
   <script>
 let $ = (a)=>document.querySelector(a);
 	  
