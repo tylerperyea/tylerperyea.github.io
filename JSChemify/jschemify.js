@@ -8042,7 +8042,7 @@ JSChemify.ChemicalCollection=function(){
 	      let markNext = ()=>{
 		left--;
 		if(left<=0){
-	      		ret._properties[prop]=t;
+	      		ret._properties[prop]={count:t, order: ret._propertyOrder.length};
 			ok();
 		}
 	      };
