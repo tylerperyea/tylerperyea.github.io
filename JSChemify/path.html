@@ -687,7 +687,23 @@ M  END`
     	renderMol();
     	renderSmiPath();
     }
-	  
+
+    function makeInchiSmiles(){
+	var smiPath = document.getElementById("smiles-path").value;
+      	var smi = smiPath.split(" ")[0];
+	var c=JSChemify.Chemical(smi);
+	if(smiPath.split(" ").length>1){
+      		var path= smiPath.split(" ")[1];
+		c.setPathNotation(path);
+	}
+	c.toInChIKeyPromise().then(c=>{document.querySelector("#inchiSmi").innerHTML=c;});
+    }
+
+    function makeInchiMol(){
+	var mol = document.getElementById("molfile").value;
+	var c=JSChemify.Chemical(mol);
+	c.toInChIKeyPromise().then(c=>{document.querySelector("#inchiMol").innerHTML=c;});
+    };
     function round(){
       var smiPath = document.getElementById("smiles-path").value;
       var smi = smiPath.split(" ")[0];
@@ -824,6 +840,8 @@ M  END
 </textarea>
 <button id="render-smiles" onclick="renderMol()">Render Image</button>
 <button id="generate-coordinates-molfile" onclick="generateCoordinatesMol()">Generate Coordinates</button>
+<button id="inchi-make-mol" onclick="makeInchiMol()">Get InChiKey</button>
+<div>InChIKey: <span id="inchiMol"></span></div>
 </div>
 <div class="panel middle">
   <button id="convert-to-path" onclick="convertMolToPath()">Convert to Path Notation =&gt;</button>
@@ -836,9 +854,11 @@ M  END
 <label for="smiles-path">Smiles Path Notation</label>
 <textarea id="smiles-path"></textarea>
 <div>RMSE: <span id="rmse"></span></div>
+<div>InChIKey: <span id="inchiSmi"></span></div>
 <button id="render-smiles" onclick="renderSmiPath()">Render Image</button>
 <button id="generate-coordinates-smiles" onclick="generateCoordinatesSmi()">Generate Coordinates</button>
 <button id="round-path" onclick="round()">Round</button>
+<button id="inchi-make-smi" onclick="makeInchiSmiles()">Get InChiKey</button>
 </div>
 <script>
   convertMolToPath();
