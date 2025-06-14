@@ -8144,7 +8144,8 @@ JSChemify.ChemicalCollection=function(){
          if(builder._map){
             chems=chems.map(builder._map);
          }
-         let headerProps=ret._propertyOrder
+         let headerProps=Object.keys(ret._properties)
+		               .sort((a,b)=>ret._properties[a].order-ret._properties[b].order)
                                         .map(po=>{
                                              if(po.toLowerCase()==="smiles"){
                                                 return "verbatim_" + po;
