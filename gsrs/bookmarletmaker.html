@@ -22,7 +22,7 @@ function map(inp){
 }
 function mapCompressed(inp){
 	return compress(inp).then(v=>{
-            return "javascript:(function(){let deCoM=(b64)=>{stream = new DecompressionStream(\"gzip\"); w=stream.writable.getWriter();w.write(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));w.close();return new Response(stream.readable).arrayBuffer().then(d=>new TextDecoder().decode(d));}deCoM('" + v + "').then(v=>eval(v));})();";
+            return "javascript:(function(){let deCoM=((b64)=>{stream = new DecompressionStream(\"gzip\"); w=stream.writable.getWriter();w.write(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));w.close();return new Response(stream.readable).arrayBuffer().then(d=>new TextDecoder().decode(d));});deCoM('" + v + "').then(v=>eval(v));})();";
 	});
 }
 function unmapCompressed(inp){
