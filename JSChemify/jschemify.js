@@ -8077,12 +8077,12 @@ JSChemify.ChemicalCollection=function(){
    };
    ret.hideProperty=function(prop){
       ret._properties[prop].hidden=true;
-      ret._propertyOrder=ret._propertyOrder.map(pp=>!ret._properties[pp].hidden);
+      ret._propertyOrder=ret._propertyOrder.filter(pp=>!ret._properties[pp].hidden);
       return ret;
    };
    ret.showProperty=function(prop){
       ret._properties[prop].hidden=false;
-      ret._propertyOrder=ret._propertyOrder.map(pp=>!ret._properties[pp].hidden);
+      ret._propertyOrder=ret._propertyOrder.filter(pp=>!ret._properties[pp].hidden);
       return ret;
    };
    ret.removeProperty=function(prop){
