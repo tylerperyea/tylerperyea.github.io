@@ -8581,8 +8581,8 @@ JSChemify.Renderer=function(){
      const ctx = JSChemify.SVGContext(imgDim.maxWidth, imgDim.maxHeight);
      ret.render(imgDim.chem,ctx,imgDim.padX,imgDim.padY,imgDim.scale);
      let svg= ctx.toSVG();
-
-     return ret.cropRawSVG(svg);
+     return svg;
+     //return ret.cropRawSVG(svg);
   };
   //TODO: Consider for headless cases
   ret.cropRawSVG= function(svgText) {
