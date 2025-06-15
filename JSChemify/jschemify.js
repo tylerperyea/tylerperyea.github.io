@@ -8580,7 +8580,41 @@ JSChemify.Renderer=function(){
      let imgDim=ret.getImageDimensions(chem,maxWidth,maxHeight);
      const ctx = JSChemify.SVGContext(imgDim.maxWidth, imgDim.maxHeight);
      ret.render(imgDim.chem,ctx,imgDim.padX,imgDim.padY,imgDim.scale);
-     return ctx.toSVG();
+     let svg= ctx.toSVG();
+
+     return ret.cropRawSVG(svg);
+  };
+  //TODO: Consider for headless cases
+  ret.cropRawSVG= function(svgText) {
+	  const parser = new DOMParser();
+	  const doc = parser.parseFromString(svgText, "image/svg+xml");
+	  const svg = doc.querySelector('svg');
+	
+	  if (!svg) {
+	    throw new Error("No <svg> element found");
+	  }
+	
+	  // Temporarily add SVG to the DOM (hidden) for getBBox to work
+	  const wrapper = document.createElement('div');
+	  wrapper.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
+	  document.body.appendChild(wrapper);
+	  wrapper.appendChild(svg);
+	
+	  // Get bounding box of all content inside the SVG
+	  const bbox = svg.getBBox();
+	
+	  // Remove wrapper & SVG from DOM
+	  document.body.removeChild(wrapper);
+	
+	  // Set viewBox to the tight bounds
+	  svg.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
+	
+	  // Optionally update width and height attributes to match bounding box
+	  svg.setAttribute('width', bbox.width);
+	  svg.setAttribute('height', bbox.height);
+	
+	  // Serialize back to SVG string
+	  return new XMLSerializer().serializeToString(svg);
   };
 
   ret.getColorForNumber=function(n){
