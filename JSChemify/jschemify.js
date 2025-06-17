@@ -1671,7 +1671,11 @@ JSChemify.Atom = function(aaa){
   ret.setSymbol=function(s){
     ret._symbol=s;
     return ret;
-  },
+  };
+  ret.setRadical=function(r){
+    ret._radical=r;
+    return ret;
+  };
   ret.setMap=function(m){
       ret._map=m;
       return ret;
@@ -4975,90 +4979,135 @@ JSChemify.Chemical = function(arg){
 	   
        ret.setName(name);
     }
-    //console.log(start);
-    //console.log(lines[start]);
-    let acount=lines[3+start].substr(0,3).trim()-0;
-    let bcount=lines[3+start].substr(3,3).trim()-0;
-    let cursor=start;
-    for(let i=0;i<acount;i++){
-        ret.addNewAtom("A").fromMolLine(lines[3+i+1+cursor]);
-    }
-    for(let i=0;i<bcount;i++){
-        ret.addNewBond(0,0,0,0).fromMolLine(lines[3+acount+i+1+cursor]);
-    }
-    cursor=3+acount+bcount+1+cursor;
-    for(;cursor<lines.length;cursor++){
-      let line=lines[cursor];
-      let m=/M[ ][ ]END/y.exec(line);
-      if(m){
-         cursor++;
-         break;
-      }
-      //"M  CHG  2  11  -1  21   1"
-      let mline=/M[ ][ ]([A-Z][A-Z][A-Z])[ ]*([0-9][0-9]*)(.*)/y.exec(line);
-      if(mline){
-            let mtype=mline[1];
-            let mcount=mline[2];
-            let mvals=mline[3];
-         
-               /*
-M  STY  1   1 MUL
-M  SAL   1  8  24  25  26  27  28  29  30  31
-M  SAL   1  4  32  33  34  35
-M  SPA   1  6  24  25  26  27  28  29
-M  SDI   1  4    7.4880   -6.1360    7.4880   -1.1960
-M  SDI   1  4   12.6360   -1.1960   12.6360   -6.1360
-M  SMT   1 2
-M  SCN  2   1 HT    2 HT 
-                  */
-            if(mtype === "CHG" || mtype === "ISO" 
-               || mtype === "STY" || mtype === "SCN"){
-               for(let k=0;k<mvals.length;k+=8){
-                  let at=mvals.substr(k,4).trim()-0;
-                  let val=mvals.substr(k+4,4).trim();
-                  if(mtype==="CHG"){
-                     ret.getAtom(at-1).setCharge(val-0);
-                  }else if(mtype==="ISO"){
-                     ret.getAtom(at-1).setIsotope(val-0);
-                  }else if(mtype==="STY"){
-                     ret.addNewSGroup(at)
-                        .setType(val);
-                  }else if(mtype==="SCN"){
-                     ret.getSGroupByIndex(at)
-                        .setConnectivity(val);
-                  }
-               }
-            }else if(mtype[0] === "S"){
-               let sid = mcount.trim()-0;
-               let sgroup = ret.getSGroupByIndex(sid);
-               //
-               if(mtype === "SMT"){
-                  let lab = mvals.substr(0,4).trim();
-                  sgroup.setLabel(lab);
-               }else if(mtype === "SDI"){
-                  mvals = mvals.substr(3);
-                  let cord=[];
-                  for(let k=0;k<mvals.length;k+=10){
-                     let pos=mvals.substr(k,10).trim()-0;
-                     cord.push(pos);
-                  }
-                  sgroup.addBracketXY([cord[0],cord[1]],[cord[2],cord[3]]);
-               }else if(mtype === "SAL" || mtype === "SPA"){
-                  let cnt = mvals.substr(0,3).trim()-0;
-                  mvals = mvals.substr(3);
-                  for(let k=0;k<mvals.length;k+=4){
-                     let at=mvals.substr(k,4).trim()-0;
-                     let sgro
-                     if(mtype === "SAL"){
-                        sgroup.addAtom(ret.getAtom(at-1));
-                     }else if(mtype==="SPA"){
-                        sgroup.addDisplayAtom(ret.getAtom(at-1));
-                     }
-                  }
-               }
-            }
-      }
-    }
+	let version=lines[3+start].substr(34,5).trim();
+	let cursor=start;
+	if(version === "V3000"){
+		for(;cursor<lines.length;cursor++){
+			let line = lines[cursor];
+			if(line === "M  V30 BEGIN ATOM"){
+				cursor++;
+				for(;cursor<lines.length;cursor++){
+					let sline = lines[cursor];
+					if(sline==="M  V30 END ATOM"){
+						break;
+					}
+					let atomDetails = sline.split(" ");
+					let atom=ret.addNewAtom(atomDetails[4]).setXYZ(atomDetails[5]-0,atomDetails[6]-0,atomDetails[7]-0);
+					
+					atomDetails.filter(p=>p.indexOf("MASS")==0).map(p=>p.split("=")[1]-0).map(p=>atom.setIsotope(p));
+					atomDetails.filter(p=>p.indexOf("CHG")==0).map(p=>p.split("=")[1]-0).map(p=>atom.setCharge(p));
+					atomDetails.filter(p=>p.indexOf("RAD")==0).map(p=>p.split("=")[1]-0).map(p=>atom.setRadical(p));					
+					
+				}
+			}else if(line === "M  V30 BEGIN BOND"){
+				cursor++;
+				let blookup=[0,1,6];
+				for(;cursor<lines.length;cursor++){
+					let sline = lines[cursor];
+					if(sline==="M  V30 END BOND"){
+						break;
+					}
+					let bondDetails = sline.split(" ");
+					let bond=ret.addNewBond(bondDetails[5]-1,bondDetails[6]-1,bondDetails[4]-0);
+					bondDetails.filter(p=>p.indexOf("CFG")==0).map(p=>p.split("=")[1]-0)
+								.map(b=>blookup[b])
+								.map(p=>bond.setBondStereo(p));
+					
+				}
+			}
+			
+			let m=/M[ ][ ]END/y.exec(line);
+ 		    if(m){
+			   cursor++;
+			   break;
+			}
+		}
+	}else{
+		
+		
+		let acount=lines[3+start].substr(0,3).trim()-0;
+		let bcount=lines[3+start].substr(3,3).trim()-0;
+		for(let i=0;i<acount;i++){
+			ret.addNewAtom("A").fromMolLine(lines[3+i+1+cursor]);
+		}
+		for(let i=0;i<bcount;i++){
+			ret.addNewBond(0,0,0,0).fromMolLine(lines[3+acount+i+1+cursor]);
+		}
+		cursor=3+acount+bcount+1+cursor;
+		for(;cursor<lines.length;cursor++){
+		  let line=lines[cursor];
+		  let m=/M[ ][ ]END/y.exec(line);
+		  if(m){
+			 cursor++;
+			 break;
+		  }
+		  //"M  CHG  2  11  -1  21   1"
+		  let mline=/M[ ][ ]([A-Z][A-Z][A-Z])[ ]*([0-9][0-9]*)(.*)/y.exec(line);
+		  if(mline){
+				let mtype=mline[1];
+				let mcount=mline[2];
+				let mvals=mline[3];
+			 
+				   /*
+	M  STY  1   1 MUL
+	M  SAL   1  8  24  25  26  27  28  29  30  31
+	M  SAL   1  4  32  33  34  35
+	M  SPA   1  6  24  25  26  27  28  29
+	M  SDI   1  4    7.4880   -6.1360    7.4880   -1.1960
+	M  SDI   1  4   12.6360   -1.1960   12.6360   -6.1360
+	M  SMT   1 2
+	M  SCN  2   1 HT    2 HT 
+					  */
+				if(mtype === "CHG" || mtype === "ISO" 
+				   || mtype === "STY" || mtype === "SCN"){
+				   for(let k=0;k<mvals.length;k+=8){
+					  let at=mvals.substr(k,4).trim()-0;
+					  let val=mvals.substr(k+4,4).trim();
+					  if(mtype==="CHG"){
+						 ret.getAtom(at-1).setCharge(val-0);
+					  }else if(mtype==="ISO"){
+						 ret.getAtom(at-1).setIsotope(val-0);
+					  }else if(mtype==="STY"){
+						 ret.addNewSGroup(at)
+							.setType(val);
+					  }else if(mtype==="SCN"){
+						 ret.getSGroupByIndex(at)
+							.setConnectivity(val);
+					  }
+				   }
+				}else if(mtype[0] === "S"){
+				   let sid = mcount.trim()-0;
+				   let sgroup = ret.getSGroupByIndex(sid);
+				   //
+				   if(mtype === "SMT"){
+					  let lab = mvals.substr(0,4).trim();
+					  sgroup.setLabel(lab);
+				   }else if(mtype === "SDI"){
+					  mvals = mvals.substr(3);
+					  let cord=[];
+					  for(let k=0;k<mvals.length;k+=10){
+						 let pos=mvals.substr(k,10).trim()-0;
+						 cord.push(pos);
+					  }
+					  sgroup.addBracketXY([cord[0],cord[1]],[cord[2],cord[3]]);
+				   }else if(mtype === "SAL" || mtype === "SPA"){
+					  let cnt = mvals.substr(0,3).trim()-0;
+					  mvals = mvals.substr(3);
+					  for(let k=0;k<mvals.length;k+=4){
+						 let at=mvals.substr(k,4).trim()-0;
+						 let sgro
+						 if(mtype === "SAL"){
+							sgroup.addAtom(ret.getAtom(at-1));
+						 }else if(mtype==="SPA"){
+							sgroup.addDisplayAtom(ret.getAtom(at-1));
+						 }
+					  }
+				   }
+				}
+		  }
+		}
+	}
+	
     let cend= ret.readSDProperties(lines,cursor).cursor;
     return {cursor:cend,chem:ret};
   };
