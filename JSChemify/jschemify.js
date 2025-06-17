@@ -4982,13 +4982,16 @@ JSChemify.Chemical = function(arg){
 	let version=lines[3+start].substr(34,5).trim();
 	let cursor=start;
 	if(version === "V3000"){
+	console.log("V3000");
 		for(;cursor<lines.length;cursor++){
 			let line = lines[cursor];
-			if(line === "M  V30 BEGIN ATOM"){
+			             
+			if(line.indexOf("M  V30 BEGIN ATOM")===0){
 				cursor++;
+				console.log("Found Block");
 				for(;cursor<lines.length;cursor++){
 					let sline = lines[cursor];
-					if(sline==="M  V30 END ATOM"){
+					if(sline.indexOf("M  V30 END ATOM")===0){
 						break;
 					}
 					let atomDetails = sline.split(" ");
@@ -4999,12 +5002,12 @@ JSChemify.Chemical = function(arg){
 					atomDetails.filter(p=>p.indexOf("RAD")==0).map(p=>p.split("=")[1]-0).map(p=>atom.setRadical(p));					
 					
 				}
-			}else if(line === "M  V30 BEGIN BOND"){
+			}else if(line.indexOf("M  V30 BEGIN BOND")===0){
 				cursor++;
 				let blookup=[0,1,6];
 				for(;cursor<lines.length;cursor++){
 					let sline = lines[cursor];
-					if(sline==="M  V30 END BOND"){
+					if(sline.indexOf("M  V30 END BOND")===0){
 						break;
 					}
 					let bondDetails = sline.split(" ");
