@@ -9801,6 +9801,70 @@ M  END
 	  ret.assertEquals(smi1,chem1.toSmiles());
   });
   
+  ret.tests.push("Basic MOL V3000 support works and gets correct InChI", ()=>{
+      let ibuprofSodium=`
+  -INDIGO-06172512432D
+
+  0  0  0  0  0  0  0  0  0  0  0 V3000
+M  V30 BEGIN CTAB
+M  V30 COUNTS 18 15 1 0 0
+M  V30 BEGIN ATOM
+M  V30 1 C 15.4592 -7.623 0.0 0
+M  V30 2 O 16.2394 -6.2646 0.0 0 CHG=-1
+M  V30 3 O 13.9081 -7.623 0.0 0
+M  V30 4 C 16.2394 -8.9904 0.0 0
+M  V30 5 C 17.8431 -8.9904 0.0 0
+M  V30 6 C 18.6053 -10.3397 0.0 0
+M  V30 7 C 20.1566 -10.3397 0.0 0
+M  V30 8 C 20.9366 -8.9904 0.0 0
+M  V30 9 C 20.1829 -7.623 0.0 0
+M  V30 10 C 18.6229 -7.623 0.0 0
+M  V30 11 C 22.4966 -8.9904 0.0 0
+M  V30 12 C 23.3203 -7.6754 0.0 0
+M  V30 13 C 24.8803 -7.6754 0.0 0
+M  V30 14 C 22.5403 -6.2646 0.0 0
+M  V30 15 C 15.4592 -10.3397 0.0 0
+M  V30 16 Na 18.3206 -3.7013 0.0 0 CHG=1
+M  V30 17 O 29.8909 -7.8409 0.0 0
+M  V30 18 O 29.8909 -7.8409 0.0 0
+M  V30 END ATOM
+M  V30 BEGIN BOND
+M  V30 1 2 3 1
+M  V30 2 1 4 1
+M  V30 3 1 5 4
+M  V30 4 2 6 5
+M  V30 5 1 7 6
+M  V30 6 2 8 7
+M  V30 7 1 8 9
+M  V30 8 2 9 10
+M  V30 9 1 10 5
+M  V30 10 1 11 8
+M  V30 11 1 12 11
+M  V30 12 1 13 12
+M  V30 13 1 14 12
+M  V30 14 1 4 15
+M  V30 15 1 2 1
+M  V30 END BOND
+M  V30 BEGIN SGROUP
+M  V30 1 MUL 1 ATOMS=(2 17 18) BRKXYZ=(9 29.390930 -8.340900 0.000000 29.3909-
+M  V30 30 -7.340900 0.000000 0.000000 0.000000 0.000000) BRKXYZ=(9 30.390930 -
+M  V30 -7.340900 0.000000 30.390930 -8.340900 0.000000 0.000000 0.000000 0.00-
+M  V30 0000) PATOMS=(1 17) MULT=2
+M  V30 END SGROUP
+M  V30 END CTAB
+M  END`;
+      return new Promise((ok,bad)=>{
+         JSChemify.Chemical(ibuprofSodium)
+		                     .toInChIKeyPromise()
+                             .then(inchi=>{
+                                ret.assertEquals("VTGPMVCGAVZLQI-UHFFFAOYSA-M",inchi);
+                                ok();
+                             }).catch(e=>{
+                               bad(e); 
+                             });
+      });
+  });
+  
   //
   
   // TODO: this one fails right now
