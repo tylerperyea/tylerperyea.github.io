@@ -68,16 +68,16 @@ Basic I/O:
     29.1. Like:
       C(CCCCCCC(=O)N[C@@]1(H)([C@H](OC2(=C3(C=C4([C@@H](NC(=O)[C@H]5(NC(=O)[C@@H](CC6(=CC=C(O3)C=C6))NC([C@H]([N:1](C)N=O)C3(C=C(OC6(C=C(5)C(=C(C=6)O)Cl))C(=CC=3)O))=O))C(N[C@@H]3(C5(C=C(C6(=C(C=C(O)C=C(6)[C@H](NC([C@H]([C@@H](C6(=CC=C(OC(2)=C4)C(=C6)Cl))O)NC(3)=O)=O)C(=O)NCCCN(C)C)O[C@@H]2([C@@H](O)[C@@H](O)[C@H](O)[C@H](O2)CO)))C(O)=CC=5)))=O))))O[C@H](C(=O)O)[C@H]([C@@H](1)O)O))C(C)C
     29.2. Or simpler case:
-	  This
-	  P[C@H]1(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
+      This
+      P[C@H]1(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
       Becomes
-	  P[C@@H]1(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
-	  
-	  
-	  This
-	  CCCCP[C@]1([H])(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
+      P[C@@H]1(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
+      
+      
+      This
+      CCCCP[C@]1([H])(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
       Becomes
-	  CCCCP[C@@]1([H])(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
+      CCCCP[C@@]1([H])(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -1417,12 +1417,17 @@ JSChemify.Util = {
     return [[dot,-rej],[rej,dot]];
   }
 };
-
+JSChemify.Util.simpleEncode=function(o){
+    return encodeURIComponent(o).replace(/%/g,"q_Q");
+};
+JSChemify.Util.simpleDecode=function(o){
+    return decodeURIComponent(o.replace(/q_Q/g,"%"));
+};
 JSChemify.Util.isPromise=function(o){
-	if(o && typeof o === "object" && o.then && typeof o.then === "function"){
-		return true;
-	}
-	return false;
+    if(o && typeof o === "object" && o.then && typeof o.then === "function"){
+        return true;
+    }
+    return false;
 };
 JSChemify.Util._loadCache={};
 JSChemify.Util.loadLibrary=function(path, test){
@@ -1430,19 +1435,19 @@ JSChemify.Util.loadLibrary=function(path, test){
           return JSChemify.Util._loadCache[path];
      }
      function dynamicallyLoadScript(url) {
-	    var script = document.createElement("script");  // create a script DOM node
-	    script.src = url;  // set its src to the provided URL
-	   
-	    document.head.appendChild(script);  // add it to the end of the head section of the page (could change 'head' to 'body' to add it to the end of the body section instead)
+        var script = document.createElement("script");  // create a script DOM node
+        script.src = url;  // set its src to the provided URL
+       
+        document.head.appendChild(script);  // add it to the end of the head section of the page (could change 'head' to 'body' to add it to the end of the body section instead)
      }
     //TODO: consider how to load differently if in different contexts
     if(test()){
-	return new Promise(ok=>{
+    return new Promise(ok=>{
         ok();
-	    }); 
+        }); 
     }else{
-	    dynamicallyLoadScript(path);
-	    let promise= new Promise(ok=>{
+        dynamicallyLoadScript(path);
+        let promise= new Promise(ok=>{
         let tempPoll = { "pol" : null};
         let pollLoad = ()=>{
           if(test()){
@@ -1459,9 +1464,9 @@ JSChemify.Util.loadLibrary=function(path, test){
         }else{
             tempPoll.pol();
         }
-	    });
+        });
         JSChemify.Util._loadCache[path]=promise;
-	return promise;
+    return promise;
     }
 };
 
@@ -2964,7 +2969,7 @@ JSChemify.Chemical = function(arg){
   ret._rings=null;
   ret.$atomDistances=null;
   ret._properties={};
-  	
+      
   ret._annotations=null;
   
   
@@ -4740,25 +4745,25 @@ JSChemify.Chemical = function(arg){
       
       let remainingBonds = ret._bonds.filter(b=>!bTypes[b._idx]);
       let comp=1;
-	  let frontier = [];
-	  
+      let frontier = [];
+      
       while(remainingBonds.length>0){
-		let startAtom;
-		
-		if(frontier.length>0){
-		    startAtom=frontier.pop();
-		}else{
+        let startAtom;
+        
+        if(frontier.length>0){
+            startAtom=frontier.pop();
+        }else{
             startAtom=remainingBonds[0].getAtoms()[0];
-		}
+        }
         
         startAtom.$allPathsDepthFirst((path)=>{
-		  if(path.length>25){
-			let natom=path[path.length-1].atom;
-			if(frontier.indexOf(natom)<0){
-				frontier.push(natom);
-			}
-			return true;
-		  }
+          if(path.length>25){
+            let natom=path[path.length-1].atom;
+            if(frontier.indexOf(natom)<0){
+                frontier.push(natom);
+            }
+            return true;
+          }
           let lbond=path[path.length-1];
           let first=path.findIndex(p=>p.atom===lbond.atom);
         
@@ -4776,12 +4781,12 @@ JSChemify.Chemical = function(arg){
                }
                let cRing=JSChemify.Ring(nring).canonicalize();
                rings[cRing.toString()]=cRing;
-			   
+               
                //stop going on this path
                return true;
           }else{
                if(!bTypes[lbond.bond._idx]){
-			     lbond.bond.getIndexInParent();
+                 lbond.bond.getIndexInParent();
                  bTypes[lbond.bond._idx]="CHAIN";
                  aTypes[lbond.bond._atom1.getIndexInParent()]=comp;
                  aTypes[lbond.bond._atom2.getIndexInParent()]=comp;
@@ -4790,10 +4795,10 @@ JSChemify.Chemical = function(arg){
           }
         });
         remainingBonds = ret._bonds.filter(b=>!bTypes[b._idx]);
-		frontier=frontier.filter(aa=>aa.getBonds().filter(bb=>!bTypes[bb._idx]).length>0);
-		if(frontier.length<=0){
-			comp++;
-		}
+        frontier=frontier.filter(aa=>aa.getBonds().filter(bb=>!bTypes[bb._idx]).length>0);
+        if(frontier.length<=0){
+            comp++;
+        }
       }
       ret.getAtoms().map((a,i)=>{
          if(!aTypes[i]){
@@ -4976,141 +4981,141 @@ JSChemify.Chemical = function(arg){
     if(!start)start=0;
     let name=lines[start].trim();
     if(name){
-	   
+       
        ret.setName(name);
     }
-	let version=lines[3+start].substr(34,5).trim();
-	let cursor=start;
-	if(version === "V3000"){
-	console.log("V3000");
-		for(;cursor<lines.length;cursor++){
-			let line = lines[cursor];
-			             
-			if(line.indexOf("M  V30 BEGIN ATOM")===0){
-				cursor++;
-				console.log("Found Block");
-				for(;cursor<lines.length;cursor++){
-					let sline = lines[cursor];
-					if(sline.indexOf("M  V30 END ATOM")===0){
-						break;
-					}
-					let atomDetails = sline.split(" ");
-					let atom=ret.addNewAtom(atomDetails[4]).setXYZ(atomDetails[5]-0,atomDetails[6]-0,atomDetails[7]-0);
-					
-					atomDetails.filter(p=>p.indexOf("MASS")==0).map(p=>p.split("=")[1]-0).map(p=>atom.setIsotope(p));
-					atomDetails.filter(p=>p.indexOf("CHG")==0).map(p=>p.split("=")[1]-0).map(p=>atom.setCharge(p));
-					atomDetails.filter(p=>p.indexOf("RAD")==0).map(p=>p.split("=")[1]-0).map(p=>atom.setRadical(p));					
-					
-				}
-			}else if(line.indexOf("M  V30 BEGIN BOND")===0){
-				cursor++;
-				let blookup=[0,1,6];
-				for(;cursor<lines.length;cursor++){
-					let sline = lines[cursor];
-					if(sline.indexOf("M  V30 END BOND")===0){
-						break;
-					}
-					let bondDetails = sline.split(" ");
-					let bond=ret.addNewBond(bondDetails[5]-1,bondDetails[6]-1,bondDetails[4]-0);
-					bondDetails.filter(p=>p.indexOf("CFG")==0).map(p=>p.split("=")[1]-0)
-								.map(b=>blookup[b])
-								.map(p=>bond.setBondStereo(p));
-					
-				}
-			}
-			
-			let m=/M[ ][ ]END/y.exec(line);
- 		    if(m){
-			   cursor++;
-			   break;
-			}
-		}
-	}else{
-		
-		
-		let acount=lines[3+start].substr(0,3).trim()-0;
-		let bcount=lines[3+start].substr(3,3).trim()-0;
-		for(let i=0;i<acount;i++){
-			ret.addNewAtom("A").fromMolLine(lines[3+i+1+cursor]);
-		}
-		for(let i=0;i<bcount;i++){
-			ret.addNewBond(0,0,0,0).fromMolLine(lines[3+acount+i+1+cursor]);
-		}
-		cursor=3+acount+bcount+1+cursor;
-		for(;cursor<lines.length;cursor++){
-		  let line=lines[cursor];
-		  let m=/M[ ][ ]END/y.exec(line);
-		  if(m){
-			 cursor++;
-			 break;
-		  }
-		  //"M  CHG  2  11  -1  21   1"
-		  let mline=/M[ ][ ]([A-Z][A-Z][A-Z])[ ]*([0-9][0-9]*)(.*)/y.exec(line);
-		  if(mline){
-				let mtype=mline[1];
-				let mcount=mline[2];
-				let mvals=mline[3];
-			 
-				   /*
-	M  STY  1   1 MUL
-	M  SAL   1  8  24  25  26  27  28  29  30  31
-	M  SAL   1  4  32  33  34  35
-	M  SPA   1  6  24  25  26  27  28  29
-	M  SDI   1  4    7.4880   -6.1360    7.4880   -1.1960
-	M  SDI   1  4   12.6360   -1.1960   12.6360   -6.1360
-	M  SMT   1 2
-	M  SCN  2   1 HT    2 HT 
-					  */
-				if(mtype === "CHG" || mtype === "ISO" 
-				   || mtype === "STY" || mtype === "SCN"){
-				   for(let k=0;k<mvals.length;k+=8){
-					  let at=mvals.substr(k,4).trim()-0;
-					  let val=mvals.substr(k+4,4).trim();
-					  if(mtype==="CHG"){
-						 ret.getAtom(at-1).setCharge(val-0);
-					  }else if(mtype==="ISO"){
-						 ret.getAtom(at-1).setIsotope(val-0);
-					  }else if(mtype==="STY"){
-						 ret.addNewSGroup(at)
-							.setType(val);
-					  }else if(mtype==="SCN"){
-						 ret.getSGroupByIndex(at)
-							.setConnectivity(val);
-					  }
-				   }
-				}else if(mtype[0] === "S"){
-				   let sid = mcount.trim()-0;
-				   let sgroup = ret.getSGroupByIndex(sid);
-				   //
-				   if(mtype === "SMT"){
-					  let lab = mvals.substr(0,4).trim();
-					  sgroup.setLabel(lab);
-				   }else if(mtype === "SDI"){
-					  mvals = mvals.substr(3);
-					  let cord=[];
-					  for(let k=0;k<mvals.length;k+=10){
-						 let pos=mvals.substr(k,10).trim()-0;
-						 cord.push(pos);
-					  }
-					  sgroup.addBracketXY([cord[0],cord[1]],[cord[2],cord[3]]);
-				   }else if(mtype === "SAL" || mtype === "SPA"){
-					  let cnt = mvals.substr(0,3).trim()-0;
-					  mvals = mvals.substr(3);
-					  for(let k=0;k<mvals.length;k+=4){
-						 let at=mvals.substr(k,4).trim()-0;
-						 let sgro
-						 if(mtype === "SAL"){
-							sgroup.addAtom(ret.getAtom(at-1));
-						 }else if(mtype==="SPA"){
-							sgroup.addDisplayAtom(ret.getAtom(at-1));
-						 }
-					  }
-				   }
-				}
-		  }
-		}
-	}
-	
+    let version=lines[3+start].substr(34,5).trim();
+    let cursor=start;
+    if(version === "V3000"){
+    console.log("V3000");
+        for(;cursor<lines.length;cursor++){
+            let line = lines[cursor];
+                         
+            if(line.indexOf("M  V30 BEGIN ATOM")===0){
+                cursor++;
+                console.log("Found Block");
+                for(;cursor<lines.length;cursor++){
+                    let sline = lines[cursor];
+                    if(sline.indexOf("M  V30 END ATOM")===0){
+                        break;
+                    }
+                    let atomDetails = sline.split(" ");
+                    let atom=ret.addNewAtom(atomDetails[4]).setXYZ(atomDetails[5]-0,atomDetails[6]-0,atomDetails[7]-0);
+                    
+                    atomDetails.filter(p=>p.indexOf("MASS")==0).map(p=>p.split("=")[1]-0).map(p=>atom.setIsotope(p));
+                    atomDetails.filter(p=>p.indexOf("CHG")==0).map(p=>p.split("=")[1]-0).map(p=>atom.setCharge(p));
+                    atomDetails.filter(p=>p.indexOf("RAD")==0).map(p=>p.split("=")[1]-0).map(p=>atom.setRadical(p));                    
+                    
+                }
+            }else if(line.indexOf("M  V30 BEGIN BOND")===0){
+                cursor++;
+                let blookup=[0,1,6];
+                for(;cursor<lines.length;cursor++){
+                    let sline = lines[cursor];
+                    if(sline.indexOf("M  V30 END BOND")===0){
+                        break;
+                    }
+                    let bondDetails = sline.split(" ");
+                    let bond=ret.addNewBond(bondDetails[5]-1,bondDetails[6]-1,bondDetails[4]-0);
+                    bondDetails.filter(p=>p.indexOf("CFG")==0).map(p=>p.split("=")[1]-0)
+                                .map(b=>blookup[b])
+                                .map(p=>bond.setBondStereo(p));
+                    
+                }
+            }
+            
+            let m=/M[ ][ ]END/y.exec(line);
+             if(m){
+               cursor++;
+               break;
+            }
+        }
+    }else{
+        
+        
+        let acount=lines[3+start].substr(0,3).trim()-0;
+        let bcount=lines[3+start].substr(3,3).trim()-0;
+        for(let i=0;i<acount;i++){
+            ret.addNewAtom("A").fromMolLine(lines[3+i+1+cursor]);
+        }
+        for(let i=0;i<bcount;i++){
+            ret.addNewBond(0,0,0,0).fromMolLine(lines[3+acount+i+1+cursor]);
+        }
+        cursor=3+acount+bcount+1+cursor;
+        for(;cursor<lines.length;cursor++){
+          let line=lines[cursor];
+          let m=/M[ ][ ]END/y.exec(line);
+          if(m){
+             cursor++;
+             break;
+          }
+          //"M  CHG  2  11  -1  21   1"
+          let mline=/M[ ][ ]([A-Z][A-Z][A-Z])[ ]*([0-9][0-9]*)(.*)/y.exec(line);
+          if(mline){
+                let mtype=mline[1];
+                let mcount=mline[2];
+                let mvals=mline[3];
+             
+                   /*
+    M  STY  1   1 MUL
+    M  SAL   1  8  24  25  26  27  28  29  30  31
+    M  SAL   1  4  32  33  34  35
+    M  SPA   1  6  24  25  26  27  28  29
+    M  SDI   1  4    7.4880   -6.1360    7.4880   -1.1960
+    M  SDI   1  4   12.6360   -1.1960   12.6360   -6.1360
+    M  SMT   1 2
+    M  SCN  2   1 HT    2 HT 
+                      */
+                if(mtype === "CHG" || mtype === "ISO" 
+                   || mtype === "STY" || mtype === "SCN"){
+                   for(let k=0;k<mvals.length;k+=8){
+                      let at=mvals.substr(k,4).trim()-0;
+                      let val=mvals.substr(k+4,4).trim();
+                      if(mtype==="CHG"){
+                         ret.getAtom(at-1).setCharge(val-0);
+                      }else if(mtype==="ISO"){
+                         ret.getAtom(at-1).setIsotope(val-0);
+                      }else if(mtype==="STY"){
+                         ret.addNewSGroup(at)
+                            .setType(val);
+                      }else if(mtype==="SCN"){
+                         ret.getSGroupByIndex(at)
+                            .setConnectivity(val);
+                      }
+                   }
+                }else if(mtype[0] === "S"){
+                   let sid = mcount.trim()-0;
+                   let sgroup = ret.getSGroupByIndex(sid);
+                   //
+                   if(mtype === "SMT"){
+                      let lab = mvals.substr(0,4).trim();
+                      sgroup.setLabel(lab);
+                   }else if(mtype === "SDI"){
+                      mvals = mvals.substr(3);
+                      let cord=[];
+                      for(let k=0;k<mvals.length;k+=10){
+                         let pos=mvals.substr(k,10).trim()-0;
+                         cord.push(pos);
+                      }
+                      sgroup.addBracketXY([cord[0],cord[1]],[cord[2],cord[3]]);
+                   }else if(mtype === "SAL" || mtype === "SPA"){
+                      let cnt = mvals.substr(0,3).trim()-0;
+                      mvals = mvals.substr(3);
+                      for(let k=0;k<mvals.length;k+=4){
+                         let at=mvals.substr(k,4).trim()-0;
+                         let sgro
+                         if(mtype === "SAL"){
+                            sgroup.addAtom(ret.getAtom(at-1));
+                         }else if(mtype==="SPA"){
+                            sgroup.addDisplayAtom(ret.getAtom(at-1));
+                         }
+                      }
+                   }
+                }
+          }
+        }
+    }
+    
     let cend= ret.readSDProperties(lines,cursor).cursor;
     return {cursor:cend,chem:ret};
   };
@@ -5341,24 +5346,24 @@ JSChemify.Chemical = function(arg){
   };
   ret.toInChIObjectPromise=function(){
       return new Promise(ok => {
-	JSChemify.Util.loadLibrary("inchi/inchi.js", ()=>{
-		if(typeof inchiFromMolfile === "function")return true;
-		return false;
-	}).then(()=>{
-		inchiFromMolfile(ret.clone().dearomatize().toMol(),null,"1.07.3").then(r=>{
-			let nret={};
-			nret.inchi=r.inchi;
-			nret.auxinfo=r.auxinfo;
-			inchikeyFromInchi(nret.inchi,"1.07.3").then(rr=>{
-				nret.inchikey=rr.inchikey;
-				ok(nret);
-			});
-		});	
-	});
+    JSChemify.Util.loadLibrary("inchi/inchi.js", ()=>{
+        if(typeof inchiFromMolfile === "function")return true;
+        return false;
+    }).then(()=>{
+        inchiFromMolfile(ret.clone().dearomatize().toMol(),null,"1.07.3").then(r=>{
+            let nret={};
+            nret.inchi=r.inchi;
+            nret.auxinfo=r.auxinfo;
+            inchikeyFromInchi(nret.inchi,"1.07.3").then(rr=>{
+                nret.inchikey=rr.inchikey;
+                ok(nret);
+            });
+        });    
+    });
       });
   };
   ret.toInChIKeyPromise=function(){
-	return ret.toInChIObjectPromise().then(r=>r.inchikey);
+    return ret.toInChIObjectPromise().then(r=>r.inchikey);
   };
   ret.toSmiles=function(){
       if(ret.getAtomCount()==0)return "";
@@ -5545,7 +5550,7 @@ JSChemify.Chemical = function(arg){
         }else if(cc===""){
             return "";
         }
-		var tinv=invParity[cc.atom.getIndexInParent()];
+        var tinv=invParity[cc.atom.getIndexInParent()];
         let loc=(cc.locants)?cc.locants.map(li=>nextLocant(li)).map(lo=>(lo>9)?"%"+lo:lo).join(""):"";
         if(!cc.bond){
           return cc.atom.toSmiles(tinv)+loc;
@@ -5562,14 +5567,14 @@ JSChemify.Chemical = function(arg){
             let cloc=((nloc-0)>9)?("%"+nloc):nloc;
             return bb + cloc;
         }
-		
-		//If there's a locant / ring-closure, it appears the parity tends to be inverted
-		//so this is a fudge factor to fix this. Unclear if this works in every case.
-		//TODO: investigate with mol=>smiles type conversions to confirm we're not
-		//inverting stereo here
-		if(loc){
-			tinv=-1*tinv;
-		}
+        
+        //If there's a locant / ring-closure, it appears the parity tends to be inverted
+        //so this is a fudge factor to fix this. Unclear if this works in every case.
+        //TODO: investigate with mol=>smiles type conversions to confirm we're not
+        //inverting stereo here
+        if(loc){
+            tinv=-1*tinv;
+        }
         
         return bb + cc.atom.toSmiles(tinv)+loc;
       }).join("")
@@ -7341,8 +7346,8 @@ JSChemify.SmilesReader=function(){
       let m=ret.readNext(/[A-Z*][a-z]{0,1}/y,(p)=>{
           try{
               let el=JSChemify.Util.getElementFromSymbol(p[0]);
-			  //Allow "bare hydrogen" to be read
-			  if(p[0]==="H")return true;
+              //Allow "bare hydrogen" to be read
+              if(p[0]==="H")return true;
               return (el.smiles)?true:false;
           }catch(e){
             return false;
@@ -7541,7 +7546,7 @@ JSChemify.ChemicalCollection=function(){
       return `<style id="jschemify-table-style">
       .jschemify-tbl-image{
          max-width:150px;
-	 cursor:pointer;
+     cursor:pointer;
       }
       .jschemify-tbl td {
           border-bottom: 1px solid #dedede;
@@ -7577,16 +7582,17 @@ JSChemify.ChemicalCollection=function(){
            console.log(chem.toSmiles());
            
         }
-		let ifUndef=(vv,ee)=>{
-		   if(vv===undefined){
-		       return ee;
-		   }else{
-		       return vv;
-		   }
-		};
+        let ifUndef=(vv,ee)=>{
+           if(vv===undefined){
+               return ee;
+           }else{
+               return vv;
+           }
+        };
         let rowHTML = "<tr><td><div class='jschemify-tbl-image'>" + cchem.getSVG() + "</div><textarea onclick='this.focus();this.select()' readonly='readonly' class='jschemify-tbl-smiles'>" 
                + cchem.toSmiles() +"</textarea></td><td>" + chem.getName() + "</td>"
-               + ret._propertyOrder.map(p=>"<td>" + ifUndef(chem.getProperty(p),"") + "</td>").join("") 
+               + ret._propertyOrder.map(p=>"<td class='jschemify-tbl-data chem-" + ri + " prop-" + JSChemify.Util.simpleEncode(p)
+               + "'>" + ifUndef(chem.getProperty(p),"") + "</td>").join("") 
                   + "</tr>";
         return rowHTML;
    };
@@ -7637,13 +7643,13 @@ JSChemify.ChemicalCollection=function(){
          <span>
            Calculate New Column
            <select id="jschemify-calculate-newcolumn">
-	      <option value="">-- cacluations --</option>
-	      <option value="c.toInChIKeyPromise()">InChIKey</option>
+          <option value="">-- cacluations --</option>
+          <option value="c.toInChIKeyPromise()">InChIKey</option>
               <option value="c.getMolWeight()">Molecular Weight</option>
-              <option value="c.getMolFormula()">Molecular Formula</option>	      
-	   </select>
+              <option value="c.getMolFormula()">Molecular Formula</option>          
+       </select>
            <label for="jschemify-calculate-newcolumn-name">Column Name</label>
-           <input id="jschemify-calculate-newcolumn-name" value="">	   
+           <input id="jschemify-calculate-newcolumn-name" value="">       
            <label for="jschemify-calculate-newcolumn-formula">Column Formula</label>
            <input id="jschemify-calculate-newcolumn-formula" value="">
            <button id="jschemify-calculate-newcolumn-add">Add Column</button>
@@ -7698,6 +7704,72 @@ JSChemify.ChemicalCollection=function(){
    ret.refresh=function(){
       ret._refreshListener();
    };
+   
+   ret.$makePromptDialogPromise=function(title, input){
+        return new Promise((ok)=>{
+                // Create dialog
+                const dialog = document.createElement('div');
+                dialog.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: white;
+                    padding: 20px;
+                    border-radius: 5px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    z-index: 1000;
+                `;
+                
+                
+                const titleH3 = document.createElement('h3');
+                titleH3.innerHTML = title;
+                titleH3.style.cssText = `
+                    width: 100%;
+                    display:block;
+                `;
+                dialog.appendChild(titleH3);
+
+                // Create textarea
+                const textarea = document.createElement('textarea');
+                textarea.value = input;
+                textarea.style.cssText = `
+                    width: 100%;
+                    height: 200px;
+                    margin-bottom: 10px;
+                `;
+                dialog.appendChild(textarea);
+
+                // Create buttons
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.display = 'flex';
+                buttonContainer.style.justifyContent = 'space-between';
+
+                const saveButton = document.createElement('button');
+                saveButton.textContent = 'Save';
+                saveButton.onclick = () => {
+                    let val=textarea.value;
+                    document.body.removeChild(dialog);
+                    ok(val);
+                };
+
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = 'Cancel';
+                cancelButton.onclick = () => {
+                    document.body.removeChild(dialog);
+                };
+
+                buttonContainer.appendChild(cancelButton);
+                buttonContainer.appendChild(saveButton);
+                dialog.appendChild(buttonContainer);
+
+                // Add dialog to body
+                document.body.appendChild(dialog);
+                setTimeout(()=>textarea.focus(),10);
+                
+        });
+   };
+   
    ret.$registerEvents=function(){
        
        let download=function(blob, name = 'file.txt'){
@@ -7730,14 +7802,13 @@ JSChemify.ChemicalCollection=function(){
       let skip=pageCountElm.innerHTML.split("-")[0]-1;
 
       $("#jschemify-calculate-newcolumn").onchange=(t)=>{
-	 t=t.target;
-	 console.log(t);
+         t=t.target;
          $("#jschemify-calculate-newcolumn-name").value=t[t.selectedIndex].innerText;
          $("#jschemify-calculate-newcolumn-formula").value=t[t.selectedIndex].value;
       };
      
-	   
-	   
+       
+       
       $("#mfile").onchange=(e)=>{
            $("#mfile").style="display:none;"; 
            let file = e.target.files[0];
@@ -7758,17 +7829,17 @@ JSChemify.ChemicalCollection=function(){
          $("#mfile").click();
       };
       let resetZoom=()=>{
-	      $$(".jschemify-tbl-image").forEach(e=>{
-			   e.onclick=()=>{
-			        if(!e.style || e.style.length<=1 ){
-			           e.style="max-width: 500px;width: 100%;position: fixed;z-index: 9999999;top: 0px;background-color: white;padding: 10px;left: 300px;border: 2px solid #fa0202;";
-			        }else{
-			           e.style="";
-			        }
-			      };
-	      });
+          $$(".jschemify-tbl-image").forEach(e=>{
+               e.onclick=()=>{
+                    if(!e.style || e.style.length<=1 ){
+                       e.style="max-width: 500px;width: 100%;position: fixed;z-index: 9999999;top: 0px;background-color: white;padding: 10px;left: 300px;border: 2px solid #fa0202;";
+                    }else{
+                       e.style="";
+                    }
+                  };
+          });
       };
-	   
+       
       resetZoom();
       let update;
       let sorted="";
@@ -7794,7 +7865,7 @@ JSChemify.ChemicalCollection=function(){
             }
          });
          $("#jschemify-structure-type").onchange();
-	 resetZoom();
+         resetZoom();
       };
       ret._refreshListener=refreshTable;
       let tt= ()=>{
@@ -7849,40 +7920,76 @@ JSChemify.ChemicalCollection=function(){
                
             };
          });
+         //How to make the edit?
+         $$(".jschemify-tbl-data").forEach(elm=>{
+             elm.onclick = (e=>{
+                console.log("clicked");
+                //Options:
+                // 1. Edit in place by replacing with text area
+                // 2. Edit in place by just making editable div
+                // 3. Popup for edit
+                // 4. Formula bar edit
+                //
+                
+                let chem = ret.getChemical(elm.className.split(" ")
+                                                .filter(cc=>cc.indexOf("chem-")===0)
+                                                .map(cc=>cc.split("-")[1]-0)[0]);
+                let prop = elm.className.split(" ")
+                                                .filter(cc=>cc.indexOf("prop-")===0)
+                                                .map(cc=>cc.split("-"))
+                                                .map(cc=>cc.filter((v,i)=>i>0))
+                                                .map(cc=>cc.join("-"))
+                                                .map(cc=>JSChemify.Util.simpleDecode(cc))[0];
+                let pval = chem.getProperty(prop);
+                if(!pval && pval !==0 && pval!==NaN){
+                    pval = "";
+                }
+                ret.$makePromptDialogPromise("Editing " + prop,pval).then(v=>{
+                    
+                    chem.setProperty(prop, v);
+                    refreshTable();
+                });                
+                
+                
+             });
+         });
+         
       };
       update=tt;
       tt();
+      
+      
       //jschemify-calculate-newcolumn-add
       $("#jschemify-calculate-newcolumn-add").onclick=()=>{
-	 let cname=$("#jschemify-calculate-newcolumn-name").value;
-         let cform=$("#jschemify-calculate-newcolumn-formula").value;
-         let decorate=false;
-	      
-         ret.computeNewProperty(cname,(c)=>{
-	    let ev=eval(cform);
-	    if(ev && ev.serialize){
-		ev=ev.serialize();
-	    }
-	    if(JSChemify.Util.isPromise(ev)){
-		    return ev.then(ee=>{
-		   console.log(ee);
+            let cname=$("#jschemify-calculate-newcolumn-name").value;
+            let cform=$("#jschemify-calculate-newcolumn-formula").value;
+            let decorate=false;
+              
+            ret.computeNewProperty(cname,(c)=>{
+                let ev=eval(cform);
+                if(ev && ev.serialize){
+                   ev=ev.serialize();
+                }
+                if(JSChemify.Util.isPromise(ev)){
+                    return ev.then(ee=>{
+                       console.log(ee);
                        if(ee && ee.serialize){
-                           ee=ee.serialize();
-		       }
-		       if(typeof ee === "object"){
-                             return JSON.stringify(ee);
-		       }
-		       return ee;
-		    });
-	    }else{
-		    if(typeof ev ==="object"){
-			ev=JSON.stringify(ev);
-		    }
-	    }
-            return ev;
-        },decorate).then((oo)=>{ 
-		refreshTable();
-	 });
+                            ee=ee.serialize();
+                       }
+                       if(typeof ee === "object"){
+                            return JSON.stringify(ee);
+                       }
+                       return ee;
+                    });
+                }else{
+                    if(typeof ev ==="object"){
+                       ev=JSON.stringify(ev);
+                    }
+                }
+                return ev;
+            },decorate).then((oo)=>{ 
+                refreshTable();
+            });
       };
       let updateTopSkip=(t,s)=>{
             top=t;
@@ -8064,21 +8171,24 @@ JSChemify.ChemicalCollection=function(){
           if(headerIndex["path_notation"]>=0){
             pnot=l[headerIndex["path_notation"]];
           }
-	  let chem;
-	  try{
-	          chem= JSChemify.Chemical().fromSmiles(smiles).setName(name);
-	          if(pnot){
-	            chem.setPathNotation(pnot);
-	          }
-	  }catch(e){
-		  chem= JSChemify.Chemical().setName(name);
-		  chem.setProperty("JSCHEMIFY_MESSAGE", "trouble reading smiles:'" + smiles + "' " + e + "");
-	  }
+          let chem;
+          try{
+                chem= JSChemify.Chemical().fromSmiles(smiles).setName(name);
+                if(pnot){
+                    chem.setPathNotation(pnot);
+                }
+          }catch(e){
+              chem= JSChemify.Chemical().setName(name);
+              chem.setProperty("JSCHEMIFY_MESSAGE", "trouble reading smiles:'" + smiles + "' " + e + "");
+          }
           
            
           for(var i=0;i<header.length;i++){
             if(header[i].toLowerCase()==="smiles" || header[i].toLowerCase()==="name" || header[i].toLowerCase() === "path_notation")continue;
-            chem.setProperty(header[i],l[i]);
+			let val = l[i];
+			if(val)val=val.replace(/\\n/g,"\n");
+			
+            chem.setProperty(header[i],val);
           }
           ret.addChemical(chem);
           return chem;
@@ -8089,42 +8199,42 @@ JSChemify.ChemicalCollection=function(){
    };
    ret.computeNewProperty=function(prop, calc, decorate){
       return new Promise(ok => {
-	      let t=ret.getChems().length;
-	      let left=t;
-	      let markNext = ()=>{
-		left--;
-		if(left<=0){
-	      		ret._properties[prop]={count:t, order: ret._propertyOrder.length-1};
-			ok();
-		}
-	      };
-	      if(decorate){
-	         ret._decorateProperty=prop;
-	      }
-	      if(!ret._properties[prop]){
-	         ret._propertyOrder.push(prop);
-	      }
-	      ret.getChems().map(c=>{
-	         if(decorate){
-	            if(decorate<0){
-	               c.computeContributions(c2=>-calc(c2));
-	            }else{
-	               c.computeContributions(calc);
-	            }
-	         }
-		 var res=calc(c);
-		 if(JSChemify.Util.isPromise(res)){
-		    res.then(rr=>{
-			c.setProperty(prop,rr);
-			markNext();
-		    });
-		 }else{
-	            c.setProperty(prop,res);
-		    markNext();
-		 }
-	      });
-	     
-	      
+          let t=ret.getChems().length;
+          let left=t;
+          let markNext = ()=>{
+			  left--;
+			  if(left<=0){
+				ret._properties[prop]={count:t, order: ret._propertyOrder.length-1};
+				ok();
+			  }
+          };
+          if(decorate){
+             ret._decorateProperty=prop;
+          }
+          if(!ret._properties[prop]){
+             ret._propertyOrder.push(prop);
+          }
+          ret.getChems().map(c=>{
+             if(decorate){
+                if(decorate<0){
+                   c.computeContributions(c2=>-calc(c2));
+                }else{
+                   c.computeContributions(calc);
+                }
+             }
+			 var res=calc(c);
+			 if(JSChemify.Util.isPromise(res)){
+				res.then(rr=>{
+				c.setProperty(prop,rr);
+				markNext();
+				});
+			 }else{
+					c.setProperty(prop,res);
+				markNext();
+			 }
+          });
+         
+          
       });
    };
    ret.hideProperty=function(prop){
@@ -8196,8 +8306,8 @@ JSChemify.ChemicalCollection=function(){
          if(builder._map){
             chems=chems.map(builder._map);
          }
-	 let outputOrder=Object.keys(ret._properties)
-		               .sort((a,b)=>ret._properties[a].order-ret._properties[b].order);
+     let outputOrder=Object.keys(ret._properties)
+                       .sort((a,b)=>ret._properties[a].order-ret._properties[b].order);
          let headerProps=outputOrder
                                         .map(po=>{
                                              if(po.toLowerCase()==="smiles"){
@@ -8207,7 +8317,7 @@ JSChemify.ChemicalCollection=function(){
                                         })
                                         .join("\t");
          //TODO: need to think about computed properties
-         let header="SMILES\tName\t"+headerProps;
+         let header="SMILES    Name    "+headerProps;
          if(builder._pathNotationColumn){
             header="SMILES\tPATH_NOTATION\tName\t"+headerProps;
          }
@@ -8233,9 +8343,9 @@ JSChemify.ChemicalCollection=function(){
                 }
             }
             if(builder._pathNotationColumn){
-               return smiMaker(c) + "\t" + pathNotationMaker(c) +"\t"+ c.getName()+"\t" + c.getProperties(outputOrder).join("\t");
+               return smiMaker(c) + "\t" + pathNotationMaker(c) +"\t"+ c.getName()+"\t" + c.getProperties(outputOrder).join("\t").replace(/\n/g,"\\n");
             }else{
-               return smiMaker(c) + "\t" + c.getName()+"\t" + c.getProperties(outputOrder).join("\t");
+               return smiMaker(c) + "\t" + c.getName()+"\t" + c.getProperties(outputOrder).join("\t").replace(/\n/g,"\\n");
             }
          }).join("\n");
       };
@@ -8638,35 +8748,35 @@ JSChemify.Renderer=function(){
   };
   //TODO: Consider for headless cases
   ret.cropRawSVG= function(svgText) {
-	  const parser = new DOMParser();
-	  const doc = parser.parseFromString(svgText, "image/svg+xml");
-	  const svg = doc.querySelector('svg');
-	
-	  if (!svg) {
-	    throw new Error("No <svg> element found");
-	  }
-	
-	  // Temporarily add SVG to the DOM (hidden) for getBBox to work
-	  const wrapper = document.createElement('div');
-	  wrapper.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
-	  document.body.appendChild(wrapper);
-	  wrapper.appendChild(svg);
-	
-	  // Get bounding box of all content inside the SVG
-	  const bbox = svg.getBBox();
-	
-	  // Remove wrapper & SVG from DOM
-	  document.body.removeChild(wrapper);
-	
-	  // Set viewBox to the tight bounds
-	  svg.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
-	
-	  // Optionally update width and height attributes to match bounding box
-	  svg.setAttribute('width', bbox.width);
-	  svg.setAttribute('height', bbox.height);
-	
-	  // Serialize back to SVG string
-	  return new XMLSerializer().serializeToString(svg);
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(svgText, "image/svg+xml");
+      const svg = doc.querySelector('svg');
+    
+      if (!svg) {
+        throw new Error("No <svg> element found");
+      }
+    
+      // Temporarily add SVG to the DOM (hidden) for getBBox to work
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
+      document.body.appendChild(wrapper);
+      wrapper.appendChild(svg);
+    
+      // Get bounding box of all content inside the SVG
+      const bbox = svg.getBBox();
+    
+      // Remove wrapper & SVG from DOM
+      document.body.removeChild(wrapper);
+    
+      // Set viewBox to the tight bounds
+      svg.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
+    
+      // Optionally update width and height attributes to match bounding box
+      svg.setAttribute('width', bbox.width);
+      svg.setAttribute('height', bbox.height);
+    
+      // Serialize back to SVG string
+      return new XMLSerializer().serializeToString(svg);
   };
 
   ret.getColorForNumber=function(n){
@@ -9792,13 +9902,13 @@ M  END
   
   ret.tests.push("Smiles stereo not inverted on ring locants simple case", ()=>{
       let smi1 = "CCCCP[C@]1([H])(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))";
-	  let chem1 = JSChemify.Chemical(smi1);
-	  ret.assertEquals(smi1,chem1.toSmiles());
+      let chem1 = JSChemify.Chemical(smi1);
+      ret.assertEquals(smi1,chem1.toSmiles());
   });
   ret.tests.push("Smiles stereo not inverted on ring locants complex case", ()=>{
       let smi1 = "C(CCCCCCC(=O)N[C@@H]1([C@H](OC2(=C3(C=C4([C@@H](NC(=O)[C@H]5(NC(=O)[C@@H](CC6(=CC=C(O3)C=C6))NC([C@H]([N:1](C)N=O)C3(C=C(OC6(C=C5C(=C(C=6)O)Cl))C(=CC=3)O))=O))C(N[C@@H]3(C5(C=C(C6(=C(C=C(O)C=C6[C@H](NC([C@H]([C@@H](C6(=CC=C(OC2=C4)C(=C6)Cl))O)NC3=O)=O)C(=O)NCCCN(C)C)O[C@@H]2([C@@H](O)[C@@H](O)[C@H](O)[C@H](O2)CO)))C(O)=CC=5)))=O))))O[C@H](C(=O)O)[C@H]([C@@H]1O)O))C(C)C";
-	  let chem1 = JSChemify.Chemical(smi1);
-	  ret.assertEquals(smi1,chem1.toSmiles());
+      let chem1 = JSChemify.Chemical(smi1);
+      ret.assertEquals(smi1,chem1.toSmiles());
   });
   
   ret.tests.push("Basic MOL V3000 support works and gets correct InChI", ()=>{
@@ -9855,7 +9965,7 @@ M  V30 END CTAB
 M  END`;
       return new Promise((ok,bad)=>{
          JSChemify.Chemical(ibuprofSodium)
-		                     .toInChIKeyPromise()
+                             .toInChIKeyPromise()
                              .then(inchi=>{
                                 ret.assertEquals("VTGPMVCGAVZLQI-UHFFFAOYSA-M",inchi);
                                 ok();
