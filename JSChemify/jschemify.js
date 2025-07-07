@@ -8184,9 +8184,14 @@ JSChemify.ChemicalCollection=function(){
           
            
           for(var i=0;i<header.length;i++){
-            if(header[i].toLowerCase()==="smiles" || header[i].toLowerCase()==="name" || header[i].toLowerCase() === "path_notation")continue;
-			let val = l[i];
-			if(val)val=val.replace(/\\n/g,"\n");
+	    let val = l[i];
+	    if(val)val=val.replace(/\\n/g,"\n");
+	    
+	    if(header[i].toLowerCase()==="name"){
+              chem.setName(val);
+	    }
+            if(header[i].toLowerCase()==="smiles" || header[i].toLowerCase() === "path_notation")continue;
+			
 			
             chem.setProperty(header[i],val);
           }
