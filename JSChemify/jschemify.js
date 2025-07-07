@@ -5191,7 +5191,7 @@ JSChemify.Chemical = function(arg){
     let mmddyyhhmm=("0"+d.getDate()).substr(-2) + ("0"+d.getMonth()).substr(-2)+ ("0"+d.getYear()).substr(-2)+ ("0"+d.getHours()).substr(-2)+ ("0"+d.getMinutes()).substr(-2);
     let line2="JSChemify0"+mmddyyhhmm+"2D";
     let counts=("   "+ret.getAtomCount()).substr(-3) + ("   "+ret.getBondCount()).substr(-3);
-    let mol="\n" + line2 + "\n\n"+counts+"  0  0  0  0              0 V2000\n";
+    let mol=ret.getName() + "\n" + line2 + "\n\n"+counts+"  0  0  0  0              0 V2000\n";
 
     let atab=ret._atoms.map(at=>at.toMolLine()).join("\n");
     if(atab)mol+=atab;
