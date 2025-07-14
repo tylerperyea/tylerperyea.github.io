@@ -7545,8 +7545,9 @@ JSChemify.ChemicalCollection=function(){
    ret.$getCSS=function(){
       return `<style id="jschemify-table-style">
       .jschemify-tbl-image{
-         max-width:150px;
-     cursor:pointer;
+         max-width:300px;
+         min-width:150px;
+         cursor:pointer;
       }
       .jschemify-tbl td {
           border-bottom: 1px solid #dedede;
