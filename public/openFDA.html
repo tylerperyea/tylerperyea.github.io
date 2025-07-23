@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive FDA Adverse Events Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .controls-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .control-group {
+            display: inline-block;
+            margin-right: 20px;
+            margin-bottom: 15px;
+            vertical-align: top;
+        }
+        .control-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .control-group select, .control-group input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 150px;
+        }
+        .search-controls {
+            width: 100%;
+            margin-top: 15px;
+        }
+        .search-input {
+            width: 300px;
+            margin-right: 10px;
+        }
+        .btn {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #1565c0;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #666;
+        }
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info-panel {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid #1976d2;
+        }
+        h1 {
+            color: #1976d2;
+            text-align: center;
+        }
+        .top-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .top-item-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .top-item-card h4 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        .top-item-list {
+            list-style: none;
+            padding: 0;
+        }
+        .top-item-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <h1>Interactive FDA Adverse Events Dashboard</h1>
+        
+        <div class="controls-panel">
+            <h3>Analysis Controls</h3>
+            
+            <div class="control-group">
+                <label for="analysisType">Analysis Type:</label>
+                <select id="analysisType">
+                    <option value="yearly">Yearly Trends</option>
+                    <option value="drug_class">Drug Classes</option>
+                    <option value="reactions">Top Reactions</option>
+                    <option value="manufacturers">Manufacturers</option>
+                    <option value="age_groups">Age Groups</option>
+                    <option value="serious_outcomes">Serious Outcomes</option>
+                    <option value="drug_indication">Drug Indications</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="timeRange">Time Range:</label>
+                <select id="timeRange">
+                    <option value="all">All Available Years</option>
+                    <option value="recent5">Last 5 Years</option>
+                    <option value="recent3">Last 3 Years</option>
+                    <option value="recent1">Last Year</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="genderFilter">Gender Filter:</label>
+                <select id="genderFilter">
+                    <option value="all">All Genders</option>
+                    <option value="1">Male</option>
+                    <option value="2">Female</option>
+                    <option value="0">Unknown</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="limitResults">Show Top:</label>
+                <select id="limitResults">
+                    <option value="10">10 Results</option>
+                    <option value="20">20 Results</option>
+                    <option value="50">50 Results</option>
+                </select>
+            </div>
+            
+            <div class="search-controls">
+                <label for="searchTerm">Search Filter (drug name, reaction, etc.):</label><br>
+                <input type="text" id="searchTerm" class="search-input" placeholder="e.g., aspirin, headache, pfizer">
+                <button class="btn" onclick="dashboard.runAnalysis()">Update Analysis</button>
+                <button class="btn" onclick="dashboard.clearFilters()">Clear Filters</button>
+            </div>
+            
+            <div class="info-panel">
+                <strong>Analysis Types:</strong>
+                <ul>
+                    <li><strong>Yearly Trends:</strong> Shows adverse events over time with gender breakdown</li>
+                    <li><strong>Drug Classes:</strong> Groups events by pharmacological drug classes</li>
+                    <li><strong>Top Reactions:</strong> Most frequently reported adverse reactions</li>
+                    <li><strong>Manufacturers:</strong> Events by pharmaceutical manufacturer</li>
+                    <li><strong>Age Groups:</strong> Distribution across different age ranges</li>
+                    <li><strong>Serious Outcomes:</strong> Events resulting in death, hospitalization, etc.</li>
+                    <li><strong>Drug Indications:</strong> Events by the condition the drug was treating</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">Loading data...</div>
+        <div id="results-container"></div>
+    </div>
+
+    <script>
+        class InteractiveFDADashboard {
+            constructor() {
+                this.baseURL = 'https://api.fda.gov/drug/event.json';
+                this.currentChart = null;
+                this.genderMap = {
+                    '1': 'Male',
+                    '2': 'Female',
+                    '0': 'Unknown'
+                };
+                this.ageGroupMap = {
+                    '1': 'Neonate (0-1 month)',
+                    '2': 'Infant (1 month-2 years)',
+                    '3': 'Child (2-12 years)',
+                    '4': 'Adolescent (12-17 years)',
+                    '5': 'Adult (17-65 years)',
+                    '6': 'Elderly (>65 years)'
+                };
+                this.seriousOutcomeMap = {
+                    '1': 'Death',
+                    '2': 'Life-threatening',
+                    '3': 'Hospitalization',
+                    '4': 'Disability',
+                    '5': 'Congenital anomaly',
+                    '6': 'Other serious'
+                };
+            }
+
+            getTimeRangeFilter() {
+                const timeRange = document.getElementById('timeRange').value;
+                const currentYear = new Date().getFullYear();
+                
+                switch(timeRange) {
+                    case 'recent1':
+                        return `receivedate:[${currentYear-1}0101+TO+${currentYear}1231]`;
+                    case 'recent3':
+                        return `receivedate:[${currentYear-3}0101+TO+${currentYear}1231]`;
+                    case 'recent5':
+                        return `receivedate:[${currentYear-5}0101+TO+${currentYear}1231]`;
+                    default:
+                        return null;
+                }
+            }
+
+            buildSearchQuery() {
+                const searchTerm = document.getElementById('searchTerm').value.trim();
+                const genderFilter = document.getElementById('genderFilter').value;
+                const timeFilter = this.getTimeRangeFilter();
+                
+                let searchParts = [];
+                
+                if (timeFilter) {
+                    searchParts.push(timeFilter);
+                }
+                
+                if (genderFilter !== 'all') {
+                    searchParts.push(`patient.patientsex:${genderFilter}`);
+                }
+                
+                if (searchTerm) {
+                    // Search across multiple fields
+                    const termQuery = `(patient.drug.medicinalproduct:"${searchTerm}"+OR+patient.reaction.reactionmeddrapt:"${searchTerm}"+OR+primarysource.reportercountry:"${searchTerm}"+OR+companynumb:"${searchTerm}")`;
+                    searchParts.push(termQuery);
+                }
+                
+                return searchParts.length > 0 ? searchParts.join('+AND+') : '';
+            }
+
+            async fetchData(countField, searchQuery = '') {
+                try {
+                    const limit = document.getElementById('limitResults').value;
+                    let url = `${this.baseURL}?count=${countField}&limit=${limit}`;
+                    
+                    if (searchQuery) {
+                        url += `&search=${searchQuery}`;
+                    }
+                    
+                    console.log('Fetching:', url);
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    return data.results || [];
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    throw error;
+                }
+            }
+
+            async runYearlyAnalysis() {
+                const searchQuery = this.buildSearchQuery();
+                const yearlyData = await this.fetchData('receivedate', searchQuery);
+                
+                // Process yearly data
+                const yearCounts = {};
+                yearlyData.forEach(item => {
+                    const year = item.time.substring(0, 4);
+                    yearCounts[year] = (yearCounts[year] || 0) + item.count;
+                });
+                
+                // Also get gender breakdown if no gender filter is applied
+                let genderData = {};
+                if (document.getElementById('genderFilter').value === 'all') {
+                    try {
+                        const genderResults = await this.fetchData('patient.patientsex', searchQuery);
+                        genderResults.forEach(item => {
+                            const genderLabel = this.genderMap[item.term] || 'Other';
+                            genderData[genderLabel] = item.count;
+                        });
+                    } catch (error) {
+                        console.warn('Could not fetch gender data:', error);
+                    }
+                }
+                
+                this.createYearlyChart(yearCounts, genderData);
+            }
+
+            async runCategoryAnalysis(analysisType) {
+                const searchQuery = this.buildSearchQuery();
+                let countField, title, dataProcessor;
+                
+                switch(analysisType) {
+                    case 'drug_class':
+                        countField = 'patient.drug.drugcharacterization';
+                        title = 'Events by Drug Characterization';
+                        dataProcessor = (results) => results.map(item => ({
+                            label: this.getDrugCharacterization(item.term),
+                            count: item.count
+                        }));
+                        break;
+                    case 'reactions':
+                        countField = 'patient.reaction.reactionmeddrapt.exact';
+                        title = 'Top Adverse Reactions';
+                        dataProcessor = (results) => results.map(item => ({
+                            label: item.term,
+                            count: item.count
+                        }));
+                        break;
+                    case 'manufacturers':
+                        countField = 'companynumb';
+                        title = 'Events by Manufacturer';
+                        dataProcessor = (results) => results.map(item => ({
+                            label: item.term || 'Unknown',
+                            count: item.count
+                        }));
+                        break;
+                    case 'age_groups':
+                        countField = 'patient.patientonsetagegroup';
+                        title = 'Events by Age Group';
+                        dataProcessor = (results) => results.map(item => ({
+                            label: this.ageGroupMap[item.term] || `Group ${item.term}`,
+                            count: item.count
+                        }));
+                        break;
+                    case 'serious_outcomes':
+                        countField = 'serious';
+                        title = 'Serious vs Non-Serious Events';
+                        dataProcessor = (results) => results.map(item => ({
+                            label: item.term === '1' ? 'Serious' : 'Non-Serious',
+                            count: item.count
+                        }));
+                        break;
+                    case 'drug_indication':
+                        countField = 'patient.drug.drugindication.exact';
+                        title = 'Events by Drug Indication';
+                        dataProcessor = (results) => results.map(item => ({
+                            label: item.term,
+                            count: item.count
+                        }));
+                        break;
+                }
+                
+                const results = await this.fetchData(countField, searchQuery);
+                const processedData = dataProcessor(results);
+                
+                this.createCategoryChart(processedData, title);
+                this.createTopItemsList(processedData, title);
+            }
+
+            getDrugCharacterization(code) {
+                const characterizations = {
+                    '1': 'Suspect Drug',
+                    '2': 'Concomitant Drug',
+                    '3': 'Interacting Drug'
+                };
+                return characterizations[code] || `Code ${code}`;
+            }
+
+            createYearlyChart(yearCounts, genderData) {
+                this.clearResults();
+                
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                chartContainer.innerHTML = `
+                    <h2>Adverse Events Over Time</h2>
+                    <canvas id="mainChart" width="800" height="400"></canvas>
+                `;
+                
+                document.getElementById('results-container').appendChild(chartContainer);
+                
+                const years = Object.keys(yearCounts).sort();
+                const counts = years.map(year => yearCounts[year]);
+                
+                const ctx = document.getElementById('mainChart').getContext('2d');
+                
+                const datasets = [{
+                    label: 'Total Events',
+                    data: counts,
+                    backgroundColor: 'rgba(25, 118, 210, 0.7)',
+                    borderColor: 'rgba(25, 118, 210, 1)',
+                    borderWidth: 2,
+                    type: 'line'
+                }];
+                
+                this.currentChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: years,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'FDA Adverse Events Over Time'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Add gender breakdown if available
+                if (Object.keys(genderData).length > 0) {
+                    this.createGenderBreakdown(genderData);
+                }
+            }
+
+            createCategoryChart(data, title) {
+                this.clearResults();
+                
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                chartContainer.innerHTML = `
+                    <h2>${title}</h2>
+                    <canvas id="mainChart" width="800" height="400"></canvas>
+                `;
+                
+                document.getElementById('results-container').appendChild(chartContainer);
+                
+                const labels = data.map(item => item.label);
+                const counts = data.map(item => item.count);
+                
+                const ctx = document.getElementById('mainChart').getContext('2d');
+                
+                this.currentChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Event Count',
+                            data: counts,
+                            backgroundColor: 'rgba(76, 175, 80, 0.7)',
+                            borderColor: 'rgba(76, 175, 80, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: title
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toLocaleString();
+                                    }
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    maxRotation: 45
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            createGenderBreakdown(genderData) {
+                const genderContainer = document.createElement('div');
+                genderContainer.className = 'chart-container';
+                genderContainer.innerHTML = `
+                    <h3>Gender Distribution</h3>
+                    <canvas id="genderChart" width="400" height="200"></canvas>
+                `;
+                
+                document.getElementById('results-container').appendChild(genderContainer);
+                
+                const labels = Object.keys(genderData);
+                const counts = Object.values(genderData);
+                
+                const ctx = document.getElementById('genderChart').getContext('2d');
+                
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: counts,
+                            backgroundColor: [
+                                'rgba(76, 175, 80, 0.7)',
+                                'rgba(233, 30, 99, 0.7)',
+                                'rgba(158, 158, 158, 0.7)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+
+            createTopItemsList(data, title) {
+                const listContainer = document.createElement('div');
+                listContainer.className = 'top-items';
+                
+                const topItemsCard = document.createElement('div');
+                topItemsCard.className = 'top-item-card';
+                topItemsCard.innerHTML = `
+                    <h4>${title} - Detailed List</h4>
+                    <ul class="top-item-list">
+                        ${data.map(item => `
+                            <li>
+                                <span>${item.label}</span>
+                                <strong>${item.count.toLocaleString()}</strong>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+                
+                listContainer.appendChild(topItemsCard);
+                document.getElementById('results-container').appendChild(listContainer);
+            }
+
+            clearResults() {
+                if (this.currentChart) {
+                    this.currentChart.destroy();
+                    this.currentChart = null;
+                }
+                document.getElementById('results-container').innerHTML = '';
+            }
+
+            clearFilters() {
+                document.getElementById('analysisType').value = 'yearly';
+                document.getElementById('timeRange').value = 'all';
+                document.getElementById('genderFilter').value = 'all';
+                document.getElementById('limitResults').value = '10';
+                document.getElementById('searchTerm').value = '';
+                this.runAnalysis();
+            }
+
+            showLoading(show) {
+                document.getElementById('loading').style.display = show ? 'block' : 'none';
+            }
+
+            showError(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error';
+                errorDiv.textContent = message;
+                document.getElementById('results-container').appendChild(errorDiv);
+            }
+
+            async runAnalysis() {
+                try {
+                    this.showLoading(true);
+                    const analysisType = document.getElementById('analysisType').value;
+                    
+                    if (analysisType === 'yearly') {
+                        await this.runYearlyAnalysis();
+                    } else {
+                        await this.runCategoryAnalysis(analysisType);
+                    }
+                } catch (error) {
+                    console.error('Analysis failed:', error);
+                    this.clearResults();
+                    this.showError(`Analysis failed: ${error.message}`);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            init() {
+                // Set up event listeners
+                document.getElementById('analysisType').addEventListener('change', () => this.runAnalysis());
+                
+                // Run initial analysis
+                this.runAnalysis();
+            }
+        }
+
+        // Initialize the dashboard
+        const dashboard = new InteractiveFDADashboard();
+        document.addEventListener('DOMContentLoaded', () => {
+            dashboard.init();
+        });
+    </script>
+</body>
+</html>
