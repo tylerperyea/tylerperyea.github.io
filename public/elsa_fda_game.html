@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FDA Inspector Adventure</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #1a1a2e;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background-color: #e8f4f8;
+        }
+        .info {
+            color: white;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .controls {
+            color: #ccc;
+            font-size: 12px;
+        }
+        .win-message {
+            color: #4ECDC4;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .level-info {
+            color: #FFD93D;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .health-bar {
+            color: #FF6B6B;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div class="info">
+            <div class="level-info">Level <span id="currentLevel">1</span>: <span id="levelName">Pharmaceutical Factory</span></div>
+            <div id="gameStatus">
+                <span class="health-bar">Health: <span id="health">3</span>/3</span> | 
+                Samples: <span id="pillCount">0</span>/<span id="totalPills">0</span> | 
+                Evidence: <span id="evidenceCount">0</span>/<span id="totalEvidence">0</span> | 
+                <span id="powerupStatus">No Active Powers</span>
+            </div>
+            <div class="controls">ARROW KEYS to move, SPACEBAR to jump, X to use scanner, R to restart</div>
+            <div id="winMessage" class="win-message" style="display: none;">🎉 ALL FACILITIES INSPECTED! 🎉</div>
+            <div id="levelComplete" class="win-message" style="display: none;">✅ Facility Cleared! Press ENTER for next inspection</div>
+            <div id="gameOver" class="win-message" style="display: none; color: #FF6B6B;">💀 INSPECTION FAILED! Press R to restart</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        const keys = {};
+        let gameWon = false;
+        let currentLevelIndex = 0;
+        let levelComplete = false;
+        let gameOver = false;
+        
+        // Player object
+        const player = {
+            x: 50,
+            y: 200,
+            width: 20,
+            height: 20,
+            velocityX: 0,
+            velocityY: 0,
+            speed: 4.5,
+            jumpPower: 12,
+            onGround: false,
+            color: '#0066cc',
+            health: 3,
+            maxHealth: 3,
+            samplesCollected: 0,
+            evidenceCollected: 0,
+            invulnerable: 0,
+            scannerActive: false,
+            scannerTime: 0,
+            shieldActive: false,
+            shieldTime: 0,
+            speedBoostActive: false,
+            speedBoostTime: 0
+        };
+
+        // Level definitions
+        const levels = [
+            {
+                name: "Pharmaceutical Factory",
+                platforms: [
+                    { x: 0, y: 370, width: 800, height: 30, color: '#4ECDC4' },
+                    { x: 120, y: 320, width: 80, height: 12, color: '#45B7D1' },
+                    { x: 280, y: 280, width: 100, height: 12, color: '#45B7D1' },
+                    { x: 450, y: 240, width: 80, height: 12, color: '#45B7D1' },
+                    { x: 600, y: 200, width: 90, height: 12, color: '#45B7D1' },
+                    { x: 200, y: 180, width: 70, height: 12, color: '#45B7D1' },
+                    { x: 350, y: 140, width: 80, height: 12, color: '#45B7D1' },
+                    { x: 500, y: 100, width: 60, height: 12, color: '#45B7D1' }
+                ],
+                samples: [
+                    { x: 140, y: 300, collected: false },
+                    { x: 310, y: 260, collected: false },
+                    { x: 470, y: 220, collected: false },
+                    { x: 220, y: 160, collected: false },
+                    { x: 370, y: 120, collected: false }
+                ],
+                evidence: [
+                    { x: 160, y: 300, collected: false },
+                    { x: 330, y: 260, collected: false },
+                    { x: 520, y: 80, collected: false }
+                ],
+                powerups: [
+                    { x: 630, y: 180, type: 'shield', collected: false },
+                    { x: 380, y: 120, type: 'scanner', collected: false }
+                ],
+                enemies: [
+                    { x: 250, y: 350, width: 15, height: 15, velocityX: 1, color: '#FF4444', type: 'guard', patrol: { min: 220, max: 350 } },
+                    { x: 420, y: 220, width: 15, height: 15, velocityX: -1, color: '#FF4444', type: 'guard', patrol: { min: 420, max: 520 } },
+                    { x: 320, y: 120, width: 15, height: 15, velocityX: 1, color: '#FF4444', type: 'guard', patrol: { min: 320, max: 420 } }
+                ],
+                goal: { x: 750, y: 340, visible: false }
+            },
+            {
+                name: "Medical Device Lab",
+                platforms: [
+                    { x: 0, y: 370, width: 150, height: 30, color: '#4ECDC4' },
+                    { x: 200, y: 370, width: 600, height: 30, color: '#4ECDC4' },
+                    { x: 80, y: 320, width: 60, height: 12, color: '#45B7D1' },
+                    { x: 220, y: 300, width: 80, height: 12, color: '#45B7D1' },
+                    { x: 380, y: 260, width: 70, height: 12, color: '#45B7D1' },
+                    { x: 520, y: 220, width: 80, height: 12, color: '#45B7D1' },
+                    { x: 680, y: 180, width: 70, height: 12, color: '#45B7D1' },
+                    { x: 300, y: 180, width: 60, height: 12, color: '#45B7D1' },
+                    { x: 450, y: 140, width: 80, height: 12, color: '#45B7D1' },
+                    { x: 200, y: 100, width: 70, height: 12, color: '#45B7D1' }
+                ],
+                samples: [
+                    { x: 100, y: 300, collected: false },
+                    { x: 240, y: 280, collected: false },
+                    { x: 400, y: 240, collected: false },
+                    { x: 540, y: 200, collected: false },
+                    { x: 320, y: 160, collected: false },
+                    { x: 220, y: 80, collected: false }
+                ],
+                evidence: [
+                    { x: 120, y: 300, collected: false },
+                    { x: 420, y: 240, collected: false },
+                    { x: 470, y: 120, collected: false },
+                    { x: 240, y: 80, collected: false }
+                ],
+                powerups: [
+                    { x: 260, y: 280, type: 'speed', collected: false },
+                    { x: 560, y: 200, type: 'shield', collected: false },
+                    { x: 340, y: 160, type: 'scanner', collected: false }
+                ],
+                enemies: [
+                    { x: 170, y: 350, width: 15, height: 15, velocityX: -2, color: '#FF4444', type: 'robot', patrol: { min: 160, max: 190 } },
+                    { x: 350, y: 240, width: 15, height: 15, velocityX: 1.5, color: '#FF4444', type: 'guard', patrol: { min: 350, max: 440 } },
+                    { x: 490, y: 200, width: 15, height: 15, velocityX: -1, color: '#FF4444', type: 'guard', patrol: { min: 490, max: 590 } },
+                    { x: 650, y: 160, width: 15, height: 15, velocityX: 1, color: '#FF4444', type: 'guard', patrol: { min: 650, max: 740 } },
+                    { x: 270, y: 160, width: 15, height: 15, velocityX: -1.5, color: '#FF4444', type: 'robot', patrol: { min: 270, max: 350 } }
+                ],
+                goal: { x: 750, y: 340, visible: false }
+            },
+            {
+                name: "Food Processing Plant",
+                platforms: [
+                    { x: 0, y: 370, width: 800, height: 30, color: '#4ECDC4' },
+                    { x: 60, y: 330, width: 50, height: 12, color: '#45B7D1' },
+                    { x: 150, y: 290, width: 50, height: 12, color: '#45B7D1' },
+                    { x: 240, y: 250, width: 50, height: 12, color: '#45B7D1' },
+                    { x: 330, y: 210, width: 50, height: 12, color: '#45B7D1' },
+                    { x: 420, y: 170, width: 50, height: 12, color: '#45B7D1' },
+                    { x: 510, y: 130, width: 50, height: 12, color: '#45B7D1' },
+                    { x: 600, y: 170, width: 50, height: 12, color: '#45B7D1' },
+                    { x: 690, y: 210, width: 50, height: 12, color: '#45B7D1' },
+                    { x: 580, y: 250, width: 50, height: 12, color: '#45B7D1' },
+                    { x: 470, y: 290, width: 50, height: 12, color: '#45B7D1' }
+                ],
+                samples: [
+                    { x: 80, y: 310, collected: false },
+                    { x: 170, y: 270, collected: false },
+                    { x: 260, y: 230, collected: false },
+                    { x: 350, y: 190, collected: false },
+                    { x: 440, y: 150, collected: false },
+                    { x: 530, y: 110, collected: false },
+                    { x: 620, y: 150, collected: false },
+                    { x: 710, y: 190, collected: false }
+                ],
+                evidence: [
+                    { x: 190, y: 270, collected: false },
+                    { x: 370, y: 190, collected: false },
+                    { x: 550, y: 110, collected: false },
+                    { x: 640, y: 150, collected: false },
+                    { x: 490, y: 270, collected: false }
+                ],
+                powerups: [
+                    { x: 100, y: 310, type: 'speed', collected: false },
+                    { x: 280, y: 230, type: 'shield', collected: false },
+                    { x: 460, y: 150, type: 'scanner', collected: false },
+                    { x: 730, y: 190, type: 'speed', collected: false }
+                ],
+                enemies: [
+                    { x: 120, y: 350, width: 15, height: 15, velocityX: 2, color: '#FF4444', type: 'robot', patrol: { min: 120, max: 200 } },
+                    { x: 210, y: 230, width: 15, height: 15, velocityX: -1.5, color: '#FF4444', type: 'guard', patrol: { min: 210, max: 280 } },
+                    { x: 300, y: 190, width: 15, height: 15, velocityX: 1.5, color: '#FF4444', type: 'guard', patrol: { min: 300, max: 370 } },
+                    { x: 390, y: 150, width: 15, height: 15, velocityX: -2, color: '#FF4444', type: 'robot', patrol: { min: 390, max: 460 } },
+                    { x: 480, y: 110, width: 15, height: 15, velocityX: 1, color: '#FF4444', type: 'guard', patrol: { min: 480, max: 550 } },
+                    { x: 570, y: 150, width: 15, height: 15, velocityX: -1.5, color: '#FF4444', type: 'guard', patrol: { min: 570, max: 640 } },
+                    { x: 660, y: 190, width: 15, height: 15, velocityX: 2, color: '#FF4444', type: 'robot', patrol: { min: 660, max: 730 } }
+                ],
+                goal: { x: 750, y: 340, visible: false }
+            }
+        ];
+
+        // Current level data
+        let currentLevel = levels[0];
+
+        // Gravity and physics constants
+        const gravity = 0.5;
+        const friction = 0.8;
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            
+            if (e.code === 'KeyR') {
+                restartLevel();
+            }
+            
+            if (e.code === 'Enter' && levelComplete) {
+                nextLevel();
+            }
+            
+            if (e.code === 'KeyX') {
+                activateScanner();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Initialize level
+        function initLevel() {
+            currentLevel = JSON.parse(JSON.stringify(levels[currentLevelIndex]));
+            player.x = 50;
+            player.y = 200;
+            player.velocityX = 0;
+            player.velocityY = 0;
+            player.health = player.maxHealth;
+            player.samplesCollected = 0;
+            player.evidenceCollected = 0;
+            player.invulnerable = 0;
+            player.scannerActive = false;
+            player.scannerTime = 0;
+            player.shieldActive = false;
+            player.shieldTime = 0;
+            player.speedBoostActive = false;
+            player.speedBoostTime = 0;
+            levelComplete = false;
+            gameWon = false;
+            gameOver = false;
+            
+            document.getElementById('levelComplete').style.display = 'none';
+            document.getElementById('winMessage').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            
+            updateUI();
+        }
+
+        function restartLevel() {
+            initLevel();
+        }
+
+        function nextLevel() {
+            currentLevelIndex++;
+            if (currentLevelIndex >= levels.length) {
+                gameWon = true;
+                document.getElementById('winMessage').style.display = 'block';
+                document.getElementById('levelComplete').style.display = 'none';
+            } else {
+                initLevel();
+            }
+        }
+
+        function activateScanner() {
+            if (player.scannerActive && player.scannerTime > 0) {
+                // Scanner reveals hidden evidence temporarily
+                player.scannerTime = Math.max(player.scannerTime, 180); // 3 seconds
+            }
+        }
+
+        // Check collision between two rectangles
+        function isColliding(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        // Update enemies
+        function updateEnemies() {
+            for (let enemy of currentLevel.enemies) {
+                enemy.x += enemy.velocityX;
+                
+                // Patrol behavior
+                if (enemy.x <= enemy.patrol.min || enemy.x >= enemy.patrol.max) {
+                    enemy.velocityX *= -1;
+                }
+                
+                // Check collision with player
+                if (isColliding(player, enemy) && player.invulnerable === 0) {
+                    if (player.shieldActive) {
+                        // Shield absorbs hit
+                        player.shieldActive = false;
+                        player.shieldTime = 0;
+                        player.invulnerable = 60; // Brief invulnerability
+                    } else {
+                        // Take damage
+                        player.health--;
+                        player.invulnerable = 120; // 2 seconds of invulnerability
+                        
+                        if (player.health <= 0) {
+                            gameOver = true;
+                            document.getElementById('gameOver').style.display = 'block';
+                        }
+                    }
+                    updateUI();
+                }
+            }
+        }
+
+        // Check collisions with collectibles
+        function checkCollectibles() {
+            // Check samples
+            for (let sample of currentLevel.samples) {
+                if (!sample.collected && isColliding(player, {x: sample.x, y: sample.y, width: 12, height: 12})) {
+                    sample.collected = true;
+                    player.samplesCollected++;
+                    updateUI();
+                }
+            }
+
+            // Check evidence (some only visible with scanner)
+            for (let evidence of currentLevel.evidence) {
+                if (!evidence.collected && isColliding(player, {x: evidence.x, y: evidence.y, width: 15, height: 10})) {
+                    evidence.collected = true;
+                    player.evidenceCollected++;
+                    updateUI();
+                    
+                    // Show goal when all evidence collected
+                    if (player.evidenceCollected === currentLevel.evidence.length) {
+                        currentLevel.goal.visible = true;
+                    }
+                }
+            }
+
+            // Check powerups
+            for (let powerup of currentLevel.powerups) {
+                if (!powerup.collected && isColliding(player, {x: powerup.x, y: powerup.y, width: 16, height: 16})) {
+                    powerup.collected = true;
+                    
+                    if (powerup.type === 'speed') {
+                        player.speedBoostActive = true;
+                        player.speedBoostTime = 300;
+                    } else if (powerup.type === 'shield') {
+                        player.shieldActive = true;
+                        player.shieldTime = 600; // 10 seconds
+                    } else if (powerup.type === 'scanner') {
+                        player.scannerActive = true;
+                        player.scannerTime = 900; // 15 seconds
+                    }
+                    updateUI();
+                }
+            }
+
+            // Check goal
+            if (currentLevel.goal.visible && isColliding(player, {x: currentLevel.goal.x, y: currentLevel.goal.y, width: 25, height: 25})) {
+                levelComplete = true;
+                document.getElementById('levelComplete').style.display = 'block';
+            }
+        }
+
+        // Update powerup timers
+        function updatePowerups() {
+            if (player.invulnerable > 0) {
+                player.invulnerable--;
+            }
+            
+            if (player.speedBoostTime > 0) {
+                player.speedBoostTime--;
+                if (player.speedBoostTime === 0) {
+                    player.speedBoostActive = false;
+                }
+            }
+            
+            if (player.shieldTime > 0) {
+                player.shieldTime--;
+                if (player.shieldTime === 0) {
+                    player.shieldActive = false;
+                }
+            }
+            
+            if (player.scannerTime > 0) {
+                player.scannerTime--;
+                if (player.scannerTime === 0) {
+                    player.scannerActive = false;
+                }
+            }
+        }
+
+        // Check collision between player and platforms
+        function checkCollisions() {
+            player.onGround = false;
+            
+            for (let platform of currentLevel.platforms) {
+                if (isColliding(player, platform)) {
+                    if (player.velocityY > 0 && player.y < platform.y) {
+                        player.y = platform.y - player.height;
+                        player.velocityY = 0;
+                        player.onGround = true;
+                    }
+                }
+            }
+        }
+
+        // Update UI elements
+        function updateUI() {
+            document.getElementById('currentLevel').textContent = currentLevelIndex + 1;
+            document.getElementById('levelName').textContent = levels[currentLevelIndex].name;
+            document.getElementById('health').textContent = player.health;
+            document.getElementById('pillCount').textContent = player.samplesCollected;
+            document.getElementById('totalPills').textContent = currentLevel.samples.length;
+            document.getElementById('evidenceCount').textContent = player.evidenceCollected;
+            document.getElementById('totalEvidence').textContent = currentLevel.evidence.length;
+            
+            let powerupText = [];
+            if (player.speedBoostActive) powerupText.push('SPEED');
+            if (player.shieldActive) powerupText.push('SHIELD');
+            if (player.scannerActive) powerupText.push('SCANNER');
+            
+            document.getElementById('powerupStatus').textContent = 
+                powerupText.length > 0 ? powerupText.join(', ') : 'No Active Powers';
+        }
+
+        // Update player position and physics
+        function updatePlayer() {
+            if (gameWon || levelComplete || gameOver) return;
+
+            updatePowerups();
+
+            let currentSpeed = player.speedBoostActive ? player.speed * 1.6 : player.speed;
+
+            if (keys['ArrowLeft']) {
+                player.velocityX = -currentSpeed;
+            } else if (keys['ArrowRight']) {
+                player.velocityX = currentSpeed;
+            } else {
+                player.velocityX *= friction;
+            }
+
+            if (keys['Space'] && player.onGround) {
+                player.velocityY = -player.jumpPower;
+                player.onGround = false;
+            }
+
+            player.velocityY += gravity;
+            player.x += player.velocityX;
+            player.y += player.velocityY;
+
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            
+            if (player.y > canvas.height) {
+                player.health--;
+                if (player.health <= 0) {
+                    gameOver = true;
+                    document.getElementById('gameOver').style.display = 'block';
+                } else {
+                    player.x = 50;
+                    player.y = 200;
+                    player.velocityX = 0;
+                    player.velocityY = 0;
+                    player.invulnerable = 120;
+                }
+                updateUI();
+            }
+        }
+
+        // Render everything
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw platforms
+            for (let platform of currentLevel.platforms) {
+                ctx.fillStyle = platform.color;
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+            }
+
+            // Draw samples (test tubes)
+            for (let sample of currentLevel.samples) {
+                if (!sample.collected) {
+                    ctx.fillStyle = '#FF6B6B';
+                    ctx.fillRect(sample.x, sample.y, 12, 12);
+                    ctx.fillStyle = '#FF9999';
+                    ctx.fillRect(sample.x + 2, sample.y + 2, 8, 8);
+                }
+            }
+
+            // Draw evidence (some hidden unless scanner active)
+            for (let i = 0; i < currentLevel.evidence.length; i++) {
+                let evidence = currentLevel.evidence[i];
+                if (!evidence.collected) {
+                    // Some evidence is hidden unless scanner is active
+                    let isHidden = i >= 2 && !player.scannerActive;
+                    
+                    if (!isHidden) {
+                        ctx.fillStyle = '#4CAF50';
+                        ctx.fillRect(evidence.x, evidence.y, 15, 10);
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(evidence.x + 2, evidence.y + 2, 11, 6);
+                    } else if (player.scannerActive) {
+                        // Show hidden evidence with scanner effect
+                        ctx.fillStyle = '#90EE90';
+                        ctx.fillRect(evidence.x, evidence.y, 15, 10);
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(evidence.x + 2, evidence.y + 2, 11, 6);
+                    }
+                }
+            }
+
+            // Draw powerups
+            for (let powerup of currentLevel.powerups) {
+                if (!powerup.collected) {
+                    if (powerup.type === 'speed') {
+                        ctx.fillStyle = '#FFD93D';
+                        ctx.fillRect(powerup.x, powerup.y, 16, 16);
+                        ctx.fillStyle = '#FF6B6B';
+                        ctx.font = '12px Arial';
+                        ctx.fillText('⚡', powerup.x + 3, powerup.y + 12);
+                    } else if (powerup.type === 'shield') {
+                        ctx.fillStyle = '#00BCD4';
+                        ctx.fillRect(powerup.x, powerup.y, 16, 16);
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.font = '12px Arial';
+                        ctx.fillText('🛡', powerup.x + 2, powerup.y + 12);
+                    } else if (powerup.type === 'scanner') {
+                        ctx.fillStyle = '#9C27B0';
+                        ctx.fillRect(powerup.x, powerup.y, 16, 16);
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.font = '12px Arial';
+                        ctx.fillText('👁', powerup.x + 2, powerup.y + 12);
+                    }
+                }
+            }
+
+            // Draw enemies
+            for (let enemy of currentLevel.enemies) {
+                ctx.fillStyle = enemy.color;
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                
+                // Draw enemy type indicator
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '10px Arial';
+                if (enemy.type === 'robot') {
+                    ctx.fillText('🤖', enemy.x, enemy.y + 10);
+                } else {
+                    ctx.fillText('👮', enemy.x, enemy.y + 10);
+                }
+            }
+
+            // Draw goal
+            if (currentLevel.goal.visible) {
+                ctx.fillStyle = '#00FF00';
+                ctx.fillRect(currentLevel.goal.x, currentLevel.goal.y, 25, 25);
+                ctx.fillStyle = '#FFFF00';
+                ctx.font = '20px Arial';
+                ctx.fillText('✓', currentLevel.goal.x + 5, currentLevel.goal.y + 18);
+            }
+
+            // Draw player (FDA Inspector)
+            let playerColor = player.color;
+            if (player.invulnerable > 0 && Math.floor(player.invulnerable / 10) % 2) {
+                playerColor = '#AAAAAA'; // Flashing when invulnerable
+            }
+            
+            ctx.fillStyle = playerColor;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            // Draw inspector badge
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(player.x + 4, player.y + 4, 5, 3);
+            
+            // Draw shield effect
+            if (player.shieldActive) {
+                ctx.strokeStyle = '#00BCD4';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(player.x + player.width/2, player.y + player.height/2, player.width/2 + 5, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            // Draw scanner effect
+            if (player.scannerActive && player.scannerTime % 20 < 10) {
+                ctx.strokeStyle = '#9C27B0';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(player.x + player.width/2, player.y + player.height/2, 30, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        // Main game loop
+        function gameLoop() {
+            updatePlayer();
+            updateEnemies();
+            checkCollisions();
+            checkCollectibles();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize and start the game
+        initLevel();
+        gameLoop();
+    </script>
+</body>
+</html>
