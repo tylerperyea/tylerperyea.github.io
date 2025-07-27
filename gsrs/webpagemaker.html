@@ -51,7 +51,7 @@ let deCoM=(b64)=>{stream = new DecompressionStream('gzip'); w=stream.writable.ge
 	  
 function mapCompressed(inp){
 	return compress(inp).then(v=>{
-            return inp;
+            return v;
 	});
 }
 function unmapCompressed(inp){
@@ -66,8 +66,8 @@ function unmapCompressed(inp){
 
 	
 <div>	
-<a id="url" href="">As Bookmarklet</a>
-<input id="bookName" onchange="$('#url').innerHTML=$('#bookName').value;" value="As Bookmarklet" />
+<a id="url" href="">As URL</a>
+<input id="bookName" onchange="$('#url').innerHTML=$('#bookName').value;" value="As URL" />
 </div>
 
 	
