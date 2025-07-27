@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Self-decoding HTML Loader</title>
+</head>
+<body>
+  <p>Loading...</p>
+  <script>
+    let deCoM=(b64)=>{stream = new DecompressionStream('gzip'); w=stream.writable.getWriter();w.write(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));w.close();return new Response(stream.readable).arrayBuffer().then(d=>new TextDecoder().decode(d));}
+
+
+    function getURLParam(name) {
+      return new URLSearchParams(location.search).get(name);
+    }
+
+    window.onload = () => {
+      const b64 = getURLParam("html").replace(/ /g,"+");
+	  console.log(b64);
+      if (!b64) {
+        document.body.innerText = 'Missing "html" URL parameter.';
+        return;
+      }
+
+      //try {
+        deCoM(b64).then(html=>{
+		console.log(html);
+        document.open();
+        document.write(html);
+        document.close();
+		});
+		
+      //} catch (e) {
+      //  document.body.innerText = "Error: " + e.message;
+      //  console.error(e);
+      //}
+    };
+  </script>
+</body>
+</html>
