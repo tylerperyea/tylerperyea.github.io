@@ -95,7 +95,7 @@ $("#map").onclick=((e)=>{
 
 $("#unmap").onclick=((e)=>{
   
-	unmapCompressed(enc).then(m=>{
+	unmapCompressed($("#output").value).then(m=>{
 	  $("#input").value=m;
 	});
 });
