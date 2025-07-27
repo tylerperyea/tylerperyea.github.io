@@ -1,0 +1,108 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charSet="utf-8" data-next-head=""/>
+<style>
+#controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font: 16px Arial,sans-serif;
+  margin: 20px;
+}
+
+#input, #output {
+  flex: 1;
+  height: 80vh;
+  padding: 10px;
+  font-size: 1rem;
+  font-family: monospace;
+  resize: none;
+}
+
+#bookName {
+  align-self: flex-start;
+  margin-bottom: 10px;
+}
+
+#compChk, label[for="compChk"] {
+  display: block;
+  margin-bottom: 10px;
+}
+
+#map, #unmap {
+  display: block;
+  margin-bottom: 10px;
+}
+</style>
+  <script>
+let $ = (a)=>document.querySelector(a);
+	  
+// Compress to base64
+async function compress(text) {
+  const stream = new CompressionStream('gzip');
+  const writer = stream.writable.getWriter();
+  writer.write(new TextEncoder().encode(text)); 
+  writer.close();
+
+  const compressed = await new Response(stream.readable).arrayBuffer();
+  return btoa(String.fromCharCode(...new Uint8Array(compressed)));
+}
+
+// Decompress from base64
+let deCoM=(b64)=>{stream = new DecompressionStream('gzip'); w=stream.writable.getWriter();w.write(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));w.close();return new Response(stream.readable).arrayBuffer().then(d=>new TextDecoder().decode(d));}
+	  
+function mapCompressed(inp){
+	return compress(inp).then(v=>{
+            return inp;
+	});
+}
+function unmapCompressed(inp){
+	var o = inp.trim();
+	return deCoM(o);
+}
+
+
+</script>
+</head>
+<body>
+
+	
+<div>	
+<a id="url" href="">As Bookmarklet</a>
+<input id="bookName" onchange="$('#url').innerHTML=$('#bookName').value;" value="As Bookmarklet" />
+</div>
+
+	
+<div id="controls">
+<textarea id="input">
+</textarea>
+<button id="map">
+ShrinkyDink
+</button>
+<button id="unmap">
+Un-Shrinkydink
+</button>
+<textarea id="output">
+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
+</textarea>
+</div>
+<script>
+	
+$("#map").onclick=((e)=>{
+	mapCompressed($("#input").value).then(m=>{
+	  $("#output").value=m;
+	  $("#url").href="https://tylerperyea.github.io/public/simple_web.html?html="+m;
+	});
+});
+
+$("#unmap").onclick=((e)=>{
+  
+	unmapCompressed(enc).then(m=>{
+	  $("#input").value=m;
+	});
+});
+
+$("#unmap").onclick();
+$("#map").onclick();
+
+</script>
+</body>
+</html>
