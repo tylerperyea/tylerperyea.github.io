@@ -65,19 +65,7 @@
       return new URLSearchParams(location.search).get(name);
     }
 
-    window.onload = () => {
-        const b64 = getURLParam("data").replace(/ /g,"+");
-	  
-        if (!b64) {
-          return;
-        }
-        deCoM(b64).then(dataRaw=>{
-		         let col=JSChemify.ChemicalCollection()
-    		         .fromSmilesFile(dataRaw);
-        	document.getElementById("spreadsheet").innerHTML=col.$getTableHTML(20);
-		    });
-		
-    };
+   
   </script>
   
 </head>  
@@ -117,13 +105,32 @@ N-Nitrosoethylurea	CCN(C(=O)N)N=O	0.095	1.117	1.069
 <button onclick="directLink()">Direct Link</button>
 <script>
 	setTimeout(()=>{
-	load();
-		},1);
+		if(!loadURL()){
+		   load();
+		}
+		
+	},1);
   function directLink(){
      compress(mcol.toSmilesFile()).then(cc=>{
         window.open(window.location.href.split("?")[0] + "?data=" + cc,"_blank");
      });
   }
+
+    function loadURL() {
+        const b64 = getURLParam("data").replace(/ /g,"+");
+	  
+        if (!b64) {
+          return false;
+        }
+        deCoM(b64).then(dataRaw=>{
+		         let col=JSChemify.ChemicalCollection()
+    		                          .fromSmilesFile(dataRaw);
+                         mcol=col;
+        	         document.getElementById("spreadsheet").innerHTML=col.$getTableHTML(20);
+		    });
+	return true;
+		
+    }
 </script>
 </body> 
 </html>
