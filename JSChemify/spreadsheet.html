@@ -117,18 +117,23 @@ N-Nitrosoethylurea	CCN(C(=O)N)N=O	0.095	1.117	1.069
   }
 
     function loadURL() {
-        const b64 = getURLParam("data").replace(/ /g,"+");
-	  
-        if (!b64) {
-          return false;
-        }
-        deCoM(b64).then(dataRaw=>{
-		         let col=JSChemify.ChemicalCollection()
-    		                          .fromSmilesFile(dataRaw);
-                         mcol=col;
-        	         document.getElementById("spreadsheet").innerHTML=col.$getTableHTML(20);
-		    });
-	return true;
+	    let dURL =getURLParam("data");
+	    if(dURL){
+	        const b64 = getURLParam("data").replace(/ /g,"+");
+		  
+	        if (!b64) {
+	          return false;
+	        }
+	        deCoM(b64).then(dataRaw=>{
+			         let col=JSChemify.ChemicalCollection()
+	    		                          .fromSmilesFile(dataRaw);
+	                         mcol=col;
+	        	         document.getElementById("spreadsheet").innerHTML=col.$getTableHTML(20);
+			    });
+		return true;
+	    }else{
+		return false;
+	    }
 		
     }
 </script>
