@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCRUM Made Simple - Interactive Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+        
+        .nav-btn:hover, .nav-btn.active {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .content-section {
+            display: none;
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        .content-section.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .concept-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 10px 10px 0;
+            transition: transform 0.3s ease;
+        }
+        
+        .concept-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .interactive-demo {
+            background: #e8f2ff;
+            border: 2px dashed #667eea;
+            padding: 2rem;
+            border-radius: 10px;
+            margin: 2rem 0;
+            text-align: center;
+        }
+        
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .kanban-column {
+            background: #f1f3f4;
+            border-radius: 8px;
+            padding: 1rem;
+            min-height: 200px;
+        }
+        
+        .kanban-header {
+            font-weight: bold;
+            margin-bottom: 1rem;
+            text-align: center;
+            padding: 0.5rem;
+            background: #667eea;
+            color: white;
+            border-radius: 5px;
+        }
+        
+        .task-card {
+            background: white;
+            padding: 0.8rem;
+            margin: 0.5rem 0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .task-card:hover {
+            transform: scale(1.02);
+        }
+        
+        .sprint-timeline {
+            display: flex;
+            align-items: center;
+            overflow-x: auto;
+            padding: 1rem 0;
+            margin: 1rem 0;
+        }
+        
+        .sprint-day {
+            min-width: 80px;
+            height: 80px;
+            background: #f1f3f4;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .sprint-day:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .sprint-day.completed {
+            background: #28a745;
+            color: white;
+        }
+        
+        .quiz-container {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        
+        .quiz-question {
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        
+        .quiz-options {
+            display: grid;
+            gap: 0.5rem;
+        }
+        
+        .quiz-option {
+            background: white;
+            border: 2px solid #ddd;
+            padding: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .quiz-option:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .quiz-option.correct {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        
+        .quiz-option.incorrect {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+        
+        .progress-bar {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 20px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+        
+        .emoji {
+            font-size: 1.5rem;
+            margin-right: 0.5rem;
+        }
+        
+        .tip-box {
+            background: #e8f5e8;
+            border-left: 4px solid #28a745;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+        }
+        
+        button:hover {
+            background: #5a6fd8;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 SCRUM Made Simple</h1>
+            <p class="subtitle">Your friendly guide to understanding agile project management</p>
+        </header>
+
+        <div class="nav-buttons">
+            <button class="nav-btn active" onclick="showSection('intro')">What is SCRUM?</button>
+            <button class="nav-btn" onclick="showSection('basics')">Key Concepts</button>
+            <button class="nav-btn" onclick="showSection('sprints')">Sprints & Timeline</button>
+            <button class="nav-btn" onclick="showSection('kanban')">Kanban Board</button>
+            <button class="nav-btn" onclick="showSection('meetings')">Meetings & Rituals</button>
+            <button class="nav-btn" onclick="showSection('tools')">Tools & Tips</button>
+            <button class="nav-btn" onclick="showSection('quiz')">Test Yourself</button>
+        </div>
+
+        <!-- Introduction Section -->
+        <div id="intro" class="content-section active">
+            <h2>🎯 What is SCRUM?</h2>
+            <p>Think of SCRUM like organizing a group project, but with superpowers! It's a way to manage work that helps teams:</p>
+            
+            <div class="concept-card">
+                <h3><span class="emoji">⚡</span>Work faster and smarter</h3>
+                <p>Instead of planning everything for months, break work into small, manageable pieces (called "sprints")</p>
+            </div>
+            
+            <div class="concept-card">
+                <h3><span class="emoji">🔄</span>Adapt quickly to changes</h3>
+                <p>When priorities shift (and they always do!), SCRUM helps you pivot without losing momentum</p>
+            </div>
+            
+            <div class="concept-card">
+                <h3><span class="emoji">👥</span>Collaborate better</h3>
+                <p>Regular check-ins and clear roles ensure everyone knows what's happening</p>
+            </div>
+            
+            <div class="interactive-demo">
+                <h3>🎭 SCRUM in Real Life</h3>
+                <p>Imagine planning a wedding:</p>
+                <ul style="text-align: left; display: inline-block;">
+                    <li><strong>Traditional approach:</strong> Plan everything 12 months ahead (risky!)</li>
+                    <li><strong>SCRUM approach:</strong> Plan in 2-week chunks, adjust as you learn</li>
+                </ul>
+                <button onclick="toggleExample()">Show More Examples</button>
+                <div id="moreExamples" class="hidden" style="margin-top: 1rem;">
+                    <p><strong>Other examples:</strong></p>
+                    <ul style="text-align: left; display: inline-block;">
+                        <li>Building a mobile app: Test features with users every 2 weeks</li>
+                        <li>Organizing a conference: Book venue first, then speakers, then catering</li>
+                        <li>Launching a new product: Start with MVP, gather feedback, improve</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Concepts Section -->
+        <div id="basics" class="content-section">
+            <h2>📚 Key Concepts Explained</h2>
+            
+            <div class="concept-card">
+                <h3><span class="emoji">📋</span>Product Backlog</h3>
+                <p><strong>What it is:</strong> A prioritized list of everything that needs to be done</p>
+                <p><strong>Think of it as:</strong> Your ultimate to-do list, but organized by importance</p>
+                <p><strong>Who manages it:</strong> Product Owner (the person who knows what users want)</p>
+            </div>
+            
+            <div class="concept-card">
+                <h3><span class="emoji">🏃‍♂️</span>Sprint</h3>
+                <p><strong>What it is:</strong> A fixed time period (usually 1-4 weeks) to complete specific work</p>
+                <p><strong>Think of it as:</strong> A focused work session with a clear goal</p>
+                <p><strong>Why it works:</strong> Creates urgency and allows for regular feedback</p>
+            </div>
+            
+            <div class="concept-card">
+                <h3><span class="emoji">👑</span>Scrum Master</h3>
+                <p><strong>What they do:</strong> Remove obstacles and facilitate meetings</p>
+                <p><strong>Think of them as:</strong> A coach who helps the team succeed</p>
+                <p><strong>Not a boss:</strong> They don't assign tasks or manage people</p>
+            </div>
+            
+            <div class="concept-card">
+                <h3><span class="emoji">🎯</span>Definition of Done</h3>
+                <p><strong>What it is:</strong> Clear criteria for when work is truly complete</p>
+                <p><strong>Example:</strong> "Code written, tested, reviewed, and deployed"</p>
+                <p><strong>Why it matters:</strong> Prevents "95% done" syndrome</p>
+            </div>
+
+            <div class="tip-box">
+                <strong>💡 Pro Tip:</strong> Don't worry about memorizing everything! SCRUM is learned by doing, not reading.
+            </div>
+        </div>
+
+        <!-- Sprints Section -->
+        <div id="sprints" class="content-section">
+            <h2>🏃‍♂️ Sprints & Timeline</h2>
+            <p>A sprint is like a mini-project with a beginning, middle, and end. Let's walk through a typical 2-week sprint:</p>
+            
+            <div class="interactive-demo">
+                <h3>Interactive Sprint Timeline</h3>
+                <p>Click on each day to see what happens!</p>
+                <div class="sprint-timeline">
+                    <div class="sprint-day" onclick="showSprintDay(1)" data-day="1">Day 1</div>
+                    <div class="sprint-day" onclick="showSprintDay(3)" data-day="3">Day 3</div>
+                    <div class="sprint-day" onclick="showSprintDay(7)" data-day="7">Day 7</div>
+                    <div class="sprint-day" onclick="showSprintDay(10)" data-day="10">Day 10</div>
+                    <div class="sprint-day" onclick="showSprintDay(14)" data-day="14">Day 14</div>
+                </div>
+                <div id="sprintDayInfo" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px;">
+                    Click on a day above to see what happens during the sprint!
+                </div>
+            </div>
+
+            <div class="concept-card">
+                <h3><span class="emoji">📅</span>Sprint Planning</h3>
+                <p>The team decides what they can realistically accomplish in the upcoming sprint. It's like meal planning - you check what's in your fridge (capacity) and decide what to cook (tasks).</p>
+            </div>
+
+            <div class="concept-card">
+                <h3><span class="emoji">📈</span>Sprint Review</h3>
+                <p>Show off what you've built! This is where the team demonstrates completed work to stakeholders and gets feedback.</p>
+            </div>
+
+            <div class="concept-card">
+                <h3><span class="emoji">🔄</span>Sprint Retrospective</h3>
+                <p>The team reflects on what went well and what could be improved. Think of it as a team's "lessons learned" session.</p>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 0%" id="sprintProgress"></div>
+            </div>
+            <p style="text-align: center; margin-top: 0.5rem;" id="progressText">Sprint Progress: 0%</p>
+        </div>
+
+        <!-- Kanban Section -->
+        <div id="kanban" class="content-section">
+            <h2>📋 Kanban Board Demo</h2>
+            <p>A Kanban board is like a visual workflow. Drag tasks from left to right as they progress!</p>
+            
+            <div class="interactive-demo">
+                <h3>Try It Yourself!</h3>
+                <p>Click on tasks to move them to the next column</p>
+                <div class="kanban-board">
+                    <div class="kanban-column">
+                        <div class="kanban-header">📝 To Do</div>
+                        <div class="task-card" onclick="moveTask(this)" data-status="todo">
+                            Write user stories
+                        </div>
+                        <div class="task-card" onclick="moveTask(this)" data-status="todo">
+                            Design login page
+                        </div>
+                        <div class="task-card" onclick="moveTask(this)" data-status="todo">
+                            Set up database
+                        </div>
+                    </div>
+                    
+                    <div class="kanban-column">
+                        <div class="kanban-header">🔄 In Progress</div>
+                        <div class="task-card" onclick="moveTask(this)" data-status="inprogress">
+                            Build API endpoints
+                        </div>
+                    </div>
+                    
+                    <div class="kanban-column">
+                        <div class="kanban-header">🔍 Review</div>
+                        <div class="task-card" onclick="moveTask(this)" data-status="review">
+                            Test payment flow
+                        </div>
+                    </div>
+                    
+                    <div class="kanban-column">
+                        <div class="kanban-header">✅ Done</div>
+                        <div class="task-card" onclick="moveTask(this)" data-status="done">
+                            Project setup complete
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tip-box">
+                <strong>💡 Kanban vs SCRUM:</strong> 
+                <ul>
+                    <li><strong>Kanban:</strong> Continuous flow, no fixed time periods</li>
+                    <li><strong>SCRUM:</strong> Fixed sprints with specific ceremonies</li>
+                    <li><strong>Many teams use both!</strong> Kanban boards within SCRUM sprints</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Meetings Section -->
+        <div id="meetings" class="content-section">
+            <h2>🗣️ Meetings & Rituals</h2>
+            <p>SCRUM has specific meetings, but they're designed to be efficient and purposeful!</p>
+
+            <div class="concept-card">
+                <h3><span class="emoji">☀️</span>Daily Standup (Daily SCRUM)</h3>
+                <p><strong>Duration:</strong> 15 minutes max</p>
+                <p><strong>When:</strong> Same time every day</p>
+                <p><strong>Three questions each person answers:</strong></p>
+                <ul>
+                    <li>What did I do yesterday?</li>
+                    <li>What will I do today?</li>
+                    <li>Any blockers or obstacles?</li>
+                </ul>
+                <p><strong>Why standing?</strong> Keeps it short and energetic!</p>
+            </div>
+
+            <div class="concept-card">
+                <h3><span class="emoji">🎯</span>Sprint Planning</h3>
+                <p><strong>Duration:</strong> 1-2 hours per week of sprint</p>
+                <p><strong>Goal:</strong> Decide what the team will work on</p>
+                <p><strong>Outcome:</strong> Sprint backlog (specific tasks for the sprint)</p>
+            </div>
+
+            <div class="concept-card">
+                <h3><span class="emoji">🎉</span>Sprint Review</h3>
+                <p><strong>Duration:</strong> 1 hour per week of sprint</p>
+                <p><strong>Goal:</strong> Show completed work to stakeholders</p>
+                <p><strong>Focus:</strong> "Here's what we built" (not how we built it)</p>
+            </div>
+
+            <div class="concept-card">
+                <h3><span class="emoji">🔄</span>Sprint Retrospective</h3>
+                <p><strong>Duration:</strong> 45 minutes per week of sprint</p>
+                <p><strong>Goal:</strong> Improve team processes</p>
+                <p><strong>Common format:</strong> Start, Stop, Continue</p>
+            </div>
+
+            <div class="interactive-demo">
+                <h3>Meeting Time Calculator</h3>
+                <p>For a 2-week sprint with 5 team members:</p>
+                <ul style="text-align: left; display: inline-block;">
+                    <li>Daily standups: 10 standups × 15 min = 2.5 hours</li>
+                    <li>Sprint planning: 2 hours</li>
+                    <li>Sprint review: 2 hours</li>
+                    <li>Sprint retrospective: 1.5 hours</li>
+                    <li><strong>Total: 8 hours over 2 weeks (10% of time)</strong></li>
+                </ul>
+            </div>
+
+            <div class="warning-box">
+                <strong>⚠️ Common Mistake:</strong> Don't turn standups into detailed technical discussions. Save those for after the meeting!
+            </div>
+        </div>
+
+        <!-- Tools Section -->
+        <div id="tools" class="content-section">
+            <h2>🛠️ Tools & Tips</h2>
+
+            <div class="concept-card">
+                <h3><span class="emoji">🎫</span>JIRA</h3>
+                <p><strong>What it is:</strong> The most popular tool for managing SCRUM projects</p>
+                <p><strong>Key features:</strong></p>
+                <ul>
+                    <li>Create and track user stories</li>
+                    <li>Manage sprints and backlogs</li>
+                    <li>Generate burndown charts</li>
+                    <li>Custom workflows</li>
+                </ul>
+                <p><strong>Learning tip:</strong> Start with basic features before exploring advanced options</p>
+            </div>
+
+            <div class="concept-card">
+                <h3><span class="emoji">📊</span>Alternative Tools</h3>
+                <ul>
+                    <li><strong>Trello:</strong> Simple and visual, great for small teams</li>
+                    <li><strong>Azure DevOps:</strong> Microsoft's solution, integrates well with other MS tools</li>
+                    <li><strong>Monday.com:</strong> User-friendly with lots of customization</li>
+                    <li><strong>Asana:</strong> Good for mixed agile/traditional project management</li>
+                </ul>
+            </div>
+
+            <div class="concept-card">
+                <h3><span class="emoji">📈</span>Key Metrics to Track</h3>
+                <ul>
+                    <li><strong>Velocity:</strong> How much work the team completes per sprint</li>
+                    <li><strong>Burndown Chart:</strong> Visual showing remaining work vs. time</li>
+                    <li><strong>Cycle Time:</strong> How long it takes to complete a task</li>
+                    <li><strong>Team Happiness:</strong> Regular mood checks (yes, this matters!)</li>
+                </ul>
+            </div>
+
+            <div class="tip-box">
+                <strong>💡 Getting Started Tips:</strong>
+                <ul>
+                    <li>Start simple - don't overwhelm yourself with features</li>
+                    <li>Focus on communication over tools</li>
+                    <li>Expect a learning curve - it takes 3-5 sprints to find your rhythm</li>
+                    <li>Customize slowly - understand the basics first</li>
+                </ul>
+            </div>
+
+            <div class="interactive-demo">
+                <h3>🎯 SCRUM Success Factors</h3>
+                <p>Rate how important you think each factor is (click to reveal):</p>
+                <div class="quiz-options">
+                    <div class="quiz-option" onclick="revealFactor(this)" data-factor="Team collaboration and communication">
+                        Team collaboration 🤝
+                    </div>
+                    <div class="quiz-option" onclick="revealFactor(this)" data-factor="Having the right tools and technology">
+                        Right tools 🛠️
+                    </div>
+                    <div class="quiz-option" onclick="revealFactor(this)" data-factor="Clear goals and priorities">
+                        Clear goals 🎯
+                    </div>
+                    <div class="quiz-option" onclick="revealFactor(this)" data-factor="Regular feedback and adaptation">
+                        Regular feedback 🔄
+                    </div>
+                </div>
+                <div id="factorReveal" style="margin-top: 1rem; font-weight: bold;"></div>
+            </div>
+        </div>
+
+        <!-- Quiz Section -->
+        <div id="quiz" class="content-section">
+            <h2>🧠 Test Your SCRUM Knowledge</h2>
+            <p>Let's see how much you've learned! Don't worry - this is just for fun.</p>
+
+            <div class="quiz-container">
+                <div class="quiz-question">1. How long should a daily standup meeting last?</div>
+                <div class="quiz-options">
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">30 minutes</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, true)">15 minutes</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">5 minutes</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">1 hour</div>
+                </div>
+            </div>
+
+            <div class="quiz-container">
+                <div class="quiz-question">2. What is the main purpose of a Sprint Review?</div>
+                <div class="quiz-options">
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">Plan the next sprint</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, true)">Show completed work to stakeholders</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">Discuss team performance issues</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">Assign tasks to team members</div>
+                </div>
+            </div>
+
+            <div class="quiz-container">
+                <div class="quiz-question">3. Who is responsible for removing obstacles for the team?</div>
+                <div class="quiz-options">
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">Product Owner</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, true)">Scrum Master</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">Project Manager</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">Development Team</div>
+                </div>
+            </div>
+
+            <div class="quiz-container">
+                <div class="quiz-question">4. What's the typical length of a sprint?</div>
+                <div class="quiz-options">
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">1 day</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, true)">1-4 weeks</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">3 months</div>
+                    <div class="quiz-option" onclick="checkAnswer(this, false)">6 months</div>
+                </div>
+            </div>
+
+            <div id="quizResults" class="hidden" style="text-align: center; margin-top: 2rem;">
+                <h3>🎉 Quiz Complete!</h3>
+                <p id="scoreText"></p>
+                <button onclick="resetQuiz()">Take Quiz Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSection = 'intro';
+        let quizScore = 0;
+        let questionsAnswered = 0;
+        let sprintProgress = 0;
+
+        function showSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Show target section
+            document.getElementById(sectionId).classList.add('active');
+            
+            // Update navigation
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            currentSection = sectionId;
+        }
+
+        function toggleExample() {
+            const examples = document.getElementById('moreExamples');
+            examples.classList.toggle('hidden');
+        }
+
+        function showSprintDay(day) {
+            const info = document.getElementById('sprintDayInfo');
+            const dayInfo = {
+                1: "🚀 <strong>Sprint Planning Day!</strong><br>The team meets to decide what they'll work on for the next 2 weeks. They review the backlog, estimate effort, and commit to a sprint goal.",
+                3: "💪 <strong>Getting into the groove</strong><br>Daily standups keep everyone aligned. The team is coding, designing, and collaborating. Any early obstacles are quickly identified.",
+                7: "🔄 <strong>Mid-sprint checkpoint</strong><br>Halfway through! The team assesses progress and adjusts if needed. This is where the flexibility of SCRUM really shines.",
+                10: "⚡ <strong>Final push</strong><br>Last few days to complete committed work. Focus shifts to finishing tasks and preparing for the demo. No new work is added.",
+                14: "🎉 <strong>Sprint Review & Retrospective</strong><br>Show off completed work in the Sprint Review, then reflect on what went well and what to improve in the Retrospective."
+            };
+            
+            info.innerHTML = dayInfo[day];
+            
+            // Update progress
+            sprintProgress = (day / 14) * 100;
+            document.getElementById('sprintProgress').style.width = sprintProgress + '%';
+            document.getElementById('progressText').textContent = `Sprint Progress: ${Math.round(sprintProgress)}%`;
+            
+            // Mark days as completed
+            document.querySelectorAll('.sprint-day').forEach(dayEl => {
+                const dayNum = parseInt(dayEl.getAttribute('data-day'));
+                if (dayNum <= day) {
+                    dayEl.classList.add('completed');
+                }
+            });
+        }
+
+        function moveTask(taskElement) {
+            const currentStatus = taskElement.getAttribute('data-status');
+            const statusFlow = ['todo', 'inprogress', 'review', 'done'];
+            const currentIndex = statusFlow.indexOf(currentStatus);
+            
+            if (currentIndex < statusFlow.length - 1) {
+                const nextStatus = statusFlow[currentIndex + 1];
+                taskElement.setAttribute('data-status', nextStatus);
+                
+                // Move to next column
+                const columns = document.querySelectorAll('.kanban-column');
+                columns[currentIndex + 1].appendChild(taskElement);
+                
+                // Add some visual feedback
+                taskElement.style.background = '#d4edda';
+                setTimeout(() => {
+                    taskElement.style.background = 'white';
+                }, 500);
+            }
+        }
+
+        function checkAnswer(element, isCorrect) {
+            // Prevent multiple clicks on the same question
+            if (element.parentNode.classList.contains('answered')) return;
+            
+            element.parentNode.classList.add('answered');
+            questionsAnswered++;
+            
+            if (isCorrect) {
+                element.classList.add('correct');
+                quizScore++;
+            } else {
+                element.classList.add('incorrect');
+                // Show correct answer
+                element.parentNode.querySelectorAll('.quiz-option').forEach(option => {
+                    if (option.onclick.toString().includes('true')) {
+                        option.classList.add('correct');
+                    }
+                });
+            }
+            
+            // Show results after all questions answered
+            if (questionsAnswered === 4) {
+                setTimeout(() => {
+                    showQuizResults();
+                }, 1000);
+            }
+        }
+
+        function showQuizResults() {
+            const results = document.getElementById('quizResults');
+            const scoreText = document.getElementById('scoreText');
+            
+            let message = '';
+            if (quizScore === 4) {
+                message = '🏆 Perfect! You\'re ready to join a SCRUM team!';
+            } else if (quizScore >= 3) {
+                message = '🎯 Great job! You understand the basics well.';
+            } else if (quizScore >= 2) {
+                message = '📚 Good start! Review the concepts and try again.';
+            } else {
+                message = '🌱 Keep learning! SCRUM takes practice to master.';
+            }
+            
+            scoreText.innerHTML = `You scored ${quizScore} out of 4<br>${message}`;
+            results.classList.remove('hidden');
+        }
+
+        function resetQuiz() {
+            quizScore = 0;
+            questionsAnswered = 0;
+            
+            document.querySelectorAll('.quiz-container').forEach(container => {
+                container.classList.remove('answered');
+                container.querySelectorAll('.quiz-option').forEach(option => {
+                    option.classList.remove('correct', 'incorrect');
+                });
+            });
+            
+            document.getElementById('quizResults').classList.add('hidden');
+        }
+
+        function revealFactor(element) {
+            const factor = element.getAttribute('data-factor');
+            const reveal = document.getElementById('factorReveal');
+            
+            const importance = {
+                'Team collaboration and communication': '🏆 CRITICAL - This is the #1 success factor! Tools can\'t fix communication problems.',
+                'Having the right tools and technology': '⚙️ HELPFUL - Important, but secondary to good teamwork and processes.',
+                'Clear goals and priorities': '🎯 ESSENTIAL - Without clear direction, even the best teams will struggle.',
+                'Regular feedback and adaptation': '🔄 VITAL - This is what makes SCRUM work! Continuous improvement is key.'
+            };
+            
+            reveal.innerHTML = importance[factor];
+            element.style.background = '#e8f5e8';
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            showSection('intro');
+        });
+    </script>
+</body>
+</html>
