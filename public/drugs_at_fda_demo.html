@@ -1567,7 +1567,7 @@
                     '</thead>' +
                     '<tbody>';
                 
-                ndcDetails.forEach(ndcDetail => {
+                ndcDetails.filter(ndc=>ndc.ndc.split("-").length<=2).forEach(ndcDetail => {
                     const ndc = ndcDetail.ndc;
                     const data = ndcDetail.data;
                     
