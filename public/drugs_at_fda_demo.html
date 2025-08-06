@@ -1,0 +1,1150 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drugs@FDA - OpenFDA API Interface</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #0066cc;
+        }
+        .header h1 {
+            color: #0066cc;
+            margin: 0;
+        }
+        .chart-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #0066cc;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+        .search-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .search-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .search-input {
+            flex: 1;
+            min-width: 300px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #0052a3;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        .btn-back {
+            background-color: #28a745;
+            margin-bottom: 20px;
+        }
+        .btn-back:hover {
+            background-color: #218838;
+        }
+        .alphabet-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+        .alphabet-btn {
+            padding: 8px 12px;
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            color: #495057;
+            text-decoration: none;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .alphabet-btn:hover {
+            background-color: #dee2e6;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #666;
+        }
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .results-section {
+            margin-top: 30px;
+        }
+        .results-header {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-left: 4px solid #0066cc;
+            margin-bottom: 20px;
+        }
+        .application-card {
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            overflow: hidden;
+            transition: box-shadow 0.2s;
+        }
+        .application-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .application-header {
+            background-color: #f8f9fa;
+            padding: 15px;
+            cursor: pointer;
+        }
+        .application-header:hover {
+            background-color: #e9ecef;
+        }
+        .application-header h3 {
+            margin: 0 0 10px 0;
+            color: #0066cc;
+        }
+        .application-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .meta-item {
+            background-color: white;
+            padding: 8px;
+            border-radius: 3px;
+            border-left: 3px solid #0066cc;
+        }
+        .meta-label {
+            font-weight: bold;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .meta-value {
+            font-size: 14px;
+            margin-top: 2px;
+        }
+        .application-detail-view {
+            display: none;
+            margin-top: 20px;
+        }
+        .application-detail-view.visible {
+            display: block;
+        }
+        .detail-header {
+            background-color: #0066cc;
+            color: white;
+            padding: 20px;
+            border-radius: 5px 5px 0 0;
+        }
+        .detail-header h2 {
+            margin: 0 0 10px 0;
+        }
+        .detail-content {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            padding: 20px;
+            border-radius: 0 0 5px 5px;
+        }
+        .products-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        .products-table th,
+        .products-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .products-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .products-table td {
+            word-wrap: break-word;
+        }
+        .submissions-section {
+            margin-top: 20px;
+        }
+        .submissions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+        .submission-category {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        .submission-category h4 {
+            margin: 0 0 10px 0;
+            color: #0066cc;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .document-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .document-list li {
+            margin: 5px 0;
+            padding: 5px;
+            background-color: #f9f9f9;
+            border-radius: 3px;
+        }
+        .document-list a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .document-list a:hover {
+            text-decoration: underline;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+        }
+        .pagination button:hover {
+            background-color: #f8f9fa;
+        }
+        .pagination button.active {
+            background-color: #0066cc;
+            color: white;
+            border-color: #0066cc;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-approved {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-discontinued {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .disclaimer {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .breadcrumb {
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        .breadcrumb a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        .year-filter-indicator {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            color: #0c5460;
+        }
+        .year-filter-indicator button {
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .year-filter-indicator button:hover {
+            background-color: #138496;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Drugs@FDA</h1>
+            <p>Search FDA-approved drug products using the openFDA API</p>
+        </div>
+
+        <div class="disclaimer">
+            <strong>Disclaimer:</strong> Do not rely on openFDA to make decisions regarding medical care. While we make every effort to ensure that data is accurate, you should assume all results are unvalidated.
+        </div>
+
+        <div class="chart-section">
+            <h3>Drug Application Approvals by Year</h3>
+            <p>Click on any year to filter results to applications approved in that year</p>
+            <div class="chart-container">
+                <canvas id="approvalChart"></canvas>
+            </div>
+        </div>
+
+        <div id="searchView">
+            <div class="search-section">
+                <h2>Search Drug Products</h2>
+                
+                <div id="yearFilterIndicator" class="year-filter-indicator" style="display: none;">
+                    <span id="yearFilterText"></span>
+                    <button onclick="clearYearFilter()">Clear Filter</button>
+                </div>
+                
+                <div class="search-controls">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Enter drug name, application number, or sponsor (minimum 3 characters)" />
+                    <button onclick="performSearch()" class="btn">Search</button>
+                    <button onclick="clearResults()" class="btn btn-secondary">Clear</button>
+                </div>
+
+                <div>
+                    <strong>Browse by First Letter:</strong>
+                </div>
+                <div class="alphabet-nav">
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('A')">A</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('B')">B</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('C')">C</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('D')">D</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('E')">E</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('F')">F</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('G')">G</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('H')">H</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('I')">I</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('J')">J</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('K')">K</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('L')">L</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('M')">M</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('N')">N</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('O')">O</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('P')">P</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('Q')">Q</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('R')">R</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('S')">S</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('T')">T</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('U')">U</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('V')">V</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('W')">W</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('X')">X</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('Y')">Y</a>
+                    <a href="#" class="alphabet-btn" onclick="searchByLetter('Z')">Z</a>
+                </div>
+            </div>
+
+            <div id="loadingIndicator" class="loading" style="display: none;">
+                Loading search results...
+            </div>
+
+            <div id="errorMessage" class="error" style="display: none;"></div>
+
+            <div id="resultsSection" class="results-section" style="display: none;">
+                <div id="resultsHeader" class="results-header">
+                    <h3 id="resultsTitle">Search Results</h3>
+                    <p id="resultsCount"></p>
+                </div>
+                
+                <div id="applicationsList"></div>
+                
+                <div id="pagination" class="pagination"></div>
+            </div>
+        </div>
+
+        <div id="detailView" class="application-detail-view">
+            <div class="breadcrumb">
+                <a href="#" onclick="showSearchView()">← Back to Search Results</a>
+            </div>
+            <button onclick="showSearchView()" class="btn btn-back">← Back to Search Results</button>
+            
+            <div id="applicationDetail">
+                <!-- Application detail content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        let totalResults = 0;
+        let currentSearchTerm = '';
+        let chartData = [];
+        let approvalChart = null;
+        let currentYearFilter = null;
+
+        // Handle browser back/forward buttons and initial load
+        window.addEventListener('popstate', function(e) {
+            handleRoute();
+        });
+
+        window.addEventListener('load', function() {
+            loadChartData();
+            handleRoute();
+        });
+
+        function handleRoute() {
+            const params = new URLSearchParams(window.location.search);
+            const appNumber = params.get('app');
+            const year = params.get('year');
+            
+            if (appNumber) {
+                loadApplicationDetail(appNumber);
+            } else {
+                showSearchView();
+                if (year) {
+                    currentYearFilter = year;
+                    showYearFilter(year);
+                    searchByYear(year);
+                }
+            }
+        }
+
+        async function loadChartData() {
+            try {
+                // Load a sample of data to build the chart
+                const response = await fetch('https://api.fda.gov/drug/drugsfda.json?limit=1000');
+                const data = await response.json();
+                
+                if (data.results) {
+                    buildApprovalChart(data.results);
+                }
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+            }
+        }
+
+        function buildApprovalChart(applications) {
+            const yearCounts = {};
+            
+            applications.forEach(app => {
+                if (app.submissions) {
+                    // Find the original approval (ORIG submission with AP status)
+                    const originalApproval = app.submissions.find(sub => 
+                        sub.submission_type === 'ORIG' && 
+                        sub.submission_status === 'AP' && 
+                        sub.submission_status_date
+                    );
+                    
+                    if (originalApproval) {
+                        const year = originalApproval.submission_status_date.substring(0, 4);
+                        if (year >= '1990') { // Filter for reasonable years
+                            yearCounts[year] = (yearCounts[year] || 0) + 1;
+                        }
+                    }
+                }
+            });
+
+            // Convert to chart data
+            const years = Object.keys(yearCounts).sort();
+            const counts = years.map(year => yearCounts[year]);
+
+            chartData = years.map((year, index) => ({
+                year: year,
+                count: counts[index]
+            }));
+
+            // Create the chart
+            const ctx = document.getElementById('approvalChart').getContext('2d');
+            
+            if (approvalChart) {
+                approvalChart.destroy();
+            }
+            
+            approvalChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: 'Applications Approved',
+                        data: counts,
+                        backgroundColor: 'rgba(0, 102, 204, 0.7)',
+                        borderColor: 'rgba(0, 102, 204, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Applications'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Year'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Drug Application Approvals by Year (Sample Data)'
+                        },
+                        legend: {
+                            display: false
+                        }
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const year = years[index];
+                            filterByYear(year);
+                        }
+                    }
+                }
+            });
+        }
+
+        function filterByYear(year) {
+            currentYearFilter = year;
+            showYearFilter(year);
+            searchByYear(year);
+            
+            // Update URL
+            const newUrl = window.location.pathname + '?year=' + year;
+            window.history.pushState({}, '', newUrl);
+        }
+
+        function showYearFilter(year) {
+            const indicator = document.getElementById('yearFilterIndicator');
+            const text = document.getElementById('yearFilterText');
+            text.textContent = `Showing applications approved in ${year}`;
+            indicator.style.display = 'block';
+        }
+
+        function clearYearFilter() {
+            currentYearFilter = null;
+            document.getElementById('yearFilterIndicator').style.display = 'none';
+            clearResults();
+            
+            // Update URL
+            const newUrl = window.location.pathname;
+            window.history.pushState({}, '', newUrl);
+        }
+
+        async function searchByYear(year) {
+            showLoading();
+            hideError();
+            
+            try {
+                // Search for applications with original approvals in the specified year
+                const searchQuery = `submissions.submission_type:"ORIG" AND submissions.submission_status:"AP" AND submissions.submission_status_date:[${year}0101 TO ${year}1231]`;
+                const encodedQuery = encodeURIComponent(searchQuery);
+                const url = `https://api.fda.gov/drug/drugsfda.json?search=${encodedQuery}&limit=100`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.results) {
+                    currentData = data.results;
+                    totalResults = data.meta.results.total;
+                    currentPage = 1;
+                    currentSearchTerm = `Applications approved in ${year}`;
+                    displayResults(currentSearchTerm);
+                } else {
+                    showError('No applications found for year ' + year);
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                showError('Error searching for applications by year.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Add event listener for Enter key
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        async function performSearch() {
+            const searchTerm = document.getElementById('searchInput').value.trim();
+            
+            if (searchTerm.length < 3) {
+                showError('Please enter at least 3 characters to search.');
+                return;
+            }
+
+            currentSearchTerm = searchTerm;
+            currentYearFilter = null;
+            document.getElementById('yearFilterIndicator').style.display = 'none';
+            showLoading();
+            hideError();
+            
+            try {
+                let searchQuery = 'openfda.brand_name:' + searchTerm + ' OR ' +
+                                 'openfda.generic_name:' + searchTerm + ' OR ' +
+                                 'sponsor_name:' + searchTerm + ' OR ' +
+                                 'application_number:' + searchTerm;
+                
+                const encodedQuery = encodeURIComponent(searchQuery);
+                const url = `https://api.fda.gov/drug/drugsfda.json?search=${encodedQuery}&limit=100`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.results) {
+                    currentData = data.results;
+                    totalResults = data.meta.results.total;
+                    currentPage = 1;
+                    displayResults(searchTerm);
+                } else {
+                    showError('No results found for "' + searchTerm + '"');
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                showError('Error performing search. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function searchByLetter(letter) {
+            currentSearchTerm = 'Letter: ' + letter;
+            currentYearFilter = null;
+            document.getElementById('yearFilterIndicator').style.display = 'none';
+            showLoading();
+            hideError();
+            
+            try {
+                const searchQuery = 'openfda.brand_name:' + letter + '*';
+                const encodedQuery = encodeURIComponent(searchQuery);
+                const url = `https://api.fda.gov/drug/drugsfda.json?search=${encodedQuery}&limit=100`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.results) {
+                    currentData = data.results;
+                    totalResults = data.meta.results.total;
+                    currentPage = 1;
+                    displayResults('Letter: ' + letter);
+                } else {
+                    showError('No results found for letter "' + letter + '"');
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                showError('Error performing search. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function loadApplicationDetail(appNumber) {
+            showLoading();
+            
+            try {
+                const url = `https://api.fda.gov/drug/drugsfda.json?search=application_number:"${appNumber}"&limit=1`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    showApplicationDetail(data.results[0]);
+                } else {
+                    showError('Application not found: ' + appNumber);
+                    showSearchView();
+                }
+            } catch (error) {
+                console.error('Error loading application:', error);
+                showError('Error loading application details.');
+                showSearchView();
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function showApplicationDetail(application) {
+            const detailDiv = document.getElementById('applicationDetail');
+            detailDiv.innerHTML = generateFullApplicationDetail(application);
+            
+            document.getElementById('searchView').style.display = 'none';
+            document.getElementById('detailView').classList.add('visible');
+            
+            // Update URL without triggering navigation
+            const params = new URLSearchParams();
+            params.set('app', application.application_number);
+            if (currentYearFilter) {
+                params.set('year', currentYearFilter);
+            }
+            const newUrl = window.location.pathname + '?' + params.toString();
+            window.history.pushState({}, '', newUrl);
+        }
+
+        function showSearchView() {
+            document.getElementById('detailView').classList.remove('visible');
+            document.getElementById('searchView').style.display = 'block';
+            
+            // Update URL
+            const params = new URLSearchParams();
+            if (currentYearFilter) {
+                params.set('year', currentYearFilter);
+            }
+            const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+            window.history.pushState({}, '', newUrl);
+        }
+
+        function displayResults(searchTerm) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsTitle = document.getElementById('resultsTitle');
+            const resultsCount = document.getElementById('resultsCount');
+            const applicationsList = document.getElementById('applicationsList');
+            
+            resultsTitle.textContent = 'Search Results for: ' + searchTerm;
+            resultsCount.textContent = `Found ${totalResults} applications`;
+            
+            // Calculate pagination
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageData = currentData.slice(startIndex, endIndex);
+            
+            // Generate applications list
+            applicationsList.innerHTML = pageData.map(app => generateApplicationCard(app)).join('');
+            
+            // Generate pagination
+            generatePagination();
+            
+            resultsSection.style.display = 'block';
+        }
+
+        function generateApplicationCard(application) {
+            const appNumber = application.application_number || 'N/A';
+            const sponsor = application.sponsor_name || 'N/A';
+            const products = application.products || [];
+            
+            // Get brand names from products or openfda
+            const brandNames = new Set();
+            if (application.openfda && application.openfda.brand_name) {
+                application.openfda.brand_name.forEach(name => brandNames.add(name));
+            }
+            products.forEach(product => {
+                if (product.brand_name) {
+                    brandNames.add(product.brand_name);
+                }
+            });
+            const brandNamesList = Array.from(brandNames).join(', ') || 'N/A';
+            
+            // Get active ingredients
+            const activeIngredients = new Set();
+            products.forEach(product => {
+                if (product.active_ingredients) {
+                    product.active_ingredients.forEach(ing => activeIngredients.add(ing.name));
+                }
+            });
+            const activeIngredientsList = Array.from(activeIngredients).join(', ') || 'N/A';
+            
+            // Get dosage forms and routes
+            const dosageForms = new Set();
+            const routes = new Set();
+            products.forEach(product => {
+                if (product.dosage_form) dosageForms.add(product.dosage_form);
+                if (product.route) routes.add(product.route);
+            });
+            const dosageFormsList = Array.from(dosageForms).join(', ') || 'N/A';
+            const routesList = Array.from(routes).join(', ') || 'N/A';
+            
+            // Get approval date from original submission
+            let approvalDate = 'N/A';
+            if (application.submissions) {
+                const originalApproval = application.submissions.find(sub => 
+                    sub.submission_type === 'ORIG' && 
+                    sub.submission_status === 'AP' && 
+                    sub.submission_status_date
+                );
+                if (originalApproval) {
+                    approvalDate = formatDate(originalApproval.submission_status_date);
+                }
+            }
+            
+            return `
+                <div class="application-card">
+                    <div class="application-header" onclick="showApplicationDetail(${JSON.stringify(application).replace(/"/g, '&quot;')})">
+                        <h3>${appNumber} - ${brandNamesList}</h3>
+                        <div class="application-meta">
+                            <div class="meta-item">
+                                <div class="meta-label">Sponsor</div>
+                                <div class="meta-value">${sponsor}</div>
+                            </div>
+                            <div class="meta-item">
+                                <div class="meta-label">Active Ingredients</div>
+                                <div class="meta-value">${activeIngredientsList}</div>
+                            </div>
+                            <div class="meta-item">
+                                <div class="meta-label">Dosage Forms</div>
+                                <div class="meta-value">${dosageFormsList}</div>
+                            </div>
+                            <div class="meta-item">
+                                <div class="meta-label">Routes</div>
+                                <div class="meta-value">${routesList}</div>
+                            </div>
+                            <div class="meta-item">
+                                <div class="meta-label">Approval Date</div>
+                                <div class="meta-value">${approvalDate}</div>
+                            </div>
+                            <div class="meta-item">
+                                <div class="meta-label">Products</div>
+                                <div class="meta-value">${products.length} product(s)</div>
+                            </div>
+                        </div>
+                        <small style="margin-top: 10px; display: block; color: #666;">Click to view details</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateFullApplicationDetail(application) {
+            const appNumber = application.application_number || 'N/A';
+            const sponsor = application.sponsor_name || 'N/A';
+            const products = application.products || [];
+            const submissions = application.submissions || [];
+            
+            // Get brand names
+            const brandNames = new Set();
+            if (application.openfda && application.openfda.brand_name) {
+                application.openfda.brand_name.forEach(name => brandNames.add(name));
+            }
+            products.forEach(product => {
+                if (product.brand_name) {
+                    brandNames.add(product.brand_name);
+                }
+            });
+            const brandNamesList = Array.from(brandNames).join(', ') || 'N/A';
+            
+            let html = `
+                <div class="detail-header">
+                    <h2>${appNumber} - ${brandNamesList}</h2>
+                    <p><strong>Sponsor:</strong> ${sponsor}</p>
+                    <p><strong>Total Products:</strong> ${products.length}</p>
+                </div>
+                <div class="detail-content">
+            `;
+            
+            // Products table with improved format
+            if (products.length > 0) {
+                html += `
+                    <h3>Products for ${appNumber}</h3>
+                    <table class="products-table">
+                        <thead>
+                            <tr>
+                                <th>Product #</th>
+                                <th>Drug Name</th>
+                                <th>Active Ingredients</th>
+                                <th>Strength</th>
+                                <th>Dosage Form/Route</th>
+                                <th>Marketing Status</th>
+                                <th>TE Code</th>
+                                <th>RLD</th>
+                                <th>RS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                products.forEach(product => {
+                    const activeIngredients = product.active_ingredients ? 
+                        product.active_ingredients.map(ing => ing.name).join('; ') : 
+                        'N/A';
+                    
+                    const strengths = product.active_ingredients ? 
+                        product.active_ingredients.map(ing => ing.strength).join('; ') : 
+                        'N/A';
+                    
+                    const dosageFormRoute = [product.dosage_form, product.route].filter(x => x).join('; ') || 'N/A';
+                    
+                    const statusClass = product.marketing_status === 'Discontinued' ? 'status-discontinued' : 'status-approved';
+                    
+                    const rld = product.reference_drug === 'Yes' ? 'Yes' : 'No';
+                    const rs = product.reference_standard === 'Yes' ? 'Yes' : 'No';
+                    
+                    html += `
+                        <tr>
+                            <td>${product.product_number || 'N/A'}</td>
+                            <td>${product.brand_name || 'N/A'}</td>
+                            <td>${activeIngredients}</td>
+                            <td>${strengths}</td>
+                            <td>${dosageFormRoute}</td>
+                            <td><span class="status-indicator ${statusClass}">${product.marketing_status || 'N/A'}</span></td>
+                            <td>${product.te_code || 'N/A'}</td>
+                            <td>${rld}</td>
+                            <td>${rs}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+            }
+            
+            // Submissions sections
+            if (submissions.length > 0) {
+                html += '<div class="submissions-section">';
+                html += '<h3>Approval Date(s) and History, Letters, Labels, Reviews for ' + appNumber + '</h3>';
+                
+                const categorizedSubmissions = categorizeSubmissions(submissions);
+                
+                html += '<div class="submissions-grid">';
+                
+                // Letters
+                if (categorizedSubmissions.letters.length > 0) {
+                    html += generateSubmissionCategory('Letters for ' + appNumber, categorizedSubmissions.letters);
+                }
+                
+                // Labels  
+                if (categorizedSubmissions.labels.length > 0) {
+                    html += generateSubmissionCategory('Labels for ' + appNumber, categorizedSubmissions.labels);
+                }
+                
+                // Reviews
+                if (categorizedSubmissions.reviews.length > 0) {
+                    html += generateSubmissionCategory('Reviews for ' + appNumber, categorizedSubmissions.reviews);
+                }
+                
+                // Therapeutic Equivalents (TE Codes)
+                const teProducts = products.filter(p => p.te_code);
+                if (teProducts.length > 0) {
+                    html += `
+                        <div class="submission-category">
+                            <h4>Therapeutic Equivalents for ${appNumber}</h4>
+                            <ul class="document-list">
+                    `;
+                    teProducts.forEach(product => {
+                        html += `
+                            <li>
+                                Product ${product.product_number}: ${product.brand_name} - TE Code: <strong>${product.te_code}</strong>
+                                <br><small>${product.dosage_form} - ${product.marketing_status}</small>
+                            </li>
+                        `;
+                    });
+                    html += '</ul></div>';
+                }
+                
+                // Other documents
+                if (categorizedSubmissions.other.length > 0) {
+                    html += generateSubmissionCategory('Other Documents for ' + appNumber, categorizedSubmissions.other);
+                }
+                
+                html += '</div></div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function categorizeSubmissions(submissions) {
+            const categories = {
+                letters: [],
+                labels: [],
+                reviews: [],
+                other: []
+            };
+            
+            submissions.forEach(submission => {
+                if (submission.application_docs) {
+                    submission.application_docs.forEach(doc => {
+                        const docInfo = {
+                            ...doc,
+                            submission_number: submission.submission_number,
+                            submission_type: submission.submission_type,
+                            submission_status: submission.submission_status,
+                            submission_status_date: submission.submission_status_date
+                        };
+                        
+                        if (doc.type && doc.type.toLowerCase().includes('letter')) {
+                            categories.letters.push(docInfo);
+                        } else if (doc.type && doc.type.toLowerCase().includes('label')) {
+                            categories.labels.push(docInfo);
+                        } else if (doc.type && (doc.type.toLowerCase().includes('review') || doc.type.toLowerCase().includes('summary'))) {
+                            categories.reviews.push(docInfo);
+                        } else {
+                            categories.other.push(docInfo);
+                        }
+                    });
+                }
+            });
+            
+            return categories;
+        }
+
+        function generateSubmissionCategory(title, documents) {
+            if (documents.length === 0) return '';
+            
+            let html = `
+                <div class="submission-category">
+                    <h4>${title}</h4>
+                    <ul class="document-list">
+            `;
+            
+            documents.forEach(doc => {
+                const date = formatDate(doc.date);
+                const submissionInfo = doc.submission_type + ' ' + doc.submission_number + 
+                                     (doc.submission_status ? ' (' + doc.submission_status + ')' : '');
+                
+                html += `
+                    <li>
+                        <a href="${doc.url}" target="_blank">${doc.type || 'Document'}</a>
+                        <br><small>${date} - ${submissionInfo}</small>
+                    </li>
+                `;
+            });
+            
+            html += '</ul></div>';
+            return html;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr || dateStr === '19000101') return 'Date not available';
+            
+            if (dateStr.length === 8) {
+                const year = dateStr.substring(0, 4);
+                const month = dateStr.substring(4, 6);
+                const day = dateStr.substring(6, 8);
+                return `${month}/${day}/${year}`;
+            }
+            
+            return dateStr;
+        }
+
+        function generatePagination() {
+            const pagination = document.getElementById('pagination');
+            const totalPages = Math.ceil(currentData.length / itemsPerPage);
+            
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+            
+            let html = '';
+            
+            // Previous button
+            if (currentPage > 1) {
+                html += '<button onclick="changePage(' + (currentPage - 1) + ')">Previous</button>';
+            }
+            
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                const activeClass = i === currentPage ? 'active' : '';
+                html += `<button class="${activeClass}" onclick="changePage(${i})">${i}</button>`;
+            }
+            
+            // Next button
+            if (currentPage < totalPages) {
+                html += '<button onclick="changePage(' + (currentPage + 1) + ')">Next</button>';
+            }
+            
+            pagination.innerHTML = html;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            displayResults(currentSearchTerm);
+            window.scrollTo(0, 0);
+        }
+
+        function showLoading() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function clearResults() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('resultsSection').style.display = 'none';
+            hideError();
+            currentData = [];
+            currentPage = 1;
+            totalResults = 0;
+            currentSearchTerm = '';
+            
+            if (!currentYearFilter) {
+                clearYearFilter();
+            }
+        }
+    </script>
+</body>
+</html>
