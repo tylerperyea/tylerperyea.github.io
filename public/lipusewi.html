@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lipu sewi - Toki Pona Bible</title>
+    <style>
+        /* === load linja-pona from jsDelivr (woff2 then woff) === */
+        @font-face{
+            font-family: "LinjaJS";
+            src:
+                url("https://cdn.jsdelivr.net/gh/janSame/linja-pona@master/linja-pona-4.2.woff2") format("woff2"),
+                url("https://cdn.jsdelivr.net/gh/janSame/linja-pona@master/linja-pona-4.2.woff") format("woff");
+            font-display: swap;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: system-ui, Segoe UI, Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        select, button {
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            background-color: white;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .display-options {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .chapter-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .chapter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .chapter-title {
+            font-size: 24px;
+            color: #2c3e50;
+        }
+        
+        .verse {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .verse:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .verse.highlighted {
+            background-color: #fff8e1;
+            border: 2px solid #ffd54f;
+        }
+        
+        .verse-number {
+            font-weight: bold;
+            margin-right: 5px;
+            color: #7f8c8d;
+        }
+        
+        .verse-content {
+            display: inline;
+        }
+        
+        .unsolidified {
+            opacity: 0.7;
+            border-left: 3px solid #e74c3c;
+            padding-left: 10px;
+        }
+        
+        .solidified {
+            border-left: 3px solid #2ecc71;
+            padding-left: 10px;
+        }
+        
+        .missing-verses {
+            background-color: #fff3e0;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ff9800;
+        }
+        
+        .sitelen-pona-mode .verse-content {
+            font-family: "LinjaJS", system-ui, serif;
+            font-size: 24px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            /* enable ligatures / contextual features used by linja fonts */
+            font-variant-ligatures: common-ligatures discretionary-ligatures contextual;
+            font-feature-settings: "liga" 1, "rlig" 1, "calt" 1;
+            -webkit-font-feature-settings: "liga" 1, "rlig" 1, "calt" 1;
+        }
+        
+        .name-rect {
+            display: inline-block;
+            border: 2px solid #333;
+            border-radius: 6px;
+            padding: 2px 6px;
+            margin: 0 2px;
+            font-size: 18px;
+            font-family: system-ui, Segoe UI, Roboto, sans-serif;
+            background-color: #f0f0f0;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #7f8c8d;
+        }
+        
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #c62828;
+        }
+        
+        .debug-info {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+            font-family: monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            display: none;
+        }
+        
+        .font-status {
+            margin-top: 8px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .reload-btn {
+            margin-left: 8px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: #f0f0f0;
+            color: #333;
+            cursor: pointer;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .share-section {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            gap: 10px;
+        }
+        
+        .share-btn {
+            background-color: #2ecc71;
+        }
+        
+        .share-btn:hover {
+            background-color: #27ae60;
+        }
+        
+        .debug-toggle {
+            display: flex;
+            align-items: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+            }
+            
+            select, button {
+                width: 100%;
+            }
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>lipu sewi</h1>
+        <p>Bible in Toki Pona</p>
+    </header>
+    
+    <div class="controls">
+        <select id="testament-select">
+            <option value="old_testament">Old Testament</option>
+            <option value="new_testament">New Testament</option>
+        </select>
+        
+        <select id="book-select">
+            <!-- Books will be populated by JavaScript -->
+        </select>
+        
+        <select id="chapter-select">
+            <!-- Chapters will be populated by JavaScript -->
+        </select>
+        
+        <button id="load-button">Load Chapter</button>
+        
+        <div class="display-options">
+            <input type="checkbox" id="sitelen-pona-toggle">
+            <label for="sitelen-pona-toggle">Show sitelen pona</label>
+        </div>
+    </div>
+    
+    <div id="missing-verses-container"></div>
+    
+    <div id="chapter-display">
+        <div class="loading">Select a book and chapter to begin</div>
+    </div>
+
+    <div class="share-section">
+        <button id="share-button" class="share-btn">Copy Link to Share</button>
+    </div>
+
+    <div class="font-status">
+        Font status: <span id="statusText">checking…</span>
+        <button id="reload" class="reload-btn" title="Try re-loading the font">Reload Font</button>
+    </div>
+
+    <div class="debug-toggle">
+        <input type="checkbox" id="debug-toggle">
+        <label for="debug-toggle">Show Debug Information</label>
+    </div>
+
+    <div id="debug-container" class="debug-info">
+        <h3>Debug Information</h3>
+        <div id="debug-info"></div>
+    </div>
+    
+    <footer>
+        <p>Text from <a href="https://github.com/PaulieGlot/lipu-sewi" target="_blank">lipu sewi GitHub repository</a></p>
+        <p>Verse count data from <a href="https://bolls.life/api/" target="_blank">Bolls Bible API</a></p>
+        <p>Note: Some chapters may not be available yet</p>
+    </footer>
+
+    <div id="toast" class="toast">Link copied to clipboard!</div>
+
+    <script>
+        // Bible metadata - books and number of chapters
+        const bibleBooks = {
+            "old_testament": {
+                "genesis": { chapters: 50, name: "Genesis", id: 1 },
+                "exodus": { chapters: 40, name: "Exodus", id: 2 },
+                "leviticus": { chapters: 27, name: "Leviticus", id: 3 },
+                "numbers": { chapters: 36, name: "Numbers", id: 4 },
+                "deuteronomy": { chapters: 34, name: "Deuteronomy", id: 5 },
+                "joshua": { chapters: 24, name: "Joshua", id: 6 },
+                "judges": { chapters: 21, name: "Judges", id: 7 },
+                "ruth": { chapters: 4, name: "Ruth", id: 8 },
+                "1-samuel": { chapters: 31, name: "1 Samuel", id: 9 },
+                "2-samuel": { chapters: 24, name: "2 Samuel", id: 10 },
+                "1-kings": { chapters: 22, name: "1 Kings", id: 11 },
+                "2-kings": { chapters: 25, name: "2 Kings", id: 12 },
+                "1-chronicles": { chapters: 29, name: "1 Chronicles", id: 13 },
+                "2-chronicles": { chapters: 36, name: "2 Chronicles", id: 14 },
+                "ezra": { chapters: 10, name: "Ezra", id: 15 },
+                "nehemiah": { chapters: 13, name: "Nehemiah", id: 16 },
+                "esther": { chapters: 10, name: "Esther", id: 17 },
+                "job": { chapters: 42, name: "Job", id: 18 },
+                "psalms": { chapters: 150, name: "Psalms", id: 19 },
+                "proverbs": { chapters: 31, name: "Proverbs", id: 20 },
+                "ecclesiastes": { chapters: 12, name: "Ecclesiastes", id: 21 },
+                "song-of-solomon": { chapters: 8, name: "Song of Solomon", id: 22 },
+                "isaiah": { chapters: 66, name: "Isaiah", id: 23 },
+                "jeremiah": { chapters: 52, name: "Jeremiah", id: 24 },
+                "lamentations": { chapters: 5, name: "Lamentations", id: 25 },
+                "ezekiel": { chapters: 48, name: "Ezekiel", id: 26 },
+                "daniel": { chapters: 12, name: "Daniel", id: 27 },
+                "hosea": { chapters: 14, name: "Hosea", id: 28 },
+                "joel": { chapters: 3, name: "Joel", id: 29 },
+                "amos": { chapters: 9, name: "Amos", id: 30 },
+                "obadiah": { chapters: 1, name: "Obadiah", id: 31 },
+                "jonah": { chapters: 4, name: "Jonah", id: 32 },
+                "micah": { chapters: 7, name: "Micah", id: 33 },
+                "nahum": { chapters: 3, name: "Nahum", id: 34 },
+                "habakkuk": { chapters: 3, name: "Habakkuk", id: 35 },
+                "zephaniah": { chapters: 3, name: "Zephaniah", id: 36 },
+                "haggai": { chapters: 2, name: "Haggai", id: 37 },
+                "zechariah": { chapters: 14, name: "Zechariah", id: 38 },
+                "malachi": { chapters: 4, name: "Malachi", id: 39 }
+            },
+            "new_testament": {
+                "matthew": { chapters: 28, name: "Matthew", id: 40 },
+                "mark": { chapters: 16, name: "Mark", id: 41 },
+                "luke": { chapters: 24, name: "Luke", id: 42 },
+                "john": { chapters: 21, name: "John", id: 43 },
+                "acts": { chapters: 28, name: "Acts", id: 44 },
+                "romans": { chapters: 16, name: "Romans", id: 45 },
+                "1-corinthians": { chapters: 16, name: "1 Corinthians", id: 46 },
+                "2-corinthians": { chapters: 13, name: "2 Corinthians", id: 47 },
+                "galatians": { chapters: 6, name: "Galatians", id: 48 },
+                "ephesians": { chapters: 6, name: "Ephesians", id: 49 },
+                "philippians": { chapters: 4, name: "Philippians", id: 50 },
+                "colossians": { chapters: 4, name: "Colossians", id: 51 },
+                "1-thessalonians": { chapters: 5, name: "1 Thessalonians", id: 52 },
+                "2-thessalonians": { chapters: 3, name: "2 Thessalonians", id: 53 },
+                "1-timothy": { chapters: 6, name: "1 Timothy", id: 54 },
+                "2-timothy": { chapters: 4, name: "2 Timothy", id: 55 },
+                "titus": { chapters: 3, name: "Titus", id: 56 },
+                "philemon": { chapters: 1, name: "Philemon", id: 57 },
+                "hebrews": { chapters: 13, name: "Hebrews", id: 58 },
+                "james": { chapters: 5, name: "James", id: 59 },
+                "1-peter": { chapters: 5, name: "1 Peter", id: 60 },
+                "2-peter": { chapters: 3, name: "2 Peter", id: 61 },
+                "1-john": { chapters: 5, name: "1 John", id: 62 },
+                "2-john": { chapters: 1, name: "2 John", id: 63 },
+                "3-john": { chapters: 1, name: "3 John", id: 64 },
+                "jude": { chapters: 1, name: "Jude", id: 65 },
+                "revelation": { chapters: 22, name: "Revelation", id: 66 }
+            }
+        };
+
+        // DOM elements
+        const testamentSelect = document.getElementById('testament-select');
+        const bookSelect = document.getElementById('book-select');
+        const chapterSelect = document.getElementById('chapter-select');
+        const loadButton = document.getElementById('load-button');
+        const sitelenPonaToggle = document.getElementById('sitelen-pona-toggle');
+        const chapterDisplay = document.getElementById('chapter-display');
+        const missingVersesContainer = document.getElementById('missing-verses-container');
+        const debugContainer = document.getElementById('debug-container');
+        const debugInfo = document.getElementById('debug-info');
+        const statusText = document.getElementById('statusText');
+        const reloadBtn = document.getElementById('reload');
+        const shareButton = document.getElementById('share-button');
+        const debugToggle = document.getElementById('debug-toggle');
+        const toast = document.getElementById('toast');
+
+        // Verse count cache to avoid repeated API calls
+        const verseCountCache = {};
+
+        // Current state
+        let currentState = {
+            testament: 'old_testament',
+            book: 'genesis',
+            chapter: 1,
+            verse: null,
+            sitelen: false
+        };
+
+        // Debugging function
+        function debugLog(message) {
+            console.log(message);
+            debugInfo.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+        }
+
+        // Show toast message
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        // Update URL with current state
+        function updateURL() {
+            const params = new URLSearchParams();
+            params.set('testament', currentState.testament);
+            params.set('book', currentState.book);
+            params.set('chapter', currentState.chapter);
+            if (currentState.verse) params.set('verse', currentState.verse);
+            if (currentState.sitelen) params.set('sitelen', 'true');
+            
+            const newURL = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+            window.history.replaceState(null, '', newURL);
+        }
+
+        // Parse URL parameters
+        function parseURL() {
+            const params = new URLSearchParams(window.location.search);
+            
+            if (params.has('testament')) {
+                currentState.testament = params.get('testament');
+                testamentSelect.value = currentState.testament;
+            }
+            
+            if (params.has('book')) {
+                currentState.book = params.get('book');
+            }
+            
+            if (params.has('chapter')) {
+                currentState.chapter = parseInt(params.get('chapter'));
+            }
+            
+            if (params.has('verse')) {
+                currentState.verse = parseInt(params.get('verse'));
+            }
+            
+            if (params.has('sitelen')) {
+                currentState.sitelen = params.get('sitelen') === 'true';
+                sitelenPonaToggle.checked = currentState.sitelen;
+            }
+        }
+
+        // Populate book dropdown based on selected testament
+        function populateBooks() {
+            const testament = testamentSelect.value;
+            bookSelect.innerHTML = '';
+            
+            for (const [key, value] of Object.entries(bibleBooks[testament])) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = value.name;
+                option.selected = (key === currentState.book);
+                bookSelect.appendChild(option);
+            }
+            
+            // After populating books, populate chapters for the selected book
+            populateChapters();
+        }
+
+        // Populate chapter dropdown based on selected book
+        function populateChapters() {
+            const testament = testamentSelect.value;
+            const book = bookSelect.value;
+            const chapterCount = bibleBooks[testament][book].chapters;
+            
+            chapterSelect.innerHTML = '';
+            
+            for (let i = 1; i <= chapterCount; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `Chapter ${i}`;
+                option.selected = (i === currentState.chapter);
+                chapterSelect.appendChild(option);
+            }
+        }
+
+        // Get the expected verse count for a chapter from Bolls Bible API
+        async function getExpectedVerseCount(bookId, chapter) {
+            const cacheKey = `${bookId}-${chapter}`;
+            
+            // Return cached value if available
+            if (verseCountCache[cacheKey]) {
+                return verseCountCache[cacheKey];
+            }
+            
+            try {
+                // Use Bolls Bible API to get the actual verse count
+                const url = `https://bolls.life/get-text/ASV/${bookId}/${chapter}/`;
+                debugLog(`Fetching verse count from: ${url}`);
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const verses = await response.json();
+                const verseCount = verses.length;
+                
+                // Cache the result
+                verseCountCache[cacheKey] = verseCount;
+                
+                debugLog(`Found ${verseCount} verses for book ${bookId}, chapter ${chapter}`);
+                return verseCount;
+            } catch (error) {
+                debugLog(`Error fetching verse count: ${error.message}. Using fallback value.`);
+                // Fallback to typical verse counts if API fails
+                return getFallbackVerseCount(bookId, chapter);
+            }
+        }
+
+        // Fallback verse counts for when the API is unavailable
+        function getFallbackVerseCount(bookId, chapter) {
+            // This is a simplified fallback - in a real app, you'd want a complete mapping
+            // For now, we'll return typical verse counts based on book type
+            if (bookId >= 40) { // New Testament books
+                return 25; // Average NT verse count
+            } else { // Old Testament books
+                return 30; // Average OT verse count
+            }
+        }
+
+        // Load the selected chapter from GitHub
+        async function loadChapter() {
+            currentState.testament = testamentSelect.value;
+            currentState.book = bookSelect.value;
+            currentState.chapter = parseInt(chapterSelect.value);
+            
+            // Format chapter number with leading zeros (4 digits)
+            const formattedChapter = currentState.chapter.toString().padStart(4, '0');
+            
+            // Construct URL with underscores for spaces
+            const url = `https://raw.githubusercontent.com/PaulieGlot/lipu-sewi/master/bible/${currentState.testament}/${currentState.book}/${formattedChapter}.txt`;
+            
+            chapterDisplay.innerHTML = '<div class="loading">Loading...</div>';
+            missingVersesContainer.innerHTML = '';
+            debugLog(`Attempting to load: ${currentState.testament}/${currentState.book}/${formattedChapter}.txt`);
+            debugLog(`URL: ${url}`);
+            
+            try {
+                // Get expected verse count from API
+                const bookId = bibleBooks[currentState.testament][currentState.book].id;
+                const expectedVerses = await getExpectedVerseCount(bookId, currentState.chapter);
+                
+                // Fetch the Toki Pona text
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const text = await response.text();
+                displayChapter(text, expectedVerses);
+                debugLog(`Successfully loaded chapter ${currentState.chapter} of ${currentState.book}`);
+                
+                // Update URL
+                updateURL();
+            } catch (error) {
+                chapterDisplay.innerHTML = `
+                    <div class="error">
+                        <p>Error loading chapter: ${error.message}</p>
+                        <p>This chapter might not be available yet in the repository.</p>
+                        <p>Check the debug section below for more details.</p>
+                    </div>
+                `;
+                debugLog(`Failed to load chapter: ${error.message}`);
+            }
+        }
+
+        // Display the chapter content
+        function displayChapter(text, expectedVerses) {
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            const bookName = bibleBooks[currentState.testament][currentState.book].name;
+            
+            let html = `
+                <div class="chapter-header">
+                    <h2 class="chapter-title">${bookName} ${currentState.chapter}</h2>
+                </div>
+            `;
+            
+            let verseCount = 0;
+            
+            // Parse and display each verse
+            for (const line of lines) {
+                // Match the pattern: verse number, then ? or !, then the text
+                const match = line.match(/^(\d+):\s*([?!])\s*(.*)$/);
+                
+                if (match) {
+                    verseCount++;
+                    const verseNum = parseInt(match[1]);
+                    const status = match[2]; // ? or !
+                    const content = match[3];
+                    
+                    const isHighlighted = currentState.verse === verseNum;
+                    
+                    html += `
+                        <div class="verse ${status === '!' ? 'solidified' : 'unsolidified'} ${isHighlighted ? 'highlighted' : ''}" id="verse-${verseNum}">
+                            <span class="verse-number">${verseNum}</span>
+                            <span class="verse-content">${formatVerseContent(content)}</span>
+                        </div>
+                    `;
+                } else if (line.trim() !== '') {
+                    // Handle lines that don't match the pattern
+                    html += `
+                        <div class="verse">
+                            <span class="verse-content">${formatVerseContent(line)}</span>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Check for missing verses
+            if (verseCount < expectedVerses) {
+                missingVersesContainer.innerHTML = `
+                    <div class="missing-verses">
+                        <p>Note: This chapter has ${verseCount} of ${expectedVerses} verses translated.</p>
+                        <p>Missing verses: ${expectedVerses - verseCount}</p>
+                    </div>
+                `;
+            } else {
+                missingVersesContainer.innerHTML = '';
+            }
+            
+            chapterDisplay.innerHTML = html;
+            
+            // Apply sitelen pona font if toggled
+            if (sitelenPonaToggle.checked) {
+                applySitelenPonaFont();
+            }
+            
+            // Scroll to highlighted verse if specified
+            if (currentState.verse) {
+                const verseElement = document.getElementById(`verse-${currentState.verse}`);
+                if (verseElement) {
+                    setTimeout(() => {
+                        verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                }
+            }
+            
+            debugLog(`Displayed ${verseCount} verses (expected: ${expectedVerses})`);
+        }
+
+        // Format verse content with proper name handling
+        function formatVerseContent(text) {
+            // Handle names (words starting with &) by wrapping them in a span with class "name-rect"
+            return text.replace(/&(\w+)/g, '<span class="name-rect">$1</span>');
+        }
+
+        // Apply sitelen pona font to verse content
+        function applySitelenPonaFont() {
+            chapterDisplay.classList.add('sitelen-pona-mode');
+        }
+
+        // Remove sitelen pona font from verse content
+        function removeSitelenPonaFont() {
+            chapterDisplay.classList.remove('sitelen-pona-mode');
+        }
+
+        // Font loading check function
+        async function checkLinja() {
+            statusText.textContent = 'loading font…';
+            try {
+                // 1) Ask the browser to load "LinjaJS" (this triggers fetch if needed).
+                await document.fonts.load('16px "LinjaJS"');
+                // 2) Wait for font subsystem to be ready (helps with network latency)
+                await document.fonts.ready;
+                // 3) Check whether the font is available to the renderer
+                const available = document.fonts.check('16px "LinjaJS"');
+                statusText.textContent = available ? 'loaded' : 'not detected (partial or blocked)';
+                // Force a repaint so glyphs appear immediately if available
+                if (sitelenPonaToggle.checked) {
+                    applySitelenPonaFont();
+                }
+            } catch(err) {
+                console.warn('font load error', err);
+                statusText.textContent = 'error (see console)';
+            }
+        }
+
+        // Copy URL to clipboard
+        function copyURLToClipboard() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('Link copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                showToast('Failed to copy link');
+            });
+        }
+
+        // Initialize the page
+        function init() {
+            // Parse URL parameters
+            parseURL();
+            
+            // Populate dropdowns
+            populateBooks();
+            
+            // Load the chapter if we have a valid selection
+            if (currentState.book && currentState.chapter) {
+                loadChapter();
+            }
+            
+            // Set up event listeners
+            testamentSelect.addEventListener('change', function() {
+                currentState.testament = this.value;
+                populateBooks();
+            });
+            
+            bookSelect.addEventListener('change', function() {
+                currentState.book = this.value;
+                populateChapters();
+            });
+            
+            chapterSelect.addEventListener('change', function() {
+                currentState.chapter = parseInt(this.value);
+                currentState.verse = null; // Reset verse when changing chapter
+            });
+            
+            loadButton.addEventListener('click', loadChapter);
+            
+            sitelenPonaToggle.addEventListener('change', function() {
+                currentState.sitelen = this.checked;
+                if (this.checked) {
+                    applySitelenPonaFont();
+                } else {
+                    removeSitelenPonaFont();
+                }
+                updateURL();
+            });
+            
+            // Allow manual font reload
+            reloadBtn.addEventListener('click', async () => {
+                statusText.textContent = 'retrying…';
+                try {
+                    // re-attempt loading — calling fonts.load again nudges the browser
+                    await document.fonts.load('1em "LinjaJS"');
+                    await document.fonts.ready;
+                } catch(e) { /* ignore */ }
+                await checkLinja();
+            });
+            
+            // Share button
+            shareButton.addEventListener('click', copyURLToClipboard);
+            
+            // Debug toggle
+            debugToggle.addEventListener('change', function() {
+                debugContainer.style.display = this.checked ? 'block' : 'none';
+            });
+            
+            // Initial font check
+            checkLinja();
+            
+            debugLog('Page initialized. Open browser console (F12) for additional debugging.');
+            debugLog('Verse count data provided by Bolls Bible API');
+        }
+
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
