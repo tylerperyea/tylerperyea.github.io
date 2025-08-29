@@ -156,15 +156,19 @@
             -webkit-font-feature-settings: "liga" 1, "rlig" 1, "calt" 1;
         }
         
-        .name-rect {
+        .sitelen-pona-mode .name-rect {
             display: inline-block;
             border: 2px solid #333;
             border-radius: 6px;
             padding: 2px 6px;
             margin: 0 2px;
-            font-size: 18px;
-            font-family: system-ui, Segoe UI, Roboto, sans-serif;
-            background-color: #f0f0f0;
+        }
+
+        .sitelen-pona-mode .name-tp {
+            display: none;
+        }
+        .latina-pona-mode .name-rect {
+            display: none;
         }
         
         .loading {
@@ -299,7 +303,7 @@
     
     <div id="missing-verses-container"></div>
     
-    <div id="chapter-display">
+    <div id="chapter-display" class="latina-pona-mode">
         <div class="loading">Select a book and chapter to begin</div>
     </div>
 
@@ -342,12 +346,12 @@
                 "joshua": { chapters: 24, name: "Joshua", id: 6 },
                 "judges": { chapters: 21, name: "Judges", id: 7 },
                 "ruth": { chapters: 4, name: "Ruth", id: 8 },
-                "1-samuel": { chapters: 31, name: "1 Samuel", id: 9 },
-                "2-samuel": { chapters: 24, name: "2 Samuel", id: 10 },
-                "1-kings": { chapters: 22, name: "1 Kings", id: 11 },
-                "2-kings": { chapters: 25, name: "2 Kings", id: 12 },
-                "1-chronicles": { chapters: 29, name: "1 Chronicles", id: 13 },
-                "2-chronicles": { chapters: 36, name: "2 Chronicles", id: 14 },
+                "1_samuel": { chapters: 31, name: "1 Samuel", id: 9 },
+                "2_samuel": { chapters: 24, name: "2 Samuel", id: 10 },
+                "1_kings": { chapters: 22, name: "1 Kings", id: 11 },
+                "2_kings": { chapters: 25, name: "2 Kings", id: 12 },
+                "1_chronicles": { chapters: 29, name: "1 Chronicles", id: 13 },
+                "2_chronicles": { chapters: 36, name: "2 Chronicles", id: 14 },
                 "ezra": { chapters: 10, name: "Ezra", id: 15 },
                 "nehemiah": { chapters: 13, name: "Nehemiah", id: 16 },
                 "esther": { chapters: 10, name: "Esther", id: 17 },
@@ -355,7 +359,7 @@
                 "psalms": { chapters: 150, name: "Psalms", id: 19 },
                 "proverbs": { chapters: 31, name: "Proverbs", id: 20 },
                 "ecclesiastes": { chapters: 12, name: "Ecclesiastes", id: 21 },
-                "song-of-solomon": { chapters: 8, name: "Song of Solomon", id: 22 },
+                "song_of_songs": { chapters: 8, name: "Song of Solomon", id: 22 },
                 "isaiah": { chapters: 66, name: "Isaiah", id: 23 },
                 "jeremiah": { chapters: 52, name: "Jeremiah", id: 24 },
                 "lamentations": { chapters: 5, name: "Lamentations", id: 25 },
@@ -381,25 +385,25 @@
                 "john": { chapters: 21, name: "John", id: 43 },
                 "acts": { chapters: 28, name: "Acts", id: 44 },
                 "romans": { chapters: 16, name: "Romans", id: 45 },
-                "1-corinthians": { chapters: 16, name: "1 Corinthians", id: 46 },
-                "2-corinthians": { chapters: 13, name: "2 Corinthians", id: 47 },
+                "1_corinthians": { chapters: 16, name: "1 Corinthians", id: 46 },
+                "2_corinthians": { chapters: 13, name: "2 Corinthians", id: 47 },
                 "galatians": { chapters: 6, name: "Galatians", id: 48 },
                 "ephesians": { chapters: 6, name: "Ephesians", id: 49 },
                 "philippians": { chapters: 4, name: "Philippians", id: 50 },
                 "colossians": { chapters: 4, name: "Colossians", id: 51 },
-                "1-thessalonians": { chapters: 5, name: "1 Thessalonians", id: 52 },
-                "2-thessalonians": { chapters: 3, name: "2 Thessalonians", id: 53 },
-                "1-timothy": { chapters: 6, name: "1 Timothy", id: 54 },
-                "2-timothy": { chapters: 4, name: "2 Timothy", id: 55 },
+                "1_thessalonians": { chapters: 5, name: "1 Thessalonians", id: 52 },
+                "2_thessalonians": { chapters: 3, name: "2 Thessalonians", id: 53 },
+                "1_timothy": { chapters: 6, name: "1 Timothy", id: 54 },
+                "2_timothy": { chapters: 4, name: "2 Timothy", id: 55 },
                 "titus": { chapters: 3, name: "Titus", id: 56 },
                 "philemon": { chapters: 1, name: "Philemon", id: 57 },
                 "hebrews": { chapters: 13, name: "Hebrews", id: 58 },
                 "james": { chapters: 5, name: "James", id: 59 },
-                "1-peter": { chapters: 5, name: "1 Peter", id: 60 },
-                "2-peter": { chapters: 3, name: "2 Peter", id: 61 },
-                "1-john": { chapters: 5, name: "1 John", id: 62 },
-                "2-john": { chapters: 1, name: "2 John", id: 63 },
-                "3-john": { chapters: 1, name: "3 John", id: 64 },
+                "1_peter": { chapters: 5, name: "1 Peter", id: 60 },
+                "2_peter": { chapters: 3, name: "2 Peter", id: 61 },
+                "1_john": { chapters: 5, name: "1 John", id: 62 },
+                "2_john": { chapters: 1, name: "2 John", id: 63 },
+                "3_john": { chapters: 1, name: "3 John", id: 64 },
                 "jude": { chapters: 1, name: "Jude", id: 65 },
                 "revelation": { chapters: 22, name: "Revelation", id: 66 }
             }
@@ -692,17 +696,21 @@
         // Format verse content with proper name handling
         function formatVerseContent(text) {
             // Handle names (words starting with &) by wrapping them in a span with class "name-rect"
-            return text.replace(/&(\w+)/g, '<span class="name-rect">$1</span>');
+            return text.replace(/&(\w+)/g, (a,p,s)=>
+                '<span class="name-tp">' + convertNameToTokiPona(p) + '</span>' + 
+                '<span class="name-rect">' + convertNameToSitelenPona(p) + '</span>');
         }
 
         // Apply sitelen pona font to verse content
         function applySitelenPonaFont() {
             chapterDisplay.classList.add('sitelen-pona-mode');
+            chapterDisplay.classList.remove('latina-pona-mode');
         }
 
         // Remove sitelen pona font from verse content
         function removeSitelenPonaFont() {
             chapterDisplay.classList.remove('sitelen-pona-mode');
+            chapterDisplay.classList.add('latina-pona-mode');
         }
 
         // Font loading check function
@@ -737,8 +745,80 @@
             });
         }
 
+        const nameLookup={};
+        const fallbackSitelen={
+            'a' : 'awen',
+            'e' : 'esun',
+            'i' : 'ijo',
+            'j' : 'jaki',
+            'k' : 'kalama',
+            'l' : 'laso',
+            'm' : 'mimi',
+            'n' : 'nena',
+            'o' : 'olin',
+            'p' : 'pilin',
+            's' : 'sike',
+            't' : 'telo',
+            'u' : 'uta',
+            'w' : 'wawa'
+        };
+
+        async function loadNameText(csvName){
+            const response = await fetch("https://raw.githubusercontent.com/PaulieGlot/lipu-sewi/master/names/" + csvName + ".csv");
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const txt= await response.text();
+            let lines=txt.split("\n");
+            let header=lines[0];
+            lines.filter((l,i)=>i>0)
+                 .map(l=>l.split(","))
+                 .forEach(l=>{
+                     //typical headnoun	proper noun	english
+                     let m={};
+                     m.head=l[0];
+                     m.proper=l[1];
+                     m.english=l[2];
+                     if(l.length>3){
+                        m.sitelen = l[3];
+                     }
+                     nameLookup[m.english]=m;
+                 });
+        }
+        
+        async function loadNames(){
+            if(nameLookup.$load)return nameLookup;
+            await loadNameText("place-names.csv");
+            await loadNameText("people-names.csv");
+            nameLookup.$load=true;
+            return nameLookup;
+        }
+
+        function convertNameToTokiPona(name){
+            let lookup = nameLookup;
+            let b= lookup[name];
+            if(!b)return name;
+            if(b.proper)return b.proper;
+            return name;
+        }
+        function convertNameToSitelenPona(name){
+            let lookup = nameLookup;
+            let b= lookup[name];
+            if(!b)return name;
+            if(b.sitelen)return b.sitelen;
+            if(!b.sitelen){
+                let build = "";
+                let ltrs=b.proper.split("");
+                return ltrs.map(v=>[v,fallbackSitelen[v.toLowerCase()]])
+                    .map(v=>(v[1])?v[1]:v[0])
+                    .join(" ");
+            }
+        }
+
+        
         // Initialize the page
-        function init() {
+        async function init() {
+            await loadNames();
             // Parse URL parameters
             parseURL();
             
