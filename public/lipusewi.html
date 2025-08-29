@@ -788,8 +788,8 @@
         
         async function loadNames(){
             if(nameLookup.$load)return nameLookup;
-            await loadNameText("place-names.csv");
-            await loadNameText("people-names.csv");
+            await loadNameText("place-names");
+            await loadNameText("people-names");
             nameLookup.$load=true;
             return nameLookup;
         }
