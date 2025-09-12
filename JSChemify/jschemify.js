@@ -6518,7 +6518,11 @@ JSChemify.ChemicalFeatures=function(arg){
            let dot=ret.getFeatureCount(k)*v.getFeatureCount(k);
            dotSum+=dot;
        });
-       return dotSum/(ret.l2()*v.l2());
+       let val= dotSum/(ret.l2()*v.l2());
+	   if(!isFinite(val)){
+		   return 0;
+	   }
+       return val;
    };
    if(arg && typeof arg==="object"){
       return ret.setFeatures(arg);
