@@ -4967,6 +4967,11 @@ JSChemify.Chemical = function(arg){
                o+=vv[1];
                vec[vv[0]]=o;
            });
+	   Object.keys(vec).map(k=>{
+           if(!isFinite(vec[k])){
+		       vec[k]=1; //placeholder for infinity
+           }
+	   });
        ret.$EstateVector= JSChemify.EState(vec);
     }
     return ret.$EstateVector;
