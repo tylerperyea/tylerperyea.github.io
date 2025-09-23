@@ -8401,7 +8401,7 @@ JSChemify.ChemicalCollection=function(){
 					}catch(e){
 						console.log("Error generating coordinates");
 						console.log(e);
-						console.log(c.toSmiles();
+						console.log(c.toSmiles());
 					}
                 }
             }
