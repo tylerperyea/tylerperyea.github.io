@@ -8396,7 +8396,13 @@ JSChemify.ChemicalCollection=function(){
          return chems.map(c=>{
             if(builder._generateCoordinates){
                 if(!c.hasCoordinates()){
-                    c.generateCoordinates();
+					try{
+                    	c.generateCoordinates();
+					}catch(e){
+						console.log("Error generating coordinates");
+						console.log(e);
+						console.log(c.toSmiles();
+					}
                 }
             }
             return c.toSd();
