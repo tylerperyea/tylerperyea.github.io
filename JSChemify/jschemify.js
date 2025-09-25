@@ -2986,6 +2986,14 @@ JSChemify.Chemical = function(arg){
       ret._properties[k]=v;
       return ret;
   };
+  ret.getPropertiesMap=function(){
+      return ret._properties;
+  };
+  
+  ret.setPropertiesMap=function(mp){
+      ret._properties=mp;
+	  return ret;
+  };
   ret.getProperty=function(k){
       return ret._properties[k];
   };
@@ -4992,7 +5000,7 @@ JSChemify.Chemical = function(arg){
     let version=lines[3+start].substr(34,5).trim();
     let cursor=start;
     if(version === "V3000"){
-    console.log("V3000");
+        console.log("V3000");
         for(;cursor<lines.length;cursor++){
             let line = lines[cursor];
                          
@@ -7648,21 +7656,40 @@ JSChemify.ChemicalCollection=function(){
          <button id="jschemify-page-next">next</button></span>
          
          </div>
+		 
+		 
+		<div>
+           <span>
+			   Transform/Modify Structure
+			   <select id="jschemify-transform">
+				  <option value="">-- cacluations --</option>
+				  <option value="c.dearomatize()">Dearomatize</option>
+				  <option value="c.aromatize()">Aromatize</option>
+				  <option value="c.generateCoordinates()">Generate Coordinates</option>          
+			   </select>  
+			   <label for="jschemify-transform-formula">Transform Formula</label>
+			   <input id="jschemify-transform-formula" value="">
+			   <button id="jschemify-transform-formula-process">Process</button>
+		   </span>
+         </div>
+
+		 
 
          <div>
-         <span>
-           Calculate New Column
-           <select id="jschemify-calculate-newcolumn">
-          <option value="">-- cacluations --</option>
-          <option value="c.toInChIKeyPromise()">InChIKey</option>
-              <option value="c.getMolWeight()">Molecular Weight</option>
-              <option value="c.getMolFormula()">Molecular Formula</option>          
-       </select>
-           <label for="jschemify-calculate-newcolumn-name">Column Name</label>
-           <input id="jschemify-calculate-newcolumn-name" value="">       
-           <label for="jschemify-calculate-newcolumn-formula">Column Formula</label>
-           <input id="jschemify-calculate-newcolumn-formula" value="">
-           <button id="jschemify-calculate-newcolumn-add">Add Column</button>
+           <span>
+			   Calculate New Column
+			   <select id="jschemify-calculate-newcolumn">
+				  <option value="">-- cacluations --</option>
+				  <option value="c.toInChIKeyPromise()">InChIKey</option>
+				  <option value="c.getMolWeight()">Molecular Weight</option>
+				  <option value="c.getMolFormula()">Molecular Formula</option>          
+			   </select>
+			   <label for="jschemify-calculate-newcolumn-name">Column Name</label>
+			   <input id="jschemify-calculate-newcolumn-name" value="">       
+			   <label for="jschemify-calculate-newcolumn-formula">Column Formula</label>
+			   <input id="jschemify-calculate-newcolumn-formula" value="">
+			   <button id="jschemify-calculate-newcolumn-add">Add Column</button>
+		   </span>
          </div>
          
          <div class="jschemify-table-query">
@@ -7816,6 +7843,11 @@ JSChemify.ChemicalCollection=function(){
          $("#jschemify-calculate-newcolumn-name").value=t[t.selectedIndex].innerText;
          $("#jschemify-calculate-newcolumn-formula").value=t[t.selectedIndex].value;
       };
+	  
+	  $("#jschemify-transform").onchange=(t)=>{
+         t=t.target;
+         $("#jschemify-transform-formula").value=t[t.selectedIndex].value;
+      };
      
        
        
@@ -7968,6 +8000,21 @@ JSChemify.ChemicalCollection=function(){
       update=tt;
       tt();
       
+	  $("#jschemify-transform-formula-process").onclick=()=>{
+            let cform=$("#jschemify-transform-formula").value;
+              
+            ret.transformChemicals((c)=>{
+                let ev=eval(cform);
+                if(JSChemify.Util.isPromise(ev)){
+                    return ev.then(ee=>{
+                       return ee;
+                    });
+                }
+                return ev;
+            }).then((oo)=>{ 
+                refreshTable();
+            });
+      };
       
       //jschemify-calculate-newcolumn-add
       $("#jschemify-calculate-newcolumn-add").onclick=()=>{
@@ -8212,6 +8259,46 @@ JSChemify.ChemicalCollection=function(){
       
       return ret;
    };
+   
+   ret.transformChemicals=function(calc){
+      return new Promise(ok => {
+          let t=ret.getChems().length;
+          let left=t;
+          let markNext = ()=>{
+			  left--;
+			  if(left<=0){
+				ok();
+			  }
+          };
+		  let arr=ret.getChems();
+          arr.map((c,ii)=>{
+			 var res=calc(c);
+			 if(JSChemify.Util.isPromise(res)){
+				res.then(rr=>{
+				    if(rr && rr._chemType===JSChemify.CONSTANTS.CHEM_TYPE_CHEMICAL && rr!== c){
+						rr.setName(c.getName());
+						rr.setPropertiesMap(JSON.parse(JSON.stringify(c.getPropertiesMap())));
+						
+						arr[ii]=rr;
+					}
+					markNext();
+				});
+			 }else{
+			    if(rr && rr._chemType===JSChemify.CONSTANTS.CHEM_TYPE_CHEMICAL && rr!== c){
+					rr.setName(c.getName());
+					rr.setPropertiesMap(JSON.parse(JSON.stringify(c.getPropertiesMap())));
+					
+					arr[ii]=rr;
+				}
+				markNext();
+			 }
+          });
+         
+          
+      });
+   };
+   
+   
    ret.computeNewProperty=function(prop, calc, decorate){
       return new Promise(ok => {
           let t=ret.getChems().length;
@@ -8244,7 +8331,7 @@ JSChemify.ChemicalCollection=function(){
 				markNext();
 				});
 			 }else{
-					c.setProperty(prop,res);
+				c.setProperty(prop,res);
 				markNext();
 			 }
           });
