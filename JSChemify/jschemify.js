@@ -8284,11 +8284,11 @@ JSChemify.ChemicalCollection=function(){
 					markNext();
 				});
 			 }else{
-			    if(rr && rr._chemType===JSChemify.CONSTANTS.CHEM_TYPE_CHEMICAL && rr!== c){
-					rr.setName(c.getName());
-					rr.setPropertiesMap(JSON.parse(JSON.stringify(c.getPropertiesMap())));
+			    if(res && res._chemType===JSChemify.CONSTANTS.CHEM_TYPE_CHEMICAL && res!== c){
+					res.setName(c.getName());
+					res.setPropertiesMap(JSON.parse(JSON.stringify(c.getPropertiesMap())));
 					
-					arr[ii]=rr;
+					arr[ii]=res;
 				}
 				markNext();
 			 }
