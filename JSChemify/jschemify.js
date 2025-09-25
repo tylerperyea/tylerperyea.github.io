@@ -7594,7 +7594,7 @@ JSChemify.ChemicalCollection=function(){
         }
         let cchem=chem;
         try{
-           cchem=chem.clone().dearomatize();  
+           cchem=chem.clone();  
         }catch(e){
            console.log(e);
            console.log(chem.toSmiles());
