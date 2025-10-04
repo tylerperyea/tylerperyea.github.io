@@ -4951,6 +4951,102 @@ JSChemify.Chemical = function(arg){
       let ringChains=bondChains.filter(bbc=>nonRingChains.indexOf(bbc)<0);
       let ringChainNetworks =closureCalc(ringChains);
 
+      //Now, we need to actually make the rings
+      //need to focus on each ring system, and then
+      //we can figure out the rings.
+      //We can use A* algorithm here.
+      let ringSystemRings=ringChainNetworks.map(rcn=>{
+         let rings=[];
+         let more=[];
+         let lookup=new Map();
+         rcn.forEach(rc=>{
+            //for each chain, we'll find the shortest path
+            //back to itself
+            if(rc.atom1===rc.atom2){
+               rings.push({
+                  "size": rc.bonds.length,
+                  "path": [rc]
+               });
+               return;
+            }
+            more.push(rc);
+            lookup.set(rc,more.length);
+         });
+
+         more.forEach(rc=>{
+
+            let smallestFound=9999;
+            let moves=[];
+            let found=[];
+            let move={
+               "path":[rc],
+               "head":rc,
+               "cAtom":rc.atom1,
+               "size":rc.bonds.length,
+               "finished":false
+            };
+            while(move){
+               let next=more.filter(mm=>move.path.indexOf(mm)<0)
+                           .filter(mm=>mm.atom1===move.cAtom ||
+                                       mm.atom2===move.cAtom
+                           );
+               next.map(n=>{
+                  let npath=move.path.map(n=>n);
+                  npath.push(n);
+                  let ncAtom=n.atom1;
+                  if(ncAtom===move.cAtom){
+                     ncAtom=n.atom2;
+                  }
+                  let nmove={
+                     "path":npath,
+                     "head":n,
+                     "cAtom":ncAtom,
+                     "size":move.size+n.bonds.length,
+                     "finished":false
+                  };
+                  if(nmove.path[0].atom2 === nmove.cAtom){
+                     nmove.finished=true;
+                     smallestFound=Math.min(smallestFound,nmove.size);
+                  }
+                  return nmove;
+               })
+               .filter(nm=>{
+                  if(nm.finished){
+                     found.push(nm);
+                     return false;
+                  }
+                  return true;
+               })
+               .forEach(nm=>moves.push(nm));
+               moves.sort((a,b)=>b.size-a.size);
+               move=null;
+               while(moves.length>0){
+                  move=moves.pop();
+                  if(move.size<smallestFound){
+                     break;
+                  }
+                  move=null;
+               }
+            }
+            found.filter(mv=>mv.size===smallestFound)
+                 .forEach(mv=>rings.push(mv));
+         });
+         rings.forEach(r=>{
+            let u=r.path.map(rp=>lookup.get(rp)).sort().join(",");
+            r.$id=u;
+         });
+         let seen={};
+         rings=rings.filter(r=>{
+            if(!seen[r.$id]){
+               seen[r.$id]=true;
+               return true;
+            }
+            return false;
+         })
+         return [rcn, rings];
+      });
+
+
       return {
          "foliageAtoms":foliageAtoms,
          "foliageBonds":foliageBonds,
@@ -4960,7 +5056,8 @@ JSChemify.Chemical = function(arg){
          "chainNetworks": naiveNetwork,
          "nonRingChains":nonRingChains,
          "ringChainNetworks":ringChainNetworks,
-         "bondChains":bondChains
+         "bondChains":bondChains,
+         "ringSystemRings":ringSystemRings
       };
       
       
