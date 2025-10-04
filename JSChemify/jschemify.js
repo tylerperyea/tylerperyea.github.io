@@ -4864,17 +4864,103 @@ JSChemify.Chemical = function(arg){
       let ringAtoms=ret.getAtoms()
          .filter(at=>!foliageAtoms.has(at))
          .map(a=>[a,a.getNeighborAtomsAndBonds()
-         .filter(n=>!foliageAtoms.has(n.atom))]);
+                     .filter(n=>!foliageAtoms.has(n.atom))]);
       let branchAtoms=ringAtoms.filter(a=>a[1].length>2);
 
+      let bondMap = new Map();
+      let bondChains= [];
 
+      //Now need to mark each bond in the non foliage
+      //based on which path it's in.
+      branchAtoms.forEach(ba=>{
+         let aBonds=ba[1];
+         aBonds.forEach(b=>{
+            if(!bondMap.get(b.bond)){
+               let bondList=[];
+               while(true){
+                  bondList.push(b.bond);
+                  if(branchAtoms.findIndex(bb=>bb[0]===b.atom)>=0){
+                     let bchain={
+                        "atom1": ba[0],
+                        "atom2": b.atom,
+                        "bonds": bondList
+                     };
+                     bondChains.push(bchain);
+                     bondList.forEach(bb=>bondMap.set(bb,bchain));
+                     return;
+                  }
+                  let nbonds=b.atom
+                        .getNeighborAtomsAndBonds()
+                        .filter(n=>!foliageAtoms.has(n.atom))
+                        .filter(n=>bondList.indexOf(n.bond)<0);
+                  if(nbonds.length>1 || nbonds.length===0){
+                     throw "impossible bond chain";
+                  }
+                  b=nbonds[0];
+               }
 
+            }
+         });
+
+      });
+
+      let closureCalc= (chains)=>{
+         let bcClosure=new Map();
+         let bcNetworks=[];
+         //Now do closures
+         chains.forEach(bc=>{
+            if(bcClosure.get(bc))return;
+            let chainsSeen=new Set();
+            let nchains=new Set();
+            let temp;
+            let narr=new Set([bc]);
+            while(narr.size>0){
+               nchains.clear();
+               narr.forEach(fb=>chainsSeen.add(fb));
+               narr.forEach(fb=>{
+                  chains.filter(bb=>!chainsSeen.has(bb))
+                           .filter(bb=>bb.atom1===fb.atom1 ||
+                                       bb.atom1===fb.atom2 ||
+                                       bb.atom2===fb.atom1 ||
+                                       bb.atom2===fb.atom2)
+                           .forEach(bb=>nchains.add(bb));
+               });
+               temp=nchains;
+               nchains=narr;
+               narr=temp;
+            }
+            chainsSeen.forEach(cs=>bcClosure.set(cs,chainsSeen));
+            bcNetworks.push(chainsSeen);
+         });
+         return bcNetworks;
+      };
+      let naiveNetwork = closureCalc(bondChains);
+      let nonRingChains=[];
+      bondChains.filter(bbc=>{
+         if(bbc.atom1===bbc.atom2){
+            return false;
+         }
+         return true;
+      }).forEach(bbc=>{
+         let eliminateChain=bondChains.filter(bb=>bb!==bbc);
+         let eClosure=closureCalc(eliminateChain);
+         if(eClosure.length!==naiveNetwork.length){
+            nonRingChains.push(bbc);
+         }
+      });
+      let ringChains=bondChains.filter(bbc=>nonRingChains.indexOf(bbc)<0);
+      let ringChainNetworks =closureCalc(ringChains);
 
       return {
          "foliageAtoms":foliageAtoms,
          "foliageBonds":foliageBonds,
          "ringStuff":ringAtoms,
-         "branchAtoms":branchAtoms
+         "branchAtoms":branchAtoms,
+         "bondMap": bondMap,
+         "chainNetworks": naiveNetwork,
+         "nonRingChains":nonRingChains,
+         "ringChainNetworks":ringChainNetworks,
+         "bondChains":bondChains
       };
       
       
