@@ -4487,7 +4487,11 @@ JSChemify.Chemical = function(arg){
                  .filter(r=>r.getBonds().filter(bb=>bb.getBondOrder()==4).length>0);
     
     stack.sort((a,b)=>{
-        return a.getNeighborRingsAndBonds().length-b.getNeighborRingsAndBonds().length;
+        let oo= a.getNeighborRingsAndBonds().length-b.getNeighborRingsAndBonds().length;
+        if(oo===0){
+            oo=b.getSize()-a.getSize();
+        }
+        return oo;
     });
     let done=[];
     while(stack.length>0){
@@ -4496,6 +4500,7 @@ JSChemify.Chemical = function(arg){
       
         nextRing.dearomatize();
         done.push(nextRing);
+        console.log(ret.toSmiles());
         nextRing.getNeighborRingsAndBonds()
                 .map(r=>{
                     if(stack.indexOf(r.ring)>=0){
@@ -4592,7 +4597,7 @@ JSChemify.Chemical = function(arg){
   }
   
   ret.isRingBond=function(bd){
-      let bidx=bd.getIndexInParent();
+    let bidx=bd.getIndexInParent();
     ret.$detectRings();
     if(ret.$bondTypes[bidx]==="RING"){
         return true;
@@ -4741,6 +4746,9 @@ JSChemify.Chemical = function(arg){
     
   };
   ret.$detectRings = function(){
+      if(JSChemify.Global.settings.useNewRingDetection){
+         return ret.$detectRingsEXP();
+      }
       if(ret.$bondTypes)return ret;
       
       for(var i=0;i<ret._bonds.length;i++){
@@ -4821,14 +4829,20 @@ JSChemify.Chemical = function(arg){
       
   };
   ret.$detectRingsEXP=function(){
+      if(ret.$bondTypes)return ret;
+      
+      for(var i=0;i<ret._bonds.length;i++){
+          ret._bonds[i]._idx=i;
+      }
       
       var foliageAtoms=new Set([]);
       var foliageBonds=new Set([]);
       var surface=new Set([]);
+      var branchToFoliageABPair=[];
 
       ret.getAtoms().forEach((at,i) => {
          var bc=at.getBondCount();
-         if(bc===1){
+         if(bc<=1 ){
             surface.add(at);
             foliageAtoms.add(at);
          }
@@ -4852,6 +4866,8 @@ JSChemify.Chemical = function(arg){
                surface.add(aa.atom);
                foliageAtoms.add(aa.atom);
                foliageBonds.add(aa.bond);
+            }else{
+               branchToFoliageABPair.push(aa);
             }
          });
       }
@@ -4860,24 +4876,26 @@ JSChemify.Chemical = function(arg){
          .forEach(b=>{
             foliageBonds.add(b);
          });
-
-      let ringAtoms=ret.getAtoms()
+      let spokenForAtoms=new Set();
+      let nonFoliageAtoms=ret.getAtoms()
          .filter(at=>!foliageAtoms.has(at))
          .map(a=>[a,a.getNeighborAtomsAndBonds()
                      .filter(n=>!foliageAtoms.has(n.atom))]);
-      let branchAtoms=ringAtoms.filter(a=>a[1].length>2);
+      let branchAtoms=nonFoliageAtoms.filter(a=>a[1].length>2);
 
       let bondMap = new Map();
       let bondChains= [];
 
-      //Now need to mark each bond in the non foliage
+      //Now need to mark each bond in the non-foliage
       //based on which path it's in.
       branchAtoms.forEach(ba=>{
          let aBonds=ba[1];
+         spokenForAtoms.add(ba[0]);
          aBonds.forEach(b=>{
             if(!bondMap.get(b.bond)){
                let bondList=[];
                while(true){
+                  spokenForAtoms.add(b.atom);
                   bondList.push(b.bond);
                   if(branchAtoms.findIndex(bb=>bb[0]===b.atom)>=0){
                      let bchain={
@@ -4897,12 +4915,55 @@ JSChemify.Chemical = function(arg){
                      throw "impossible bond chain";
                   }
                   b=nbonds[0];
+                  
                }
 
             }
          });
 
       });
+
+      let otherAtoms=new Set(nonFoliageAtoms.values()
+                     .filter(at=>!spokenForAtoms.has(at[0]))
+                     .toArray());
+      while(otherAtoms.size>0){
+         let ba=otherAtoms.values().next().value;
+         branchAtoms.push(ba);
+         otherAtoms.delete(ba);
+         let aBonds=ba[1];
+         aBonds.forEach(b=>{
+            if(!bondMap.get(b.bond)){
+               let bondList=[];
+               while(true){
+                  otherAtoms.values()
+                            .filter(oa=>oa[0]===b.atom)
+                            .toArray()
+                            .forEach(oa=>otherAtoms.delete(oa));
+                  bondList.push(b.bond);
+                  if(branchAtoms.findIndex(bb=>bb[0]===b.atom)>=0){
+                     let bchain={
+                        "atom1": ba[0],
+                        "atom2": b.atom,
+                        "bonds": bondList
+                     };
+                     bondChains.push(bchain);
+                     bondList.forEach(bb=>bondMap.set(bb,bchain));
+                     return;
+                  }
+                  let nbonds=b.atom
+                        .getNeighborAtomsAndBonds()
+                        .filter(n=>!foliageAtoms.has(n.atom))
+                        .filter(n=>bondList.indexOf(n.bond)<0);
+                  if(nbonds.length>1 || nbonds.length===0){
+                     throw "impossible bond chain";
+                  }
+                  b=nbonds[0];
+                  
+               }
+
+            }
+         });
+      }
 
       let closureCalc= (chains)=>{
          let bcClosure=new Map();
@@ -4955,6 +5016,7 @@ JSChemify.Chemical = function(arg){
       //need to focus on each ring system, and then
       //we can figure out the rings.
       //We can use A* algorithm here.
+      //Technically this isn't quite A*, but close.
       let ringSystemRings=ringChainNetworks.map(rcn=>{
          let rings=[];
          let more=[];
@@ -5046,19 +5108,101 @@ JSChemify.Chemical = function(arg){
          return [rcn, rings];
       });
 
+      let sssr=[];
 
+      ringSystemRings.forEach(aa=>{
+         aa[1].forEach(rr=>{
+            sssr.push(JSChemify.Ring(rr.path.flatMap(rp=>rp.bonds)));
+         })
+      });
+
+      let bTypes=[];
+      nonRingChains.flatMap(nrc=>nrc.bonds)
+                   .forEach(b=>{
+                     bTypes[b._idx]="CHAIN";
+                   });
+      foliageBonds.forEach(b=>{
+                     bTypes[b._idx]="CHAIN";
+                   });
+      sssr.flatMap(r=>r.getBonds())
+          .forEach(b=>{
+                     bTypes[b._idx]="RING";
+                   });
+      ret.$bondTypes=bTypes;
+      ret._rings=sssr;
+      
+
+      let aTypes=[];
+      let compIndex=1;
+      //This part isn't optimal. We go through
+      //each naive network, where all the atoms
+      //and bonds must be in the same closure
+      //then we mark all of then
+      naiveNetwork.forEach(nn=>{
+         //definitely can be optimized
+         let aset= new Set(nn.values().flatMap(bChain=>{
+            
+            return bChain.bonds.flatMap(b=>b.getAtoms());
+         }).toArray());
+         aset.forEach(a=>{
+            aTypes[a.getIndexInParent()]=compIndex;
+         });
+         //TODO: this is probably too expensive
+         //also shouldn't throw away what work we did
+         //but keep it for later network stuff
+         branchToFoliageABPair.filter(ab=>aset.has(ab.atom))
+                              .forEach(ab=>{
+                                 ab.atom.$allPathsDepthFirst((path)=>{
+                                    if(path.length===2){
+                                       if(path[1].bond!==ab.bond){
+                                          return true;
+                                       }
+                                    }
+                                    let a = path[path.length-1].atom;
+                                    aTypes[a.getIndexInParent()]=compIndex;
+                                 });
+                              });
+         compIndex++;
+      });
+      //Now we have the components all mapped for things with rings
+      //but what about things without rings?
+      //we map those here
+
+      let unmarked=new Set(foliageAtoms.values()
+                  .filter(at=>!(aTypes[at.getIndexInParent()]>0))
+                  .toArray());
+      
+      while(unmarked.size>0){
+         let unAtom=unmarked.values().next().value;
+         unmarked.delete(unAtom);
+         aTypes[unAtom.getIndexInParent()]=compIndex;
+         unAtom.$allPathsDepthFirst((path)=>{
+                                    let a = path[path.length-1].atom;
+                                    aTypes[a.getIndexInParent()]=compIndex;
+                                    unmarked.delete(a);
+                                 });
+         compIndex++;
+      } 
+      ret.$atomComponentTypes=aTypes;
+      
+      //return ret;
+
+/*
       return {
          "foliageAtoms":foliageAtoms,
          "foliageBonds":foliageBonds,
-         "ringStuff":ringAtoms,
+         "nonFoliageAtoms":nonFoliageAtoms,
          "branchAtoms":branchAtoms,
          "bondMap": bondMap,
          "chainNetworks": naiveNetwork,
          "nonRingChains":nonRingChains,
          "ringChainNetworks":ringChainNetworks,
          "bondChains":bondChains,
-         "ringSystemRings":ringSystemRings
-      };
+         "ringSystemRings":ringSystemRings,
+         "sssr":sssr,
+         "aComps": aTypes,
+         "bTypes": bTypes
+      };*/
       
       
   };
@@ -6345,10 +6489,10 @@ JSChemify.Ring=function(arg){
     let cas = ret.getConnectedAtoms(r2);
     if(cbs.length>0){
         return JSChemify.RingBond()
-                                       .setRingBond(ret,r2,cbs,cas);
+                        .setRingBond(ret,r2,cbs,cas);
     }else if(cas.length>0){
         return JSChemify.RingBond()
-                                       .setRingBond(ret,r2,cbs,cas);
+                        .setRingBond(ret,r2,cbs,cas);
     }
     return null;
   };
@@ -6417,43 +6561,9 @@ JSChemify.Ring=function(arg){
   };
   ret.getAtoms=function(){
     if(ret.$atoms)return ret.$atoms;
-    let atoms=[];
-    let bds=ret.getBonds();
-    let fbond = bds[0];
-    let swap=false;
-    let patoms=null;
-    bds.map((b,j)=>{
-        if(j==bds.length-1)return;
-        if(patoms==null){
-          atoms.push(b.getAtoms()[0]);
-          atoms.push(b.getAtoms()[1]);
-          patoms=[b.getAtoms()[0],b.getAtoms()[1]];
-        }else{
-          let atn;
-          if(patoms.length===1){
-               atn=patoms.map(a=>b.getOtherAtom(a))
-                        .filter(at=>at!==null);
-          }else{
-               let oat=b.getOtherAtom(patoms[0]);
-               if(oat){
-                  swap=true;
-                  atn=[oat];
-               }else{
-                  atn=[b.getOtherAtom(patoms[1])];
-               }
-          }
-          
-          atoms.push(atn[0]);
-          patoms=atn;
-        }
-    });
-    if(swap){
-         let f=atoms[0];
-         atoms[0]=atoms[1];
-         atoms[1]=f;
-    }
-    ret.$atoms=atoms;
-    return atoms;
+    ret.$atoms=JSChemify.Util.distinct(ret.getBonds()
+                      .flatMap(bb=>bb.getAtoms()));
+    return ret.$atoms;
   };
   ret.getBonds=function(){
       return ret._ring;
@@ -7720,7 +7830,9 @@ JSChemify.SmilesReader=function(){
 };
 
 JSChemify.Global={
-
+   settings:{
+      useNewRingDetection:true
+   }
 };
 
 /*******************************
@@ -8175,7 +8287,6 @@ JSChemify.ChemicalCollection=function(){
          //How to make the edit?
          $$(".jschemify-tbl-data").forEach(elm=>{
              elm.onclick = (e=>{
-                console.log("clicked");
                 //Options:
                 // 1. Edit in place by replacing with text area
                 // 2. Edit in place by just making editable div
@@ -9743,7 +9854,9 @@ JSChemify.Tests=function(){
     ret.assertTrue(ret.sameSmiles(a,b),msg);
   };
   ret.sameSmiles=function(a,b){
-      return JSChemify.Chemical(a).toSmiles()===JSChemify.Chemical(b).toSmiles();
+      let smi1=JSChemify.Chemical(a).toSmiles();
+      let smi2=JSChemify.Chemical(b).toSmiles();
+      return smi1===smi2;
   };
   
   ret.assertCleanCoordinates=function(a){
