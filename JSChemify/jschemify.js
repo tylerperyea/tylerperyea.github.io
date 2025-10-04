@@ -17,7 +17,7 @@ Basic I/O:
 2. [partial] Read double bond geometry from smiles
    2.1. [partial] Need to recalculate from bond 2d coordinates sometimes
    2.2. [partial] Need to preserve on coordinate generation
-         2.2.1. Seems to work for simple cases, need to try complex ones
+   2.2.1. Seems to work for simple cases, need to try complex ones
 3. [started] InChI parser
 4. [just for fun] WLN parser 
 5. Simplify Smiles
@@ -177,6 +177,13 @@ Basic Model Examples:
 
 var JSChemify={};
 window.JSChemify = JSChemify;
+
+
+JSChemify.Global={
+   settings:{
+      useNewRingDetection:false
+   }
+};
 
 /*******************************
 /* BaseVectors
@@ -7894,11 +7901,6 @@ JSChemify.SmilesReader=function(){
   
 };
 
-JSChemify.Global={
-   settings:{
-      useNewRingDetection:false
-   }
-};
 
 /*******************************
 /* ChemicalCollection
