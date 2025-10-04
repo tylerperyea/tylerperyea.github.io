@@ -7896,7 +7896,7 @@ JSChemify.SmilesReader=function(){
 
 JSChemify.Global={
    settings:{
-      useNewRingDetection:true
+      useNewRingDetection:false
    }
 };
 
