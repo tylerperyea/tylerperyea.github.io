@@ -4821,34 +4821,61 @@ JSChemify.Chemical = function(arg){
       
   };
   ret.$detectRingsEXP=function(){
-          for(var i=0;i<ret._bonds.length;i++){
-          ret._bonds[i]._idx=i;
-      };
-      let bcount = ret._bonds.length;
-          let removedBonds = ret._removeAllFoliage();
-      let bTypes=[];
-      let assigned=0;
       
-      removedBonds.map(rb=>{
-          bTypes[rb.index]="FOLIAGE";
-          assigned++;
+      var foliageAtoms=new Set([]);
+      var foliageBonds=new Set([]);
+      var surface=new Set([]);
+
+      ret.getAtoms().forEach((at,i) => {
+         var bc=at.getBondCount();
+         if(bc===1){
+            surface.add(at);
+            foliageAtoms.add(at);
+         }
       });
-      
-      
-      //At this point anything left is either a linker or a ring
-      //Now mark anything that has more than 2 bonds
-      let terts = ret.getAtoms().filter(at=>at.getBondCount()>=3);
-      let branchBonds=JSChemify.distinct(terts.flatMap(at=>at.getBonds()));
-      
-      let ringsPlusComponents = ()=>{
-          return ret._bonds.length.length + ret.getAtoms().filter(at=>at.getBondCount()>0).length +2;
-      };
-      let RINGS_PLUS_COMPONENTS=ringsPlusComponents();
-      for(var i=0;i<branchBonds.length;i++){
-          let toRemoveBond = branchBonds[i];
-        
-          //ret._removeAllFoliage
+
+      while(surface.size>0){
+         var check=new Set([]);
+         surface.forEach(at=>{
+            at.getNeighborAtomsAndBonds().forEach(at2=>{
+               if(!surface.has(at2.atom) &&
+                  !foliageAtoms.has(at2.atom)){
+                  check.add(at2);
+               }
+            });
+         });
+         surface.clear();
+         check.forEach(aa=>{
+            let nbonds=aa.atom.getNeighborAtomsAndBonds()
+              .filter(na=>!foliageAtoms.has(na.atom));
+            if(nbonds.length<=1){
+               surface.add(aa.atom);
+               foliageAtoms.add(aa.atom);
+               foliageBonds.add(aa.bond);
+            }
+         });
       }
+      ret.getBonds()
+         .filter(b=>foliageAtoms.has(b.getAtom1()) || foliageAtoms.has(b.getAtom2()))
+         .forEach(b=>{
+            foliageBonds.add(b);
+         });
+
+      let ringAtoms=ret.getAtoms()
+         .filter(at=>!foliageAtoms.has(at))
+         .map(a=>[a,a.getNeighborAtomsAndBonds()
+         .filter(n=>!foliageAtoms.has(n.atom))]);
+      let branchAtoms=ringAtoms.filter(a=>a[1].length>2);
+
+
+
+
+      return {
+         "foliageAtoms":foliageAtoms,
+         "foliageBonds":foliageBonds,
+         "ringStuff":ringAtoms,
+         "branchAtoms":branchAtoms
+      };
       
       
   };
