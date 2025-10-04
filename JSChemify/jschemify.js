@@ -5112,7 +5112,9 @@ JSChemify.Chemical = function(arg){
 
       ringSystemRings.forEach(aa=>{
          aa[1].forEach(rr=>{
-            sssr.push(JSChemify.Ring(rr.path.flatMap(rp=>rp.bonds)));
+            let ring=JSChemify.Ring(rr.path.flatMap(rp=>rp.bonds))
+                              .canonicalize();
+            sssr.push(ring);
          })
       });
 
@@ -6560,10 +6562,73 @@ JSChemify.Ring=function(arg){
       return ret.getAtoms().indexOf(at);
   };
   ret.getAtoms=function(){
+
+   
     if(ret.$atoms)return ret.$atoms;
+    let bds=ret.getBonds();
+    let atoms=[];
+    let lbond=bds[0];
+    atoms.push(lbond.getAtom1());
+    atoms.push(lbond.getAtom2());
+    let head=lbond.getAtom2();
+    let nxt;
+    while(atoms.length<bds.length){
+      nxt=head.getBonds()
+         .filter(b=>b!==lbond)
+         .filter(b=>bds.indexOf(b)>=0)[0];
+      head=nxt.getOtherAtom(head);
+      atoms.push(head);
+      lbond=nxt;
+    }
+    ret.$atoms=atoms;
+    return ret.$atoms;
+
+    /*
     ret.$atoms=JSChemify.Util.distinct(ret.getBonds()
                       .flatMap(bb=>bb.getAtoms()));
-    return ret.$atoms;
+    
+    return ret.$atoms;*/
+    
+    /*
+    if(ret.$atoms)return ret.$atoms;
+    let atoms=[];
+    let bds=ret.getBonds();
+    let fbond = bds[0];
+    let swap=false;
+    let patoms=null;
+    bds.map((b,j)=>{
+        if(j==bds.length-1)return;
+        if(patoms==null){
+          atoms.push(b.getAtoms()[0]);
+          atoms.push(b.getAtoms()[1]);
+          patoms=[b.getAtoms()[0],b.getAtoms()[1]];
+        }else{
+          let atn;
+          if(patoms.length===1){
+               atn=patoms.map(a=>b.getOtherAtom(a))
+                        .filter(at=>at!==null);
+          }else{
+               let oat=b.getOtherAtom(patoms[0]);
+               if(oat){
+                  swap=true;
+                  atn=[oat];
+               }else{
+                  atn=[b.getOtherAtom(patoms[1])];
+               }
+          }
+          
+          atoms.push(atn[0]);
+          patoms=atn;
+        }
+    });
+    if(swap){
+         let f=atoms[0];
+         atoms[0]=atoms[1];
+         atoms[1]=f;
+    }
+    ret.$atoms=atoms;
+    return atoms;
+    */
   };
   ret.getBonds=function(){
       return ret._ring;
@@ -7831,8 +7896,7 @@ JSChemify.SmilesReader=function(){
 
 JSChemify.Global={
    settings:{
-      //still has some surprising bugs
-      useNewRingDetection:false
+      useNewRingDetection:true
    }
 };
 
@@ -8288,6 +8352,7 @@ JSChemify.ChemicalCollection=function(){
          //How to make the edit?
          $$(".jschemify-tbl-data").forEach(elm=>{
              elm.onclick = (e=>{
+                console.log("clicked");
                 //Options:
                 // 1. Edit in place by replacing with text area
                 // 2. Edit in place by just making editable div
@@ -9857,6 +9922,8 @@ JSChemify.Tests=function(){
   ret.sameSmiles=function(a,b){
       let smi1=JSChemify.Chemical(a).toSmiles();
       let smi2=JSChemify.Chemical(b).toSmiles();
+      console.log(smi1);
+      console.log(smi2)
       return smi1===smi2;
   };
   
