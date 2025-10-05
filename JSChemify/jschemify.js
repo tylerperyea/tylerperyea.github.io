@@ -127,7 +127,7 @@ Coordinates and Rendering:
               minima, but bad for global ones. Swapping substituents
               probably is needed first.
 22. [done] Path Notation:  Multiple components
-23. Place subscripts a little down
+23. [done] Place subscripts a little down
 24. [done] isotopes in render
 25. [partial] Path Notation: Brackets
        Some notes about brackets...
@@ -156,6 +156,7 @@ Coordinates and Rendering:
 26. [partial] Path notation estimate / tune max error?
 27. Cut bonds short based on clear radius
 28. Support double-either on double bonds
+29. [done] SVG aromatic circle sometimes off
 
 Basic Model Examples:
 1. Do KNN with a variety of metrics
@@ -219,12 +220,6 @@ JSChemify.BaseVectors=function(){
                                    [ret.rightDown,ret.rightUp,ret.forward,
                    ret.backDown,ret.backUp]];    
   ret.altBanglesR=ret.bangles;
-  /*
-  ret.altBanglesR=[[ret.upDiag,ret.downDiag,ret.forward,
-                    ret.backward],
-                                    [ret.downDiag,ret.upDiag,ret.forward,
-                    ret.backward]]; 
-*/
  
   return ret;
 };
@@ -301,14 +296,32 @@ JSChemify.LinearRegression=function(){
    ret._y;
    ret._pred;
    ret._r=null;
-   ret._calculate;
+   ret._calculate=null;
+   ret._intercept=true;
+
+   ret.$reset=function(){
+      ret._calculate=null;
+      return ret;
+   };
    ret.setX=function(x){
+      if(Array.isArray(x) && !Array.isArray(x[0])){
+         x=JSChemify.Util.matrixTranspose(JSChemify.Util.matrixTranspose(x));
+      }
       ret._x=x;
       return ret;
    };
+   ret.setUseIntercept=function(uInt){
+      ret._intercept=uInt;
+      
+      return ret.$reset();
+   };
    
    ret.setY=function(y){
+      if(Array.isArray(y) && !Array.isArray(y[0])){
+         y=JSChemify.Util.matrixTranspose(JSChemify.Util.matrixTranspose(y));
+      }
       ret._y=y;
+
       return ret;
    };
    ret.predict=function(nx){
@@ -320,7 +333,6 @@ JSChemify.LinearRegression=function(){
    };
    ret.getPredicted=function(){
       if(!ret._pred){
-         
          let calc=ret.calculate();
          ret._pred= JSChemify.Util.matrixTranspose(JSChemify.Util.matrixMultiply(JSChemify.Util.matrixTranspose(calc),ret._x));
       }
@@ -351,11 +363,19 @@ JSChemify.LinearRegression=function(){
    };
    ret.calculate=function(){
       if(!ret._calculate){
-         let xT=JSChemify.Util.matrixTranspose(ret._x);
+         let useX=ret._x;
+         if(ret._intercept){
+            useX=useX.map(aa=>{
+               let cp=aa.map(bb=>bb);
+               cp.push(1);
+               return cp;
+            });
+         }
+         let xT=JSChemify.Util.matrixTranspose(useX);
          let yT=JSChemify.Util.matrixTranspose(ret._y);
-         let xxt=JSChemify.Util.matrixMultiply(xT,ret._x,true);
+         let xxt=JSChemify.Util.matrixMultiply(xT,useX,true);
          let inv=JSChemify.Util.matrixInverse(xxt);
-         let yxT=JSChemify.Util.matrixMultiply(yT,ret._x,true);
+         let yxT=JSChemify.Util.matrixMultiply(yT,useX,true);
          let sol=JSChemify.Util.matrixMultiply(inv,yxT);
          
          ret._calculate=sol;
@@ -370,8 +390,11 @@ JSChemify.LinearRegression=function(){
          |e|^2=yyT-yXTaT-axyT+axxTaT
          derivitive
          d|e|^2/da=-yxT-xyT+2xxTaT
+         0=-yxT-xyT+2xxTaT
          2yxT=2xxTaT
          aT=(xxT^-1)*yxT
+
+
       */
       
    };
@@ -1238,14 +1261,17 @@ JSChemify.Util = {
     return sumSq;
   },
   matrixTranspose:function(m){
-      let t=[];
+    let t=[];
     for(var i=0;i<m.length;i++){
         let cvec=m[i];
-      for(var j=0;j<cvec.length;j++){
+        if(!Array.isArray(cvec)){
+         cvec=[cvec];
+        }
+        for(var j=0;j<cvec.length;j++){
           let c=cvec[j];
-        if(!t[j])t[j]=[];
-           t[j][i]=c;
-      }
+          if(!t[j])t[j]=[];
+             t[j][i]=c;
+        }
     }
     return t;
   },
@@ -4506,7 +4532,6 @@ JSChemify.Chemical = function(arg){
       
         nextRing.dearomatize();
         done.push(nextRing);
-        console.log(ret.toSmiles());
         nextRing.getNeighborRingsAndBonds()
                 .map(r=>{
                     if(stack.indexOf(r.ring)>=0){
@@ -4539,6 +4564,7 @@ JSChemify.Chemical = function(arg){
       ret.$detectRings();
     return ret._rings;
   };
+
   
   ret.getRingSystems=function(){
     if(ret.$ringSystems){
@@ -4573,8 +4599,8 @@ JSChemify.Chemical = function(arg){
     let rMap={};
     
     rbonds.map(irb=>{
-        let ii=irb.idx;
-        let rb=irb.rb;
+      let ii=irb.idx;
+      let rb=irb.rb;
       let lindex=idx[ii];
       let mm=rMap[lindex];
       if(!mm){
@@ -4585,19 +4611,19 @@ JSChemify.Chemical = function(arg){
     });
     let sRingsGrouped={};
     idx.map((a,i)=>{
-        let ma=sRingsGrouped[a];
+      let ma=sRingsGrouped[a];
       if(!ma){
-          ma=[];
-        sRingsGrouped[a]=ma;
+         ma=[];
+         sRingsGrouped[a]=ma;
       }
-        ma.push(srings[i]);
+      ma.push(srings[i]);
     });
     
     ret.$ringSystems= Object.keys(sRingsGrouped).map(k=>{
-        let rbonds = rMap[k];
-      let rrings = sRingsGrouped[k];
-      if(!rbonds)rbonds=[];
-        return JSChemify.RingSystem(rrings, rbonds);
+         let rbonds = rMap[k];
+         let rrings = sRingsGrouped[k];
+         if(!rbonds)rbonds=[];
+         return JSChemify.RingSystem(rrings, rbonds);
     });
     return ret.$ringSystems;
   }
@@ -4620,7 +4646,7 @@ JSChemify.Chemical = function(arg){
       return -1;
   };
   ret.getNeighborAtomsAtDistance=function(atom,d){
-      let ai1=atom.getIndexInParent();
+    let ai1=atom.getIndexInParent();
     ret.$calculateDistances();
     return ret.$atomDistances[ai1].map((d,i)=>[d,i]).filter(dd=>dd[0]===d).map(di=>ret.getAtom(di[1]));
     
@@ -5362,13 +5388,11 @@ JSChemify.Chemical = function(arg){
     let version=lines[3+start].substr(34,5).trim();
     let cursor=start;
     if(version === "V3000"){
-        console.log("V3000");
         for(;cursor<lines.length;cursor++){
             let line = lines[cursor];
                          
             if(line.indexOf("M  V30 BEGIN ATOM")===0){
                 cursor++;
-                console.log("Found Block");
                 for(;cursor<lines.length;cursor++){
                     let sline = lines[cursor];
                     if(sline.indexOf("M  V30 END ATOM")===0){
@@ -8741,7 +8765,6 @@ JSChemify.ChemicalCollection=function(){
       ret.getChems().map(cc=>{
          cc.removeProperty(prop);
          if(ret._decorateProperty === prop){
-            console.log("deleting annotations");
             cc.deleteAnnotations();
          }
       });
@@ -9920,8 +9943,6 @@ JSChemify.Tests=function(){
   ret.sameSmiles=function(a,b){
       let smi1=JSChemify.Chemical(a).toSmiles();
       let smi2=JSChemify.Chemical(b).toSmiles();
-      console.log(smi1);
-      console.log(smi2)
       return smi1===smi2;
   };
   
@@ -9953,11 +9974,16 @@ JSChemify.Tests=function(){
   ret.runAll=function(){
     let passed=0;
     let failed=0;
+    let failedLog=[];
     let total=ret._tests.length;
     let whenDone=()=>{
        if(passed+failed===total){
           console.log("Tests passed:"+passed);
           console.log("Tests failed:"+failed);
+          if(failedLog.length>0){
+            console.log("Failed Tests:");
+            failedLog.forEach(fl=>console.log(fl));
+          }
        }
     };
     
@@ -9966,21 +9992,25 @@ JSChemify.Tests=function(){
             let rr=t.test();
             if(rr instanceof Promise){
                rr.catch(e=>{
-                  console.log("Test " + t.name + " Failed:" + e);
+                  let flog="[Failed] Test " + t.name + " Failed:" + e;
+                  failedLog.push(flog);
+                  console.log(flog);
                   failed++;
                   whenDone();
                }).then(p=>{
                   passed++;
-                  console.log("Test " + t.name + " Passed");
+                  console.log("[Passed] Test " + t.name + " Passed");
                   whenDone();
                });
             }else{
                passed++;
-               console.log("Test " + t.name + " Passed");
+               console.log("[Passed] Test " + t.name + " Passed");
                whenDone();
             }
          }catch(e){
-             console.log("Test " + t.name + " Failed:" + e);
+             let flog="[Failed] Test " + t.name + " Failed:" + e;
+             failedLog.push(flog);
+             console.log(flog);
              failed++;
              whenDone();
          }
@@ -10019,6 +10049,24 @@ JSChemify.Tests=function(){
       let ny=nx.map(x=>[m*x[0]+b]);
       let reg=JSChemify.LinearRegression()
                          .setX(nx)
+                         .setY(ny)
+                         .setUseIntercept(false);
+      let coeff=reg.calculate();
+      let rr=reg.getR();
+      ret.assertEquals(Math.round(m*100),Math.round(coeff[0]*100));
+      ret.assertEquals(Math.round(b*100),Math.round(coeff[1]*100));
+     
+      ret.assertEquals(100,Math.round(rr*100));
+  });
+
+  ret.tests.push("Linear Regression using intercept feature should be right",()=>{
+      let xs=[1,2,3,4,5,6,7,8];
+      let b=41.5;
+      let m=-7.3;
+      let nx=xs;
+      let ny=nx.map(x=>[m*x+b]);
+      let reg=JSChemify.LinearRegression()
+                         .setX(nx)
                          .setY(ny);
       let coeff=reg.calculate();
       let rr=reg.getR();
@@ -10045,7 +10093,8 @@ JSChemify.Tests=function(){
       let ny=ys.map(y=>[y]);
       let reg=JSChemify.LinearRegression()
                          .setX(nx)
-                         .setY(ny);
+                         .setY(ny)
+                         .setUseIntercept(false);
       let coeff=reg.calculate();
       let rr=reg.getRSquared();
       ret.assertEquals(Math.round(m*100),Math.round(coeff[0]*100));
@@ -10493,7 +10542,19 @@ M  END`;
     let tmatO=matrixT.map(c=>c.join(",")).join(",");
     ret.assertEquals(smatO,tmatO);
   });
-  
+
+  ret.tests.push("Transpose of vector gives right matrix",()=>{
+      let matrix=[1,2,3];
+      let matrixT=[[1],
+                 [2],
+                 [3]];
+
+    let tmat=JSChemify.Util.matrixTranspose(matrix);
+    let smatO=tmat.map(c=>c.join(",")).join(",");
+    let tmatO=matrixT.map(c=>c.join(",")).join(",");
+    ret.assertEquals(smatO,tmatO);
+  });
+
   ret.tests.push(()=>{
       let matrix=[[1,0,0],
                  [0,1,0],
@@ -10527,7 +10588,7 @@ M  END`;
   
   
   ret.tests.push(()=>{
-      let affine=JSChemify.AffineTransformation();
+    let affine=JSChemify.AffineTransformation();
     affine=affine.translate(1,0);
     let point=[1,2];
     let npointExp=[2,2];
@@ -10535,7 +10596,7 @@ M  END`;
     ret.assertToStringEquals(npoint,npointExp);
   });
   ret.tests.push(()=>{
-      let affine=JSChemify.AffineTransformation();
+    let affine=JSChemify.AffineTransformation();
     affine=affine.scale(10);
     let point=[1,2];
     let npointExp=[10,20];
@@ -10552,7 +10613,7 @@ M  END`;
   });
   
   ret.tests.push(()=>{
-      let affine=JSChemify.AffineTransformation();
+    let affine=JSChemify.AffineTransformation();
     affine=affine.scale(2).translate(10,2);
     let affine2=affine.clone().inverse();
     let nothing=affine.clone().multiply(affine2);
@@ -10563,7 +10624,7 @@ M  END`;
   });
   
   ret.tests.push(()=>{
-      let affine=JSChemify.AffineTransformation();
+    let affine=JSChemify.AffineTransformation();
     affine=affine.scale(2).translate(10,2);
     let affine2=affine.clone().inverse();
     let nothing=affine.clone().multiply(affine2);
@@ -10575,11 +10636,11 @@ M  END`;
   });
   
   ret.tests.push(()=>{
-      let affine=JSChemify.AffineTransformation();
+    let affine=JSChemify.AffineTransformation();
     affine=affine.scale(2).translate(10,2);
     let affine2=JSChemify.AffineTransformation()
-                                              .translate(-10,-2)
-                          .scale(0.5);
+                         .translate(-10,-2)
+                         .scale(0.5);
     
     let point=[0,0];
     let npoint=affine.transform(point);
@@ -10590,7 +10651,7 @@ M  END`;
   
   //TODO: Not sure about this one
   ret.tests.push(()=>{
-      let affine=JSChemify.AffineTransformation();
+    let affine=JSChemify.AffineTransformation();
     affine=affine.translate(10,2).scale(2).translate(1,1);
     let affine2=JSChemify.AffineTransformation()
                           .translate(1,1)
