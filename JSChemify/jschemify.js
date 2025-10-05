@@ -169,7 +169,7 @@ Basic Model Examples:
    3.2. FASTMAP
    3.3. PCA of E-State Vectors
    3.4. PCA of topological indices
-4. 
+4. CPCA implementation
 
    
 
@@ -255,7 +255,6 @@ JSChemify.Shape=function(arg,c){
   };
   ret.intersection=function(s2){
     //TODO: intersection shape
-    
      
   };
   ret.containsPoint=function(pt){
@@ -8974,7 +8973,7 @@ JSChemify.SVGContext=function(width, height){
       //<path d="M150 0 L75 200 L225 200 Z" style="fill:none;stroke:green;stroke-width:3" />
       let p = ret._path.map(pp=>pp.map(f=>{
         if(typeof f === "number" && Math.round(f)!==f){
-          return f.toFixed(2);
+          return f.toFixed(3);
         }
         return f;
       }).join(" ")).join(" ");
@@ -8993,9 +8992,6 @@ JSChemify.SVGContext=function(width, height){
       return ret;
    };
    ret.arc=function(cx,cy,rad,startAng,endAng){
-      //ret.fillStyle="red";
-      //
-      //        ctx.arc(loc[0], loc[1], clearRad, 0, 2 * Math.PI);
       cx=cx-rad*0.7;
       cy=cy-rad*0.7;
       ret.moveTo(cx,cy);
