@@ -1,6 +1,21 @@
 /**
-JSChemify - a "pretty okay" basic cheminformatics library
-written in native javascript.
+ * 
+ * JSChemify - a "pretty okay" basic cheminformatics library written in native javascript.
+ * 
+ * Version: 0.2.0.1 (2025-10-05)
+ * 
+ * Author:  Tyler Peryea (tyler.peryea@gmail.com)
+ * 
+ * License: Public-Domain. Do whatever you want with this. But it doesn't come
+ *          with any warranty or anything. No doubt there are bugs and security
+ *          risks I'm not aware of. If you email me, I'll definitely think about
+ *          whatever you find there, but I make no promises. If you want to take
+ *          all the code and use it for your own purposes, package it, refactor it,
+ *          even to sell it, that's absolutely okay. You can even claim you wrote 
+ *          it if you'd like! I'll probably be a little annoyed if you do though.
+ * 
+ * 
+ * 
 
 TODO:
 
@@ -30,6 +45,9 @@ Basic I/O:
 6. [done?] Clone molecule
 7. [done] Split components
 8. Make ring&chain network
+   8.1. The basics to do this are present now, but need to think
+        about what we actually want. And have some test cases
+        and use cases.
 9. SMARTS/query support
 10. [done] Molform and weight
 11. [done] Basic SDF/Smiles file reader into collection
@@ -78,6 +96,7 @@ Basic I/O:
       CCCCP[C@]1([H])(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
       Becomes
       CCCCP[C@@]1([H])(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
+30. Export to excel with the structure highlight feature?
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -177,7 +196,9 @@ Basic Model Examples:
 **/
 
 var JSChemify={};
-window.JSChemify = JSChemify;
+
+//Removed this as it may not be necessary
+//window.JSChemify = JSChemify;
 
 
 JSChemify.Global={
@@ -213,11 +234,11 @@ JSChemify.BaseVectors=function(){
   ret.backDown=[-ret.up[0],-ret.up[1]];
   ret.bangles   =[[ret.up,ret.down,ret.forward,
                    ret.backUp,ret.backDown],
-                               [ret.down,ret.up,ret.forward,
+                  [ret.down,ret.up,ret.forward,
                    ret.backDown,ret.backUp]];
   ret.altBangles=[[ret.rightUp,ret.rightDown,ret.forward,
                    ret.backUp,ret.backDown],
-                                   [ret.rightDown,ret.rightUp,ret.forward,
+                  [ret.rightDown,ret.rightUp,ret.forward,
                    ret.backDown,ret.backUp]];    
   ret.altBanglesR=ret.bangles;
  
@@ -245,12 +266,13 @@ JSChemify.Shape=function(arg,c){
   ret._path=[];
   ret.closed=true;
   ret.toConvexHull=function(){
-    let npath=JSChemify.ShapeUtils().convexHull(ret._path);
+    let npath=JSChemify.ShapeUtils()
+                       .convexHull(ret._path);
     return JSChemify.Shape(npath);
   };
   ret.intersection=function(s2){
     //TODO: intersection shape
-     
+    
   };
   ret.containsPoint=function(pt){
     //basic algo is iterate through delta vectors,
@@ -9570,7 +9592,8 @@ JSChemify.Renderer=function(){
             }
             
             let over=false;
-            over=done.map(ss=>JSChemify.ShapeUtils().getIntersectionSegmentsCoeffs(seg,ss))
+            over=done.map(ss=>JSChemify.ShapeUtils()
+                                       .getIntersectionSegmentsCoeffs(seg,ss))
                      .filter(cc=>cc!==null)
                      .findIndex(cc=>cc[0]>0.2&&cc[0]<0.8) //only center-ish overlaps matter
                      >=0;
@@ -9871,6 +9894,8 @@ TODO:
 1. Allow a returned object about results
 2. Give names to tests
 3. Expand Tests
+4. Do some regressions which are not pass/fail but
+   give some measure of performance
 *******************************/
 JSChemify.Tests=function(){
   ret={};
@@ -9969,8 +9994,6 @@ JSChemify.Tests=function(){
       }
   };
 
-  
-  
   ret.runAll=function(){
     let passed=0;
     let failed=0;
@@ -10688,8 +10711,6 @@ M  END`;
     
     
   });
-  
-  
   
   //Double bond on wrong side in rendering
   //C(=O)(c1cc(c(c(I)c1)OCCN(CC)CC)I)c1c(oc2c1cccc2)CCCCCN(C)CC\C=C1\c2ccccc2CCc2ccccc12
