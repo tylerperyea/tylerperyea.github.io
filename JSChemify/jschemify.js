@@ -2,7 +2,7 @@
  * 
  * JSChemify - a "pretty okay" basic cheminformatics library written in native javascript.
  * 
- * Version: 0.2.0.1 (2025-10-05)
+ * Version: 0.2.0.1a (2025-10-07)
  * 
  * Author:  Tyler Peryea (tyler.peryea@gmail.com)
  * 
@@ -97,6 +97,9 @@ Basic I/O:
       Becomes
       CCCCP[C@@]1([H])(CN[C@@H](C)C2(=CC=CC(=C2)OC2(=CC=C(C[C@H](CN1)N)C=C2)))
 30. Export to excel with the structure highlight feature?
+31. Start material for basic course on cheminformatics and javascript
+32. SDFile validator
+33. 
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -176,6 +179,9 @@ Coordinates and Rendering:
 27. Cut bonds short based on clear radius
 28. Support double-either on double bonds
 29. [done] SVG aromatic circle sometimes off
+30. The bounding box of rendered images seems off ...
+    some weird padding and offsets that have some unexpected
+    results. Need to look into this.
 
 Basic Model Examples:
 1. Do KNN with a variety of metrics
@@ -190,6 +196,7 @@ Basic Model Examples:
    3.3. PCA of E-State Vectors
    3.4. PCA of topological indices
 4. CPCA implementation
+5. Need to show the 3D descriptor use concept
 
    
 
@@ -198,7 +205,7 @@ Basic Model Examples:
 var JSChemify={};
 
 //Removed this as it may not be necessary
-//window.JSChemify = JSChemify;
+// window.JSChemify = JSChemify;
 
 
 JSChemify.Global={
@@ -272,7 +279,31 @@ JSChemify.Shape=function(arg,c){
   };
   ret.intersection=function(s2){
     //TODO: intersection shape
-    
+    //This should return a shape that is the
+    //intersection of 2 shapes. That is,
+    //every point found in BOTH shapes should also
+    //be found in this shape and NO other point
+    //should be found inside.
+    //There are really 3 general cases:
+    //1. They don't intersect at all (return null?)
+    //2. One shape is entirely inside another (return the inner shape)
+    //3. SOME parts of shape 1 are inside shape 2 and shape 2 in shape 1
+    //   This is the hardest case in some sense
+    //One way to do this is to find all vertices of both shapes
+    //and all vertices which are the intersection points of 2 lines
+    //in the parent shapes. For each point in this large set of points
+    //then we need to know which of the categories it's in:
+    //C1. Boundary of both [include]
+    //C2. Boundary of 1, inside the other [include]
+    //C3. Boundary of 1, outside the other [reject]
+    //
+    //Once we have the full set of such points, we then need to consider how to
+    //assemble the shape. We can do this by choosing shape 1 arbitrarily
+    //and starting with a point we must include. We then find each point that
+    //we must include of type C1 and "split" the line segments of shape 1 to have
+    //this new injected vertex.
+
+
   };
   ret.containsPoint=function(pt){
     //basic algo is iterate through delta vectors,
@@ -312,6 +343,40 @@ JSChemify.Shape=function(arg,c){
   return ret;
 };
 
+/**********************
+ * LinearRegression
+ * ********************
+ * Status:Working
+ * 
+ * This process will take in a vector or set of vectors of
+ * "x" values, along with a vector (or set of vectors) of "y"
+ * values and will return a matrix M such that
+ * Mx=y' where y' approximates y. This is ordinary least squares
+ * linear regression. If you specify just 1 column vector of
+ * x and 1 of y like so:
+ * 
+ *     let reg=JSChemify.LinearRegression()
+ *                      .setX([1,2,3,4,5,6])
+ *                      .setY([3,5,7,9,11,13]);
+ * 
+ *     reg.calculate(); //returns [[2],[1]]
+ * 
+ * In this case the [2] is the slope, and the [1] is the y-intercept.
+ * 
+ * If you do not want to have a y-intercept, you can specify:
+ * 
+ *    let reg=JSChemify.LinearRegression()
+ *                     .setX([1,2,3,4,5,6])
+ *                     .setY([3,5,7,9,11,13])
+ *                     .setUseIntercept(false);
+ * 
+ *    reg.calculate(); //returns [[2.230769230769231]]
+ * 
+ * Note that the dimensions of the matrix M here have changed. Giving
+ * only the slope. 
+ * 
+ * 
+ */
 JSChemify.LinearRegression=function(){
    let ret={};
    ret._x;
@@ -347,8 +412,16 @@ JSChemify.LinearRegression=function(){
       return ret;
    };
    ret.predict=function(nx){
+      if(!nx.length){
+         nx=[nx];
+      }
       if(!nx[0].length){
          nx=[nx];
+      }
+      if(ret._intercept && nx[0].length < ret._x[0].length+1){
+         for(var i=0;i<nx.length;i++){
+            nx[i].push(1);
+         }
       }
       let calc=ret.calculate();
       return JSChemify.Util.matrixTranspose(JSChemify.Util.matrixMultiply(JSChemify.Util.matrixTranspose(calc),nx));
@@ -356,7 +429,15 @@ JSChemify.LinearRegression=function(){
    ret.getPredicted=function(){
       if(!ret._pred){
          let calc=ret.calculate();
-         ret._pred= JSChemify.Util.matrixTranspose(JSChemify.Util.matrixMultiply(JSChemify.Util.matrixTranspose(calc),ret._x));
+         let useX=ret._x;
+         if(ret._intercept){
+            useX=useX.map(aa=>{
+               let cp=aa.map(bb=>bb);
+               cp.push(1);
+               return cp;
+            });
+         }
+         ret._pred= JSChemify.Util.matrixTranspose(JSChemify.Util.matrixMultiply(JSChemify.Util.matrixTranspose(calc),useX));
       }
       return ret._pred;
    };
