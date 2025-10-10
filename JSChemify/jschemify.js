@@ -1363,6 +1363,13 @@ JSChemify.Util = {
     }
     return sumSq;
   },
+  sortBy:function(lam){
+    return (a,b)=>{
+      let ta=lam(a);
+      let tb=lam(b);
+      return ([ta,tb].sort()[0])===ta?-1:1;
+    };
+  },
   matrixTranspose:function(m){
     let t=[];
     for(var i=0;i<m.length;i++){
@@ -4674,6 +4681,9 @@ JSChemify.Chemical = function(arg){
       return ret.$ringSystems;
     }
     let rings = ret.getRings();
+    if(ret.$ringSystems){
+      return ret.$ringSystems;
+    }
     let srings = rings.filter(r=>!r.isEnvelope());
     
     let idx=srings.map((a,i)=>i);
@@ -4682,7 +4692,7 @@ JSChemify.Chemical = function(arg){
     for(var i=0;i<srings.length;i++){
         let tring=srings[i];
         for(var j=i+1;j<srings.length;j++){
-           let nring =srings[j];
+           let nring = srings[j];
            let rbond = tring.getRingBond(nring);
            if(rbond!=null){
                 rbonds.push({"idx":i,"rb":rbond});
@@ -5031,9 +5041,7 @@ JSChemify.Chemical = function(arg){
                at.getBonds()
                  .filter(bb=>bb!==aa.bond)
                  .map(bb=>[bb,bondNetwork[bb.getIndexInParent()]])
-                 
                  .filter(bb=>bb[1])
-                 
                  .map(bb=>{
                      let bbi=1;
                      if(bb[0].getAtom2()===at)bbi=0;
@@ -5059,11 +5067,48 @@ JSChemify.Chemical = function(arg){
          });
 
       }
+
       ret.getBonds()
          .filter(b=>foliageAtoms.has(b.getAtom1()) || foliageAtoms.has(b.getAtom2()))
          .forEach(b=>{
             foliageBonds.add(b);
+            var bn=bondNetwork[b.getIndexInParent()];
+            if(!bn){
+               bn=[];
+               
+               bondNetwork[b.getIndexInParent()]=bn;
+               var bi=0;
+               var at=b.getAtom1();
+               if(!foliageAtoms.has(at)){
+                  at=b.getAtom2();
+                  bi=1;
+               }
+               bn[bi]=[];
+
+               at.getBonds()
+                 .filter(bb=>bb!==b)
+                 .map(bb=>[bb,bondNetwork[bb.getIndexInParent()]])
+                 .filter(bb=>bb[1])
+                 .map(bb=>{
+                     let bbi=1;
+                     if(bb[0].getAtom2()===at)bbi=0;
+                     return bb[1][bbi];
+                 })
+                 .map(bb=>{
+                     return bb;
+                 })
+                 .filter(bb=>bb)
+                 .flatMap(bb=>bb)
+                 .forEach(bb=>bn[bi].push(bb));
+               bn[bi].push(at.getIndexInParent());
+               //bondNetwork[b.getIndexInParent()]=bn;
+
+
+            }
+
          });
+      
+
       let spokenForAtoms=new Set();
       let nonFoliageAtoms=ret.getAtoms()
          .filter(at=>!foliageAtoms.has(at))
@@ -5309,6 +5354,7 @@ JSChemify.Chemical = function(arg){
       let bTypes=[];
       nonRingChains.flatMap(nrc=>nrc.bonds)
                    .forEach(b=>{
+                     //TODO: Maybe "LINK"?
                      bTypes[b._idx]="CHAIN";
                    });
       foliageBonds.forEach(b=>{
@@ -5324,14 +5370,15 @@ JSChemify.Chemical = function(arg){
 
       let aTypes=[];
       let compIndex=1;
+
       //This part isn't optimal. We go through
       //each naive network, where all the atoms
       //and bonds must be in the same closure
-      //then we mark all of then
+      //then we mark all of them
+
       naiveNetwork.forEach(nn=>{
          //definitely can be optimized
          let aset= new Set(nn.values().flatMap(bChain=>{
-            
             return bChain.bonds.flatMap(b=>b.getAtoms());
          }).toArray());
          aset.forEach(a=>{
@@ -5366,6 +5413,7 @@ JSChemify.Chemical = function(arg){
          let unAtom=unmarked.values().next().value;
          unmarked.delete(unAtom);
          aTypes[unAtom.getIndexInParent()]=compIndex;
+         //Probably too expensive
          unAtom.$allPathsDepthFirst((path)=>{
                                     let a = path[path.length-1].atom;
                                     aTypes[a.getIndexInParent()]=compIndex;
@@ -5374,7 +5422,80 @@ JSChemify.Chemical = function(arg){
          compIndex++;
       } 
       ret.$atomComponentTypes=aTypes;
+
+      //to finish up bondNetwork, we need:
+      //1. Find all ring systems (we have them)
+      //2. Sort ring systems by number of exacyclic
+      //   bonds which do NOT have a bondNetwork
+      //   value (unknown extent).
+      //3. Start with the ring system with the
+      //   fewest unspecified. If there
+      //   are 0 unspecified, update each
+      //   exacyclic bond to be the component
+      //   complement for the blank side. (optional)
+      //4. For ring systems with 1 unspecified,
+      //   its exacyclic bond is part of a LINK
+      //   chain. Set the first bond to be
+      //   the set of atoms in the ring system
+      //   plus the set of all defined exacyclic
+      //   atoms from the other outside bonds.
+      //5. All 1-unspecified cases are set
+      //   for the first bond.
+      //6. Walk from each 1-unspecified case through
+      //   its bond-chain, setting 1 side to the set
+      //   of the previous atoms + the new atom +
+      //   any atoms in branch bonds that are specified
+      //   NOTE that if there's an UNSPECIFIED branch bond
+      //   we need to mark that atom, halt the path
+      //   and move to the next case.
+      //7. When all of this is done, we iterate through
+      //   all unspecified non-ring bonds. And we do
+      //   a depth-first search from both atoms ...
+      //   
+      //Hmm... this seems kind of complicated
+
+      //I guess I could just lazy-load this stuff?
+      //The key here is we want a way to say which atoms
+      //will be on the left and which on the right if we
+      //break the bond. A few cases:
+      // 1. If it's a ring, the left AND the right
+      //    are the same, and they're the set of all
+      //    atoms in the component (covalent fragment)
+      // 2. If it's not in a ring, it splits the
+      //    covalent fragment into 2 groups. 1 is the
+      //    complement of the other, so that Set(A)+Set(B)=
+      //    Set(Component). We can figure out either Set(A)
+      //    or Set(B) and it's easy to figure out the other
+      //    side then. So we could choose atom1 of the bond
+      //    arbitrarily, and then depth-search NOT through
+      //    the bond, finding any bond already set for splitting
+      //    and if we find one, we halt the search down that tree,
+      //    and pop up the stack setting 
       
+      //TODO, is this really a good idea?
+      let rs=ret.getRingSystems()
+               .map(rss=>{
+                  let count=rss.getExternalBonds()
+                     .filter(rb=>{
+                        var bn=bondNetwork[rb.bond.getIndexInParent()];
+                        //console.log(bn);
+                        if(!bn)return true;
+                        if(!bn[0] && !bn[1])return true;
+                        return false;
+                     })
+                     .length;
+                  return [count,rss];
+               })
+               //TODO: abstract this as utility
+               .sort(JSChemify.Util.sortBy((rrs=>rrs[0])));
+      rs
+        .filter(rrs=>rrs[0]===1)
+        .forEach((rrs,ii)=>{
+            console.log("Single RS:" + ii + " "+ rrs[0]);
+        });
+
+
+
 
 
       return ret;
@@ -6609,10 +6730,10 @@ JSChemify.RingSystem=function(arg, rbs){
     };
     
     ret.getExternalBonds=function(){
-        if(!ret.$externalBonds){
+      if(!ret.$externalBonds){
           ret.$externalBonds=ret.getRings()
-                                                  .flatMap(rr=>rr.getExternalBonds())
-                                                    .filter(eb=>!eb.bond.isInRing());
+                                .flatMap(rr=>rr.getExternalBonds())
+                                .filter(eb=>!eb.bond.isInRing());
       
       }
       return ret.$externalBonds;
@@ -6676,7 +6797,7 @@ JSChemify.Ring=function(arg){
   };
   
   ret.getRingBond=function(r2){
-      let cbs = ret.getConnectedBonds(r2);
+    let cbs = ret.getConnectedBonds(r2);
     let cas = ret.getConnectedAtoms(r2);
     if(cbs.length>0){
         return JSChemify.RingBond()
@@ -6717,9 +6838,9 @@ JSChemify.Ring=function(arg){
   ret.getNeighborRingsAndBonds=function(){
       if(!ret.$ringBonds){
         ret.$ringBonds=ret.getParentRingSystem()
-                                          .getRingBonds()
-                        .map(rb=>({ring:rb.getOtherRing(ret),bond:rb}))
-                        .filter(rbb=>rbb.ring);
+                          .getRingBonds()
+                          .map(rb=>({ring:rb.getOtherRing(ret),bond:rb}))
+                          .filter(rbb=>rbb.ring);
     }
     return ret.$ringBonds;
   };
@@ -8978,8 +9099,8 @@ JSChemify.ChemicalCollection=function(){
          if(builder._map){
             chems=chems.map(builder._map);
          }
-     let outputOrder=Object.keys(ret._properties)
-                       .sort((a,b)=>ret._properties[a].order-ret._properties[b].order);
+         let outputOrder=Object.keys(ret._properties)
+                               .sort((a,b)=>ret._properties[a].order-ret._properties[b].order);
          let headerProps=outputOrder
                                         .map(po=>{
                                              if(po.toLowerCase()==="smiles"){
