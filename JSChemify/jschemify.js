@@ -4974,37 +4974,90 @@ JSChemify.Chemical = function(arg){
       var foliageBonds=new Set([]);
       var surface=new Set([]);
       var branchToFoliageABPair=[];
+      var bondNetwork=[];
 
       ret.getAtoms().forEach((at,i) => {
          var bc=at.getBondCount();
          if(bc<=1 ){
             surface.add(at);
             foliageAtoms.add(at);
+            if(bc===1 && false){
+               var b=at.getBonds()[0];
+               var bn=bondNetwork[b.getIndexInParent()];
+               if(!bn)bn=[];
+               var bi=0;
+               if(b.getAtom2()===at){
+                  bi=1;
+               }
+               bn[bi]=[at.getIndexInParent()];
+               bondNetwork[b.getIndexInParent()]=bn;
+            }
          }
       });
 
       while(surface.size>0){
          var check=new Set([]);
+         var stop=new Set([]);
          surface.forEach(at=>{
             at.getNeighborAtomsAndBonds().forEach(at2=>{
-               if(!surface.has(at2.atom) &&
+               if(
+                  //!surface.has(at2.atom) &&
                   !foliageAtoms.has(at2.atom)){
                   check.add(at2);
+               }else if(surface.has(at2.atom)){
+                  check.add(at2);
+                  stop.add(at2);
                }
             });
          });
          surface.clear();
+         let addF=[]
          check.forEach(aa=>{
             let nbonds=aa.atom.getNeighborAtomsAndBonds()
               .filter(na=>!foliageAtoms.has(na.atom));
             if(nbonds.length<=1){
-               surface.add(aa.atom);
-               foliageAtoms.add(aa.atom);
-               foliageBonds.add(aa.bond);
+
+               if(!stop.has(aa))surface.add(aa.atom);
+               var b=aa.bond;
+               var at=aa.bond.getOtherAtom(aa.atom);
+               var bn=bondNetwork[b.getIndexInParent()];
+               if(!bn)bn=[];
+               var bi=0;
+               if(b.getAtom2()===at){
+                  bi=1;
+               }
+               if(!bn[bi])bn[bi]=[];
+               
+               at.getBonds()
+                 .filter(bb=>bb!==aa.bond)
+                 .map(bb=>[bb,bondNetwork[bb.getIndexInParent()]])
+                 
+                 .filter(bb=>bb[1])
+                 
+                 .map(bb=>{
+                     let bbi=1;
+                     if(bb[0].getAtom2()===at)bbi=0;
+                     return bb[1][bbi];
+                 })
+                 .map(bb=>{
+                     return bb;
+                 })
+                 .filter(bb=>bb)
+                 .flatMap(bb=>bb)
+                 .forEach(bb=>bn[bi].push(bb));
+               bn[bi].push(at.getIndexInParent());
+               bondNetwork[b.getIndexInParent()]=bn;
+               
+               addF.push(aa);
             }else{
                branchToFoliageABPair.push(aa);
             }
          });
+         addF.forEach(aa=>{
+            foliageAtoms.add(aa.atom);
+            foliageBonds.add(aa.bond);
+         });
+
       }
       ret.getBonds()
          .filter(b=>foliageAtoms.has(b.getAtom1()) || foliageAtoms.has(b.getAtom2()))
@@ -5322,7 +5375,10 @@ JSChemify.Chemical = function(arg){
       } 
       ret.$atomComponentTypes=aTypes;
       
-      //return ret;
+
+
+      return ret;
+      //return bondNetwork;
 
 /*
       return {
