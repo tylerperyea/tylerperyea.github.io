@@ -2,7 +2,7 @@
  * 
  * JSChemify - a "pretty okay" basic cheminformatics library written in native javascript.
  * 
- * Version: 0.2.0.1a (2025-10-07)
+ * Version: 0.2.0.1b (2025-10-11)
  * 
  * Author:  Tyler Peryea (tyler.peryea@gmail.com)
  * 
@@ -99,7 +99,11 @@ Basic I/O:
 30. Export to excel with the structure highlight feature?
 31. Start material for basic course on cheminformatics and javascript
 32. SDFile validator
-33. 
+33. [done] Improve ring detection and bond network calculations
+34. The ring detection and bond network features need some refactoring
+    to make them slightly easier to read, and probably to clean up some
+    copy/pasted similar things (especially in the bondNetwork).
+
 
 Coordinates and Rendering:
  1. Coordinates: Fix bridgehead support
@@ -2376,8 +2380,49 @@ JSChemify.Atom = function(aaa){
           return [-right[0],-right[1]];
       }
   };
-  
+
   ret.getConnectedNetworkAndBonds=function(){
+      if(ret.$connectedNetworks===null || 
+         ret.getParent()
+            .$dirtyNumber()!=ret.$dirty){
+         let bn=ret.getParent()
+            .$detectRingsEXP()
+            .$bondNetwork;
+         ret.$connectedNetworks=ret.getBonds()
+            .filter(b=>!b.isInRing())
+            .map(b=>{
+               let bondSplit=bn[b.getIndexInParent()];
+               var bi=1;
+               if(b.getAtom2()===ret){
+                  bi=0;
+               }
+               let thisIndex=ret.getIndexInParent();
+               let blist=bondSplit[bi];
+               if(!blist && bondSplit[(bi+1)%2]){
+                  let batoms=ret.getParent()
+                              .getAtomsInComponents();
+                  let comp=ret.getParent().getComponentOfAtom(ret);
+                  let oside=bondSplit[(bi+1)%2];
+                  blist=batoms[comp].map(at=>at.getIndexInParent())
+                              .filter(ai=>oside.indexOf(ai)<0)
+                              .filter(ai=>ai!==thisIndex);
+                              
+                              
+               }
+               let oset={};
+               blist.forEach(ai=>oset[ai]=true);
+               return {"bond":b,"network":oset};
+            });
+         
+      }
+      return ret.$connectedNetworks;
+  };
+  
+  //@Deprecated
+  //TODO: Delete
+  //this is kept around for compatibility testing for now
+  //might rethink the whole contract here
+  ret.getConnectedNetworkAndBondsOLD=function(){
       //TODO: this is really expensive and 
       //can be simplified with better caching
       //still thinking about how to do that
@@ -3113,9 +3158,10 @@ JSChemify.Chemical = function(arg){
   ret._sgroups=[];
   ret._name=null;
   ret.$bondTypes=null;
+  ret.$bondNetwork=null;
   ret.$atomComponentTypes=null;
   ret.$componentCount=null;
-  ret._rings=null;
+  ret.$rings=null;
   ret.$atomDistances=null;
   ret._properties={};
       
@@ -3983,7 +4029,6 @@ JSChemify.Chemical = function(arg){
                let oAtom=oatoms[j];
                let x=aa.getX() + noff[0];
                let y=aa.getY() + noff[1];
-               //console.log([x,y]);
                oAtom.setXYZ(x,y);
             });
        });
@@ -4486,6 +4531,20 @@ JSChemify.Chemical = function(arg){
     return JSChemify.ShapeUtils()
                     .getBoundingBox(pts,pad);
   };
+  ret.getComponentOfAtom=function(i){
+      if(!ret.$atomComponentTypes){
+         //force the generation of
+         //stuff
+         ret.getRings();
+      }
+      if(typeof i !== 'number'){
+         i=ret.getIndexOf(i);
+      }
+      //we store 1-indexed, but use 0-index in most
+      //places
+      //TODO see if we can force better consistency
+      return ret.$atomComponentTypes[i]-1;
+  };
   ret.getComponentCount=function(){
       if(!ret.$componentCount){
          let acomps=ret.getAtomsInComponents();
@@ -4584,11 +4643,13 @@ JSChemify.Chemical = function(arg){
     ret.$bondTypes=null;
     ret.$atomComponentTypes=null;
     ret.$atomDistances=null;
-    ret._rings=null;
+    ret.$rings=null;
     ret.$graphInvarient=null;
     ret.$$dirty++;
     ret.$EstateVector=null;
     ret.$componentCount=null;
+    ret.$bondNetwork=null;
+    ret.$ringSystems=null;
     return ret;
   };
   ret.$dirtyNumber=function(){
@@ -4679,7 +4740,7 @@ JSChemify.Chemical = function(arg){
   
   ret.getRings=function(){
       ret.$detectRings();
-    return ret._rings;
+    return ret.$rings;
   };
 
   
@@ -4976,12 +5037,12 @@ JSChemify.Chemical = function(arg){
       });
       ret.$bondTypes=bTypes;
       ret.$atomComponentTypes=aTypes;
-      ret._rings=Object.values(rings);
+      ret.$rings=Object.values(rings);
       return ret;
       
   };
   ret.$detectRingsEXP=function(){
-      if(ret.$bondTypes)return ret;
+      if(ret.$bondNetwork)return ret;
       
       for(var i=0;i<ret._bonds.length;i++){
           ret._bonds[i]._idx=i;
@@ -5372,7 +5433,7 @@ JSChemify.Chemical = function(arg){
                      bTypes[b._idx]="RING";
                    });
       ret.$bondTypes=bTypes;
-      ret._rings=sssr;
+      ret.$rings=sssr;
       
 
       let aTypes=[];
@@ -5568,21 +5629,6 @@ JSChemify.Chemical = function(arg){
                         .flatMap(bb=>bb)
                         .forEach(ba=>bn[bi].push(ba));
                   bondNetwork[head.bond.getIndexInParent()]=bn;
-/*
-TODO: make a test of these things like this
-and also refactor these methods to make sense
-{
-var cc= JSChemify.Chemical("CCCC(CC(C1)CC(CC(CC(CCC3C(CC(CCC6)CC6)C(CC(C5)C(C)C)CC5)CC3)C2)CC2C(CC(C)CC)C(CCC4(CC)CC)CC4)C(C1)C").$detectRingsEXP();
-cc.$bondNetwork.map((b,i)=>cc.getBond(i))
-               .flatMap(b=>b.getAtoms())
-               .forEach(aa=>aa.setAtomMap(3));
-    console.log(cc.toSmiles());
-    
-}
-
-*/
-
-
                });
          });
          nupdateAtoms=nupdates;
@@ -5612,7 +5658,6 @@ cc.$bondNetwork.map((b,i)=>cc.getBond(i))
 
         ret.$bondNetwork=bondNetwork;
 
-        console.log(bondNetwork);
 
 
 
@@ -7445,7 +7490,6 @@ JSChemify.ChemicalDecorator=function(){
       let amax=atDecorations.reduce((a,b)=>Math.max(Math.abs(a),Math.abs(b)));
       let bmax=bdDecorations.reduce((a,b)=>Math.max(Math.abs(a),Math.abs(b)));
 
-      //console.log(bdDecorations);
       
       
       return {
@@ -10966,7 +11010,7 @@ M  END`;
   });
   
   ret.tests.push(()=>{
-      let matrix=[[1,1,0],
+    let matrix=[[1,1,0],
                  [0,1,0],
                  [1,0,1]];
     let ident=[[1,0,0],
@@ -11087,6 +11131,28 @@ M  END`;
     ret.assertToStringEquals(affine.transform([1,1]),[-7,-3]);
     
     
+  });
+
+  ret.tests.push("Atom getConnectedNetworkAndBonds method returns atoms split by its bonds",()=>{
+      var cc=JSChemify.Chemical("C1CCCCC1CCCC2CCCCCC2");
+      let m= cc.getAtom(8)
+               .getConnectedNetworkAndBonds();
+      ret.assertEquals(2, m.length);
+      
+      let o1=Object.keys(m[0].network)
+                   .filter(k=>m[0].network[k])
+                   .map(k=>k-0)
+                   .sort((a,b)=>a-b); //It's weird we need this in js
+
+      let o2=Object.keys(m[1].network)
+                   .filter(k=>m[1].network[k])
+                   .map(k=>k-0)
+                   .sort((a,b)=>a-b); //It's weird we need this in js
+
+
+      ret.assertToStringEquals(o1, [0, 1, 2, 3, 4, 5, 6, 7]);
+      ret.assertToStringEquals(o2, [9, 10, 11, 12, 13, 14, 15]);
+       
   });
   
   //Double bond on wrong side in rendering
