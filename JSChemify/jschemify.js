@@ -1363,6 +1363,13 @@ JSChemify.Util = {
     }
     return sumSq;
   },
+  vMap:function(lam, ii){
+    if(!ii)ii=0;
+    return (a)=>{
+      a[ii]=lam(a[ii]);
+      return a;
+    };
+  },
   sortBy:function(lam){
     return (a,b)=>{
       let ta=lam(a);
@@ -2439,7 +2446,7 @@ JSChemify.Atom = function(aaa){
   
   ret.isInRing=function(){
       if(ret.getBondCount()<2)return false;
-      return (ret.getBonds().findIndex(b=>b.isInRing())>=0)
+      return (ret.getBonds().findIndex(b=>b.isInRing())>=0);
   };
   
   ret.getMass=function(){
@@ -5472,28 +5479,140 @@ JSChemify.Chemical = function(arg){
       //    and if we find one, we halt the search down that tree,
       //    and pop up the stack setting 
       
+
+      let nupdateAtoms=[];
+
       //TODO, is this really a good idea?
       let rs=ret.getRingSystems()
                .map(rss=>{
-                  let count=rss.getExternalBonds()
+                  let xb=rss.getExternalBonds()
                      .filter(rb=>{
                         var bn=bondNetwork[rb.bond.getIndexInParent()];
                         //console.log(bn);
                         if(!bn)return true;
                         if(!bn[0] && !bn[1])return true;
                         return false;
-                     })
-                     .length;
-                  return [count,rss];
+                     });
+                  return [xb,rss];
                })
                //TODO: abstract this as utility
-               .sort(JSChemify.Util.sortBy((rrs=>rrs[0])));
-      rs
-        .filter(rrs=>rrs[0]===1)
-        .forEach((rrs,ii)=>{
-            console.log("Single RS:" + ii + " "+ rrs[0]);
-        });
+               .sort(JSChemify.Util.sortBy((rrs=>rrs[0].length)));
 
+      let oneRingList=rs
+        .filter(rrs=>rrs[0].length===1)
+        .map(JSChemify.Util.vMap(rr=>rr[0]));
+      
+      while(oneRingList.length>0){
+      oneRingList
+        .forEach((rrs,ii)=>{
+            let catoms=rrs[1].getExternalBonds()
+                  .map(rb=>{
+                     return bondNetwork[rb.bond.getIndexInParent()];
+                  })
+                  .filter(bb=>bb)
+                  .filter(bb=>!(!bb[0] && !bb[1]))
+                  .flatMap(bb=>(bb[0])?bb[0]:bb[1]);
+            rrs[1].getAtoms()
+                  .forEach(a=>catoms.push(a.getIndexInParent()));
+            var bi=0;
+            //console.log(rrs);
+            if(rrs[0].bond.getAtom2()===rrs[0].atom)bi=1;
+            var bn=[];
+            bn[bi]=catoms;
+            //now update
+            nupdateAtoms.push(rrs[0].bond.getOtherAtom(rrs[0].atom));
+            bondNetwork[rrs[0].bond.getIndexInParent()]=bn;
+        });
+        //Now we'd need to go through each bond updated
+        //this way, and update all attached linking
+        //bonds.
+        //This is a little involved, but we can do it.
+        //We just need to stop at atom with more than one
+        //"undefined" bond
+
+        while(nupdateAtoms.length>0){
+         let nupdates=[];
+         nupdateAtoms.forEach(at=>{
+               at.$allPathsDepthFirst((p)=>{
+                  if(p.length<2)return;
+                  let prevAtom = p[p.length-2];
+                  let head = p[p.length-1];
+
+                  let popBack=false;
+                  let bn=bondNetwork[head.bond.getIndexInParent()];
+                  //don't follow paths that are done
+                  if(bn)return true;
+                  
+                  //if(prevAtom.atom.isInRing())return true;
+                  //console.log("it isn't in a ring");
+                  
+                  let oatoms=prevAtom.atom.getBonds()
+                              .map(bb=>bondNetwork[bb.getIndexInParent()])
+                              .filter(bb=>bb);
+                  if(oatoms.length!==prevAtom.atom.getBonds().length-1){
+                     //not ready to extend
+                     if(!prevAtom.atom.isInRing()){
+                        nupdates.push(prevAtom.atom);
+                     }
+                     return true;
+                  }
+
+                  bn=[];
+                  var bi=0;
+                  if(head.bond.getAtom2()===prevAtom.atom){
+                     bi=1;
+                  }
+                  bn[bi]=[prevAtom.atom.getIndexInParent()];
+
+                  oatoms.map(bb=>(bb[0])?bb[0]:bb[1])
+                        .flatMap(bb=>bb)
+                        .forEach(ba=>bn[bi].push(ba));
+                  bondNetwork[head.bond.getIndexInParent()]=bn;
+/*
+TODO: make a test of these things like this
+and also refactor these methods to make sense
+{
+var cc= JSChemify.Chemical("CCCC(CC(C1)CC(CC(CC(CCC3C(CC(CCC6)CC6)C(CC(C5)C(C)C)CC5)CC3)C2)CC2C(CC(C)CC)C(CCC4(CC)CC)CC4)C(C1)C").$detectRingsEXP();
+cc.$bondNetwork.map((b,i)=>cc.getBond(i))
+               .flatMap(b=>b.getAtoms())
+               .forEach(aa=>aa.setAtomMap(3));
+    console.log(cc.toSmiles());
+    
+}
+
+*/
+
+
+               });
+         });
+         nupdateAtoms=nupdates;
+        }
+
+        //now need to 
+
+        let leftOverRingSystems=rs
+                     .filter(rss=>rss[0].length>1)
+                     .map(rss=>rss[1])
+                     .map(rss=>{
+                                 let xb=rss.getExternalBonds()
+                                    .filter(rb=>{
+                                       var bn=bondNetwork[rb.bond.getIndexInParent()];
+                                       if(!bn)return true;
+                                       if(!bn[0] && !bn[1])return true;
+                                       return false;
+                                    });
+                                 return [xb,rss];
+                              });
+         oneRingList=leftOverRingSystems
+                        .filter(rrs=>rrs[0].length===1)
+                        .map(JSChemify.Util.vMap(rr=>rr[0]));
+         rs=leftOverRingSystems;
+         }
+         
+
+        ret.$bondNetwork=bondNetwork;
+
+        console.log(bondNetwork);
 
 
 
