@@ -2,7 +2,7 @@
  * 
  * JSChemify - a "pretty okay" basic cheminformatics library written in native javascript.
  * 
- * Version: 0.2.0.1b (2025-10-11)
+ * Version: 0.2.0.1c (2025-10-15)
  * 
  * Author:  Tyler Peryea (tyler.peryea@gmail.com)
  * 
@@ -153,7 +153,7 @@ Coordinates and Rendering:
               minima, but bad for global ones. Swapping substituents
               probably is needed first.
 22. [done] Path Notation:  Multiple components
-23. [done] Place subscripts a little down
+23. [partial?] Place subscripts a little down
 24. [done] isotopes in render
 25. [partial] Path Notation: Brackets
        Some notes about brackets...
@@ -183,9 +183,10 @@ Coordinates and Rendering:
 27. Cut bonds short based on clear radius
 28. Support double-either on double bonds
 29. [done] SVG aromatic circle sometimes off
-30. The bounding box of rendered images seems off ...
+30. [done] The bounding box of rendered images seems off ...
     some weird padding and offsets that have some unexpected
     results. Need to look into this.
+31. 
 
 Basic Model Examples:
 1. Do KNN with a variety of metrics
@@ -947,8 +948,6 @@ JSChemify.PathNotation=function(f){
           if(d[0]==="R" || d[0] ==="r"){
             ang=-ang;
           }
-         
-          
         }
         if(d.toLowerCase()===d){
             inv=true;
@@ -9613,34 +9612,43 @@ JSChemify.Renderer=function(){
     }
     return ret.$dash;
   };
-  ret.getImageDimensions=function(chem,maxWidth,maxHeight){
+  ret.getImageDimensions=function(chem,maxWidthT,maxHeightT){
      chem=JSChemify.Chemical(chem);
      if(!chem.hasCoordinates()){
          chem.generateCoordinates();
      }
-     let scale=30; //average bond width in pixels
-     let pad=10;
+	 
+     let scale=30; 
+	 let aBLen=chem.getAverageBondLength();
+	 
+	 
+	 scale=scale/aBLen;
+	 
+				   
+	 
+	 //the number of bond lengths of
+	 //padding desired
+	 //setting to 1 makes some room
+	 //for letters and things
+	 
+	 let bpad=1;  	 
+     let pad=(bpad-1)*scale;
+	                         
+				  
+				 
      const bbox=chem.getBoundingBox();
-     //make room for some letters and 
-     //stuff
-     //TODO: improve this
-     bbox[0]=bbox[0]-1;
-     bbox[1]=bbox[1]-1;
-     bbox[2]=bbox[2]+1;
-     bbox[3]=bbox[3]+1;
+     bbox[0]=bbox[0];
+     bbox[1]=bbox[1];
+     bbox[2]=bbox[2];
+     bbox[3]=bbox[3];
      let cheight=bbox[3]-bbox[1];
      let cwidth=bbox[2]-bbox[0];
        
      let nwidth=cwidth*scale;
      let nheight=cheight*scale;
-     
-     if(!maxWidth){
-        maxWidth=Math.ceil(nwidth+pad*2);
-     }
-     
-     if(!maxHeight){
-        maxHeight=Math.ceil(nheight+pad*2);
-     }
+     let maxWidth=Math.ceil(nwidth+pad*2);
+     let maxHeight=Math.ceil(nheight+pad*2);
+	 
      //rescale to fit
      if(nwidth>(maxWidth-pad*2) || nheight>(maxHeight-pad*2)){
          scale=Math.min((maxWidth-pad*2)/cwidth,(maxHeight-pad*2)/cheight);
@@ -9649,14 +9657,28 @@ JSChemify.Renderer=function(){
      let centY=maxHeight/2;
      let ocX=scale*(bbox[2]-bbox[0])/2;
      let ocY=scale*(bbox[3]-bbox[1])/2;
-     //TODO: I don't know why 4 works here
-     // but seems to make the spacing okay?
-     // probably a bug in the affine transform 
-     // implementation
-     let padX=4*(centX-ocX);
-     let padY=4*(centY-ocY);
+     let padX=(centX-ocX);
+     let padY=(centY-ocY);
      
      let nret={chem:chem, scale:scale, maxWidth:maxWidth, maxHeight:maxHeight, padX:padX,padY:padY, bbox:bbox};
+	 
+	 //So nret is the "natural" size we'd want, 
+	 //but now we need to see if maxWidth or maxHeight is greater than
+	 //maxWidthT or maxHeightT, and set to the smaller scaling factor
+	 //of the 2
+	 if(maxWidthT && maxHeightT){
+		let hScale=maxWidthT/maxWidth;
+		let vScale=maxHeightT/maxHeight;
+		let smScale=Math.min(hScale,vScale);
+		nret.scale=nret.scale*smScale;
+		nret.maxWidth=nret.maxWidth*smScale;
+		nret.maxHeight=nret.maxHeight*smScale;
+		nret.padX=nret.padX*smScale;
+		nret.padY=nret.padY*smScale;
+	 }
+	 
+	 
+	 
      return nret;
   };
   /**
