@@ -2,7 +2,7 @@
  * 
  * JSChemify - a "pretty okay" basic cheminformatics library written in native javascript.
  * 
- * Version: 0.2.0.1c (2025-10-15)
+ * Version: 0.2.0.1d (2025-10-20)
  * 
  * Author:  Tyler Peryea (tyler.peryea@gmail.com)
  * 
@@ -14,6 +14,9 @@
  *          even to sell it, that's absolutely okay. You can even claim you wrote 
  *          it if you'd like! I'll probably be a little annoyed if you do though.
  * 
+ *  
+ *
+ *
  * 
  * 
 
@@ -390,16 +393,32 @@ JSChemify.LinearRegression=function(){
    ret._r=null;
    ret._calculate=null;
    ret._intercept=true;
+   
 
    ret.$reset=function(){
       ret._calculate=null;
       return ret;
    };
+   
+   
    ret.setX=function(x){
+      //convert to proper matrix
       if(Array.isArray(x) && !Array.isArray(x[0])){
          x=JSChemify.Util.matrixTranspose(JSChemify.Util.matrixTranspose(x));
       }
       ret._x=x;
+	  //if sparse and empty or some values are undefined,
+	  //need to fill out. For now with 0's, but this assumption isn't always good.
+	  let msize=x.map(xx=>xx.length)
+	             .reduce((a,b)=>Math.max(a,b),0);
+	  x.forEach(xv=>{
+		for(var i=0;i<msize;i++){
+			if(typeof xv[i] === "undefined"){
+				xv[i]=0;
+			}
+		}
+	  });
+	  
       return ret;
    };
    ret.setUseIntercept=function(uInt){
@@ -416,6 +435,7 @@ JSChemify.LinearRegression=function(){
 
       return ret;
    };
+   
    ret.predict=function(nx){
       if(!nx.length){
          nx=[nx];
@@ -423,9 +443,23 @@ JSChemify.LinearRegression=function(){
       if(!nx[0].length){
          nx=[nx];
       }
+	  //make a copy
+	  nx=nx.map(nn=>nn.map(n2=n2));
+	  
+	  let xrank=ret._x[0].length;
+	  
+	  //need to fill in the missing ranks if any
+	  nx.forEach(xv=>{
+		for(var i=0;i<xrank;i++){
+			if(typeof xv[i] === "undefined"){
+				xv[i]=0;
+			}
+		}
+	  });
+	  
       if(ret._intercept && nx[0].length < ret._x[0].length+1){
          for(var i=0;i<nx.length;i++){
-            nx[i].push(1);
+            nx[i].push(1); //add a 1 for the y-intercept
          }
       }
       let calc=ret.calculate();
@@ -4738,7 +4772,7 @@ JSChemify.Chemical = function(arg){
   
   
   ret.getRings=function(){
-      ret.$detectRings();
+    ret.$detectRings();
     return ret.$rings;
   };
 
@@ -5041,6 +5075,7 @@ JSChemify.Chemical = function(arg){
       
   };
   ret.$detectRingsEXP=function(){
+      if(JSChemify.Global.settings.useNewRingDetection && ret.$bondTypes)return ret;
       if(ret.$bondNetwork)return ret;
       
       for(var i=0;i<ret._bonds.length;i++){
