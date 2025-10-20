@@ -2,7 +2,7 @@
  * 
  * JSChemify - a "pretty okay" basic cheminformatics library written in native javascript.
  * 
- * Version: 0.2.0.1d (2025-10-20)
+ * Version: 0.2.0.1e (2025-10-20)
  * 
  * Author:  Tyler Peryea (tyler.peryea@gmail.com)
  * 
@@ -189,7 +189,20 @@ Coordinates and Rendering:
 30. [done] The bounding box of rendered images seems off ...
     some weird padding and offsets that have some unexpected
     results. Need to look into this.
-31. 
+31. [done] The size of some kerning and labels gets out of shape for
+    non-unit average bond lengths (ABL).
+32. Related to 31, need a philosophy here. It's common to normalize
+    bond lengths to about 1.54 angstroms (coordinate space taken to 
+	be angstroms). However, JSChemify prefers unit length. And the
+	math is certainly simpler here. The renderer is best suited
+	for unit-length bonds, and some internal assumptions are made
+	with that in mind. Font sizing, spacing, padding for labels,
+	etc all assume unit-length bonds, and things tend to look strange
+	if that assumption is violated. There are a handful of extra
+	fudge factors that resize based on ABL, but this leads to its
+	own inconsitencies. I think the renderer should probably assume
+	unit length but have an option (perhaps a default option) to
+	pre-scale the chemical to be of the specific normalized form?
 
 Basic Model Examples:
 1. Do KNN with a variety of metrics
@@ -9559,7 +9572,7 @@ JSChemify.Renderer=function(){
   ret._clearRad=1.9;
   ret._dblWidth=0.15;
   ret._dblShort=1/6;
-  ret._letterSpace=0.4;
+  ret._letterSpace=0.35;
   ret._lineWidth=1/35;
   ret._ang=Math.PI/24;
   ret._swid=0.02;
@@ -9893,7 +9906,23 @@ JSChemify.Renderer=function(){
          const lseg=affine.transform([[1,0],[1,1]]);
          const deltSeg=[lseg[0][1]-lseg[0][0],
                        lseg[1][1]-lseg[1][0]];
-         const fsize=scale*ret._labelSize;
+					   
+		
+		 //TODO: consider how much spacing needs
+		 //to happen here.
+		 
+		 
+		 //The use of average bond length here is tricky
+		 //to some extent you may think ABL should be
+		 //irrelevent. This really depends on rendering
+		 //philosophy.
+		 //TODO: consider what philosophy is desirable
+		 //here.
+		 
+		 const abl=chem.getAverageBondLength();
+		 
+					   
+         const fsize=scale*ret._labelSize*abl;
          ctx.font = fsize+"px sans-serif";
     
          const text = ctx.measureText("C");
@@ -9904,9 +9933,12 @@ JSChemify.Renderer=function(){
          const dash=ret._getDash();
          const bwidth=ret._bracketWidth*scale;
          // Set line width
-         ctx.lineWidth = scale*ret._lineWidth;  
+         ctx.lineWidth = scale*ret._lineWidth*abl;  
 
-         const kerning=ret._letterSpace*scale/30;
+		 
+         const kerning=ret._letterSpace*abl;
+		 
+		 
          const ppoint=[];
          const moveTo=(x,y,color)=>{
           ppoint[0]=[x,y];
