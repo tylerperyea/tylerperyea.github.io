@@ -4545,11 +4545,11 @@ JSChemify.Chemical = function(arg){
    return ret.getAtoms().findIndex(a=>(a.getX()||a.getY()))>=0;
   };
 
-  ret.getPNGPromise=function(width,height,renderer){
+  ret.getPNGPromise=function(width,height,exact,renderer){
      if(!renderer){
         renderer=JSChemify.Renderer();
      }
-     return renderer.getPNGPromise(ret,width,height);
+     return renderer.getPNGPromise(ret,width,height,exact);
   };
   ret.getSVGPromise=function(width,height,renderer){
      if(!renderer){
@@ -9741,7 +9741,7 @@ JSChemify.Renderer=function(){
                              document.getElementById("myImg").src=u;
                              });
   **/ 
-  ret.getPNGPromise = function(chem, maxWidth, maxHeight){
+  ret.getPNGPromise = function(chem, maxWidth, maxHeight, exact){
      
      const toDataURL = (data) =>
         new Promise(ok => {
@@ -9750,7 +9750,17 @@ JSChemify.Renderer=function(){
           reader.readAsDataURL(data);
         });
      let imgDim=ret.getImageDimensions(chem,maxWidth,maxHeight);
-     
+     if(exact){
+	    if(maxWidth>imgDim.maxWidth){
+			imgDim.padX=imgDim.padX+(maxWidth-imgDim.maxWidth)/2;
+			imgDim.maxWidth=maxWidth;
+		}
+		if(maxHeight>imgDim.maxHeight){
+			imgDim.padY=imgDim.padY+(maxHeight-imgDim.maxHeight)/2;
+			imgDim.maxHeight=maxHeight;
+		}	
+	 }
+	 
      const offscreen = new OffscreenCanvas(imgDim.maxWidth, imgDim.maxHeight);
      const ctx=offscreen.getContext("2d");
      ret.render(imgDim.chem,ctx,imgDim.padX,imgDim.padY,imgDim.scale);
