@@ -33,9 +33,12 @@
 }
 </style>
   <script>
-
-const brotli = await import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module").then(m => m.default);
+	  
 let $ = (a)=>document.querySelector(a);
+let brotli=null;
+import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
+	 .then(m => m.default)
+	 .then(b=>brotli=b);
 
 async function bufferToBase64(buffer) {
   // use a FileReader to generate a base64 data URI:
