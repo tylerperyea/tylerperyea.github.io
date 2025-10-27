@@ -2,7 +2,7 @@
  * 
  * JSChemify - a "pretty okay" basic cheminformatics library written in native javascript.
  * 
- * Version: 0.2.0.1f (2025-10-27)
+ * Version: 0.2.0.1g (2025-10-27)
  * 
  * Author:  Tyler Peryea (tyler.peryea@gmail.com)
  * 
@@ -8441,6 +8441,25 @@ JSChemify.ChemicalCollection=function(){
       return ret._chems.length;
    };
 
+   ret.refreshProperties=function(){
+       ret.getChems().forEach(c=>{
+			   c.getPropertyKeys()
+				.filter(kk=>kk.indexOf("$")!==0)
+				.map(k=>{
+				   
+		        let old=ret._properties[k];
+		        if(!old){
+		           old={count:0, order:ret._propertyOrder.length};
+		           ret._propertyOrder.push(k);
+		           ret._properties[k]=old;
+		        }
+		        //TODO:some stats
+		        old.count++;
+		      });
+	   });
+	   return ret;
+   };
+
    ret.addChemical=function(c){
       c=JSChemify.Chemical(c);
       if(ret._inputStandardizer){
@@ -8542,6 +8561,7 @@ JSChemify.ChemicalCollection=function(){
          <button id="jschemify-import">Import</button>
          <button id="jschemify-download-sdf">Download SDF</button>
          <button id="jschemify-download-txt">Download TXT</button>
+		 <button id="jschemify-btn-advanced">Show Advanced Options</button>
          
          <div style="display:none;">
          Structure Size
@@ -8558,7 +8578,9 @@ JSChemify.ChemicalCollection=function(){
          <button id="jschemify-page-next">next</button></span>
          
          </div>
+
 		 
+		 <div class="jschemify-table-advanced" style="display:none;">
 		 
 		<div>
            <span>
@@ -8610,6 +8632,11 @@ JSChemify.ChemicalCollection=function(){
          <div id="jschemify-query-img" class="jschemify-tbl-image">
          </div>
          </div>
+
+
+		 
+
+		 
          </div>
          `;
            
@@ -9038,6 +9065,17 @@ JSChemify.ChemicalCollection=function(){
       };
       $("#jschemify-download-txt").onclick=()=>{
          download(new Blob([ret.toSmilesFile()]),"jschemify.txt");
+      };
+	  $("#jschemify-btn-advanced").onclick=()=>{
+          let ss=$("#jschemify-btn-advanced").innerHTML;
+		  
+		  if(ss==="Show Advanced Options"){
+			  $(".jschemify-table-advanced").style="";
+			  $("#jschemify-btn-advanced").innerHTML="Hide Advanced Options";
+		  }else{
+			  $(".jschemify-table-advanced").style="display:none;";
+			  $("#jschemify-btn-advanced").innerHTML="Show Advanced Options";
+		  }
       };
       $("#jschemify-page-next").onclick=()=>{
          updateTopSkip(top,skip+top);
