@@ -3071,9 +3071,14 @@ JSChemify.Bond = function(bbb){
   **/
   ret.couldBeAromatic=function(){
       return (ret.getAtoms()
-      .filter(a=>a.getBonds()
+      .filter(a=>(a.getBonds()
               .filter(b=>b.getBondOrder()===2)
-              .length===1)
+              .length===1) || 
+		      //TODO: reconsider this
+		      (a.getSymbol()==="N" && a.getBonds()
+                      .filter(b=>b.getBondOrder()===1)
+                         .length===3)
+			 )
       .length===2);
   };
   
@@ -7238,11 +7243,11 @@ JSChemify.Ring=function(arg){
         for(var i=0;i<s;i++){
           let bo1=ret._ring[i].getBondOrder();
           let bo2=ret._ring[(i+1)%s].getBondOrder();
-        if((bo1===1||bo1===2)&&(bo2===1||bo2===2)&&(bo1!==bo2)){
+          if((bo1===1||bo1===2)&&(bo2===1||bo2===2)&&(bo1!==bo2)){
             //alternating is aromatic
-        }else if(bo1===4 && bo2===4){
+          }else if(bo1===4 && bo2===4){
             //explicit aromatic is aromatic
-        }else{
+          }else{
             if(bo1===1 && bo2===1 && 
                ret._ring[i].couldBeAromatic() && 
              ret._ring[(i+1)%s].couldBeAromatic()
