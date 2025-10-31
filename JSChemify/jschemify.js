@@ -2,7 +2,7 @@
  * 
  * JSChemify - a "pretty okay" basic cheminformatics library written in native javascript.
  * 
- * Version: 0.2.0.1g (2025-10-27)
+ * Version: 0.2.0.1h (2025-10-31)
  * 
  * Author:  Tyler Peryea (tyler.peryea@gmail.com)
  * 
@@ -3244,7 +3244,10 @@ JSChemify.Chemical = function(arg){
       return ret._properties[k];
   };
   ret.getProperties=function(keys){
-      return ret.getPropertyKeys().map(k=>ret.getProperty(k)).map(v=>(v)?v:"");
+	  if(!keys){
+		keys=ret.getPropertyKeys();
+	  }
+      return keys.map(k=>ret.getProperty(k)).map(v=>(v)?v:"");
   };
   ret.getPropertyKeys=function(){
       return Object.keys(ret._properties);
