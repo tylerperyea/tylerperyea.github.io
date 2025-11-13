@@ -232,7 +232,7 @@ var JSChemify={};
 
 JSChemify.Global={
    settings:{
-      useNewRingDetection:false
+      useNewRingDetection:true
    }
 };
 
