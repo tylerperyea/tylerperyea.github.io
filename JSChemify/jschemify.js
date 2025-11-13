@@ -11358,6 +11358,16 @@ M  END`;
        
   });
   
+  ret.tests.push("Generate Coordinates on complex rings works",()=>{
+      var cc=JSChemify.Chemical("C=Cc1c(C)c2cc3C4=CC=C([C@@H](C(=O)OC)[C@@]4(C)c(cc5c(C)c(CCC(=O)OC)c(cc6C(=C(C)c(cc1[nH]2)n6)CCC(=O)O)[nH]5)n3)C(=O)OC");
+	  cc.generateCoordinates();
+	  let avg=cc.getAverageBondLength();
+	  
+	  
+      ret.assertTrue(avg>0, "Average bond length must be greater than 0, found:" + avg);
+       
+  });
+  //C=Cc1c(C)c2cc3C4=CC=C([C@@H](C(=O)OC)[C@@]4(C)c(cc5c(C)c(CCC(=O)OC)c(cc6C(=C(C)c(cc1[nH]2)n6)CCC(=O)O)[nH]5)n3)C(=O)OC
   
   
   //Double bond on wrong side in rendering
