@@ -2,7 +2,7 @@
  * 
  * JSChemify - a "pretty okay" basic cheminformatics library written in native javascript.
  * 
- * Version: 0.2.0.1h (2025-10-31)
+ * Version: 0.2.0.1h (2025-11-13)
  * 
  * Author:  Tyler Peryea (tyler.peryea@gmail.com)
  * 
@@ -5279,9 +5279,10 @@ JSChemify.Chemical = function(arg){
 
       });
 
-      let otherAtoms=new Set(nonFoliageAtoms.values()
+      //console.log(nonFoliageAtoms.values());
+      let otherAtoms=new Set([...nonFoliageAtoms.values()]
                      .filter(at=>!spokenForAtoms.has(at[0]))
-                     .toArray());
+                     );
       while(otherAtoms.size>0){
          let ba=otherAtoms.values().next().value;
          branchAtoms.push(ba);
@@ -5291,9 +5292,8 @@ JSChemify.Chemical = function(arg){
             if(!bondMap.get(b.bond)){
                let bondList=[];
                while(true){
-                  otherAtoms.values()
+                  [...otherAtoms.values()]
                             .filter(oa=>oa[0]===b.atom)
-                            .toArray()
                             .forEach(oa=>otherAtoms.delete(oa));
                   bondList.push(b.bond);
                   if(branchAtoms.findIndex(bb=>bb[0]===b.atom)>=0){
@@ -5501,9 +5501,9 @@ JSChemify.Chemical = function(arg){
 
       naiveNetwork.forEach(nn=>{
          //definitely can be optimized
-         let aset= new Set(nn.values().flatMap(bChain=>{
+         let aset= new Set([...nn.values()].flatMap(bChain=>{
             return bChain.bonds.flatMap(b=>b.getAtoms());
-         }).toArray());
+         }));
          aset.forEach(a=>{
             aTypes[a.getIndexInParent()]=compIndex;
          });
@@ -5528,9 +5528,9 @@ JSChemify.Chemical = function(arg){
       //but what about things without rings?
       //we map those here
 
-      let unmarked=new Set(foliageAtoms.values()
+      let unmarked=new Set([...foliageAtoms.values()]
                   .filter(at=>!(aTypes[at.getIndexInParent()]>0))
-                  .toArray());
+                  );
       
       while(unmarked.size>0){
          let unAtom=unmarked.values().next().value;
@@ -8569,6 +8569,7 @@ JSChemify.ChemicalCollection=function(){
          <button id="jschemify-import">Import</button>
          <button id="jschemify-download-sdf">Download SDF</button>
          <button id="jschemify-download-txt">Download TXT</button>
+		 <button id="jschemify-download-xlsx">Download Excel</button>
 		 <button id="jschemify-btn-advanced">Show Advanced Options</button>
          
          <div style="display:none;">
@@ -9074,6 +9075,23 @@ JSChemify.ChemicalCollection=function(){
       $("#jschemify-download-txt").onclick=()=>{
          download(new Blob([ret.toSmilesFile()]),"jschemify.txt");
       };
+	  $("#jschemify-download-xlsx").onclick=()=>{
+		 let todo=ret._chems.length;
+		 let imgs=[];
+		 let countdown=(i,v)=>{
+			 todo--;
+			 imgs.push(["A" + (2+i),v]);
+			 if(todo===0){
+				 console.log(imgs);
+				 createXLSXFromTabDelimited(ret.toSmilesFile(),"jschemify.xlsx",imgs);
+			 }
+		 };
+		 ret._chems.map((c,i)=>c.getPNGPromise(300,300,true).then((aa)=>countdown(i,aa.split(",")[1])));
+		 
+		 
+      };
+	  
+	  
 	  $("#jschemify-btn-advanced").onclick=()=>{
           let ss=$("#jschemify-btn-advanced").innerHTML;
 		  
@@ -11325,3 +11343,399 @@ M  END`;
   //
   return ret;
 };
+
+
+//TODO: Refactor and make more natural
+function createXLSXFromTabDelimited(tabDelimitedText, filename = 'data.xlsx', imageComments = []) {
+    // Parse tab-delimited text into rows and cells
+    const rows = tabDelimitedText.trim().split('\n').map(row => row.split('\t'));
+    
+    // Check if we have image comments
+    const hasImages = imageComments && imageComments.length > 0;
+    
+    // CRC-32 calculation
+    function crc32(data) {
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let c = i;
+            for (let j = 0; j < 8; j++) {
+                c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+            }
+            table[i] = c;
+        }
+        
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < data.length; i++) {
+            crc = table[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+    
+    // Helper function to convert column number to Excel column letter (A, B, C, etc.)
+    function numberToColumn(num) {
+        let result = '';
+        while (num > 0) {
+            num--;
+            result = String.fromCharCode(65 + (num % 26)) + result;
+            num = Math.floor(num / 26);
+        }
+        return result;
+    }
+    
+    // Helper function to escape XML characters
+    function escapeXML(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
+    }
+    
+    // Generate content types XML with optional image support
+    function generateContentTypesXML() {
+        let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>`;
+        
+        if (hasImages) {
+            xml += `
+<Default Extension="png" ContentType="image/png"/>
+<Default Extension="vml" ContentType="application/vnd.openxmlformats-officedocument.vmlDrawing"/>`;
+        }
+        
+        xml += `
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`;
+        
+        if (hasImages) {
+            xml += `
+<Override PartName="/xl/comments1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"/>`;
+        }
+        
+        xml += `
+</Types>`;
+        return xml;
+    }
+    
+    // Generate comments XML
+    function generateCommentsXML() {
+        let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<comments xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<authors><author>User</author></authors>
+<commentList>`;
+        
+        imageComments.forEach(comment => {
+            xml += `
+<comment ref="${comment[0]}" authorId="0"><text/></comment>`;
+        });
+        
+        xml += `
+</commentList>
+</comments>`;
+        return xml;
+    }
+    
+    // Generate VML drawing XML
+    function generateVMLDrawing() {
+        let xml = `<xml xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+<o:shapelayout v:ext="edit">
+<o:idmap v:ext="edit" data="${imageComments.length}"/>
+</o:shapelayout>
+<v:shapetype id="_x0000_t202" coordsize="21600,21600" o:spt="202" path="m,l,21600r21600,l21600,xe">
+<v:stroke joinstyle="miter"/>
+<v:path gradientshapeok="t" o:connecttype="rect"/>
+</v:shapetype>`;
+        
+        imageComments.forEach((comment, index) => {
+            // Parse cell reference (e.g., "A1" -> row 0, col 0)
+            const cellRef = comment[0];
+            const colMatch = cellRef.match(/^([A-Z]+)/);
+            const rowMatch = cellRef.match(/(\d+)$/);
+            
+            let col = 0;
+            if (colMatch) {
+                const colStr = colMatch[1];
+                for (let i = 0; i < colStr.length; i++) {
+                    col = col * 26 + (colStr.charCodeAt(i) - 64);
+                }
+                col--; // Convert to 0-based
+            }
+            
+            const row = rowMatch ? parseInt(rowMatch[1]) - 1 : 0; // Convert to 0-based
+            
+            // Calculate position (spacing shapes vertically)
+            const topMargin = 1.2 + (index * 15);
+            
+            xml += `
+<v:shape id="_x0000_s${1025 + index}" type="#_x0000_t202" style="position:absolute;margin-left:57pt;margin-top:${topMargin}pt;width:225pt;height:225pt;z-index:${index + 1};visibility:hidden" fillcolor="white" strokecolor="none" o:insetmode="auto">
+<v:fill o:relid="rId${index + 1}" type="frame"/>
+<v:shadow color="none" obscured="t"/>
+<v:path o:connecttype="none"/>
+<v:textbox style="mso-direction-alt:auto">
+<div style="text-align:left"></div>
+</v:textbox>
+<x:ClientData ObjectType="Note">
+<x:MoveWithCells/>
+<x:SizeWithCells/>
+<x:Anchor>1, 12, ${row}, 1, 5, 56, ${row + 15}, 13</x:Anchor>
+<x:AutoFill>False</x:AutoFill>
+<x:Row>${row}</x:Row>
+<x:Column>${col}</x:Column>
+</x:ClientData>
+</v:shape>`;
+        });
+        
+        xml += `
+</xml>`;
+        return xml;
+    }
+    
+    // Generate VML relationships XML
+    function generateVMLRels() {
+        let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`;
+        
+        imageComments.forEach((comment, index) => {
+            xml += `
+<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image${index + 1}.png"/>`;
+        });
+        
+        xml += `
+</Relationships>`;
+        return xml;
+    }
+    
+    // Generate sheet relationships XML
+    function generateSheetRels() {
+        let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>`;
+        
+        if (hasImages) {
+            xml += `
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>`;
+        }
+        
+        xml += `
+</Relationships>`;
+        return xml;
+    }
+    
+    // Generate worksheet relationships XML
+    function generateWorksheetRels() {
+        let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`;
+        
+        if (hasImages) {
+            xml += `
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing" Target="../drawings/vmlDrawing1.vml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="../comments1.xml"/>`;
+        }
+        
+        xml += `
+</Relationships>`;
+        return xml;
+    }
+    
+    // Generate worksheet XML
+    function generateWorksheetXML(rows) {
+        let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheetData>`;
+        
+        rows.forEach((row, rowIndex) => {
+            xml += `<row r="${rowIndex + 1}">`;
+            row.forEach((cell, colIndex) => {
+                const cellRef = numberToColumn(colIndex + 1) + (rowIndex + 1);
+                const cellValue = escapeXML(cell);
+                
+                // Determine if cell is numeric
+                const isNumeric = !isNaN(parseFloat(cell)) && isFinite(cell) && cell.trim() !== '';
+                
+                if (isNumeric) {
+                    xml += `<c r="${cellRef}"><v>${cellValue}</v></c>`;
+                } else {
+                    xml += `<c r="${cellRef}" t="inlineStr"><is><t>${cellValue}</t></is></c>`;
+                }
+            });
+            xml += `</row>`;
+        });
+        
+        xml += `</sheetData>`;
+        
+        if (hasImages) {
+            xml += `
+<legacyDrawing r:id="rId1"/>`;
+        }
+        
+        xml += `
+</worksheet>`;
+        return xml;
+    }
+    
+    // Create all the necessary files for the XLSX
+    const files = {
+        '[Content_Types].xml': generateContentTypesXML(),
+        
+        '_rels/.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`,
+        
+        'xl/_rels/workbook.xml.rels': generateSheetRels(),
+        
+        'xl/workbook.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheets>
+<sheet name="Sheet1" sheetId="1" r:id="rId1" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
+</sheets>
+</workbook>`,
+        
+        'xl/worksheets/sheet1.xml': generateWorksheetXML(rows)
+    };
+    
+    // Add image-related files if we have images
+    if (hasImages) {
+        files['xl/comments1.xml'] = generateCommentsXML();
+        files['xl/drawings/vmlDrawing1.vml'] = generateVMLDrawing();
+        files['xl/drawings/_rels/vmlDrawing1.vml.rels'] = generateVMLRels();
+        files['xl/worksheets/_rels/sheet1.xml.rels'] = generateWorksheetRels();
+        
+        // Add image files (convert base64 to binary)
+        imageComments.forEach((comment, index) => {
+            files[`xl/media/image${index + 1}.png`] = comment[1]; // base64 data
+        });
+    }
+    
+    // Create ZIP file with proper CRC calculation
+    function createSimpleZip(files) {
+        const encoder = new TextEncoder();
+        const zipParts = [];
+        const centralDirectory = [];
+        let offset = 0;
+        
+        // Add each file
+        Object.entries(files).forEach(([filename, content]) => {
+            const filenameBytes = encoder.encode(filename);
+            let contentBytes;
+            let isBinary = false;
+            
+            // Check if this is a binary file (PNG images)
+            if (filename.endsWith('.png')) {
+                // Convert base64 to binary
+                const binaryString = atob(content);
+                contentBytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    contentBytes[i] = binaryString.charCodeAt(i);
+                }
+                isBinary = true;
+            } else {
+                contentBytes = encoder.encode(content);
+            }
+            
+            const crc = crc32(contentBytes);
+            
+            // Local file header
+            const localHeader = new Uint8Array(30 + filenameBytes.length);
+            const view = new DataView(localHeader.buffer);
+            
+            view.setUint32(0, 0x04034b50, true); // Local file header signature
+            view.setUint16(4, 20, true); // Version needed to extract
+            view.setUint16(6, 0, true); // General purpose bit flag
+            view.setUint16(8, 0, true); // Compression method (stored)
+            view.setUint16(10, 0, true); // Last mod file time
+            view.setUint16(12, 0, true); // Last mod file date
+            view.setUint32(14, crc, true); // CRC-32
+            view.setUint32(18, contentBytes.length, true); // Compressed size
+            view.setUint32(22, contentBytes.length, true); // Uncompressed size
+            view.setUint16(26, filenameBytes.length, true); // Filename length
+            view.setUint16(28, 0, true); // Extra field length
+            
+            localHeader.set(filenameBytes, 30);
+            
+            zipParts.push(localHeader);
+            zipParts.push(contentBytes);
+            
+            // Central directory entry
+            const centralEntry = new Uint8Array(46 + filenameBytes.length);
+            const centralView = new DataView(centralEntry.buffer);
+            
+            centralView.setUint32(0, 0x02014b50, true); // Central directory signature
+            centralView.setUint16(4, 20, true); // Version made by
+            centralView.setUint16(6, 20, true); // Version needed to extract
+            centralView.setUint16(8, 0, true); // General purpose bit flag
+            centralView.setUint16(10, 0, true); // Compression method
+            centralView.setUint16(12, 0, true); // Last mod file time
+            centralView.setUint16(14, 0, true); // Last mod file date
+            centralView.setUint32(16, crc, true); // CRC-32
+            centralView.setUint32(20, contentBytes.length, true); // Compressed size
+            centralView.setUint32(24, contentBytes.length, true); // Uncompressed size
+            centralView.setUint16(28, filenameBytes.length, true); // Filename length
+            centralView.setUint16(30, 0, true); // Extra field length
+            centralView.setUint16(32, 0, true); // File comment length
+            centralView.setUint16(34, 0, true); // Disk number start
+            centralView.setUint16(36, 0, true); // Internal file attributes
+            centralView.setUint32(38, 0, true); // External file attributes
+            centralView.setUint32(42, offset, true); // Relative offset of local header
+            
+            centralEntry.set(filenameBytes, 46);
+            centralDirectory.push(centralEntry);
+            
+            offset += localHeader.length + contentBytes.length;
+        });
+        
+        // End of central directory record
+        const centralDirSize = centralDirectory.reduce((sum, entry) => sum + entry.length, 0);
+        const endRecord = new Uint8Array(22);
+        const endView = new DataView(endRecord.buffer);
+        
+        endView.setUint32(0, 0x06054b50, true); // End of central directory signature
+        endView.setUint16(4, 0, true); // Number of this disk
+        endView.setUint16(6, 0, true); // Disk where central directory starts
+        endView.setUint16(8, Object.keys(files).length, true); // Number of central directory records on this disk
+        endView.setUint16(10, Object.keys(files).length, true); // Total number of central directory records
+        endView.setUint32(12, centralDirSize, true); // Size of central directory
+        endView.setUint32(16, offset, true); // Offset of start of central directory
+        endView.setUint16(20, 0, true); // ZIP file comment length
+        
+        // Combine all parts
+        const totalSize = zipParts.reduce((sum, part) => sum + part.length, 0) + 
+                         centralDirSize + endRecord.length;
+        const result = new Uint8Array(totalSize);
+        
+        let pos = 0;
+        zipParts.forEach(part => {
+            result.set(part, pos);
+            pos += part.length;
+        });
+        
+        centralDirectory.forEach(entry => {
+            result.set(entry, pos);
+            pos += entry.length;
+        });
+        
+        result.set(endRecord, pos);
+        
+        return result;
+    }
+    
+    // Execute the creation
+    const zipData = createSimpleZip(files);
+    
+    // Create blob and download
+    const blob = new Blob([zipData], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
