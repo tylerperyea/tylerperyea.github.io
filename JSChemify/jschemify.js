@@ -2,7 +2,7 @@
  * 
  * JSChemify - a "pretty okay" basic cheminformatics library written in native javascript.
  * 
- * Version: 0.2.0.1h (2025-11-13)
+ * Version: 0.2.0.1i (2025-11-13)
  * 
  * Author:  Tyler Peryea (tyler.peryea@gmail.com)
  * 
@@ -12,7 +12,8 @@
  *          whatever you find there, but I make no promises. If you want to take
  *          all the code and use it for your own purposes, package it, refactor it,
  *          even to sell it, that's absolutely okay. You can even claim you wrote 
- *          it if you'd like! I'll probably be a little annoyed if you do though.
+ *          it if you'd like! I'll probably be a little annoyed if you do that 
+ *          though.
  * 
  *  
  *
@@ -1934,6 +1935,7 @@ JSChemify.Atom = function(aaa){
       }
       homeVec=ret.getVectorTo(bond1.getOtherAtom(ret));
       let network=ret.getConnectedNetworkAndBonds();
+	  
       let net1=network.find(n=>n.bond===bond1);
       let net2=null;
       if(bond2){
@@ -4169,11 +4171,12 @@ JSChemify.Chemical = function(arg){
             ret.$treeCoordinates(0);
       }
     }
+	var fixedOne=0;
     //now fix E/Z stuff
     ret.getBonds().map(bb=>bb.setDoubleBondLocalGeometry(false));
     ret.getBonds().filter(bb=>bb.getBondOrder()===2)
                   .map(bb=>{
-                     
+                     //if(fixedOne)return;
                      let oldGeo=bondGeo[bb.getIndexInParent()];
                      let newGeo=bb.getBondGeometry();
                      if(oldGeo===newGeo)return;
@@ -4212,18 +4215,20 @@ JSChemify.Chemical = function(arg){
                                fixed=true;
                             }
                          }else if(bb.getAtom1().getBondCount()===2 || bb.getAtom2().getBondCount()===2){
-                            bb.getAtoms()
+                  
+							bb.getAtoms()
                               .filter(aa=>aa.getBondCount()===2)
                               .map(aa=>{
                                  let a2=bb.getOtherAtom(aa);
                                  aa.swapSubstituentCoordinates(aa.getBonds()
                                                                  .filter(b2=>b2!==bb)[0],null,aa.getVectorTo(a2));
+								 
                               });
                             fixed=true;
                          }
                          
                          if(!fixed){
-                            //console.log("Not fixed");
+                            console.log("Not fixed");
                             //Need a better way to do this. Also need a setting
                             //to turn on/off
                             bb.setBondStereo(JSChemify.CONSTANTS.BOND_STEREO_EITHER);
@@ -4242,9 +4247,10 @@ JSChemify.Chemical = function(arg){
                            //need to swap the substituents
                            let bds=tarAtom.getBonds().filter(b2=>b2!==bb);
                            tarAtom.swapSubstituentCoordinates(bds[0],bds[1]);
+						   fixedOne++;
                         }else{
                            //TODO implement this. It's actually a little hard to do
-                           //right
+                           //right in a ring
                         }
                         bb.setDoubleBondLocalGeometry(false);
                      }
@@ -5154,7 +5160,14 @@ JSChemify.Chemical = function(arg){
                var b=aa.bond;
                var at=aa.bond.getOtherAtom(aa.atom);
                var bn=bondNetwork[b.getIndexInParent()];
-               if(!bn)bn=[];
+               if(!bn){
+				   bn=[];
+			   }else{
+				   //TODO: This gets around an odd
+				   //kind of race-condition? Need to look into
+				   //this
+				   bn=[];
+			   }
                var bi=0;
                if(b.getAtom2()===at){
                   bi=1;
@@ -7176,10 +7189,12 @@ JSChemify.Ring=function(arg){
                     .map((b,i)=>[b,i])
                     .filter(bb=>bb[0].getBondOrder()!=4);
       
-       
-       
+              
       if(aset.length>1){
-          throw "can't dearomatize, there are " + aset.length + " presets";
+		  //TODO: Consider when this should actually throw vs when
+		  // it's okay.
+		  //
+          //throw "can't dearomatize, there are " + aset.length + " presets";
       }
       
       if(aset.length===1){
@@ -7206,14 +7221,18 @@ JSChemify.Ring=function(arg){
       let hetero1=ret.getAtoms()
          .filter(a=>a.getSymbol()!=="C")
          .reduce((a,b)=>{
-                 if(a===null)return b;
-                 if(b===null)return a;
-                 if(a.getBonds().length>b.getBonds().length){
+            if(a===null)return b;
+            if(b===null)return a;
+            if(a.getBonds().length>b.getBonds().length){
                 return a;
             }
             return b;
          },null) ;
       if(hetero1){
+		  //make hetero atoms
+		  //have all single bonds
+		  //TODO: Reconsider
+		  
           if(s%2===1){
               hetero1.getBonds()
                      .filter(b=>b.getBondOrder()===4)
@@ -11317,6 +11336,29 @@ M  END`;
       ret.assertToStringEquals(o2, [9, 10, 11, 12, 13, 14, 15]);
        
   });
+  
+  ret.tests.push("Dearomatize fused aromatic ring with bridgehead nitrogen works",()=>{
+      var cc=JSChemify.Chemical("Cc1nnc2ccc(-c3cccc(c3)N(C)C(=O)C)nn12");
+      cc.dearomatize();
+	  
+      ret.assertEquals(0, cc.getBonds().filter(b=>b.getBondOrder()===4).length);
+      ret.assertEquals(8, cc.getBonds().filter(b=>b.getBondOrder()===2).length);
+      ret.assertEquals(15, cc.getBonds().filter(b=>b.getBondOrder()===1).length);
+       
+  });
+  
+  
+  ret.tests.push("Generate Coordinates on double bond structure works",()=>{
+      var cc=JSChemify.Chemical("CC=C(C)C=CC");
+      cc.generateCoordinates();
+	  let avg=cc.getAverageBondLength();
+	  
+	  
+      ret.assertEquals(1, avg);
+       
+  });
+  
+  
   
   //Double bond on wrong side in rendering
   //C(=O)(c1cc(c(c(I)c1)OCCN(CC)CC)I)c1c(oc2c1cccc2)CCCCCN(C)CC\C=C1\c2ccccc2CCc2ccccc12
