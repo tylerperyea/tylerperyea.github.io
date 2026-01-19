@@ -120,6 +120,7 @@
             font-weight: bold;
             margin-right: 5px;
             color: #7f8c8d;
+            vertical-align:top;
         }
         
         .verse-content {
@@ -154,6 +155,15 @@
             font-variant-ligatures: common-ligatures discretionary-ligatures contextual;
             font-feature-settings: "liga" 1, "rlig" 1, "calt" 1;
             -webkit-font-feature-settings: "liga" 1, "rlig" 1, "calt" 1;
+            display:inline-block;
+        }
+        
+        .sitelen-pona-mode .newline{
+        	display:block;
+        	opacity:0%;
+        }
+        .sitelen-pona-mode .punct{
+        	display:none;
         }
         
         .sitelen-pona-mode .name-rect {
@@ -696,6 +706,16 @@
         // Format verse content with proper name handling
         function formatVerseContent(text) {
             // Handle names (words starting with &) by wrapping them in a span with class "name-rect"
+            
+            //if sitelen, need to figure out spaces
+            //this just adds a span
+            text= text.replace(/([.;!])/g,(a,p,s)=>('<span class="newline">' + p + '</span>'));
+            
+            //need to deal with : and ,
+            text= text.replace(/([,:])/g,(a,p,s)=>('<span class="punct">' + p + '</span>'));
+            
+            
+            
             return text.replace(/&(\w+)/g, (a,p,s)=>
                 '<span class="name-tp">' + convertNameToTokiPona(p) + '</span>' + 
                 '<span class="name-rect">' + convertNameToSitelenPona(p) + '</span>');
