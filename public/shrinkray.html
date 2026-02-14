@@ -217,6 +217,14 @@
 <script>
     const $ = (a) => document.querySelector(a);
     let brotli = null;
+    let noRefresh=false;
+    window.addEventListener('hashchange', function() {
+      if(!noRefresh){
+          runLogic();
+      }else{
+          noRefresh=true;
+      }
+    });
 
     import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
         .then(m => m.default)
@@ -268,7 +276,7 @@
         
         $('#url-direct-input').value = directUrl;
         $('#url-edit-input').value = editUrl;
-        
+        noRefresh=true;
         window.history.replaceState({html: comp}, '', editUrl);
         // Iframe needs the full URL to reset its internal scope
         $('#preview-frame').src = directUrl + "&nomenu=1";
