@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>HTML Shrink-Ray</title>
+    <style>
+        :root {
+            --bg: #f4f7f6;
+            --card: #ffffff;
+            --primary: #2563eb;
+            --secondary: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: #1e293b;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            padding: 1rem 2rem;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 0.5rem 1rem;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: var(--secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        textarea {
+            flex-grow: 1;
+            border: none;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            resize: none;
+            outline: none;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            padding: 10px 20px;
+            background: var(--card);
+            border-top: 1px solid var(--border);
+        }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: white;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover { background: #f1f5f9; }
+        
+        button.primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+        }
+
+        button.primary:hover { background: #1d4ed8; }
+
+        .url-display {
+            font-family: monospace;
+            font-size: 0.85rem;
+            padding: 8px;
+            background: #f1f5f9;
+            border-radius: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-grow: 1;
+        }
+    </style>
+
+    <script>
+        let $ = (a) => document.querySelector(a);
+        let brotli = null;
+
+        import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
+            .then(m => m.default)
+            .then(b => {
+                brotli = b;
+                checkUrlParams();
+            });
+
+        async function bufferToBase64(buffer) {
+            const base64url = await new Promise(r => {
+                const reader = new FileReader()
+                reader.onload = () => r(reader.result)
+                reader.readAsDataURL(new Blob([buffer]))
+            });
+            return base64url.slice(base64url.indexOf(',') + 1);
+        }
+
+        async function compress(text) {
+            const compressedData = brotli.compress(new TextEncoder().encode(text));
+            return await bufferToBase64(compressedData);
+        }
+
+        function decompress(b64) {
+            return (new TextDecoder()).decode(brotli.decompress(Uint8Array.from(atob(b64), c => c.charCodeAt(0))));
+        }
+
+        async function handleShrink() {
+            const input = $('#input').value;
+            const compressed = await compress(input);
+            $('#output').value = compressed;
+            
+            const finalUrl = window.location.origin + window.location.pathname + "?html=" + compressed;
+            $('#url-text').innerText = finalUrl;
+            updatePreview(input);
+        }
+
+        async function handleUnshrink() {
+            const output = $('#output').value;
+            const raw = decompress(output);
+            $('#input').value = raw;
+            updatePreview(raw);
+        }
+
+        function updatePreview(html) {
+            const frame = $('#preview');
+            const doc = frame.contentDocument || frame.contentWindow.document;
+            doc.open();
+            doc.write(html);
+            doc.close();
+        }
+
+        function checkUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const htmlData = params.get('html');
+            if (htmlData) {
+                const raw = decompress(htmlData);
+                $('#input').value = raw;
+                $('#output').value = htmlData;
+                updatePreview(raw);
+            }
+        }
+
+        function copyUrl() {
+            navigator.clipboard.writeText($('#url-text').innerText);
+            alert("URL copied to clipboard!");
+        }
+    </script>
+</head>
+<body>
+
+<header>
+    <div style="font-weight: bold; font-size: 1.2rem;">📦 HTML Shrink-Ray</div>
+    <div style="display: flex; align-items: center; gap: 10px; width: 50%;">
+        <div id="url-text" class="url-display">Your URL will appear here...</div>
+        <button onclick="copyUrl()">Copy</button>
+    </div>
+</header>
+
+<div class="main-container">
+    <div class="panel">
+        <div class="panel-header">Raw HTML Input</div>
+        <textarea id="input" placeholder="Paste HTML here..."></textarea>
+    </div>
+    
+    <div class="panel">
+        <div class="panel-header">Compressed String (Base64)</div>
+        <textarea id="output" placeholder="Compressed data will appear here..."></textarea>
+    </div>
+
+    <div class="panel" style="grid-column: span 2;">
+        <div class="panel-header">Live Preview</div>
+        <iframe id="preview"></iframe>
+    </div>
+</div>
+
+<div class="controls">
+    <button class="primary" onclick="handleShrink()">Shrink & Preview</button>
+    <button onclick="handleUnshrink()">Un-Shrink from Code</button>
+</div>
+
+</body>
+</html>
