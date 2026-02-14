@@ -177,8 +177,9 @@
             if(!input) return;
             const compressed = await compress(input);
             $('#output').value = compressed;
-            
-            const finalUrl = window.location.origin + window.location.pathname + "?html=" + compressed;
+
+            //TODO make more configurable
+            const finalUrl = "https://tylerperyea.github.io/public/simple_web2.html?html=" + "?html=" + compressed;
             $('#url-text').innerText = finalUrl;
             updatePreview(input);
         }
