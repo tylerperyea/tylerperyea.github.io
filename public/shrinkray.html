@@ -19,10 +19,17 @@
             color: #1e293b;
             margin: 0;
             height: 100vh;
-            display: none; /* Hidden until mode is determined */
+            display: none; 
         }
 
         body.ui-visible { display: flex; flex-direction: column; }
+
+        /* Fullscreen Preview Logic */
+        body.preview-fs .main-container { display: block; padding: 0; }
+        body.preview-fs .panel:not(.preview-panel), 
+        body.preview-fs header, 
+        body.preview-fs .center-actions { display: none; }
+        body.preview-fs .preview-panel { position: fixed; inset: 0; z-index: 100; border: none; border-radius: 0; height: 100vh; }
 
         header {
             padding: 0.75rem 1.5rem;
@@ -31,7 +38,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
 
         .url-box {
@@ -42,9 +48,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            flex-grow: 1;
-            margin: 0 15px;
-            max-width: 45%;
+            max-width: 50%;
         }
 
         .url-display {
@@ -60,7 +64,7 @@
         .main-container {
             display: grid;
             grid-template-columns: 1fr 100px 1fr;
-            grid-template-rows: 1fr 1.2fr;
+            grid-template-rows: 1fr 1.5fr;
             gap: 1rem;
             padding: 1rem;
             flex-grow: 1;
@@ -84,6 +88,9 @@
             font-weight: 700;
             text-transform: uppercase;
             color: var(--secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .center-actions {
@@ -117,39 +124,40 @@
         }
 
         button.primary { background: var(--primary); color: white; border: none; }
-        button.sm { font-size: 0.7rem; padding: 4px 8px; }
-        
-        .badge {
-            font-size: 10px;
-            background: #e2e8f0;
-            padding: 2px 6px;
-            border-radius: 10px;
+        button.sm { font-size: 0.7rem; padding: 2px 6px; }
+
+        /* Floating Menu for Render Mode */
+        #render-menu {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 10000;
+            opacity: 0.3;
+            transition: opacity 0.2s;
         }
+        #render-menu:hover { opacity: 1; }
     </style>
 </head>
 <body>
 
+<div id="render-menu" style="display: none;">
+    <button onclick="goToEdit()">Edit Page</button>
+</div>
+
 <div id="ui-container" style="display: contents;">
     <header>
-        <div style="font-weight: 900; color: var(--primary); letter-spacing: -0.5px;">HTML SHRINKRAY</div>
-        
+        <div style="font-weight: 900; color: var(--primary);">HTML SHRINKRAY</div>
         <div class="url-box">
-            <span class="badge">VIEW</span>
-            <div id="url-direct" class="url-display">...</div>
-            <button class="sm primary" onclick="window.open($('#url-direct').innerText, '_blank')">Open ↗</button>
-        </div>
-
-        <div class="url-box">
-            <span class="badge">EDIT</span>
+            <span style="font-size: 10px; font-weight: bold;">EDIT LINK</span>
             <div id="url-edit" class="url-display">...</div>
-            <button class="sm" onclick="copy('#url-edit')">Copy Link</button>
+            <button class="sm" onclick="copy('#url-edit')">Copy</button>
         </div>
     </header>
 
     <div class="main-container">
         <div class="panel">
             <div class="panel-header">Source HTML</div>
-            <textarea id="input" placeholder="Paste your HTML here..."></textarea>
+            <textarea id="input" placeholder="Paste HTML..."></textarea>
         </div>
 
         <div class="center-actions">
@@ -159,11 +167,18 @@
 
         <div class="panel">
             <div class="panel-header">Compressed String</div>
-            <textarea id="output" placeholder="Brotli string..."></textarea>
+            <textarea id="output" placeholder="Compressed string..."></textarea>
         </div>
 
-        <div class="panel" style="grid-column: span 3;">
-            <div class="panel-header">Live Preview</div>
+        <div class="panel preview-panel" style="grid-column: span 3;">
+            <div class="panel-header">
+                Live Preview
+                <div style="display: flex; gap: 10px; align-items: center; text-transform: none;">
+                    <span id="url-direct" style="font-family: monospace; font-size: 10px; color: #94a3b8;"></span>
+                    <button class="sm" onclick="window.open($('#url-direct').innerText, '_blank')">New Tab ↗</button>
+                    <button class="sm" id="fs-btn" onclick="toggleFS()">Fullscreen</button>
+                </div>
+            </div>
             <iframe id="preview-frame"></iframe>
         </div>
     </div>
@@ -208,15 +223,21 @@
             $('#input').value = raw;
         }
         
-        const html = $('#input').value;
         const comp = $('#output').value;
-        
         const base = window.location.origin + window.location.pathname;
-        $('#url-direct').innerText = `${base}?html=${comp}`;
+        const directUrl = `${base}?html=${comp}`;
+        
+        $('#url-direct').innerText = directUrl;
         $('#url-edit').innerText = `${base}?edit=1&html=${comp}`;
         
-        const doc = $('#preview-frame').contentDocument;
-        doc.open(); doc.write(html); doc.close();
+        // Instead of writing HTML, we set the src to the generated URL
+        // This ensures the JS scope is completely reset
+        $('#preview-frame').src = directUrl + "&nomenu=1";
+    }
+
+    function toggleFS() {
+        document.body.classList.toggle('preview-fs');
+        $('#fs-btn').innerText = document.body.classList.contains('preview-fs') ? "Exit Fullscreen" : "Fullscreen";
     }
 
     function copy(id) {
@@ -224,24 +245,29 @@
         alert("Link copied!");
     }
 
+    function goToEdit() {
+        const params = new URLSearchParams(window.location.search);
+        window.location.search = "edit=1&" + params.toString();
+    }
+
     function runLogic() {
         const params = new URLSearchParams(window.location.search);
         const htmlData = params.get('html');
         const isEdit = params.get('edit');
+        const noMenu = params.get('nomenu');
 
         if (htmlData && !isEdit) {
-            // RENDER MODE: Just show the result
             try {
                 const raw = decompress(htmlData);
+                if (!noMenu) $('#render-menu').style.display = 'block';
                 document.open();
                 document.write(raw);
                 document.close();
             } catch (e) {
                 document.body.style.display = 'block';
-                document.body.innerText = "Error decoding HTML: " + e.message;
+                document.body.innerText = "Error: " + e.message;
             }
         } else {
-            // UI MODE: Show the tool
             document.body.classList.add('ui-visible');
             if (htmlData) {
                 $('#output').value = htmlData;
