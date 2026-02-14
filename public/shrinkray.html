@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>HTML Shrink-Ray</title>
+    <title>HTML Shrinkray</title>
     <style>
         :root {
             --bg: #f8fafc;
@@ -13,25 +13,16 @@
             --accent: #f1f5f9;
         }
 
-        /* Clean "Render Mode" styles - hides UI if param 'mode=render' is present */
-        body.render-mode #ui-wrapper { display: none; }
-        body.render-mode #render-frame { position: fixed; top:0; left:0; width:100vw; height:100vh; z-index:9999; border:none; }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg);
             color: #1e293b;
             margin: 0;
             height: 100vh;
-            display: flex;
-            flex-direction: column;
+            display: none; /* Hidden until mode is determined */
         }
 
-        #ui-wrapper {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
+        body.ui-visible { display: flex; flex-direction: column; }
 
         header {
             padding: 0.75rem 1.5rem;
@@ -53,12 +44,12 @@
             gap: 10px;
             flex-grow: 1;
             margin: 0 15px;
-            max-width: 60%;
+            max-width: 45%;
         }
 
         .url-display {
             font-family: monospace;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -83,7 +74,6 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .panel-header {
@@ -114,7 +104,7 @@
             outline: none;
         }
 
-        #render-frame { background: white; width: 100%; height: 100%; border: none; }
+        #preview-frame { background: white; width: 100%; height: 100%; border: none; }
 
         button {
             padding: 6px 12px;
@@ -134,104 +124,32 @@
             background: #e2e8f0;
             padding: 2px 6px;
             border-radius: 10px;
-            margin-right: 5px;
         }
     </style>
-
-    <script>
-        let $ = (a) => document.querySelector(a);
-        let brotli = null;
-
-        import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
-            .then(m => m.default)
-            .then(b => {
-                brotli = b;
-                init();
-            });
-
-        function decompress(b64) {
-            return (new TextDecoder()).decode(brotli.decompress(Uint8Array.from(atob(b64), c => c.charCodeAt(0))));
-        }
-
-        async function compress(text) {
-            const compressedData = brotli.compress(new TextEncoder().encode(text));
-            const base64url = await new Promise(r => {
-                const reader = new FileReader();
-                reader.onload = () => r(reader.result);
-                reader.readAsDataURL(new Blob([compressedData]));
-            });
-            return base64url.slice(base64url.indexOf(',') + 1);
-        }
-
-        async function update(fromInput = true) {
-            if (fromInput) {
-                const compressed = await compress($('#input').value);
-                $('#output').value = compressed;
-            } else {
-                const raw = decompress($('#output').value);
-                $('#input').value = raw;
-            }
-            
-            const html = $('#input').value;
-            const comp = $('#output').value;
-            
-            // Generate both URLs
-            const base = window.location.origin + window.location.pathname;
-            $('#url-direct').innerText = `${base}?html=${comp}&mode=render`;
-            $('#url-edit').innerText = `${base}?html=${comp}`;
-            
-            const doc = $('#render-frame').contentDocument;
-            doc.open(); doc.write(html); doc.close();
-        }
-
-        function copy(id) {
-            navigator.clipboard.writeText($(id).innerText);
-            alert("Copied link!");
-        }
-
-        function init() {
-            const params = new URLSearchParams(window.location.search);
-            const htmlData = params.get('html');
-            const mode = params.get('mode');
-
-            if (htmlData) {
-                const raw = decompress(htmlData);
-                if (mode === 'render') {
-                    document.body.classList.add('render-mode');
-                    document.write(raw); // Direct injection for render mode
-                    return;
-                }
-                $('#input').value = raw;
-                $('#output').value = htmlData;
-                update(false);
-            }
-        }
-    </script>
 </head>
 <body>
 
-<div id="ui-wrapper">
+<div id="ui-container" style="display: contents;">
     <header>
-        <div style="font-weight: 900; color: var(--primary);">SHRINK-RAY</div>
+        <div style="font-weight: 900; color: var(--primary); letter-spacing: -0.5px;">HTML SHRINKRAY</div>
         
         <div class="url-box">
-            <span class="badge">DIRECT</span>
+            <span class="badge">VIEW</span>
             <div id="url-direct" class="url-display">...</div>
-            <button class="sm" onclick="copy('#url-direct')">Copy</button>
-            <button class="sm primary" onclick="window.open($('#url-direct').innerText, '_blank')">View ↗</button>
+            <button class="sm primary" onclick="window.open($('#url-direct').innerText, '_blank')">Open ↗</button>
         </div>
 
         <div class="url-box">
             <span class="badge">EDIT</span>
             <div id="url-edit" class="url-display">...</div>
-            <button class="sm" onclick="copy('#url-edit')">Copy</button>
+            <button class="sm" onclick="copy('#url-edit')">Copy Link</button>
         </div>
     </header>
 
     <div class="main-container">
         <div class="panel">
             <div class="panel-header">Source HTML</div>
-            <textarea id="input" placeholder="Paste HTML..."></textarea>
+            <textarea id="input" placeholder="Paste your HTML here..."></textarea>
         </div>
 
         <div class="center-actions">
@@ -240,16 +158,97 @@
         </div>
 
         <div class="panel">
-            <div class="panel-header">Compressed Base64</div>
-            <textarea id="output" placeholder="Compressed string..."></textarea>
+            <div class="panel-header">Compressed String</div>
+            <textarea id="output" placeholder="Brotli string..."></textarea>
         </div>
 
         <div class="panel" style="grid-column: span 3;">
             <div class="panel-header">Live Preview</div>
-            <iframe id="render-frame"></iframe>
+            <iframe id="preview-frame"></iframe>
         </div>
     </div>
 </div>
 
+<script>
+    const $ = (a) => document.querySelector(a);
+    let brotli = null;
+
+    import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
+        .then(m => m.default)
+        .then(b => {
+            brotli = b;
+            runLogic();
+        });
+
+    async function bufferToBase64(buffer) {
+        const base64url = await new Promise(r => {
+            const reader = new FileReader();
+            reader.onload = () => r(reader.result);
+            reader.readAsDataURL(new Blob([buffer]));
+        });
+        return base64url.slice(base64url.indexOf(',') + 1);
+    }
+
+    async function compress(text) {
+        const compressedData = brotli.compress(new TextEncoder().encode(text));
+        return await bufferToBase64(compressedData);
+    }
+
+    function decompress(b64) {
+        const cleanedB64 = b64.replace(/ /g, "+");
+        return (new TextDecoder()).decode(brotli.decompress(Uint8Array.from(atob(cleanedB64), c => c.charCodeAt(0))));
+    }
+
+    async function update(fromInput = true) {
+        if (fromInput) {
+            const compressed = await compress($('#input').value);
+            $('#output').value = compressed;
+        } else {
+            const raw = decompress($('#output').value);
+            $('#input').value = raw;
+        }
+        
+        const html = $('#input').value;
+        const comp = $('#output').value;
+        
+        const base = window.location.origin + window.location.pathname;
+        $('#url-direct').innerText = `${base}?html=${comp}`;
+        $('#url-edit').innerText = `${base}?edit=1&html=${comp}`;
+        
+        const doc = $('#preview-frame').contentDocument;
+        doc.open(); doc.write(html); doc.close();
+    }
+
+    function copy(id) {
+        navigator.clipboard.writeText($(id).innerText);
+        alert("Link copied!");
+    }
+
+    function runLogic() {
+        const params = new URLSearchParams(window.location.search);
+        const htmlData = params.get('html');
+        const isEdit = params.get('edit');
+
+        if (htmlData && !isEdit) {
+            // RENDER MODE: Just show the result
+            try {
+                const raw = decompress(htmlData);
+                document.open();
+                document.write(raw);
+                document.close();
+            } catch (e) {
+                document.body.style.display = 'block';
+                document.body.innerText = "Error decoding HTML: " + e.message;
+            }
+        } else {
+            // UI MODE: Show the tool
+            document.body.classList.add('ui-visible');
+            if (htmlData) {
+                $('#output').value = htmlData;
+                update(false);
+            }
+        }
+    }
+</script>
 </body>
 </html>
