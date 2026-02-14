@@ -51,14 +51,14 @@
             max-width: 50%;
         }
 
-        .url-display {
+        .url-display-input {
             font-family: monospace;
             font-size: 0.7rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            flex-grow: 1;
+            background: transparent;
+            border: none;
             color: var(--secondary);
+            width: 100%;
+            outline: none;
         }
 
         .main-container {
@@ -93,6 +93,27 @@
             align-items: center;
         }
 
+        .preview-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            text-transform: none;
+            flex-shrink: 0;
+        }
+
+        /* The URL Input Fix */
+        .preview-url-field {
+            width: 250px;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 2px 6px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: #94a3b8;
+            text-overflow: ellipsis;
+        }
+
         .center-actions {
             display: flex;
             flex-direction: column;
@@ -121,12 +142,12 @@
             cursor: pointer;
             font-size: 0.8rem;
             font-weight: 600;
+            flex-shrink: 0; /* Prevents buttons from squishing */
         }
 
         button.primary { background: var(--primary); color: white; border: none; }
         button.sm { font-size: 0.7rem; padding: 2px 6px; }
 
-        /* Floating Menu for Render Mode */
         #render-menu {
             position: fixed;
             top: 10px;
@@ -149,8 +170,8 @@
         <div style="font-weight: 900; color: var(--primary);">HTML SHRINKRAY</div>
         <div class="url-box">
             <span style="font-size: 10px; font-weight: bold;">EDIT LINK</span>
-            <div id="url-edit" class="url-display">...</div>
-            <button class="sm" onclick="copy('#url-edit')">Copy</button>
+            <input id="url-edit-input" class="url-display-input" readonly value="...">
+            <button class="sm" onclick="copyInput('#url-edit-input')">Copy</button>
         </div>
     </header>
 
@@ -173,9 +194,9 @@
         <div class="panel preview-panel" style="grid-column: span 3;">
             <div class="panel-header">
                 Live Preview
-                <div style="display: flex; gap: 10px; align-items: center; text-transform: none;">
-                    <span id="url-direct" style="font-family: monospace; font-size: 10px; color: #94a3b8;"></span>
-                    <button class="sm" onclick="window.open($('#url-direct').innerText, '_blank')">New Tab ↗</button>
+                <div class="preview-controls">
+                    <input id="url-direct-input" class="preview-url-field" readonly value="">
+                    <button class="sm" onclick="window.open($('#url-direct-input').value, '_blank')">New Tab ↗</button>
                     <button class="sm" id="fs-btn" onclick="toggleFS()">Fullscreen</button>
                 </div>
             </div>
@@ -227,11 +248,9 @@
         const base = window.location.origin + window.location.pathname;
         const directUrl = `${base}?html=${comp}`;
         
-        $('#url-direct').innerText = directUrl;
-        $('#url-edit').innerText = `${base}?edit=1&html=${comp}`;
+        $('#url-direct-input').value = directUrl;
+        $('#url-edit-input').value = `${base}?edit=1&html=${comp}`;
         
-        // Instead of writing HTML, we set the src to the generated URL
-        // This ensures the JS scope is completely reset
         $('#preview-frame').src = directUrl + "&nomenu=1";
     }
 
@@ -240,14 +259,16 @@
         $('#fs-btn').innerText = document.body.classList.contains('preview-fs') ? "Exit Fullscreen" : "Fullscreen";
     }
 
-    function copy(id) {
-        navigator.clipboard.writeText($(id).innerText);
+    function copyInput(selector) {
+        const el = $(selector);
+        el.select();
+        navigator.clipboard.writeText(el.value);
         alert("Link copied!");
     }
 
     function goToEdit() {
         const params = new URLSearchParams(window.location.search);
-        window.location.search = "edit=1&" + params.toString();
+        window.location.href = window.location.origin + window.location.pathname + "?edit=1&" + params.toString();
     }
 
     function runLogic() {
