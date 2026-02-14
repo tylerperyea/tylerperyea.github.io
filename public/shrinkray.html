@@ -11,6 +11,7 @@
             --secondary: #64748b;
             --border: #e2e8f0;
             --accent: #f1f5f9;
+            --danger: #ef4444;
         }
 
         body {
@@ -38,6 +39,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 15px;
         }
 
         .url-box {
@@ -48,6 +50,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-grow: 1;
             max-width: 40%;
         }
 
@@ -142,11 +145,10 @@
             font-size: 0.8rem;
             font-weight: 600;
             flex-shrink: 0;
-            transition: all 0.1s;
         }
 
-        button:active { transform: scale(0.98); }
         button.primary { background: var(--primary); color: white; border: none; }
+        button.danger { color: var(--danger); }
         button.sm { font-size: 0.7rem; padding: 2px 6px; }
 
         #render-menu {
@@ -168,13 +170,18 @@
 
 <div id="ui-container" style="display: contents;">
     <header>
-        <div style="font-weight: 900; color: var(--primary);">HTML SHRINKRAY</div>
+        <div style="font-weight: 900; color: var(--primary); flex-shrink:0;">HTML SHRINKRAY</div>
+        
         <div class="url-box">
             <span style="font-size: 10px; font-weight: bold; flex-shrink:0;">SHARE EDIT</span>
             <input id="url-edit-input" class="url-display-input" readonly value="...">
             <button class="sm" onclick="copyInput('#url-edit-input')">Copy</button>
         </div>
-        <button onclick="downloadSelf()">Download Standalone</button>
+
+        <div style="display: flex; gap: 8px;">
+            <button class="sm danger" onclick="clearAll()">Clear All</button>
+            <button class="sm" onclick="downloadSelf()">Download Standalone</button>
+        </div>
     </header>
 
     <div class="main-container">
@@ -254,28 +261,39 @@
         
         const comp = $('#output').value;
         const base = window.location.origin + window.location.pathname;
-        const directUrl = `${base}?html=${comp}`;
-        const editUrl = `${base}?edit=1&html=${comp}`;
+        
+        // Use HASH for the data to avoid 414 Server Errors
+        const directUrl = `${base}#html=${comp}`;
+        const editUrl = `${base}?edit=1#html=${comp}`;
         
         $('#url-direct-input').value = directUrl;
         $('#url-edit-input').value = editUrl;
         
         window.history.replaceState({html: comp}, '', editUrl);
+        // Iframe needs the full URL to reset its internal scope
         $('#preview-frame').src = directUrl + "&nomenu=1";
+    }
+
+    function clearAll() {
+        if(confirm("Clear everything and start fresh?")) {
+            $('#input').value = "";
+            $('#output').value = "";
+            $('#url-direct-input').value = "";
+            $('#url-edit-input').value = "";
+            window.history.replaceState({}, '', window.location.origin + window.location.pathname);
+            $('#preview-frame').src = "about:blank";
+        }
     }
 
     function downloadSelf() {
         const comp = $('#output').value;
         if (!comp) return alert("Shrink something first!");
-        
-        // Grab the entire current HTML of this page
         const docHtml = document.documentElement.outerHTML;
         const blob = new Blob([docHtml], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
-        
         const a = document.createElement('a');
         a.href = url;
-        a.download = `shrinkray-project-${Date.now()}.html`;
+        a.download = `shrinkray-${Date.now()}.html`;
         a.click();
         URL.revokeObjectURL(url);
     }
@@ -292,16 +310,19 @@
     }
 
     function goToEdit() {
-        const params = new URLSearchParams(window.location.search);
-        params.set('edit', '1');
-        window.location.search = params.toString();
+        // Move hash data into search params for the redirect
+        const hash = window.location.hash;
+        window.location.href = window.location.origin + window.location.pathname + "?edit=1" + hash;
     }
 
     function runLogic() {
         const params = new URLSearchParams(window.location.search);
-        const htmlData = params.get('html');
+        // Parse Hash parameters
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+
+        const htmlData = params.get('html') || hashParams.get('html');
         const isEdit = params.get('edit');
-        const noMenu = params.get('nomenu');
+        const noMenu = params.get('nomenu') || hashParams.get('nomenu');
 
         if (htmlData && !isEdit) {
             try {
