@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Self-decoding HTML Loader</title>
+</head>
+<body>
+  <p>Loading...</p>
+  <script>
+
+    let brotli=null;
+    import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
+	 .then(m => m.default)
+	 .then(b=>{
+		 brotli=b;
+	     init();
+	 });
+
+    
+async function bufferToBase64(buffer) {
+  // use a FileReader to generate a base64 data URI:
+  const base64url = await new Promise(r => {
+    const reader = new FileReader()
+    reader.onload = () => r(reader.result)
+    reader.readAsDataURL(new Blob([buffer]))
+  });
+  // remove the `data:...;base64,` part from the start
+  return base64url.slice(base64url.indexOf(',') + 1);
+}
+	  
+// Compress to base64
+async function compress(text) {
+  const compressedData = brotli.compress(new TextEncoder().encode(text)); 
+  return await bufferToBase64(compressedData);
+}
+
+// Decompress from base64
+let deCoM=(b64)=>{
+	return new Promise((cb)=>cb((new TextDecoder()).decode(brotli.decompress(Uint8Array.from(atob(b64), c => c.charCodeAt(0))))));
+}
+	  
+function mapCompressed(inp){
+	return compress(inp).then(v=>{
+            return v;
+	});
+}
+function unmapCompressed(inp){
+	var o = inp.trim();
+	return deCoM(o);
+}
+
+    function getURLParam(name) {
+      return new URLSearchParams(location.search).get(name);
+    }
+
+    function init(){
+      const b64 = getURLParam("html").replace(/ /g,"+");
+	  console.log(b64);
+      if (!b64) {
+        document.body.innerText = 'Missing "html" URL parameter.';
+        return;
+      }
+
+      //try {
+        deCoM(b64).then(html=>{
+		console.log(html);
+        document.open();
+        document.write(html);
+        document.close();
+		});
+		
+      //} catch (e) {
+      //  document.body.innerText = "Error: " + e.message;
+      //  console.error(e);
+      //}
+    }
+  </script>
+</body>
+</html>
