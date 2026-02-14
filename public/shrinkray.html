@@ -217,14 +217,15 @@
 <script>
     const $ = (a) => document.querySelector(a);
     let brotli = null;
-    let noRefresh=false;
+    let noRefresh = false;
+
+    // Listener for the main window (the Editor)
     window.addEventListener('hashchange', function() {
-        console.log("hash change");
-      if(!noRefresh){
-          runLogic();
-      }else{
-          noRefresh=false;
-      }
+        if(!noRefresh){
+            runLogic();
+        } else {
+            noRefresh = false;
+        }
     });
 
     import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
@@ -271,16 +272,17 @@
         const comp = $('#output').value;
         const base = window.location.origin + window.location.pathname;
         
-        // Use HASH for the data to avoid 414 Server Errors
-        const directUrl = `${base}#html=${comp}`;
+        const directUrl = `${base}#html=${comp}&nomenu=1`;
         const editUrl = `${base}?edit=1#html=${comp}`;
         
         $('#url-direct-input').value = directUrl;
         $('#url-edit-input').value = editUrl;
-        noRefresh=true;
+        
+        noRefresh = true;
         window.history.replaceState({html: comp}, '', editUrl);
-        // Iframe needs the full URL to reset its internal scope
-        $('#preview-frame').src = directUrl + "&nomenu=1";
+        
+        // This now triggers the hashchange listener inside the iframe
+        $('#preview-frame').src = directUrl;
     }
 
     function clearAll() {
@@ -319,14 +321,12 @@
     }
 
     function goToEdit() {
-        // Move hash data into search params for the redirect
         const hash = window.location.hash;
         window.location.href = window.location.origin + window.location.pathname + "?edit=1" + hash;
     }
 
     function runLogic() {
         const params = new URLSearchParams(window.location.search);
-        // Parse Hash parameters
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
 
         const htmlData = params.get('html') || hashParams.get('html');
@@ -334,21 +334,39 @@
         const noMenu = params.get('nomenu') || hashParams.get('nomenu');
 
         if (htmlData && !isEdit) {
+            // Render Mode logic
             try {
                 const raw = decompress(htmlData);
                 if (!noMenu) $('#render-menu').style.display = 'block';
+                
+                // CRITICAL FIX: Overwrite the document with the new code
                 document.open();
                 document.write(raw);
                 document.close();
+
+                // CRITICAL FIX: Re-inject a listener into the NEWly written document 
+                // so it can catch the NEXT hash update from the parent.
+                const script = document.createElement('script');
+                script.textContent = `window.onhashchange = () => window.location.reload();`;
+                document.body.appendChild(script);
+
             } catch (e) {
                 document.body.style.display = 'block';
                 document.body.innerText = "Error: " + e.message;
             }
         } else {
+            // Editor Mode logic
             document.body.classList.add('ui-visible');
             if (htmlData) {
                 $('#output').value = htmlData;
-                update(false);
+                // If we're initializing from a URL, we need to populate the input
+                const raw = decompress(htmlData);
+                $('#input').value = raw;
+                // Update URLs without triggering a reload cycle
+                const base = window.location.origin + window.location.pathname;
+                $('#url-direct-input').value = `${base}#html=${htmlData}&nomenu=1`;
+                $('#url-edit-input').value = `${base}?edit=1#html=${htmlData}`;
+                $('#preview-frame').src = $('#url-direct-input').value;
             }
         }
     }
