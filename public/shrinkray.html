@@ -219,10 +219,11 @@
     let brotli = null;
     let noRefresh=false;
     window.addEventListener('hashchange', function() {
+        console.log("hash change");
       if(!noRefresh){
           runLogic();
       }else{
-          noRefresh=true;
+          noRefresh=false;
       }
     });
 
