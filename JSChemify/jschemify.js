@@ -458,7 +458,7 @@ JSChemify.LinearRegression=function(){
          nx=[nx];
       }
 	  //make a copy
-	  nx=nx.map(nn=>nn.map(n2=n2));
+	  nx=nx.map(nn=>nn.map(n2=>n2));
 	  
 	  let xrank=ret._x[0].length;
 	  
