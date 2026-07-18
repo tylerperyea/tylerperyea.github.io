@@ -388,9 +388,7 @@
         return null;
     }
 
-    function applyPatchToText(text, patchBlock) {
-        // Parse patch
-        const findMatch = patchBlock.match(/<<<FIND\s*([\s\S]*?)\s*>>>/);
+\s*([\s\S]*?)\s*
         const replaceMatch = patchBlock.match(/<<<REPLACE\s*([\s\S]*?)\s*>>>/);
         
         if (!findMatch || !replaceMatch) {
