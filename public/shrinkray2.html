@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>HTML Shrinkray</title>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --primary: #2563eb;
+            --secondary: #64748b;
+            --border: #e2e8f0;
+            --accent: #f1f5f9;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: #1e293b;
+            margin: 0;
+            height: 100vh;
+            display: none; 
+        }
+
+        body.ui-visible { display: flex; flex-direction: column; }
+
+        /* Fullscreen Preview Logic */
+        body.preview-fs .main-container { display: block; padding: 0; }
+        body.preview-fs .panel:not(.preview-panel), 
+        body.preview-fs header, 
+        body.preview-fs .center-actions { display: none; }
+        body.preview-fs .preview-panel { position: fixed; inset: 0; z-index: 100; border: none; border-radius: 0; height: 100vh; }
+
+        header {
+            padding: 0.75rem 1.5rem;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .url-box {
+            background: var(--accent);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-grow: 1;
+            max-width: 40%;
+            min-width: 200px;
+        }
+
+        .url-display-input {
+            font-family: monospace;
+            font-size: 0.7rem;
+            background: transparent;
+            border: none;
+            color: var(--secondary);
+            width: 100%;
+            outline: none;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 100px 1fr;
+            grid-template-rows: 1fr 1.5fr;
+            gap: 1rem;
+            padding: 1rem;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 0.5rem 1rem;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            text-transform: none;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .preview-url-field {
+            width: 200px;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 2px 6px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: #94a3b8;
+            text-overflow: ellipsis;
+        }
+
+        .center-actions {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 12px;
+            align-items: center;
+        }
+
+        textarea {
+            flex-grow: 1;
+            border: none;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            resize: none;
+            outline: none;
+        }
+
+        #preview-frame { background: white; width: 100%; height: 100%; border: none; }
+
+        button {
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+
+        button:hover { opacity: 0.8; }
+        button.primary { background: var(--primary); color: white; border: none; }
+        button.success { background: var(--success); color: white; border: none; }
+        button.danger { color: var(--danger); }
+        button.sm { font-size: 0.7rem; padding: 2px 6px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #render-menu {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 10000;
+            opacity: 0.3;
+            transition: opacity 0.2s;
+        }
+        #render-menu:hover { opacity: 1; }
+
+        .short-url-section {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .short-url-input {
+            font-family: monospace;
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--bg);
+            min-width: 150px;
+        }
+
+        .status-badge {
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.success { background: #dcfce7; color: #166534; }
+        .status-badge.error { background: #fee2e2; color: #991b1b; }
+        .status-badge.loading { background: #fef08a; color: #854d0e; }
+        .status-badge.info { background: #dbeafe; color: #1e40af; }
+    </style>
+</head>
+<body>
+
+<div id="render-menu" style="display: none;">
+    <button onclick="goToEdit()">Edit Page</button>
+</div>
+
+<div id="ui-container" style="display: contents;">
+    <header>
+        <div style="font-weight: 900; color: var(--primary); flex-shrink:0;">HTML SHRINKRAY</div>
+        
+        <div class="url-box">
+            <span style="font-size: 10px; font-weight: bold; flex-shrink:0;">SHARE EDIT</span>
+            <input id="url-edit-input" class="url-display-input" readonly value="...">
+            <button class="sm" onclick="copyInput('#url-edit-input')">Copy</button>
+        </div>
+
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <div class="short-url-section">
+                <button class="sm success" onclick="generateShortUrl()">🔗 Get Short URL</button>
+                <input id="short-url-input" class="short-url-input" readonly placeholder="Short URL will appear here" style="display:none;">
+                <span id="short-url-status" class="status-badge" style="display:none;"></span>
+            </div>
+            <button class="sm danger" onclick="clearAll()">Clear All</button>
+            <button class="sm" onclick="downloadSelf()">Download Standalone</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="panel">
+            <div class="panel-header">Source HTML</div>
+            <textarea id="input" placeholder="Paste HTML..."></textarea>
+        </div>
+
+        <div class="center-actions">
+            <button class="primary" onclick="update(true)">Shrink ➔</button>
+            <button onclick="update(false)">⬅ Expand</button>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">Compressed String</div>
+            <textarea id="output" placeholder="Compressed string..."></textarea>
+        </div>
+
+        <div class="panel preview-panel" style="grid-column: span 3;">
+            <div class="panel-header">
+                Live Preview
+                <div class="preview-controls">
+                    <input id="url-direct-input" class="preview-url-field" readonly value="">
+                    <button class="sm" onclick="refreshPreview()">Refresh ↻</button>
+                    <button class="sm" onclick="window.open($('#url-direct-input').value, '_blank')">New Tab ↗</button>
+                    <button class="sm" id="fs-btn" onclick="toggleFS()">Fullscreen</button>
+                </div>
+            </div>
+            <iframe id="preview-frame"></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+    const $ = (a) => document.querySelector(a);
+    let brotli = null;
+    let noRefresh = false;
+    let currentSha1 = null;
+    let currentBase64 = null;
+
+    // GitHub Configuration - Update these!
+    const GITHUB_CONFIG = {
+        stageRepo: 'tylerperyea/datastore-stage',
+        prodRepo: 'tylerperyea/data_store',
+        stageToken: 'github_' + 'pat_11AAMCGSQ0kp2P5A5ZPklQ_1tRRR6MYKe0drKGXiXyhttx05QkD16vgjuOtFwpmKMoVKJQZVW5PokpeX2n'
+    };
+
+    // SHA1 utility
+    async function sha1(message) {
+        const msgBuffer = new TextEncoder().encode(message);
+        const hashBuffer = await crypto.subtle.digest('SHA-1', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Listener for the Editor UI
+    window.addEventListener('hashchange', function() {
+        if(!noRefresh){
+            runLogic();
+        } else {
+            noRefresh = false;
+        }
+    });
+
+    import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
+        .then(m => m.default)
+        .then(b => {
+            brotli = b;
+            runLogic();
+        });
+
+    async function bufferToBase64(buffer) {
+        const base64url = await new Promise(r => {
+            const reader = new FileReader();
+            reader.onload = () => r(reader.result);
+            reader.readAsDataURL(new Blob([buffer]));
+        });
+        return base64url.slice(base64url.indexOf(',') + 1);
+    }
+
+    async function compress(text) {
+        const compressedData = brotli.compress(new TextEncoder().encode(text));
+        return await bufferToBase64(compressedData);
+    }
+
+    function decompress(b64) {
+        const cleanedB64 = b64.replace(/ /g, "+");
+        return (new TextDecoder()).decode(brotli.decompress(Uint8Array.from(atob(cleanedB64), c => c.charCodeAt(0))));
+    }
+
+    // GitHub API Functions
+    async function getFileFromRepo(owner, repo, path, token = null) {
+        const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+        const headers = token ? { 'Authorization': `token ${token}` } : {};
+        
+        try {
+            const response = await fetch(url, { headers });
+            if (!response.ok) {
+                if (response.status === 404) return null;
+                throw new Error(`GitHub API error: ${response.status}`);
+            }
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error fetching from GitHub:', error);
+            return null;
+        }
+    }
+
+    async function createFileInRepo(owner, repo, path, content, message, token) {
+        const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+        const body = {
+            message: message || `Add ${path}`,
+            content: content,
+            branch: 'main'
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Failed to create file: ${response.status} - ${errorData.message}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Error creating file:', error);
+            throw error;
+        }
+    }
+
+    async function resolveSha1(sha1Hash) {
+        // Try prod first
+        const prodData = await getFileFromRepo(
+            GITHUB_CONFIG.prodRepo.split('/')[0],
+            GITHUB_CONFIG.prodRepo.split('/')[1],
+            sha1Hash
+        );
+        
+        if (prodData) {
+            return { 
+                found: true, 
+                repo: 'prod', 
+                content: prodData.content,
+                sha: prodData.sha
+            };
+        }
+
+        // Try staging as fallback
+        const stageData = await getFileFromRepo(
+            GITHUB_CONFIG.stageRepo.split('/')[0],
+            GITHUB_CONFIG.stageRepo.split('/')[1],
+            sha1Hash,
+            GITHUB_CONFIG.stageToken
+        );
+        
+        if (stageData) {
+            return { 
+                found: true, 
+                repo: 'staging', 
+                content: stageData.content,
+                sha: stageData.sha
+            };
+        }
+
+        return { found: false };
+    }
+
+    // Main functions
+    async function generateShortUrl() {
+        const outputVal = $('#output').value;
+        if (!outputVal) {
+            alert('Please shrink some HTML first!');
+            return;
+        }
+
+        const inputVal = $('#input').value;
+        if (!inputVal) {
+            alert('No HTML content to store!');
+            return;
+        }
+
+        const statusEl = document.getElementById('short-url-status');
+        const urlInput = document.getElementById('short-url-input');
+        
+        // Show loading
+        statusEl.style.display = 'inline-block';
+        statusEl.className = 'status-badge loading';
+        statusEl.textContent = '⏳ Processing...';
+        urlInput.style.display = 'none';
+
+        try {
+            // Compute SHA1 of the raw HTML
+            currentSha1 = await sha1(inputVal);
+            currentBase64 = outputVal;
+
+            // Store in staging repo with SHA1 as filename
+            await createFileInRepo(
+                GITHUB_CONFIG.stageRepo.split('/')[0],
+                GITHUB_CONFIG.stageRepo.split('/')[1],
+                currentSha1, // Filename is just the SHA1
+                outputVal,    // Content is the base64 compressed data
+                `Add page ${currentSha1}`,
+                GITHUB_CONFIG.stageToken
+            );
+
+            // Generate the short URL
+            const shortUrl = `https://tylerperyea.github.io/data_store/${currentSha1}`;
+            
+            // Show success
+            statusEl.className = 'status-badge success';
+            statusEl.textContent = '✅ URL generated!';
+            urlInput.style.display = 'inline-block';
+            urlInput.value = shortUrl;
+            
+            // Add copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'sm';
+            copyBtn.textContent = '📋 Copy';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(shortUrl);
+                copyBtn.textContent = '✅ Copied!';
+                setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
+            };
+            
+            // Remove old copy button if exists
+            const oldCopy = document.querySelector('.short-url-section .copy-btn');
+            if (oldCopy) oldCopy.remove();
+            
+            copyBtn.className += ' copy-btn';
+            document.querySelector('.short-url-section').appendChild(copyBtn);
+
+            // Try to preload the content in the preview
+            // The sync bot will move it to prod, but we can still show it from staging
+            const previewUrl = `https://tylerperyea.github.io/data_store/${currentSha1}`;
+            console.log('Short URL generated:', shortUrl);
+            console.log('Preview URL:', previewUrl);
+
+        } catch (error) {
+            statusEl.className = 'status-badge error';
+            statusEl.textContent = `❌ Error: ${error.message}`;
+            console.error('Error generating short URL:', error);
+        }
+    }
+
+    // Load content from SHA1 if URL points to it
+    async function loadFromSha1(sha1Hash) {
+        const statusEl = document.getElementById('short-url-status');
+        const urlInput = document.getElementById('short-url-input');
+        
+        statusEl.style.display = 'inline-block';
+        statusEl.className = 'status-badge loading';
+        statusEl.textContent = '⏳ Loading...';
+
+        try {
+            const result = await resolveSha1(sha1Hash);
+            
+            if (result.found) {
+                // Found the content
+                const content = result.content;
+                const decoded = atob(content);
+                
+                // Set the output and input
+                $('#output').value = content;
+                $('#input').value = decoded;
+                
+                // Update the preview
+                await update(true);
+                
+                statusEl.className = 'status-badge success';
+                statusEl.textContent = `✅ Loaded from ${result.repo}`;
+                
+                const shortUrl = `https://tylerperyea.github.io/data_store/${sha1Hash}`;
+                urlInput.style.display = 'inline-block';
+                urlInput.value = shortUrl;
+                
+                return true;
+            } else {
+                statusEl.className = 'status-badge error';
+                statusEl.textContent = '❌ Not found in prod or staging';
+                return false;
+            }
+        } catch (error) {
+            statusEl.className = 'status-badge error';
+            statusEl.textContent = `❌ Error: ${error.message}`;
+            console.error('Error loading from SHA1:', error);
+            return false;
+        }
+    }
+
+    async function update(fromInput = true) {
+        const inputVal = $('#input').value;
+        const outputVal = $('#output').value;
+        
+        if (fromInput && !inputVal) return;
+        if (!fromInput && !outputVal) return;
+
+        if (fromInput) {
+            const compressed = await compress(inputVal);
+            $('#output').value = compressed;
+        } else {
+            const raw = decompress(outputVal);
+            $('#input').value = raw;
+        }
+        
+        const comp = $('#output').value;
+        const base = window.location.origin + window.location.pathname;
+        
+        const directUrl = `${base}#html=${comp}&nomenu=1`;
+        const editUrl = `${base}?edit=1#html=${comp}`;
+        
+        $('#url-direct-input').value = directUrl;
+        $('#url-edit-input').value = editUrl;
+        
+        noRefresh = true;
+        window.history.replaceState({html: comp}, '', editUrl);
+        
+        if ($('#preview-frame').src === directUrl) {
+            refreshPreview();
+        } else {
+            $('#preview-frame').src = directUrl;
+        }
+    }
+
+    function refreshPreview() {
+        const frame = $('#preview-frame');
+        if (frame.contentWindow) {
+            frame.contentWindow.location.reload();
+        }
+    }
+
+    function clearAll() {
+        if(confirm("Clear everything and start fresh?")) {
+            $('#input').value = "";
+            $('#output').value = "";
+            $('#url-direct-input').value = "";
+            $('#url-edit-input').value = "";
+            document.getElementById('short-url-input').style.display = 'none';
+            document.getElementById('short-url-status').style.display = 'none';
+            const copyBtn = document.querySelector('.short-url-section .copy-btn');
+            if (copyBtn) copyBtn.remove();
+            window.history.replaceState({}, '', window.location.origin + window.location.pathname);
+            $('#preview-frame').src = "about:blank";
+            currentSha1 = null;
+            currentBase64 = null;
+        }
+    }
+
+    function downloadSelf() {
+        const comp = $('#output').value;
+        if (!comp) return alert("Shrink something first!");
+        const docHtml = document.documentElement.outerHTML;
+        const blob = new Blob([docHtml], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `shrinkray-${Date.now()}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function toggleFS() {
+        document.body.classList.toggle('preview-fs');
+        $('#fs-btn').innerText = document.body.classList.contains('preview-fs') ? "Exit Fullscreen" : "Fullscreen";
+    }
+
+    function copyInput(selector) {
+        const el = $(selector);
+        el.select();
+        navigator.clipboard.writeText(el.value);
+    }
+
+    function goToEdit() {
+        const hash = window.location.hash;
+        window.location.href = window.location.origin + window.location.pathname + "?edit=1" + hash;
+    }
+
+    function runLogic() {
+        const params = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+
+        const htmlData = params.get('html') || hashParams.get('html');
+        const isEdit = params.get('edit');
+        const noMenu = params.get('nomenu') || hashParams.get('nomenu');
+        const sha1Param = params.get('sha1') || hashParams.get('sha1');
+
+        // Check if this is a SHA1 lookup
+        if (sha1Param && !isEdit) {
+            // Load the content from GitHub
+            document.body.classList.add('ui-visible');
+            loadFromSha1(sha1Param);
+            return;
+        }
+
+        if (htmlData && !isEdit) {
+            try {
+                const raw = decompress(htmlData);
+                if (!noMenu) $('#render-menu').style.display = 'block';
+                
+                document.open();
+                document.write(raw);
+                document.close();
+
+                const script = document.createElement('script');
+                script.textContent = `window.onhashchange = () => window.location.reload();`;
+                document.body.appendChild(script);
+
+            } catch (e) {
+                document.body.style.display = 'block';
+                document.body.innerText = "Error: " + e.message;
+            }
+        } else {
+            document.body.classList.add('ui-visible');
+            if (htmlData) {
+                $('#output').value = htmlData;
+                const raw = decompress(htmlData);
+                $('#input').value = raw;
+                const base = window.location.origin + window.location.pathname;
+                $('#url-direct-input').value = `${base}#html=${htmlData}&nomenu=1`;
+                $('#url-edit-input').value = `${base}?edit=1#html=${htmlData}`;
+                $('#preview-frame').src = $('#url-direct-input').value;
+            }
+        }
+    }
+
+    // Check URL params on load
+    window.addEventListener('load', function() {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const sha1Param = hashParams.get('sha1');
+        if (sha1Param) {
+            // We're loading from SHA1
+            document.body.classList.add('ui-visible');
+            loadFromSha1(sha1Param);
+        }
+    });
+</script>
+</body>
+</html>
