@@ -686,16 +686,15 @@
         oldCopy.forEach(b => b.remove());
 
         try {
-const b64 = $('#output').value;
-            const sha1Hash = await sha1(b64);
-            currentSha1 = sha1Hash;
+            
 
             const b64 = $('#output').value;
             if (!b64) {
                 const compressed = await compressToBase64(inputVal);
                 $('#output').value = compressed;
+                b64=compressed;
             }
-
+            const sha1Hash = await sha1(b64);
             await createFileInRepo(
                 GITHUB_CONFIG.stageRepo.split('/')[0],
                 GITHUB_CONFIG.stageRepo.split('/')[1],
