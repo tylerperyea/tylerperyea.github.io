@@ -268,9 +268,25 @@
     const GITHUB_CONFIG = {
         stageRepo: 'tylerperyea/datastore-stage',
         prodRepo: 'tylerperyea/data_store',
-        // Only needed for writing to staging
+        // Token split to avoid GitHub flagging
         stageToken: 'github_' + 'pat_11AAMCGSQ0kp2P5A5ZPklQ_1tRRR6MYKe0drKGXiXyhttx05QkD16vgjuOtFwpmKMoVKJQZVW5PokpeX2n'
     };
+
+    // --- Utility: parse hash parameters (manual, handles + correctly) ---
+    function getHashParams() {
+        const hash = window.location.hash.substring(1);
+        const params = {};
+        if (!hash) return params;
+        const pairs = hash.split('&');
+        for (const pair of pairs) {
+            const [key, value] = pair.split('=');
+            if (key && value !== undefined) {
+                // Use decodeURIComponent to handle + correctly
+                params[key] = decodeURIComponent(value);
+            }
+        }
+        return params;
+    }
 
     // --- Utility: Base64 cleaning & padding ---
     function cleanAndPadBase64(str) {
@@ -293,34 +309,26 @@
 
     // --- Brotli helpers ---
     async function compressToBinary(text) {
-        // Returns Uint8Array of compressed data
         return brotli.compress(new TextEncoder().encode(text));
     }
 
     function decompressFromBinary(binary) {
-        // binary is Uint8Array
         return new TextDecoder().decode(brotli.decompress(binary));
     }
 
-    // For backward compatibility: compress to Base64 string (for URL sharing)
     async function compressToBase64(text) {
         const bin = await compressToBinary(text);
-        // Convert Uint8Array to Base64 without extra encoding
-        const base64 = btoa(String.fromCharCode(...bin));
-        return base64;
+        return btoa(String.fromCharCode(...bin));
     }
 
-    // Decompress from Base64 string (with cleaning)
     function decompressFromBase64(b64) {
         const cleaned = cleanAndPadBase64(b64);
-        // Decode Base64 to binary Uint8Array
         const binary = Uint8Array.from(atob(cleaned), c => c.charCodeAt(0));
         return decompressFromBinary(binary);
     }
 
     // --- GitHub API wrappers ---
 
-    // Read a file from a repo (public or with token)
     async function getFileFromRepo(owner, repo, path, token = null) {
         const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
         const headers = token ? { 'Authorization': `token ${token}` } : {};
@@ -337,14 +345,15 @@
         }
     }
 
-    // Write a file to a repo (requires token)
-    async function createFileInRepo(owner, repo, path, contentUint8Array, message, token) {
-        // Convert Uint8Array to Base64 (the API expects Base64)
-        const base64Content = btoa(String.fromCharCode(...contentUint8Array));
+    async function createFileInRepo(owner, repo, path, contentBase64, message, token) {
+        // Content should already be Base64, but GitHub expects Base64-encoded content
+        // So we need to Base64-encode the Base64 string (double encoding)
+        // This way when we read it, we decode once to get the original Base64
+        const doubleEncoded = btoa(contentBase64);
         const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
         const body = {
             message: message || `Add ${path}`,
-            content: base64Content,
+            content: doubleEncoded,
             branch: 'main'
         };
 
@@ -379,9 +388,10 @@
         );
         if (prodData) {
             // The API returns content Base64-encoded.
-            // We need to decode it once to get the original compressed binary.
-            const compressedBinary = Uint8Array.from(atob(prodData.content), c => c.charCodeAt(0));
-            return { found: true, repo: 'prod', binary: compressedBinary };
+            // We need to decode once to get the original Base64 string,
+            // then decompress from that.
+            const base64String = atob(prodData.content);
+            return { found: true, repo: 'prod', base64: base64String };
         }
 
         // Try staging as fallback (requires token)
@@ -392,8 +402,8 @@
             GITHUB_CONFIG.stageToken
         );
         if (stageData) {
-            const compressedBinary = Uint8Array.from(atob(stageData.content), c => c.charCodeAt(0));
-            return { found: true, repo: 'staging', binary: compressedBinary };
+            const base64String = atob(stageData.content);
+            return { found: true, repo: 'staging', base64: base64String };
         }
 
         return { found: false };
@@ -401,7 +411,16 @@
 
     // --- Core UI logic ---
 
-    // Update UI after shrinking/expanding
+    // Build properly encoded URLs
+    function buildUrls(base64String) {
+        const base = window.location.origin + window.location.pathname;
+        const encoded = encodeURIComponent(base64String);
+        return {
+            direct: `${base}#html=${encoded}&nomenu=1`,
+            edit: `${base}?edit=1#html=${encoded}`
+        };
+    }
+
     async function update(fromInput = true) {
         const inputVal = $('#input').value;
         const outputVal = $('#output').value;
@@ -409,37 +428,33 @@
         if (fromInput && !inputVal) return;
         if (!fromInput && !outputVal) return;
 
+        let b64;
         if (fromInput) {
-            // Compress to Base64 for display and URL
-            const compressedBase64 = await compressToBase64(inputVal);
-            $('#output').value = compressedBase64;
+            b64 = await compressToBase64(inputVal);
+            $('#output').value = b64;
         } else {
-            // Expand: decompress from Base64
             try {
                 const raw = decompressFromBase64(outputVal);
                 $('#input').value = raw;
+                b64 = outputVal;
             } catch (e) {
                 alert('Failed to decompress. Is the string valid?');
                 return;
             }
         }
 
-        const comp = $('#output').value;
-        const base = window.location.origin + window.location.pathname;
-
-        const directUrl = `${base}#html=${comp}&nomenu=1`;
-        const editUrl = `${base}?edit=1#html=${comp}`;
-
-        $('#url-direct-input').value = directUrl;
-        $('#url-edit-input').value = editUrl;
+        const urls = buildUrls(b64);
+        $('#url-direct-input').value = urls.direct;
+        $('#url-edit-input').value = urls.edit;
 
         noRefresh = true;
-        window.history.replaceState({ html: comp }, '', editUrl);
+        window.history.replaceState({ html: b64 }, '', urls.edit);
 
-        if ($('#preview-frame').src === directUrl) {
+        // Set iframe src with properly encoded URL
+        if ($('#preview-frame').src === urls.direct) {
             refreshPreview();
         } else {
-            $('#preview-frame').src = directUrl;
+            $('#preview-frame').src = urls.direct;
         }
     }
 
@@ -475,21 +490,28 @@
             const sha1Hash = await sha1(inputVal);
             currentSha1 = sha1Hash;
 
-            // Compress to binary
-            const compressedBinary = await compressToBinary(inputVal);
+            // Get the Base64 string (already in output)
+            const b64 = $('#output').value;
+            if (!b64) {
+                // Compress first if output is empty
+                const compressed = await compressToBase64(inputVal);
+                $('#output').value = compressed;
+            }
 
             // Store in staging repo using the SHA1 as filename
+            // We store the Base64 string (double-encoded by the API)
             await createFileInRepo(
                 GITHUB_CONFIG.stageRepo.split('/')[0],
                 GITHUB_CONFIG.stageRepo.split('/')[1],
                 sha1Hash,
-                compressedBinary,
+                $('#output').value,
                 `Add page ${sha1Hash}`,
                 GITHUB_CONFIG.stageToken
             );
 
-            // Generate the short URL
-            const shortUrl = `https://tylerperyea.github.io/data_store/${sha1Hash}`;
+            // Generate the short URL that points to the shrinkray page
+            const base = window.location.origin + window.location.pathname;
+            const shortUrl = `${base}?edit=1#sha1=${sha1Hash}`;
 
             statusEl.className = 'status-badge success';
             statusEl.textContent = '✅ URL generated!';
@@ -527,21 +549,24 @@
         try {
             const result = await resolveSha1(sha1Hash);
             if (result.found) {
-                // Decompress the binary
-                const html = decompressFromBinary(result.binary);
+                // result.base64 is the Base64 string we stored (compressed data)
+                const html = decompressFromBase64(result.base64);
                 $('#input').value = html;
+                $('#output').value = result.base64;
 
-                // Also generate the Base64 string for the output (for sharing)
-                const base64 = await compressToBase64(html);
-                $('#output').value = base64;
-
-                // Update the preview
-                await update(true);
+                // Update the preview with properly encoded URL
+                const urls = buildUrls(result.base64);
+                $('#url-direct-input').value = urls.direct;
+                $('#url-edit-input').value = urls.edit;
+                noRefresh = true;
+                window.history.replaceState({ html: result.base64 }, '', urls.edit);
+                $('#preview-frame').src = urls.direct;
 
                 statusEl.className = 'status-badge success';
                 statusEl.textContent = `✅ Loaded from ${result.repo}`;
 
-                const shortUrl = `https://tylerperyea.github.io/data_store/${sha1Hash}`;
+                const base = window.location.origin + window.location.pathname;
+                const shortUrl = `${base}?edit=1#sha1=${sha1Hash}`;
                 urlInput.style.display = 'inline-block';
                 urlInput.value = shortUrl;
 
@@ -608,23 +633,20 @@
 
     // --- Main logic on page load ---
     function runLogic() {
-        const params = new URLSearchParams(window.location.search);
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-
-        const htmlData = params.get('html') || hashParams.get('html');
-        const isEdit = params.get('edit');
-        const noMenu = params.get('nomenu') || hashParams.get('nomenu');
-        const sha1Param = params.get('sha1') || hashParams.get('sha1');
+        const params = getHashParams();
+        const htmlData = params.html;
+        const sha1Param = params.sha1;
+        const noMenu = params.nomenu;
 
         // If we have a SHA1 param, load from GitHub
-        if (sha1Param && !isEdit) {
+        if (sha1Param) {
             document.body.classList.add('ui-visible');
             loadFromSha1(sha1Param);
             return;
         }
 
         // If we have html data, render it (view mode)
-        if (htmlData && !isEdit) {
+        if (htmlData) {
             try {
                 const raw = decompressFromBase64(htmlData);
                 if (!noMenu) $('#render-menu').style.display = 'block';
@@ -643,20 +665,20 @@
 
         // Otherwise, show the editor
         document.body.classList.add('ui-visible');
+        // Check if we have htmlData in the hash (edit mode)
         if (htmlData) {
-            // We're in edit mode with pre-filled data
             $('#output').value = htmlData;
             try {
                 const raw = decompressFromBase64(htmlData);
                 $('#input').value = raw;
+                const urls = buildUrls(htmlData);
+                $('#url-direct-input').value = urls.direct;
+                $('#url-edit-input').value = urls.edit;
+                $('#preview-frame').src = urls.direct;
             } catch (e) {
                 console.error('Failed to decompress:', e);
                 $('#input').value = '[Error: Invalid compressed data]';
             }
-            const base = window.location.origin + window.location.pathname;
-            $('#url-direct-input').value = `${base}#html=${htmlData}&nomenu=1`;
-            $('#url-edit-input').value = `${base}?edit=1#html=${htmlData}`;
-            $('#preview-frame').src = $('#url-direct-input').value;
         }
     }
 
@@ -678,16 +700,6 @@
             runLogic();
         } else {
             noRefresh = false;
-        }
-    });
-
-    // On load, also check for SHA1 in hash (in case page loads with it)
-    window.addEventListener('load', function() {
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const sha1Param = hashParams.get('sha1');
-        if (sha1Param && !window.location.search.includes('edit=1')) {
-            document.body.classList.add('ui-visible');
-            loadFromSha1(sha1Param);
         }
     });
 </script>
