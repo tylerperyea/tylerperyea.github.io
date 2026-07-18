@@ -949,7 +949,7 @@
     }
 
     // --- MAIN LOGIC ---
-    function runLogic() {
+function runLogic() {
         const params = new URLSearchParams(window.location.search);
         const hashParams = getHashParams();
         
@@ -958,15 +958,43 @@
         const sha1Param = hashParams.sha1 || params.get('sha1');
         const noMenu = hashParams.nomenu || params.get('nomenu');
 
-        // If we have a SHA1 param and NOT in edit mode, load from GitHub
-        if (sha1Param && !isEdit) {
+        // If we have edit=1, ALWAYS show the editor
+        if (isEdit) {
+            document.body.classList.add('ui-visible');
+            
+            // Load content if present (sha1 takes priority over html)
+            if (sha1Param) {
+                loadFromSha1(sha1Param);
+                return;
+            }
+            
+            if (htmlData) {
+                $('#output').value = htmlData;
+                try {
+                    const raw = decompressFromBase64(htmlData);
+                    $('#input').value = raw;
+                    const urls = buildUrls(htmlData);
+                    $('#url-direct-input').value = urls.direct;
+                    $('#url-edit-input').value = urls.edit;
+                    $('#preview-frame').src = urls.direct;
+                } catch (e) {
+                    console.error('Failed to decompress:', e);
+                    $('#input').value = '[Error: Invalid compressed data]';
+                }
+            }
+            return;
+        }
+
+        // No edit=1 - pure view mode, never show editor
+        if (sha1Param) {
+            // Load from GitHub then render
             document.body.classList.add('ui-visible');
             loadFromSha1(sha1Param);
             return;
         }
 
-        // If we have html data and NOT in edit mode, render it (view mode)
-        if (htmlData && !isEdit) {
+        if (htmlData) {
+            // Direct render from Base64
             try {
                 const raw = decompressFromBase64(htmlData);
                 if (!noMenu) $('#render-menu').style.display = 'block';
@@ -983,29 +1011,9 @@
             return;
         }
 
-// Otherwise, show the editor (edit mode)
-        document.body.classList.add('ui-visible');
-        
-        // If we have a SHA1 in edit mode, load it!
-        if (sha1Param) {
-            loadFromSha1(sha1Param);
-            return;
-        }
-        
-        if (htmlData) {
-            $('#output').value = htmlData;
-            try {
-                const raw = decompressFromBase64(htmlData);
-                $('#input').value = raw;
-                const urls = buildUrls(htmlData);
-                $('#url-direct-input').value = urls.direct;
-                $('#url-edit-input').value = urls.edit;
-                $('#preview-frame').src = urls.direct;
-            } catch (e) {
-                console.error('Failed to decompress:', e);
-                $('#input').value = '[Error: Invalid compressed data]';
-            }
-        }
+        // No content! Redirect to edit mode
+        const base = window.location.origin + window.location.pathname;
+        window.location.href = base + '?edit=1';
     }
 
     // --- INIT ---
