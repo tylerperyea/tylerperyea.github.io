@@ -983,8 +983,15 @@
             return;
         }
 
-        // Otherwise, show the editor (edit mode)
+// Otherwise, show the editor (edit mode)
         document.body.classList.add('ui-visible');
+        
+        // If we have a SHA1 in edit mode, load it!
+        if (sha1Param) {
+            loadFromSha1(sha1Param);
+            return;
+        }
+        
         if (htmlData) {
             $('#output').value = htmlData;
             try {
