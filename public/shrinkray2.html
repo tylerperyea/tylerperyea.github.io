@@ -260,6 +260,7 @@
         .modal .match-info.success { background: #dcfce7; color: #166534; }
         .modal .match-info.error { background: #fee2e2; color: #991b1b; }
         .modal .match-info.warning { background: #fef08a; color: #854d0e; }
+        .modal .match-info.info { background: #dbeafe; color: #1e40af; }
     </style>
 </head>
 <body>
@@ -268,12 +269,19 @@
 <div class="modal-overlay" id="patch-modal">
     <div class="modal">
         <h2>📝 Apply Patch</h2>
-        <p>Enter a patch in FIND/REPLACE format:</p>
+        <p>Enter a patch in FIND/REPLACE format (supports multiple blocks):</p>
         <textarea id="patch-input" placeholder="&lt;&lt;&lt;FIND
 [lines to find]
 &gt;&gt;&gt;
 &lt;&lt;&lt;REPLACE
 [lines to replace with]
+&gt;&gt;&gt;
+
+&lt;&lt;&lt;FIND
+[second find block]
+&gt;&gt;&gt;
+&lt;&lt;&lt;REPLACE
+[second replace block]
 &gt;&gt;&gt;"></textarea>
         <div id="patch-preview" style="display:none;">
             <div id="patch-match-info" class="match-info"></div>
@@ -348,8 +356,16 @@
     let brotli = null;
     let noRefresh = false;
     let currentSha1 = null;
+    let pendingPatchResult = null;
 
-    // --- PATCH ENGINE ---
+    // --- GITHUB CONFIG ---
+    const GITHUB_CONFIG = {
+        stageRepo: 'tylerperyea/datastore-stage',
+        prodRepo: 'tylerperyea/data_store',
+        stageToken: 'github_' + 'pat_11AAMCGSQ0kp2P5A5ZPklQ_1tRRR6MYKe0drKGXiXyhttx05QkD16vgjuOtFwpmKMoVKJQZVW5PokpeX2n'
+    };
+
+    // --- UTILITY FUNCTIONS ---
 
     function normalizeLine(line) {
         return line.trim().replace(/\s+/g, ' ');
@@ -388,158 +404,92 @@
         return null;
     }
 
-\s*([\s\S]*?)\s*
-        const replaceMatch = patchBlock.match(/<<<REPLACE\s*([\s\S]*?)\s*>>>/);
+    // --- PATCH ENGINE (FIXED - supports multiple blocks) ---
+    function applyPatchToText(text, patchBlock) {
+        // Parse ALL patches
+        const patchRegex = /<<<FIND\s*([\s\S]*?)\s*>>>\s*<<<REPLACE\s*([\s\S]*?)\s*>>>/g;
+        let match;
+        const patches = [];
         
-        if (!findMatch || !replaceMatch) {
-            throw new Error('Invalid patch format: Missing FIND or REPLACE block');
+        // Extract all FIND/REPLACE pairs
+        while ((match = patchRegex.exec(patchBlock)) !== null) {
+            patches.push({
+                find: match[1].split('\n'),
+                replace: match[2].split('\n')
+            });
+        }
+        
+        if (patches.length === 0) {
+            throw new Error('Invalid patch format: No FIND/REPLACE blocks found');
         }
 
-        const findLines = findMatch[1].split('\n');
-        const replaceLines = replaceMatch[1].split('\n');
-        const sourceLines = text.split('\n');
+        let currentText = text;
+        let allApplied = true;
+        let lastResult = null;
+        let totalMatches = 0;
+        
+        // Apply each patch sequentially
+        for (let p = 0; p < patches.length; p++) {
+            const findLines = patches[p].find;
+            const replaceLines = patches[p].replace;
+            const sourceLines = currentText.split('\n');
 
-        // Try exact match first
-        let pos = findExactMatch(sourceLines, findLines);
-        let matchType = 'exact';
-        let ratio = 1.0;
+            // Try exact match first
+            let pos = findExactMatch(sourceLines, findLines);
+            let matchType = 'exact';
+            let ratio = 1.0;
 
-        // If exact fails, try fuzzy
-        if (pos === -1) {
-            const fuzzyResult = findFuzzyMatch(sourceLines, findLines, 0.6);
-            if (fuzzyResult) {
-                pos = fuzzyResult.position;
-                ratio = fuzzyResult.ratio;
-                matchType = 'fuzzy';
+            // If exact fails, try fuzzy
+            if (pos === -1) {
+                const fuzzyResult = findFuzzyMatch(sourceLines, findLines, 0.6);
+                if (fuzzyResult) {
+                    pos = fuzzyResult.position;
+                    ratio = fuzzyResult.ratio;
+                    matchType = 'fuzzy';
+                }
             }
-        }
 
-        if (pos === -1) {
-            return { applied: false, matchType: null, ratio: 0, message: 'No match found (exact or fuzzy)' };
-        }
+            if (pos === -1) {
+                allApplied = false;
+                return {
+                    applied: false,
+                    matchType: null,
+                    ratio: 0,
+                    message: 'Patch ' + (p + 1) + ' of ' + patches.length + ' failed: No match found (exact or fuzzy)',
+                    partialResult: currentText,
+                    patchesApplied: totalMatches,
+                    totalPatches: patches.length
+                };
+            }
 
-        // Apply replacement
-        const result = [
-            ...sourceLines.slice(0, pos),
-            ...replaceLines,
-            ...sourceLines.slice(pos + findLines.length)
-        ];
+            // Apply replacement
+            const resultLines = [
+                ...sourceLines.slice(0, pos),
+                ...replaceLines,
+                ...sourceLines.slice(pos + findLines.length)
+            ];
+            
+            currentText = resultLines.join('\n');
+            totalMatches++;
+            lastResult = {
+                matchType: matchType,
+                ratio: ratio,
+                matchLine: pos + 1
+            };
+        }
 
         return {
             applied: true,
-            matchType: matchType,
-            ratio: ratio,
-            result: result.join('\n'),
-            matchLine: pos + 1,
-            context: sourceLines.slice(Math.max(0, pos - 2), Math.min(sourceLines.length, pos + findLines.length + 2))
+            matchType: lastResult ? lastResult.matchType : 'exact',
+            ratio: lastResult ? lastResult.ratio : 1.0,
+            result: currentText,
+            matchLine: lastResult ? lastResult.matchLine : 0,
+            patchesApplied: totalMatches,
+            totalPatches: patches.length
         };
     }
 
-    // --- MODAL FUNCTIONS ---
-
-    let pendingPatchResult = null;
-
-function openPatchModal() {
-        const modal = document.getElementById('patch-modal');
-        modal.classList.add('active');
-        document.getElementById('patch-input').value = '';
-        document.getElementById('patch-preview').style.display = 'none';
-        document.getElementById('patch-apply-btn').disabled = true;
-        document.getElementById('patch-input').focus();
-        // Clear any previous status
-        const statusEl = document.getElementById('short-url-status');
-        statusEl.style.display = 'none';
-    }
-
-    function closePatchModal() {
-        document.getElementById('patch-modal').classList.remove('active');
-        pendingPatchResult = null;
-    }
-
-function previewPatch() {
-        const input = document.getElementById('patch-input').value;
-        if (!input.trim()) {
-            document.getElementById('patch-preview').style.display = 'none';
-            document.getElementById('patch-apply-btn').disabled = true;
-            return;
-        }
-
-        const currentHTML = document.getElementById('input').value;
-        try {
-            const result = applyPatchToText(currentHTML, input);
-            pendingPatchResult = result;
-
-            const previewDiv = document.getElementById('patch-preview');
-            const infoDiv = document.getElementById('patch-match-info');
-            const contentDiv = document.getElementById('patch-preview-content');
-
-            previewDiv.style.display = 'block';
-
-            if (result.applied) {
-                infoDiv.className = 'match-info success';
-                infoDiv.innerHTML = `
-                    ✅ Match found! (${result.matchType} match, ${Math.round(result.ratio * 100)}% confidence)<br>
-                    Located at line ${result.matchLine}
-                `;
-                // Show diff preview
-                const lines = result.result.split('\n');
-                const previewLines = lines.slice(Math.max(0, result.matchLine - 5), Math.min(lines.length, result.matchLine + 15));
-                contentDiv.textContent = previewLines.map((line, i) => {
-                    const lineNum = result.matchLine - 5 + i;
-                    return `${String(lineNum).padStart(4, ' ')}: ${line}`;
-                }).join('\n');
-                document.getElementById('patch-apply-btn').disabled = false;
-            } else {
-                infoDiv.className = 'match-info error';
-                infoDiv.textContent = `❌ ${result.message}`;
-                contentDiv.textContent = '';
-                document.getElementById('patch-apply-btn').disabled = true;
-            }
-        } catch (e) {
-            const infoDiv = document.getElementById('patch-match-info');
-            infoDiv.className = 'match-info error';
-            infoDiv.textContent = `❌ Error: ${e.message}`;
-            document.getElementById('patch-apply-btn').disabled = true;
-            document.getElementById('patch-preview').style.display = 'block';
-        }
-    }
-
-function applyPatchAndClose() {
-        if (!pendingPatchResult || !pendingPatchResult.applied) return;
-        
-        // Apply the patch to the textarea content
-        document.getElementById('input').value = pendingPatchResult.result;
-        // Re-shrink to update the compressed output and preview
-        update(true);
-        
-        // Close the modal
-        closePatchModal();
-        
-        // Show success message
-        const statusEl = document.getElementById('short-url-status');
-        statusEl.style.display = 'inline-block';
-        statusEl.className = 'status-badge success';
-        statusEl.textContent = '✅ Patch applied! Content updated.';
-    }
-
-    // Auto-preview on input change
-    document.addEventListener('DOMContentLoaded', function() {
-        const patchInput = document.getElementById('patch-input');
-        if (patchInput) {
-            patchInput.addEventListener('input', previewPatch);
-        }
-    });
-
-    // --- GITHUB CONFIG ---
-
-    const GITHUB_CONFIG = {
-        stageRepo: 'tylerperyea/datastore-stage',
-        prodRepo: 'tylerperyea/data_store',
-        stageToken: 'github_' + 'pat_11AAMCGSQ0kp2P5A5ZPklQ_1tRRR6MYKe0drKGXiXyhttx05QkD16vgjuOtFwpmKMoVKJQZVW5PokpeX2n'
-    };
-
-    // --- HASH PARSING ---
-
+    // --- HASH PARSING (manual, handles + correctly) ---
     function getHashParams() {
         const hash = window.location.hash.substring(1);
         const params = {};
@@ -591,7 +541,6 @@ function applyPatchAndClose() {
     }
 
     // --- GITHUB API WRAPPERS ---
-
     async function getFileFromRepo(owner, repo, path, token = null) {
         const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
         const headers = token ? { 'Authorization': `token ${token}` } : {};
@@ -718,7 +667,6 @@ function applyPatchAndClose() {
     }
 
     // --- SHORT URL GENERATION ---
-
     async function generateShortUrl() {
         const inputVal = $('#input').value;
         if (!inputVal) {
@@ -734,8 +682,8 @@ function applyPatchAndClose() {
         statusEl.textContent = '⏳ Processing...';
         urlInput.style.display = 'none';
 
-        const oldCopy = document.querySelector('.short-url-section .copy-btn');
-        if (oldCopy) oldCopy.remove();
+        const oldCopy = document.querySelectorAll('.short-url-section .copy-btn');
+        oldCopy.forEach(b => b.remove());
 
         try {
             const sha1Hash = await sha1(inputVal);
@@ -807,7 +755,6 @@ function applyPatchAndClose() {
     }
 
     // --- LOAD FROM SHA1 ---
-
     async function loadFromSha1(sha1Hash) {
         const statusEl = document.getElementById('short-url-status');
         const urlInput = document.getElementById('short-url-input');
@@ -856,8 +803,104 @@ function applyPatchAndClose() {
         }
     }
 
-    // --- CLEAR ---
+    // --- PATCH MODAL FUNCTIONS ---
 
+    function openPatchModal() {
+        const modal = document.getElementById('patch-modal');
+        modal.classList.add('active');
+        document.getElementById('patch-input').value = '';
+        document.getElementById('patch-preview').style.display = 'none';
+        document.getElementById('patch-apply-btn').disabled = true;
+        document.getElementById('patch-input').focus();
+        // Clear any previous status
+        const statusEl = document.getElementById('short-url-status');
+        statusEl.style.display = 'none';
+    }
+
+    function closePatchModal() {
+        document.getElementById('patch-modal').classList.remove('active');
+        pendingPatchResult = null;
+    }
+
+    function previewPatch() {
+        const input = document.getElementById('patch-input').value;
+        if (!input.trim()) {
+            document.getElementById('patch-preview').style.display = 'none';
+            document.getElementById('patch-apply-btn').disabled = true;
+            return;
+        }
+
+        // Patch the textarea content, not the page!
+        const currentHTML = document.getElementById('input').value;
+        try {
+            const result = applyPatchToText(currentHTML, input);
+            pendingPatchResult = result;
+
+            const previewDiv = document.getElementById('patch-preview');
+            const infoDiv = document.getElementById('patch-match-info');
+            const contentDiv = document.getElementById('patch-preview-content');
+
+            previewDiv.style.display = 'block';
+
+            if (result.applied) {
+                const patchCount = result.patchesApplied || 1;
+                const totalCount = result.totalPatches || 1;
+                infoDiv.className = 'match-info success';
+                infoDiv.innerHTML = `
+                    ✅ ${patchCount} of ${totalCount} patches applied!<br>
+                    Match type: ${result.matchType} (${Math.round(result.ratio * 100)}% confidence)<br>
+                    Located at line ${result.matchLine}
+                `;
+                // Show preview of changes
+                const lines = result.result.split('\n');
+                const previewLines = lines.slice(Math.max(0, result.matchLine - 5), Math.min(lines.length, result.matchLine + 15));
+                contentDiv.textContent = previewLines.map((line, i) => {
+                    const lineNum = result.matchLine - 5 + i;
+                    return `${String(lineNum).padStart(4, ' ')}: ${line}`;
+                }).join('\n');
+                document.getElementById('patch-apply-btn').disabled = false;
+            } else {
+                infoDiv.className = 'match-info error';
+                infoDiv.textContent = `❌ ${result.message}`;
+                contentDiv.textContent = '';
+                document.getElementById('patch-apply-btn').disabled = true;
+            }
+        } catch (e) {
+            const infoDiv = document.getElementById('patch-match-info');
+            infoDiv.className = 'match-info error';
+            infoDiv.textContent = `❌ Error: ${e.message}`;
+            document.getElementById('patch-apply-btn').disabled = true;
+            document.getElementById('patch-preview').style.display = 'block';
+        }
+    }
+
+    function applyPatchAndClose() {
+        if (!pendingPatchResult || !pendingPatchResult.applied) return;
+        
+        // Apply the patch to the textarea content
+        document.getElementById('input').value = pendingPatchResult.result;
+        // Re-shrink to update the compressed output and preview
+        update(true);
+        
+        // Close the modal
+        closePatchModal();
+        
+        // Show success message
+        const statusEl = document.getElementById('short-url-status');
+        statusEl.style.display = 'inline-block';
+        statusEl.className = 'status-badge success';
+        statusEl.textContent = '✅ Patch applied! Content updated.';
+    }
+
+    // Auto-preview on input change
+    document.addEventListener('DOMContentLoaded', function() {
+        const patchInput = document.getElementById('patch-input');
+        if (patchInput) {
+            patchInput.addEventListener('input', previewPatch);
+        }
+    });
+
+    // --- CLEAR ---
     function clearAll() {
         if (confirm("Clear everything and start fresh?")) {
             $('#input').value = '';
@@ -875,7 +918,6 @@ function applyPatchAndClose() {
     }
 
     // --- DOWNLOAD ---
-
     function downloadSelf() {
         const comp = $('#output').value;
         if (!comp) return alert("Shrink something first!");
@@ -890,7 +932,6 @@ function applyPatchAndClose() {
     }
 
     // --- UI HELPERS ---
-
     function toggleFS() {
         document.body.classList.toggle('preview-fs');
         $('#fs-btn').innerText = document.body.classList.contains('preview-fs') ? "Exit Fullscreen" : "Fullscreen";
@@ -908,20 +949,24 @@ function applyPatchAndClose() {
     }
 
     // --- MAIN LOGIC ---
-
     function runLogic() {
-        const params = getHashParams();
-        const htmlData = params.html;
-        const sha1Param = params.sha1;
-        const noMenu = params.nomenu;
+        const params = new URLSearchParams(window.location.search);
+        const hashParams = getHashParams();
+        
+        const isEdit = params.get('edit') !== null;
+        const htmlData = hashParams.html || params.get('html');
+        const sha1Param = hashParams.sha1 || params.get('sha1');
+        const noMenu = hashParams.nomenu || params.get('nomenu');
 
-        if (sha1Param) {
+        // If we have a SHA1 param and NOT in edit mode, load from GitHub
+        if (sha1Param && !isEdit) {
             document.body.classList.add('ui-visible');
             loadFromSha1(sha1Param);
             return;
         }
 
-        if (htmlData) {
+        // If we have html data and NOT in edit mode, render it (view mode)
+        if (htmlData && !isEdit) {
             try {
                 const raw = decompressFromBase64(htmlData);
                 if (!noMenu) $('#render-menu').style.display = 'block';
@@ -938,6 +983,7 @@ function applyPatchAndClose() {
             return;
         }
 
+        // Otherwise, show the editor (edit mode)
         document.body.classList.add('ui-visible');
         if (htmlData) {
             $('#output').value = htmlData;
@@ -956,7 +1002,6 @@ function applyPatchAndClose() {
     }
 
     // --- INIT ---
-
     import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
         .then(m => m.default)
         .then(b => {
