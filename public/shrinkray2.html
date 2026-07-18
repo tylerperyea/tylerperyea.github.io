@@ -441,13 +441,16 @@
 
     let pendingPatchResult = null;
 
-    function openPatchModal() {
+function openPatchModal() {
         const modal = document.getElementById('patch-modal');
         modal.classList.add('active');
         document.getElementById('patch-input').value = '';
         document.getElementById('patch-preview').style.display = 'none';
         document.getElementById('patch-apply-btn').disabled = true;
         document.getElementById('patch-input').focus();
+        // Clear any previous status
+        const statusEl = document.getElementById('short-url-status');
+        statusEl.style.display = 'none';
     }
 
     function closePatchModal() {
@@ -503,17 +506,22 @@ function previewPatch() {
         }
     }
 
-    function applyPatchAndClose() {
+function applyPatchAndClose() {
         if (!pendingPatchResult || !pendingPatchResult.applied) return;
         
-        // Apply the patch by replacing the entire document
-        document.open();
-        document.write(pendingPatchResult.result);
-        document.close();
+        // Apply the patch to the textarea content
+        document.getElementById('input').value = pendingPatchResult.result;
+        // Re-shrink to update the compressed output and preview
+        update(true);
         
+        // Close the modal
         closePatchModal();
-        // Reload to reinitialize
-        location.reload();
+        
+        // Show success message
+        const statusEl = document.getElementById('short-url-status');
+        statusEl.style.display = 'inline-block';
+        statusEl.className = 'status-badge success';
+        statusEl.textContent = '✅ Patch applied! Content updated.';
     }
 
     // Auto-preview on input change
