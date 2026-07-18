@@ -455,7 +455,7 @@
         pendingPatchResult = null;
     }
 
-    function previewPatch() {
+function previewPatch() {
         const input = document.getElementById('patch-input').value;
         if (!input.trim()) {
             document.getElementById('patch-preview').style.display = 'none';
@@ -463,7 +463,7 @@
             return;
         }
 
-        const currentHTML = document.documentElement.outerHTML;
+        const currentHTML = document.getElementById('input').value;
         try {
             const result = applyPatchToText(currentHTML, input);
             pendingPatchResult = result;
