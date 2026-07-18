@@ -313,13 +313,34 @@
     }
 
     function decompress(b64) {
-        // Clean up any whitespace or URL-encoded characters
-        const cleanedB64 = b64.replace(/ /g, "+").replace(/-/g, '+').replace(/_/g, '/');
+        // Clean up any whitespace, URL-safe chars, and add padding if needed
+        const cleaned = cleanAndPadBase64(b64);
         try {
-            return (new TextDecoder()).decode(brotli.decompress(Uint8Array.from(atob(cleanedB64), c => c.charCodeAt(0))));
+            return (new TextDecoder()).decode(brotli.decompress(Uint8Array.from(atob(cleaned), c => c.charCodeAt(0))));
         } catch (e) {
             console.error('Decompression error:', e);
             throw new Error('Invalid compressed data');
+        }
+    }
+
+    // Helper: clean whitespace, convert URL-safe chars, and add padding
+    function cleanAndPadBase64(str) {
+        let cleaned = str.replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
+        // Add padding if needed
+        while (cleaned.length % 4 !== 0) {
+            cleaned += '=';
+        }
+        return cleaned;
+    }
+
+    // Validate Base64 and return cleaned string
+    function validateAndCleanBase64(str) {
+        const cleaned = cleanAndPadBase64(str);
+        try {
+            atob(cleaned);
+            return cleaned;
+        } catch (e) {
+            throw new Error('Content is not valid Base64');
         }
     }
 
@@ -343,22 +364,13 @@
     }
 
     async function createFileInRepo(owner, repo, path, content, message, token) {
+        // Validate and clean the Base64 content
+        const cleanedContent = validateAndCleanBase64(content);
+        
         const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-        
-        // Ensure content is valid base64
-        // Remove any whitespace or special characters
-        const cleanContent = content.replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
-        
-        // Verify it's valid base64
-        try {
-            atob(cleanContent);
-        } catch (e) {
-            throw new Error('Content is not valid Base64');
-        }
-        
         const body = {
             message: message || `Add ${path}`,
-            content: cleanContent,
+            content: cleanedContent,
             branch: 'main'
         };
 
@@ -453,20 +465,25 @@
             currentSha1 = await sha1(inputVal);
             currentBase64 = outputVal;
 
-            // Verify the base64 is valid before trying to upload
-            try {
-                const cleanB64 = outputVal.replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
-                atob(cleanB64);
-            } catch (e) {
-                throw new Error('Invalid base64 data in compressed output. Please try shrinking again.');
-            }
+            // Validate and clean the Base64 (will throw if invalid)
+            const cleanedBase64 = validateAndCleanBase64(outputVal);
+            // Update output with cleaned version (remove spaces, add padding)
+            $('#output').value = cleanedBase64;
+            // Also update the URL fields to use cleaned version
+            const base = window.location.origin + window.location.pathname;
+            const directUrl = `${base}#html=${cleanedBase64}&nomenu=1`;
+            const editUrl = `${base}?edit=1#html=${cleanedBase64}`;
+            $('#url-direct-input').value = directUrl;
+            $('#url-edit-input').value = editUrl;
+            // Update the preview iframe src
+            $('#preview-frame').src = directUrl;
 
             // Store in staging repo with SHA1 as filename
-            const result = await createFileInRepo(
+            await createFileInRepo(
                 GITHUB_CONFIG.stageRepo.split('/')[0],
                 GITHUB_CONFIG.stageRepo.split('/')[1],
-                currentSha1, // Filename is just the SHA1
-                outputVal,    // Content is the base64 compressed data
+                currentSha1,
+                cleanedBase64,
                 `Add page ${currentSha1}`,
                 GITHUB_CONFIG.stageToken
             );
@@ -698,7 +715,6 @@
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const sha1Param = hashParams.get('sha1');
         if (sha1Param) {
-            // We're loading from SHA1
             document.body.classList.add('ui-visible');
             loadFromSha1(sha1Param);
         }
