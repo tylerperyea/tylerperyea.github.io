@@ -270,6 +270,7 @@
     const GITHUB_CONFIG = {
         stageRepo: 'tylerperyea/datastore-stage',
         prodRepo: 'tylerperyea/data_store',
+        // Token 2 - Write to staging (can be public)
         stageToken: 'github_' + 'pat_11AAMCGSQ0kp2P5A5ZPklQ_1tRRR6MYKe0drKGXiXyhttx05QkD16vgjuOtFwpmKMoVKJQZVW5PokpeX2n'
     };
 
@@ -312,8 +313,14 @@
     }
 
     function decompress(b64) {
-        const cleanedB64 = b64.replace(/ /g, "+");
-        return (new TextDecoder()).decode(brotli.decompress(Uint8Array.from(atob(cleanedB64), c => c.charCodeAt(0))));
+        // Clean up any whitespace or URL-encoded characters
+        const cleanedB64 = b64.replace(/ /g, "+").replace(/-/g, '+').replace(/_/g, '/');
+        try {
+            return (new TextDecoder()).decode(brotli.decompress(Uint8Array.from(atob(cleanedB64), c => c.charCodeAt(0))));
+        } catch (e) {
+            console.error('Decompression error:', e);
+            throw new Error('Invalid compressed data');
+        }
     }
 
     // GitHub API Functions
@@ -337,9 +344,21 @@
 
     async function createFileInRepo(owner, repo, path, content, message, token) {
         const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+        
+        // Ensure content is valid base64
+        // Remove any whitespace or special characters
+        const cleanContent = content.replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
+        
+        // Verify it's valid base64
+        try {
+            atob(cleanContent);
+        } catch (e) {
+            throw new Error('Content is not valid Base64');
+        }
+        
         const body = {
             message: message || `Add ${path}`,
-            content: content,
+            content: cleanContent,
             branch: 'main'
         };
 
@@ -425,13 +444,25 @@
         statusEl.textContent = '⏳ Processing...';
         urlInput.style.display = 'none';
 
+        // Remove old copy button
+        const oldCopy = document.querySelector('.short-url-section .copy-btn');
+        if (oldCopy) oldCopy.remove();
+
         try {
             // Compute SHA1 of the raw HTML
             currentSha1 = await sha1(inputVal);
             currentBase64 = outputVal;
 
+            // Verify the base64 is valid before trying to upload
+            try {
+                const cleanB64 = outputVal.replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
+                atob(cleanB64);
+            } catch (e) {
+                throw new Error('Invalid base64 data in compressed output. Please try shrinking again.');
+            }
+
             // Store in staging repo with SHA1 as filename
-            await createFileInRepo(
+            const result = await createFileInRepo(
                 GITHUB_CONFIG.stageRepo.split('/')[0],
                 GITHUB_CONFIG.stageRepo.split('/')[1],
                 currentSha1, // Filename is just the SHA1
@@ -451,7 +482,7 @@
             
             // Add copy button
             const copyBtn = document.createElement('button');
-            copyBtn.className = 'sm';
+            copyBtn.className = 'sm copy-btn';
             copyBtn.textContent = '📋 Copy';
             copyBtn.onclick = () => {
                 navigator.clipboard.writeText(shortUrl);
@@ -459,18 +490,10 @@
                 setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
             };
             
-            // Remove old copy button if exists
-            const oldCopy = document.querySelector('.short-url-section .copy-btn');
-            if (oldCopy) oldCopy.remove();
-            
-            copyBtn.className += ' copy-btn';
             document.querySelector('.short-url-section').appendChild(copyBtn);
 
-            // Try to preload the content in the preview
-            // The sync bot will move it to prod, but we can still show it from staging
-            const previewUrl = `https://tylerperyea.github.io/data_store/${currentSha1}`;
             console.log('Short URL generated:', shortUrl);
-            console.log('Preview URL:', previewUrl);
+            console.log('File stored in staging with SHA1:', currentSha1);
 
         } catch (error) {
             statusEl.className = 'status-badge error';
@@ -494,11 +517,17 @@
             if (result.found) {
                 // Found the content
                 const content = result.content;
-                const decoded = atob(content);
                 
-                // Set the output and input
+                // Set the output (keep as base64)
                 $('#output').value = content;
-                $('#input').value = decoded;
+                
+                // Decode and set the input
+                try {
+                    const decoded = decompress(content);
+                    $('#input').value = decoded;
+                } catch (e) {
+                    throw new Error('Failed to decompress content');
+                }
                 
                 // Update the preview
                 await update(true);
@@ -649,8 +678,13 @@
             document.body.classList.add('ui-visible');
             if (htmlData) {
                 $('#output').value = htmlData;
-                const raw = decompress(htmlData);
-                $('#input').value = raw;
+                try {
+                    const raw = decompress(htmlData);
+                    $('#input').value = raw;
+                } catch (e) {
+                    console.error('Failed to decompress:', e);
+                    $('#input').value = '[Error: Invalid compressed data]';
+                }
                 const base = window.location.origin + window.location.pathname;
                 $('#url-direct-input').value = `${base}#html=${htmlData}&nomenu=1`;
                 $('#url-edit-input').value = `${base}?edit=1#html=${htmlData}`;
