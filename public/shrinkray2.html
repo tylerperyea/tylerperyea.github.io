@@ -754,8 +754,8 @@
         }
     }
 
-    // --- LOAD FROM SHA1 ---
-    async function loadFromSha1(sha1Hash) {
+// --- LOAD FROM SHA1 ---
+    async function loadFromSha1(sha1Hash, isEditMode = false) {
         const statusEl = document.getElementById('short-url-status');
         const urlInput = document.getElementById('short-url-input');
 
@@ -767,27 +767,47 @@
             const result = await resolveSha1(sha1Hash);
             if (result.found) {
                 const html = decompressFromBase64(result.base64);
-                $('#input').value = html;
-                $('#output').value = result.base64;
-
-                const urls = buildUrls(result.base64);
-                $('#url-direct-input').value = urls.direct;
-                
-                // Update edit URL to use SHA1
                 const base = window.location.origin + window.location.pathname;
-                const editUrl = `${base}?edit=1#sha1=${sha1Hash}`;
-                $('#url-edit-input').value = editUrl;
                 
-                noRefresh = true;
-                window.history.replaceState({ sha1: sha1Hash }, '', editUrl);
-                $('#preview-frame').src = urls.direct;
+                if (isEditMode) {
+                    // Edit mode: load into textareas and show editor
+                    $('#input').value = html;
+                    $('#output').value = result.base64;
 
-                statusEl.className = 'status-badge success';
-                statusEl.textContent = `✅ Loaded from ${result.repo}`;
+                    const urls = buildUrls(result.base64);
+                    $('#url-direct-input').value = urls.direct;
+                    
+                    const editUrl = `${base}?edit=1#sha1=${sha1Hash}`;
+                    $('#url-edit-input').value = editUrl;
+                    
+                    noRefresh = true;
+                    window.history.replaceState({ sha1: sha1Hash }, '', editUrl);
+                    $('#preview-frame').src = urls.direct;
 
-                const shortUrl = `${base}?edit=1#sha1=${sha1Hash}`;
-                urlInput.style.display = 'inline-block';
-                urlInput.value = shortUrl;
+                    const shortUrl = `${base}?edit=1#sha1=${sha1Hash}`;
+                    urlInput.style.display = 'inline-block';
+                    urlInput.value = shortUrl;
+                    
+                    statusEl.className = 'status-badge success';
+                    statusEl.textContent = `✅ Loaded from ${result.repo}`;
+                } else {
+                    // View mode: render directly, no editor
+                    document.body.classList.remove('ui-visible');
+                    document.open();
+                    document.write(html);
+                    document.close();
+                    
+                    // Show render menu if needed
+                    const params = new URLSearchParams(window.location.search);
+                    const hashParams = getHashParams();
+                    if (!hashParams.nomenu && !params.get('nomenu')) {
+                        $('#render-menu').style.display = 'block';
+                    }
+                    
+                    // Don't rewrite the URL - keep the view URL
+                    statusEl.className = 'status-badge success';
+                    statusEl.textContent = `✅ Loaded from ${result.repo}`;
+                }
 
                 return true;
             } else {
@@ -963,8 +983,8 @@ function runLogic() {
             document.body.classList.add('ui-visible');
             
             // Load content if present (sha1 takes priority over html)
-            if (sha1Param) {
-                loadFromSha1(sha1Param);
+if (sha1Param) {
+                loadFromSha1(sha1Param, true); // Edit mode
                 return;
             }
             
@@ -986,10 +1006,9 @@ function runLogic() {
         }
 
         // No edit=1 - pure view mode, never show editor
-        if (sha1Param) {
-            // Load from GitHub then render
-            document.body.classList.add('ui-visible');
-            loadFromSha1(sha1Param);
+if (sha1Param) {
+            // Load from GitHub then render (view mode)
+            loadFromSha1(sha1Param, false); // View mode
             return;
         }
 
