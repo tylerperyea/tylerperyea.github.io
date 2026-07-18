@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>HTML Shrinkray</title>
+    <title>HTML Shrinkray v3</title>
     <style>
         :root {
             --bg: #f8fafc;
@@ -26,7 +26,6 @@
 
         body.ui-visible { display: flex; flex-direction: column; }
 
-        /* Fullscreen Preview Logic */
         body.preview-fs .main-container { display: block; padding: 0; }
         body.preview-fs .panel:not(.preview-panel), 
         body.preview-fs header, 
@@ -209,7 +208,7 @@
 
 <div id="ui-container" style="display: contents;">
     <header>
-        <div style="font-weight: 900; color: var(--primary); flex-shrink:0;">HTML SHRINKRAY</div>
+        <div style="font-weight: 900; color: var(--primary); flex-shrink:0;">HTML SHRINKRAY v3</div>
         
         <div class="url-box">
             <span style="font-size: 10px; font-weight: bold; flex-shrink:0;">SHARE EDIT</span>
@@ -240,7 +239,7 @@
         </div>
 
         <div class="panel">
-            <div class="panel-header">Compressed String</div>
+            <div class="panel-header">Compressed String (Base64)</div>
             <textarea id="output" placeholder="Compressed string..."></textarea>
         </div>
 
@@ -264,67 +263,18 @@
     let brotli = null;
     let noRefresh = false;
     let currentSha1 = null;
-    let currentBase64 = null;
 
-    // GitHub Configuration - Update these!
+    // GitHub Configuration
     const GITHUB_CONFIG = {
         stageRepo: 'tylerperyea/datastore-stage',
         prodRepo: 'tylerperyea/data_store',
-        // Token 2 - Write to staging (can be public)
+        // Only needed for writing to staging
         stageToken: 'github_' + 'pat_11AAMCGSQ0kp2P5A5ZPklQ_1tRRR6MYKe0drKGXiXyhttx05QkD16vgjuOtFwpmKMoVKJQZVW5PokpeX2n'
     };
 
-    // SHA1 utility
-    async function sha1(message) {
-        const msgBuffer = new TextEncoder().encode(message);
-        const hashBuffer = await crypto.subtle.digest('SHA-1', msgBuffer);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    // Listener for the Editor UI
-    window.addEventListener('hashchange', function() {
-        if(!noRefresh){
-            runLogic();
-        } else {
-            noRefresh = false;
-        }
-    });
-
-    import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
-        .then(m => m.default)
-        .then(b => {
-            brotli = b;
-            runLogic();
-        });
-
-    async function bufferToBase64(buffer) {
-        const base64url = await new Promise(r => {
-            const reader = new FileReader();
-            reader.onload = () => r(reader.result);
-            reader.readAsDataURL(new Blob([buffer]));
-        });
-        return base64url.slice(base64url.indexOf(',') + 1);
-    }
-
-    async function compress(text) {
-        const compressedData = brotli.compress(new TextEncoder().encode(text));
-        return await bufferToBase64(compressedData);
-    }
-
-    function decompress(b64) {
-        // Clean up any whitespace, URL-safe chars, and add padding if needed
-        const cleaned = cleanAndPadBase64(b64);
-        try {
-            return (new TextDecoder()).decode(brotli.decompress(Uint8Array.from(atob(cleaned), c => c.charCodeAt(0))));
-        } catch (e) {
-            console.error('Decompression error:', e);
-            throw new Error('Invalid compressed data');
-        }
-    }
-
-    // Helper: clean whitespace, convert URL-safe chars, and add padding
+    // --- Utility: Base64 cleaning & padding ---
     function cleanAndPadBase64(str) {
+        // Remove whitespace, convert URL-safe chars
         let cleaned = str.replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
         // Add padding if needed
         while (cleaned.length % 4 !== 0) {
@@ -333,44 +283,68 @@
         return cleaned;
     }
 
-    // Validate Base64 and return cleaned string
-    function validateAndCleanBase64(str) {
-        const cleaned = cleanAndPadBase64(str);
-        try {
-            atob(cleaned);
-            return cleaned;
-        } catch (e) {
-            throw new Error('Content is not valid Base64');
-        }
+    // --- SHA1 ---
+    async function sha1(message) {
+        const msgBuffer = new TextEncoder().encode(message);
+        const hashBuffer = await crypto.subtle.digest('SHA-1', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // GitHub API Functions
+    // --- Brotli helpers ---
+    async function compressToBinary(text) {
+        // Returns Uint8Array of compressed data
+        return brotli.compress(new TextEncoder().encode(text));
+    }
+
+    function decompressFromBinary(binary) {
+        // binary is Uint8Array
+        return new TextDecoder().decode(brotli.decompress(binary));
+    }
+
+    // For backward compatibility: compress to Base64 string (for URL sharing)
+    async function compressToBase64(text) {
+        const bin = await compressToBinary(text);
+        // Convert Uint8Array to Base64 without extra encoding
+        const base64 = btoa(String.fromCharCode(...bin));
+        return base64;
+    }
+
+    // Decompress from Base64 string (with cleaning)
+    function decompressFromBase64(b64) {
+        const cleaned = cleanAndPadBase64(b64);
+        // Decode Base64 to binary Uint8Array
+        const binary = Uint8Array.from(atob(cleaned), c => c.charCodeAt(0));
+        return decompressFromBinary(binary);
+    }
+
+    // --- GitHub API wrappers ---
+
+    // Read a file from a repo (public or with token)
     async function getFileFromRepo(owner, repo, path, token = null) {
         const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
         const headers = token ? { 'Authorization': `token ${token}` } : {};
-        
         try {
             const response = await fetch(url, { headers });
             if (!response.ok) {
                 if (response.status === 404) return null;
                 throw new Error(`GitHub API error: ${response.status}`);
             }
-            const data = await response.json();
-            return data;
+            return await response.json();
         } catch (error) {
             console.error('Error fetching from GitHub:', error);
             return null;
         }
     }
 
-    async function createFileInRepo(owner, repo, path, content, message, token) {
-        // Validate and clean the Base64 content
-        const cleanedContent = validateAndCleanBase64(content);
-        
+    // Write a file to a repo (requires token)
+    async function createFileInRepo(owner, repo, path, contentUint8Array, message, token) {
+        // Convert Uint8Array to Base64 (the API expects Base64)
+        const base64Content = btoa(String.fromCharCode(...contentUint8Array));
         const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
         const body = {
             message: message || `Add ${path}`,
-            content: cleanedContent,
+            content: base64Content,
             branch: 'main'
         };
 
@@ -388,7 +362,6 @@
                 const errorData = await response.json();
                 throw new Error(`Failed to create file: ${response.status} - ${errorData.message}`);
             }
-            
             return await response.json();
         } catch (error) {
             console.error('Error creating file:', error);
@@ -396,207 +369,73 @@
         }
     }
 
+    // --- Resolve SHA1: try prod, then staging ---
     async function resolveSha1(sha1Hash) {
-        // Try prod first
+        // Try prod first (no token needed)
         const prodData = await getFileFromRepo(
             GITHUB_CONFIG.prodRepo.split('/')[0],
             GITHUB_CONFIG.prodRepo.split('/')[1],
             sha1Hash
         );
-        
         if (prodData) {
-            return { 
-                found: true, 
-                repo: 'prod', 
-                content: prodData.content,
-                sha: prodData.sha
-            };
+            // The API returns content Base64-encoded.
+            // We need to decode it once to get the original compressed binary.
+            const compressedBinary = Uint8Array.from(atob(prodData.content), c => c.charCodeAt(0));
+            return { found: true, repo: 'prod', binary: compressedBinary };
         }
 
-        // Try staging as fallback
+        // Try staging as fallback (requires token)
         const stageData = await getFileFromRepo(
             GITHUB_CONFIG.stageRepo.split('/')[0],
             GITHUB_CONFIG.stageRepo.split('/')[1],
             sha1Hash,
             GITHUB_CONFIG.stageToken
         );
-        
         if (stageData) {
-            return { 
-                found: true, 
-                repo: 'staging', 
-                content: stageData.content,
-                sha: stageData.sha
-            };
+            const compressedBinary = Uint8Array.from(atob(stageData.content), c => c.charCodeAt(0));
+            return { found: true, repo: 'staging', binary: compressedBinary };
         }
 
         return { found: false };
     }
 
-    // Main functions
-    async function generateShortUrl() {
-        const outputVal = $('#output').value;
-        if (!outputVal) {
-            alert('Please shrink some HTML first!');
-            return;
-        }
+    // --- Core UI logic ---
 
-        const inputVal = $('#input').value;
-        if (!inputVal) {
-            alert('No HTML content to store!');
-            return;
-        }
-
-        const statusEl = document.getElementById('short-url-status');
-        const urlInput = document.getElementById('short-url-input');
-        
-        // Show loading
-        statusEl.style.display = 'inline-block';
-        statusEl.className = 'status-badge loading';
-        statusEl.textContent = '⏳ Processing...';
-        urlInput.style.display = 'none';
-
-        // Remove old copy button
-        const oldCopy = document.querySelector('.short-url-section .copy-btn');
-        if (oldCopy) oldCopy.remove();
-
-        try {
-            // Compute SHA1 of the raw HTML
-            currentSha1 = await sha1(inputVal);
-            currentBase64 = outputVal;
-
-            // Validate and clean the Base64 (will throw if invalid)
-            const cleanedBase64 = validateAndCleanBase64(outputVal);
-            // Update output with cleaned version (remove spaces, add padding)
-            $('#output').value = cleanedBase64;
-            // Also update the URL fields to use cleaned version
-            const base = window.location.origin + window.location.pathname;
-            const directUrl = `${base}#html=${cleanedBase64}&nomenu=1`;
-            const editUrl = `${base}?edit=1#html=${cleanedBase64}`;
-            $('#url-direct-input').value = directUrl;
-            $('#url-edit-input').value = editUrl;
-            // Update the preview iframe src
-            $('#preview-frame').src = directUrl;
-
-            // Store in staging repo with SHA1 as filename
-            await createFileInRepo(
-                GITHUB_CONFIG.stageRepo.split('/')[0],
-                GITHUB_CONFIG.stageRepo.split('/')[1],
-                currentSha1,
-                cleanedBase64,
-                `Add page ${currentSha1}`,
-                GITHUB_CONFIG.stageToken
-            );
-
-            // Generate the short URL
-            const shortUrl = `https://tylerperyea.github.io/data_store/${currentSha1}`;
-            
-            // Show success
-            statusEl.className = 'status-badge success';
-            statusEl.textContent = '✅ URL generated!';
-            urlInput.style.display = 'inline-block';
-            urlInput.value = shortUrl;
-            
-            // Add copy button
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'sm copy-btn';
-            copyBtn.textContent = '📋 Copy';
-            copyBtn.onclick = () => {
-                navigator.clipboard.writeText(shortUrl);
-                copyBtn.textContent = '✅ Copied!';
-                setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
-            };
-            
-            document.querySelector('.short-url-section').appendChild(copyBtn);
-
-            console.log('Short URL generated:', shortUrl);
-            console.log('File stored in staging with SHA1:', currentSha1);
-
-        } catch (error) {
-            statusEl.className = 'status-badge error';
-            statusEl.textContent = `❌ Error: ${error.message}`;
-            console.error('Error generating short URL:', error);
-        }
-    }
-
-    // Load content from SHA1 if URL points to it
-    async function loadFromSha1(sha1Hash) {
-        const statusEl = document.getElementById('short-url-status');
-        const urlInput = document.getElementById('short-url-input');
-        
-        statusEl.style.display = 'inline-block';
-        statusEl.className = 'status-badge loading';
-        statusEl.textContent = '⏳ Loading...';
-
-        try {
-            const result = await resolveSha1(sha1Hash);
-            
-            if (result.found) {
-                // Found the content
-                const content = result.content;
-                
-                // Set the output (keep as base64)
-                $('#output').value = content;
-                
-                // Decode and set the input
-                try {
-                    const decoded = decompress(content);
-                    $('#input').value = decoded;
-                } catch (e) {
-                    throw new Error('Failed to decompress content');
-                }
-                
-                // Update the preview
-                await update(true);
-                
-                statusEl.className = 'status-badge success';
-                statusEl.textContent = `✅ Loaded from ${result.repo}`;
-                
-                const shortUrl = `https://tylerperyea.github.io/data_store/${sha1Hash}`;
-                urlInput.style.display = 'inline-block';
-                urlInput.value = shortUrl;
-                
-                return true;
-            } else {
-                statusEl.className = 'status-badge error';
-                statusEl.textContent = '❌ Not found in prod or staging';
-                return false;
-            }
-        } catch (error) {
-            statusEl.className = 'status-badge error';
-            statusEl.textContent = `❌ Error: ${error.message}`;
-            console.error('Error loading from SHA1:', error);
-            return false;
-        }
-    }
-
+    // Update UI after shrinking/expanding
     async function update(fromInput = true) {
         const inputVal = $('#input').value;
         const outputVal = $('#output').value;
-        
+
         if (fromInput && !inputVal) return;
         if (!fromInput && !outputVal) return;
 
         if (fromInput) {
-            const compressed = await compress(inputVal);
-            $('#output').value = compressed;
+            // Compress to Base64 for display and URL
+            const compressedBase64 = await compressToBase64(inputVal);
+            $('#output').value = compressedBase64;
         } else {
-            const raw = decompress(outputVal);
-            $('#input').value = raw;
+            // Expand: decompress from Base64
+            try {
+                const raw = decompressFromBase64(outputVal);
+                $('#input').value = raw;
+            } catch (e) {
+                alert('Failed to decompress. Is the string valid?');
+                return;
+            }
         }
-        
+
         const comp = $('#output').value;
         const base = window.location.origin + window.location.pathname;
-        
+
         const directUrl = `${base}#html=${comp}&nomenu=1`;
         const editUrl = `${base}?edit=1#html=${comp}`;
-        
+
         $('#url-direct-input').value = directUrl;
         $('#url-edit-input').value = editUrl;
-        
+
         noRefresh = true;
-        window.history.replaceState({html: comp}, '', editUrl);
-        
+        window.history.replaceState({ html: comp }, '', editUrl);
+
         if ($('#preview-frame').src === directUrl) {
             refreshPreview();
         } else {
@@ -611,23 +450,133 @@
         }
     }
 
+    // --- Generate short URL ---
+    async function generateShortUrl() {
+        const inputVal = $('#input').value;
+        if (!inputVal) {
+            alert('Please enter some HTML first!');
+            return;
+        }
+
+        const statusEl = document.getElementById('short-url-status');
+        const urlInput = document.getElementById('short-url-input');
+
+        statusEl.style.display = 'inline-block';
+        statusEl.className = 'status-badge loading';
+        statusEl.textContent = '⏳ Processing...';
+        urlInput.style.display = 'none';
+
+        // Remove old copy button
+        const oldCopy = document.querySelector('.short-url-section .copy-btn');
+        if (oldCopy) oldCopy.remove();
+
+        try {
+            // Compute SHA1 of raw HTML
+            const sha1Hash = await sha1(inputVal);
+            currentSha1 = sha1Hash;
+
+            // Compress to binary
+            const compressedBinary = await compressToBinary(inputVal);
+
+            // Store in staging repo using the SHA1 as filename
+            await createFileInRepo(
+                GITHUB_CONFIG.stageRepo.split('/')[0],
+                GITHUB_CONFIG.stageRepo.split('/')[1],
+                sha1Hash,
+                compressedBinary,
+                `Add page ${sha1Hash}`,
+                GITHUB_CONFIG.stageToken
+            );
+
+            // Generate the short URL
+            const shortUrl = `https://tylerperyea.github.io/data_store/${sha1Hash}`;
+
+            statusEl.className = 'status-badge success';
+            statusEl.textContent = '✅ URL generated!';
+            urlInput.style.display = 'inline-block';
+            urlInput.value = shortUrl;
+
+            // Add copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'sm copy-btn';
+            copyBtn.textContent = '📋 Copy';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(shortUrl);
+                copyBtn.textContent = '✅ Copied!';
+                setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
+            };
+            document.querySelector('.short-url-section').appendChild(copyBtn);
+
+            console.log('Short URL generated:', shortUrl);
+        } catch (error) {
+            statusEl.className = 'status-badge error';
+            statusEl.textContent = `❌ Error: ${error.message}`;
+            console.error('Error generating short URL:', error);
+        }
+    }
+
+    // --- Load from SHA1 ---
+    async function loadFromSha1(sha1Hash) {
+        const statusEl = document.getElementById('short-url-status');
+        const urlInput = document.getElementById('short-url-input');
+
+        statusEl.style.display = 'inline-block';
+        statusEl.className = 'status-badge loading';
+        statusEl.textContent = '⏳ Loading...';
+
+        try {
+            const result = await resolveSha1(sha1Hash);
+            if (result.found) {
+                // Decompress the binary
+                const html = decompressFromBinary(result.binary);
+                $('#input').value = html;
+
+                // Also generate the Base64 string for the output (for sharing)
+                const base64 = await compressToBase64(html);
+                $('#output').value = base64;
+
+                // Update the preview
+                await update(true);
+
+                statusEl.className = 'status-badge success';
+                statusEl.textContent = `✅ Loaded from ${result.repo}`;
+
+                const shortUrl = `https://tylerperyea.github.io/data_store/${sha1Hash}`;
+                urlInput.style.display = 'inline-block';
+                urlInput.value = shortUrl;
+
+                return true;
+            } else {
+                statusEl.className = 'status-badge error';
+                statusEl.textContent = '❌ Not found in prod or staging';
+                return false;
+            }
+        } catch (error) {
+            statusEl.className = 'status-badge error';
+            statusEl.textContent = `❌ Error: ${error.message}`;
+            console.error('Error loading from SHA1:', error);
+            return false;
+        }
+    }
+
+    // --- Clear all ---
     function clearAll() {
-        if(confirm("Clear everything and start fresh?")) {
-            $('#input').value = "";
-            $('#output').value = "";
-            $('#url-direct-input').value = "";
-            $('#url-edit-input').value = "";
+        if (confirm("Clear everything and start fresh?")) {
+            $('#input').value = '';
+            $('#output').value = '';
+            $('#url-direct-input').value = '';
+            $('#url-edit-input').value = '';
             document.getElementById('short-url-input').style.display = 'none';
             document.getElementById('short-url-status').style.display = 'none';
             const copyBtn = document.querySelector('.short-url-section .copy-btn');
             if (copyBtn) copyBtn.remove();
             window.history.replaceState({}, '', window.location.origin + window.location.pathname);
-            $('#preview-frame').src = "about:blank";
+            $('#preview-frame').src = 'about:blank';
             currentSha1 = null;
-            currentBase64 = null;
         }
     }
 
+    // --- Download standalone ---
     function downloadSelf() {
         const comp = $('#output').value;
         if (!comp) return alert("Shrink something first!");
@@ -657,6 +606,7 @@
         window.location.href = window.location.origin + window.location.pathname + "?edit=1" + hash;
     }
 
+    // --- Main logic on page load ---
     function runLogic() {
         const params = new URLSearchParams(window.location.search);
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -666,55 +616,76 @@
         const noMenu = params.get('nomenu') || hashParams.get('nomenu');
         const sha1Param = params.get('sha1') || hashParams.get('sha1');
 
-        // Check if this is a SHA1 lookup
+        // If we have a SHA1 param, load from GitHub
         if (sha1Param && !isEdit) {
-            // Load the content from GitHub
             document.body.classList.add('ui-visible');
             loadFromSha1(sha1Param);
             return;
         }
 
+        // If we have html data, render it (view mode)
         if (htmlData && !isEdit) {
             try {
-                const raw = decompress(htmlData);
+                const raw = decompressFromBase64(htmlData);
                 if (!noMenu) $('#render-menu').style.display = 'block';
-                
                 document.open();
                 document.write(raw);
                 document.close();
-
                 const script = document.createElement('script');
                 script.textContent = `window.onhashchange = () => window.location.reload();`;
                 document.body.appendChild(script);
-
             } catch (e) {
                 document.body.style.display = 'block';
                 document.body.innerText = "Error: " + e.message;
             }
-        } else {
-            document.body.classList.add('ui-visible');
-            if (htmlData) {
-                $('#output').value = htmlData;
-                try {
-                    const raw = decompress(htmlData);
-                    $('#input').value = raw;
-                } catch (e) {
-                    console.error('Failed to decompress:', e);
-                    $('#input').value = '[Error: Invalid compressed data]';
-                }
-                const base = window.location.origin + window.location.pathname;
-                $('#url-direct-input').value = `${base}#html=${htmlData}&nomenu=1`;
-                $('#url-edit-input').value = `${base}?edit=1#html=${htmlData}`;
-                $('#preview-frame').src = $('#url-direct-input').value;
+            return;
+        }
+
+        // Otherwise, show the editor
+        document.body.classList.add('ui-visible');
+        if (htmlData) {
+            // We're in edit mode with pre-filled data
+            $('#output').value = htmlData;
+            try {
+                const raw = decompressFromBase64(htmlData);
+                $('#input').value = raw;
+            } catch (e) {
+                console.error('Failed to decompress:', e);
+                $('#input').value = '[Error: Invalid compressed data]';
             }
+            const base = window.location.origin + window.location.pathname;
+            $('#url-direct-input').value = `${base}#html=${htmlData}&nomenu=1`;
+            $('#url-edit-input').value = `${base}?edit=1#html=${htmlData}`;
+            $('#preview-frame').src = $('#url-direct-input').value;
         }
     }
 
-    // Check URL params on load
+    // --- Load Brotli and start ---
+    import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
+        .then(m => m.default)
+        .then(b => {
+            brotli = b;
+            runLogic();
+        })
+        .catch(err => {
+            console.error('Failed to load brotli:', err);
+            document.body.innerText = 'Failed to load compression library.';
+        });
+
+    // --- Hashchange listener ---
+    window.addEventListener('hashchange', function() {
+        if (!noRefresh) {
+            runLogic();
+        } else {
+            noRefresh = false;
+        }
+    });
+
+    // On load, also check for SHA1 in hash (in case page loads with it)
     window.addEventListener('load', function() {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const sha1Param = hashParams.get('sha1');
-        if (sha1Param) {
+        if (sha1Param && !window.location.search.includes('edit=1')) {
             document.body.classList.add('ui-visible');
             loadFromSha1(sha1Param);
         }
