@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>HTML Shrinkray</title>
+    <title>HTML Shrinkray v3</title>
     <style>
         :root {
             --bg: #f8fafc;
@@ -12,6 +12,8 @@
             --border: #e2e8f0;
             --accent: #f1f5f9;
             --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
         }
 
         body {
@@ -25,7 +27,6 @@
 
         body.ui-visible { display: flex; flex-direction: column; }
 
-        /* Fullscreen Preview Logic */
         body.preview-fs .main-container { display: block; padding: 0; }
         body.preview-fs .panel:not(.preview-panel), 
         body.preview-fs header, 
@@ -40,6 +41,7 @@
             justify-content: space-between;
             align-items: center;
             gap: 15px;
+            flex-wrap: wrap;
         }
 
         .url-box {
@@ -52,6 +54,7 @@
             gap: 10px;
             flex-grow: 1;
             max-width: 40%;
+            min-width: 200px;
         }
 
         .url-display-input {
@@ -94,6 +97,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .preview-controls {
@@ -102,6 +107,7 @@
             align-items: center;
             text-transform: none;
             flex-shrink: 0;
+            flex-wrap: wrap;
         }
 
         .preview-url-field {
@@ -145,11 +151,16 @@
             font-size: 0.8rem;
             font-weight: 600;
             flex-shrink: 0;
+            transition: all 0.2s;
         }
 
+        button:hover { opacity: 0.8; }
         button.primary { background: var(--primary); color: white; border: none; }
+        button.success { background: var(--success); color: white; border: none; }
         button.danger { color: var(--danger); }
+        button.warning { background: var(--warning); color: white; border: none; }
         button.sm { font-size: 0.7rem; padding: 2px 6px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
 
         #render-menu {
             position: fixed;
@@ -160,9 +171,128 @@
             transition: opacity 0.2s;
         }
         #render-menu:hover { opacity: 1; }
+
+        .short-url-section {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .short-url-input {
+            font-family: monospace;
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--bg);
+            min-width: 150px;
+        }
+
+        .status-badge {
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.success { background: #dcfce7; color: #166534; }
+        .status-badge.error { background: #fee2e2; color: #991b1b; }
+        .status-badge.loading { background: #fef08a; color: #854d0e; }
+        .status-badge.info { background: #dbeafe; color: #1e40af; }
+
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 10001;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--card);
+            border-radius: 12px;
+            max-width: 90%;
+            width: 800px;
+            max-height: 90vh;
+            padding: 24px;
+            overflow: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal h2 { margin-top: 0; }
+        .modal textarea {
+            width: 100%;
+            height: 300px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px;
+            background: var(--bg);
+        }
+        .modal .preview-area {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px;
+            max-height: 200px;
+            overflow: auto;
+            font-family: monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+            margin: 8px 0;
+        }
+        .modal .actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            justify-content: flex-end;
+        }
+        .modal .match-info {
+            padding: 8px;
+            border-radius: 4px;
+            margin: 8px 0;
+            font-size: 0.85rem;
+        }
+        .modal .match-info.success { background: #dcfce7; color: #166534; }
+        .modal .match-info.error { background: #fee2e2; color: #991b1b; }
+        .modal .match-info.warning { background: #fef08a; color: #854d0e; }
+        .modal .match-info.info { background: #dbeafe; color: #1e40af; }
     </style>
 </head>
 <body>
+
+<!-- Modal -->
+<div class="modal-overlay" id="patch-modal">
+    <div class="modal">
+        <h2>📝 Apply Patch</h2>
+        <p>Enter a patch in FIND/REPLACE format (supports multiple blocks):</p>
+        <textarea id="patch-input" placeholder="&lt;&lt;&lt;FIND
+[lines to find]
+&gt;&gt;&gt;
+&lt;&lt;&lt;REPLACE
+[lines to replace with]
+&gt;&gt;&gt;
+
+&lt;&lt;&lt;FIND
+[second find block]
+&gt;&gt;&gt;
+&lt;&lt;&lt;REPLACE
+[second replace block]
+&gt;&gt;&gt;"></textarea>
+        <div id="patch-preview" style="display:none;">
+            <div id="patch-match-info" class="match-info"></div>
+            <div class="preview-area" id="patch-preview-content"></div>
+        </div>
+        <div class="actions">
+            <button onclick="closePatchModal()">Cancel</button>
+            <button class="primary" id="patch-apply-btn" onclick="applyPatchAndClose()" disabled>Apply Patch</button>
+        </div>
+    </div>
+</div>
 
 <div id="render-menu" style="display: none;">
     <button onclick="goToEdit()">Edit Page</button>
@@ -170,7 +300,7 @@
 
 <div id="ui-container" style="display: contents;">
     <header>
-        <div style="font-weight: 900; color: var(--primary); flex-shrink:0;">HTML SHRINKRAY</div>
+        <div style="font-weight: 900; color: var(--primary); flex-shrink:0;">HTML SHRINKRAY v3</div>
         
         <div class="url-box">
             <span style="font-size: 10px; font-weight: bold; flex-shrink:0;">SHARE EDIT</span>
@@ -178,7 +308,13 @@
             <button class="sm" onclick="copyInput('#url-edit-input')">Copy</button>
         </div>
 
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <div class="short-url-section">
+                <button class="sm success" onclick="generateShortUrl()">🔗 Get Short URL</button>
+                <button class="sm warning" onclick="openPatchModal()">📝 Patch</button>
+                <input id="short-url-input" class="short-url-input" readonly placeholder="Short URL will appear here" style="display:none;">
+                <span id="short-url-status" class="status-badge" style="display:none;"></span>
+            </div>
             <button class="sm danger" onclick="clearAll()">Clear All</button>
             <button class="sm" onclick="downloadSelf()">Download Standalone</button>
         </div>
@@ -196,7 +332,7 @@
         </div>
 
         <div class="panel">
-            <div class="panel-header">Compressed String</div>
+            <div class="panel-header">Compressed String (Base64)</div>
             <textarea id="output" placeholder="Compressed string..."></textarea>
         </div>
 
@@ -219,74 +355,307 @@
     const $ = (a) => document.querySelector(a);
     let brotli = null;
     let noRefresh = false;
+    let currentSha1 = null;
+    let pendingPatchResult = null;
 
-    // Listener for the Editor UI
-    window.addEventListener('hashchange', function() {
-        if(!noRefresh){
-            runLogic();
-        } else {
-            noRefresh = false;
+    // --- GITHUB CONFIG ---
+    const GITHUB_CONFIG = {
+        stageRepo: 'tylerperyea/datastore-stage',
+        prodRepo: 'tylerperyea/data_store',
+        stageToken: 'github_' + 'pat_11AAMCGSQ0kp2P5A5ZPklQ_1tRRR6MYKe0drKGXiXyhttx05QkD16vgjuOtFwpmKMoVKJQZVW5PokpeX2n'
+    };
+
+    // --- UTILITY FUNCTIONS ---
+
+    function normalizeLine(line) {
+        return line.trim().replace(/\s+/g, ' ');
+    }
+
+    function findExactMatch(source, findLines) {
+        for (let i = 0; i <= source.length - findLines.length; i++) {
+            let match = true;
+            for (let j = 0; j < findLines.length; j++) {
+                if (source[i + j] !== findLines[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) return i;
         }
-    });
-
-    import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
-        .then(m => m.default)
-        .then(b => {
-            brotli = b;
-            runLogic();
-        });
-
-    async function bufferToBase64(buffer) {
-        const base64url = await new Promise(r => {
-            const reader = new FileReader();
-            reader.onload = () => r(reader.result);
-            reader.readAsDataURL(new Blob([buffer]));
-        });
-        return base64url.slice(base64url.indexOf(',') + 1);
+        return -1;
     }
 
-    async function compress(text) {
-        const compressedData = brotli.compress(new TextEncoder().encode(text));
-        return await bufferToBase64(compressedData);
+    function findFuzzyMatch(source, findLines, threshold) {
+        const normalizedFind = findLines.map(normalizeLine);
+        const normalizedSource = source.map(normalizeLine);
+        
+        for (let i = 0; i <= normalizedSource.length - normalizedFind.length; i++) {
+            let matches = 0;
+            for (let j = 0; j < normalizedFind.length; j++) {
+                if (normalizedSource[i + j] === normalizedFind[j]) {
+                    matches++;
+                }
+            }
+            const ratio = matches / normalizedFind.length;
+            if (ratio >= threshold) {
+                return { position: i, ratio: ratio };
+            }
+        }
+        return null;
     }
 
-    function decompress(b64) {
-        const cleanedB64 = b64.replace(/ /g, "+");
-        return (new TextDecoder()).decode(brotli.decompress(Uint8Array.from(atob(cleanedB64), c => c.charCodeAt(0))));
+    // --- PATCH ENGINE (FIXED - supports multiple blocks) ---
+    function applyPatchToText(text, patchBlock) {
+        // Parse ALL patches
+        const patchRegex = /<<<FIND\s*([\s\S]*?)\s*>>>\s*<<<REPLACE\s*([\s\S]*?)\s*>>>/g;
+        let match;
+        const patches = [];
+        
+        // Extract all FIND/REPLACE pairs
+        while ((match = patchRegex.exec(patchBlock)) !== null) {
+            patches.push({
+                find: match[1].split('\n'),
+                replace: match[2].split('\n')
+            });
+        }
+        
+        if (patches.length === 0) {
+            throw new Error('Invalid patch format: No FIND/REPLACE blocks found');
+        }
+
+        let currentText = text;
+        let allApplied = true;
+        let lastResult = null;
+        let totalMatches = 0;
+        
+        // Apply each patch sequentially
+        for (let p = 0; p < patches.length; p++) {
+            const findLines = patches[p].find;
+            const replaceLines = patches[p].replace;
+            const sourceLines = currentText.split('\n');
+
+            // Try exact match first
+            let pos = findExactMatch(sourceLines, findLines);
+            let matchType = 'exact';
+            let ratio = 1.0;
+
+            // If exact fails, try fuzzy
+            if (pos === -1) {
+                const fuzzyResult = findFuzzyMatch(sourceLines, findLines, 0.6);
+                if (fuzzyResult) {
+                    pos = fuzzyResult.position;
+                    ratio = fuzzyResult.ratio;
+                    matchType = 'fuzzy';
+                }
+            }
+
+            if (pos === -1) {
+                allApplied = false;
+                return {
+                    applied: false,
+                    matchType: null,
+                    ratio: 0,
+                    message: 'Patch ' + (p + 1) + ' of ' + patches.length + ' failed: No match found (exact or fuzzy)',
+                    partialResult: currentText,
+                    patchesApplied: totalMatches,
+                    totalPatches: patches.length
+                };
+            }
+
+            // Apply replacement
+            const resultLines = [
+                ...sourceLines.slice(0, pos),
+                ...replaceLines,
+                ...sourceLines.slice(pos + findLines.length)
+            ];
+            
+            currentText = resultLines.join('\n');
+            totalMatches++;
+            lastResult = {
+                matchType: matchType,
+                ratio: ratio,
+                matchLine: pos + 1
+            };
+        }
+
+        return {
+            applied: true,
+            matchType: lastResult ? lastResult.matchType : 'exact',
+            ratio: lastResult ? lastResult.ratio : 1.0,
+            result: currentText,
+            matchLine: lastResult ? lastResult.matchLine : 0,
+            patchesApplied: totalMatches,
+            totalPatches: patches.length
+        };
+    }
+
+    // --- HASH PARSING (manual, handles + correctly) ---
+    function getHashParams() {
+        const hash = window.location.hash.substring(1);
+        const params = {};
+        if (!hash) return params;
+        const pairs = hash.split('&');
+        for (const pair of pairs) {
+            const [key, value] = pair.split('=');
+            if (key && value !== undefined) {
+                params[key] = decodeURIComponent(value);
+            }
+        }
+        return params;
+    }
+
+    function cleanAndPadBase64(str) {
+        let cleaned = str.replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
+        while (cleaned.length % 4 !== 0) {
+            cleaned += '=';
+        }
+        return cleaned;
+    }
+
+    // --- SHA1 ---
+    async function sha1(message) {
+        const msgBuffer = new TextEncoder().encode(message);
+        const hashBuffer = await crypto.subtle.digest('SHA-1', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // --- BROTLI HELPERS ---
+    async function compressToBinary(text) {
+        return brotli.compress(new TextEncoder().encode(text));
+    }
+
+    function decompressFromBinary(binary) {
+        return new TextDecoder().decode(brotli.decompress(binary));
+    }
+
+    async function compressToBase64(text) {
+        const bin = await compressToBinary(text);
+        return btoa(String.fromCharCode(...bin));
+    }
+
+    function decompressFromBase64(b64) {
+        const cleaned = cleanAndPadBase64(b64);
+        const binary = Uint8Array.from(atob(cleaned), c => c.charCodeAt(0));
+        return decompressFromBinary(binary);
+    }
+
+    // --- GITHUB API WRAPPERS ---
+    async function getFileFromRepo(owner, repo, path, token = null) {
+        const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+        const headers = token ? { 'Authorization': `token ${token}` } : {};
+        try {
+            const response = await fetch(url, { headers });
+            if (!response.ok) {
+                if (response.status === 404) return null;
+                throw new Error(`GitHub API error: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching from GitHub:', error);
+            return null;
+        }
+    }
+
+    async function createFileInRepo(owner, repo, path, contentBase64, message, token) {
+        const doubleEncoded = btoa(contentBase64);
+        const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+        const body = {
+            message: message || `Add ${path}`,
+            content: doubleEncoded,
+            branch: 'main'
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Failed to create file: ${response.status} - ${errorData.message}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Error creating file:', error);
+            throw error;
+        }
+    }
+
+    async function resolveSha1(sha1Hash) {
+        const prodData = await getFileFromRepo(
+            GITHUB_CONFIG.prodRepo.split('/')[0],
+            GITHUB_CONFIG.prodRepo.split('/')[1],
+            sha1Hash
+        );
+        if (prodData) {
+            const base64String = atob(prodData.content);
+            return { found: true, repo: 'prod', base64: base64String };
+        }
+
+        const stageData = await getFileFromRepo(
+            GITHUB_CONFIG.stageRepo.split('/')[0],
+            GITHUB_CONFIG.stageRepo.split('/')[1],
+            sha1Hash,
+            GITHUB_CONFIG.stageToken
+        );
+        if (stageData) {
+            const base64String = atob(stageData.content);
+            return { found: true, repo: 'staging', base64: base64String };
+        }
+
+        return { found: false };
+    }
+
+    // --- CORE UI LOGIC ---
+
+    function buildUrls(base64String) {
+        const base = window.location.origin + window.location.pathname;
+        const encoded = encodeURIComponent(base64String);
+        return {
+            direct: `${base}#html=${encoded}&nomenu=1`,
+            edit: `${base}?edit=1#html=${encoded}`
+        };
     }
 
     async function update(fromInput = true) {
         const inputVal = $('#input').value;
         const outputVal = $('#output').value;
-        
+
         if (fromInput && !inputVal) return;
         if (!fromInput && !outputVal) return;
 
+        let b64;
         if (fromInput) {
-            const compressed = await compress(inputVal);
-            $('#output').value = compressed;
+            b64 = await compressToBase64(inputVal);
+            $('#output').value = b64;
         } else {
-            const raw = decompress(outputVal);
-            $('#input').value = raw;
+            try {
+                const raw = decompressFromBase64(outputVal);
+                $('#input').value = raw;
+                b64 = outputVal;
+            } catch (e) {
+                alert('Failed to decompress. Is the string valid?');
+                return;
+            }
         }
-        
-        const comp = $('#output').value;
-        const base = window.location.origin + window.location.pathname;
-        
-        const directUrl = `${base}#html=${comp}&nomenu=1`;
-        const editUrl = `${base}?edit=1#html=${comp}`;
-        
-        $('#url-direct-input').value = directUrl;
-        $('#url-edit-input').value = editUrl;
-        
+
+        const urls = buildUrls(b64);
+        $('#url-direct-input').value = urls.direct;
+        $('#url-edit-input').value = urls.edit;
+
         noRefresh = true;
-        window.history.replaceState({html: comp}, '', editUrl);
-        
-        // Force refresh if the URL hasn't changed, otherwise update src
-        if ($('#preview-frame').src === directUrl) {
+        window.history.replaceState({ html: b64 }, '', urls.edit);
+
+        if ($('#preview-frame').src === urls.direct) {
             refreshPreview();
         } else {
-            $('#preview-frame').src = directUrl;
+            $('#preview-frame').src = urls.direct;
         }
     }
 
@@ -297,17 +666,278 @@
         }
     }
 
-    function clearAll() {
-        if(confirm("Clear everything and start fresh?")) {
-            $('#input').value = "";
-            $('#output').value = "";
-            $('#url-direct-input').value = "";
-            $('#url-edit-input').value = "";
-            window.history.replaceState({}, '', window.location.origin + window.location.pathname);
-            $('#preview-frame').src = "about:blank";
+    // --- SHORT URL GENERATION ---
+    async function generateShortUrl() {
+        const inputVal = $('#input').value;
+        if (!inputVal) {
+            alert('Please enter some HTML first!');
+            return;
+        }
+
+        const statusEl = document.getElementById('short-url-status');
+        const urlInput = document.getElementById('short-url-input');
+
+        statusEl.style.display = 'inline-block';
+        statusEl.className = 'status-badge loading';
+        statusEl.textContent = '⏳ Processing...';
+        urlInput.style.display = 'none';
+
+        const oldCopy = document.querySelectorAll('.short-url-section .copy-btn');
+        oldCopy.forEach(b => b.remove());
+
+        try {
+            
+
+            const b64 = $('#output').value;
+            if (!b64) {
+                const compressed = await compressToBase64(inputVal);
+                $('#output').value = compressed;
+                b64=compressed;
+            }
+            const sha1Hash = await sha1(b64);
+            await createFileInRepo(
+                GITHUB_CONFIG.stageRepo.split('/')[0],
+                GITHUB_CONFIG.stageRepo.split('/')[1],
+                sha1Hash,
+                $('#output').value,
+                `Add page ${sha1Hash}`,
+                GITHUB_CONFIG.stageToken
+            );
+
+            const base = window.location.origin + window.location.pathname;
+            
+            // Generate both URLs
+            const editUrl = `${base}?edit=1#sha1=${sha1Hash}`;
+            const viewUrl = `${base}#sha1=${sha1Hash}`;
+
+            statusEl.className = 'status-badge success';
+            statusEl.textContent = '✅ URL generated!';
+            urlInput.style.display = 'inline-block';
+            urlInput.value = editUrl;
+
+            // Add two copy buttons
+            const section = document.querySelector('.short-url-section');
+            
+            const copyEditBtn = document.createElement('button');
+            copyEditBtn.className = 'sm copy-btn';
+            copyEditBtn.textContent = '📋 Copy Edit';
+            copyEditBtn.onclick = () => {
+                navigator.clipboard.writeText(editUrl);
+                copyEditBtn.textContent = '✅ Copied!';
+                setTimeout(() => { copyEditBtn.textContent = '📋 Copy Edit'; }, 2000);
+            };
+            section.appendChild(copyEditBtn);
+
+            const copyViewBtn = document.createElement('button');
+            copyViewBtn.className = 'sm copy-btn';
+            copyViewBtn.textContent = '📋 Copy View';
+            copyViewBtn.onclick = () => {
+                navigator.clipboard.writeText(viewUrl);
+                copyViewBtn.textContent = '✅ Copied!';
+                setTimeout(() => { copyViewBtn.textContent = '📋 Copy View'; }, 2000);
+            };
+            section.appendChild(copyViewBtn);
+
+            // Update the current URL to use SHA1 form
+            noRefresh = true;
+            window.history.replaceState({ sha1: sha1Hash }, '', editUrl);
+            
+            // Update the direct URL input to show the view URL
+            $('#url-direct-input').value = viewUrl;
+            $('#url-edit-input').value = editUrl;
+
+            console.log('Short URLs generated:', { edit: editUrl, view: viewUrl });
+        } catch (error) {
+            statusEl.className = 'status-badge error';
+            statusEl.textContent = `❌ Error: ${error.message}`;
+            console.error('Error generating short URL:', error);
         }
     }
 
+// --- LOAD FROM SHA1 ---
+    async function loadFromSha1(sha1Hash, isEditMode = false) {
+        const statusEl = document.getElementById('short-url-status');
+        const urlInput = document.getElementById('short-url-input');
+
+        statusEl.style.display = 'inline-block';
+        statusEl.className = 'status-badge loading';
+        statusEl.textContent = '⏳ Loading...';
+
+        try {
+            const result = await resolveSha1(sha1Hash);
+            if (result.found) {
+                const html = decompressFromBase64(result.base64);
+                const base = window.location.origin + window.location.pathname;
+                
+                if (isEditMode) {
+                    // Edit mode: load into textareas and show editor
+                    $('#input').value = html;
+                    $('#output').value = result.base64;
+
+                    const urls = buildUrls(result.base64);
+                    $('#url-direct-input').value = urls.direct;
+                    
+                    const editUrl = `${base}?edit=1#sha1=${sha1Hash}`;
+                    $('#url-edit-input').value = editUrl;
+                    
+                    noRefresh = true;
+                    window.history.replaceState({ sha1: sha1Hash }, '', editUrl);
+                    $('#preview-frame').src = urls.direct;
+
+                    const shortUrl = `${base}?edit=1#sha1=${sha1Hash}`;
+                    urlInput.style.display = 'inline-block';
+                    urlInput.value = shortUrl;
+                    
+                    statusEl.className = 'status-badge success';
+                    statusEl.textContent = `✅ Loaded from ${result.repo}`;
+                } else {
+                    // View mode: render directly, no editor
+                    document.body.classList.remove('ui-visible');
+                    document.open();
+                    document.write(html);
+                    document.close();
+                    
+                    // Show render menu if needed
+                    const params = new URLSearchParams(window.location.search);
+                    const hashParams = getHashParams();
+                    if (!hashParams.nomenu && !params.get('nomenu')) {
+                        $('#render-menu').style.display = 'block';
+                    }
+                    
+                    // Don't rewrite the URL - keep the view URL
+                    statusEl.className = 'status-badge success';
+                    statusEl.textContent = `✅ Loaded from ${result.repo}`;
+                }
+
+                return true;
+            } else {
+                statusEl.className = 'status-badge error';
+                statusEl.textContent = '❌ Not found in prod or staging';
+                return false;
+            }
+        } catch (error) {
+            statusEl.className = 'status-badge error';
+            statusEl.textContent = `❌ Error: ${error.message}`;
+            console.error('Error loading from SHA1:', error);
+            return false;
+        }
+    }
+
+    // --- PATCH MODAL FUNCTIONS ---
+
+    function openPatchModal() {
+        const modal = document.getElementById('patch-modal');
+        modal.classList.add('active');
+        document.getElementById('patch-input').value = '';
+        document.getElementById('patch-preview').style.display = 'none';
+        document.getElementById('patch-apply-btn').disabled = true;
+        document.getElementById('patch-input').focus();
+        // Clear any previous status
+        const statusEl = document.getElementById('short-url-status');
+        statusEl.style.display = 'none';
+    }
+
+    function closePatchModal() {
+        document.getElementById('patch-modal').classList.remove('active');
+        pendingPatchResult = null;
+    }
+
+    function previewPatch() {
+        const input = document.getElementById('patch-input').value;
+        if (!input.trim()) {
+            document.getElementById('patch-preview').style.display = 'none';
+            document.getElementById('patch-apply-btn').disabled = true;
+            return;
+        }
+
+        // Patch the textarea content, not the page!
+        const currentHTML = document.getElementById('input').value;
+        try {
+            const result = applyPatchToText(currentHTML, input);
+            pendingPatchResult = result;
+
+            const previewDiv = document.getElementById('patch-preview');
+            const infoDiv = document.getElementById('patch-match-info');
+            const contentDiv = document.getElementById('patch-preview-content');
+
+            previewDiv.style.display = 'block';
+
+            if (result.applied) {
+                const patchCount = result.patchesApplied || 1;
+                const totalCount = result.totalPatches || 1;
+                infoDiv.className = 'match-info success';
+                infoDiv.innerHTML = `
+                    ✅ ${patchCount} of ${totalCount} patches applied!<br>
+                    Match type: ${result.matchType} (${Math.round(result.ratio * 100)}% confidence)<br>
+                    Located at line ${result.matchLine}
+                `;
+                // Show preview of changes
+                const lines = result.result.split('\n');
+                const previewLines = lines.slice(Math.max(0, result.matchLine - 5), Math.min(lines.length, result.matchLine + 15));
+                contentDiv.textContent = previewLines.map((line, i) => {
+                    const lineNum = result.matchLine - 5 + i;
+                    return `${String(lineNum).padStart(4, ' ')}: ${line}`;
+                }).join('\n');
+                document.getElementById('patch-apply-btn').disabled = false;
+            } else {
+                infoDiv.className = 'match-info error';
+                infoDiv.textContent = `❌ ${result.message}`;
+                contentDiv.textContent = '';
+                document.getElementById('patch-apply-btn').disabled = true;
+            }
+        } catch (e) {
+            const infoDiv = document.getElementById('patch-match-info');
+            infoDiv.className = 'match-info error';
+            infoDiv.textContent = `❌ Error: ${e.message}`;
+            document.getElementById('patch-apply-btn').disabled = true;
+            document.getElementById('patch-preview').style.display = 'block';
+        }
+    }
+
+    function applyPatchAndClose() {
+        if (!pendingPatchResult || !pendingPatchResult.applied) return;
+        
+        // Apply the patch to the textarea content
+        document.getElementById('input').value = pendingPatchResult.result;
+        // Re-shrink to update the compressed output and preview
+        update(true);
+        
+        // Close the modal
+        closePatchModal();
+        
+        // Show success message
+        const statusEl = document.getElementById('short-url-status');
+        statusEl.style.display = 'inline-block';
+        statusEl.className = 'status-badge success';
+        statusEl.textContent = '✅ Patch applied! Content updated.';
+    }
+
+    // Auto-preview on input change
+    document.addEventListener('DOMContentLoaded', function() {
+        const patchInput = document.getElementById('patch-input');
+        if (patchInput) {
+            patchInput.addEventListener('input', previewPatch);
+        }
+    });
+
+    // --- CLEAR ---
+    function clearAll() {
+        if (confirm("Clear everything and start fresh?")) {
+            $('#input').value = '';
+            $('#output').value = '';
+            $('#url-direct-input').value = '';
+            $('#url-edit-input').value = '';
+            document.getElementById('short-url-input').style.display = 'none';
+            document.getElementById('short-url-status').style.display = 'none';
+            const copyBtns = document.querySelectorAll('.short-url-section .copy-btn');
+            copyBtns.forEach(b => b.remove());
+            window.history.replaceState({}, '', window.location.origin + window.location.pathname);
+            $('#preview-frame').src = 'about:blank';
+            currentSha1 = null;
+        }
+    }
+
+    // --- DOWNLOAD ---
     function downloadSelf() {
         const comp = $('#output').value;
         if (!comp) return alert("Shrink something first!");
@@ -321,6 +951,7 @@
         URL.revokeObjectURL(url);
     }
 
+    // --- UI HELPERS ---
     function toggleFS() {
         document.body.classList.toggle('preview-fs');
         $('#fs-btn').innerText = document.body.classList.contains('preview-fs') ? "Exit Fullscreen" : "Fullscreen";
@@ -337,45 +968,92 @@
         window.location.href = window.location.origin + window.location.pathname + "?edit=1" + hash;
     }
 
-    function runLogic() {
+    // --- MAIN LOGIC ---
+function runLogic() {
         const params = new URLSearchParams(window.location.search);
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const hashParams = getHashParams();
+        
+        const isEdit = params.get('edit') !== null;
+        const htmlData = hashParams.html || params.get('html');
+        const sha1Param = hashParams.sha1 || params.get('sha1');
+        const noMenu = hashParams.nomenu || params.get('nomenu');
 
-        const htmlData = params.get('html') || hashParams.get('html');
-        const isEdit = params.get('edit');
-        const noMenu = params.get('nomenu') || hashParams.get('nomenu');
+        // If we have edit=1, ALWAYS show the editor
+        if (isEdit) {
+            document.body.classList.add('ui-visible');
+            
+            // Load content if present (sha1 takes priority over html)
+if (sha1Param) {
+                loadFromSha1(sha1Param, true); // Edit mode
+                return;
+            }
+            
+            if (htmlData) {
+                $('#output').value = htmlData;
+                try {
+                    const raw = decompressFromBase64(htmlData);
+                    $('#input').value = raw;
+                    const urls = buildUrls(htmlData);
+                    $('#url-direct-input').value = urls.direct;
+                    $('#url-edit-input').value = urls.edit;
+                    $('#preview-frame').src = urls.direct;
+                } catch (e) {
+                    console.error('Failed to decompress:', e);
+                    $('#input').value = '[Error: Invalid compressed data]';
+                }
+            }
+            return;
+        }
 
-        if (htmlData && !isEdit) {
+        // No edit=1 - pure view mode, never show editor
+if (sha1Param) {
+            // Load from GitHub then render (view mode)
+            loadFromSha1(sha1Param, false); // View mode
+            return;
+        }
+
+        if (htmlData) {
+            // Direct render from Base64
             try {
-                const raw = decompress(htmlData);
+                const raw = decompressFromBase64(htmlData);
                 if (!noMenu) $('#render-menu').style.display = 'block';
-                
                 document.open();
                 document.write(raw);
                 document.close();
-
-                // Re-inject hash listener into the written document
                 const script = document.createElement('script');
                 script.textContent = `window.onhashchange = () => window.location.reload();`;
                 document.body.appendChild(script);
-
             } catch (e) {
                 document.body.style.display = 'block';
                 document.body.innerText = "Error: " + e.message;
             }
-        } else {
-            document.body.classList.add('ui-visible');
-            if (htmlData) {
-                $('#output').value = htmlData;
-                const raw = decompress(htmlData);
-                $('#input').value = raw;
-                const base = window.location.origin + window.location.pathname;
-                $('#url-direct-input').value = `${base}#html=${htmlData}&nomenu=1`;
-                $('#url-edit-input').value = `${base}?edit=1#html=${htmlData}`;
-                $('#preview-frame').src = $('#url-direct-input').value;
-            }
+            return;
         }
+
+        // No content! Redirect to edit mode
+        const base = window.location.origin + window.location.pathname;
+        window.location.href = base + '?edit=1';
     }
+
+    // --- INIT ---
+    import("https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module")
+        .then(m => m.default)
+        .then(b => {
+            brotli = b;
+            runLogic();
+        })
+        .catch(err => {
+            console.error('Failed to load brotli:', err);
+            document.body.innerText = 'Failed to load compression library.';
+        });
+
+    window.addEventListener('hashchange', function() {
+        if (!noRefresh) {
+            runLogic();
+        } else {
+            noRefresh = false;
+        }
+    });
 </script>
 </body>
 </html>
