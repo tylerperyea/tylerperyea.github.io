@@ -1,0 +1,9 @@
+{
+    "files":  {
+                  "powershell":  "forge-install.ps1",
+                  "batch":  "forge-install.bat",
+                  "bash":  "forge-install.sh"
+              },
+    "version":  "1.1.8",
+    "built":  "2026-08-23T11:35:27Z"
+}
