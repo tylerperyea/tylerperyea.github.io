@@ -35,6 +35,11 @@ function createBookmarkletCard(bookmarklet) {
     const categoryBadges = categories.map(cat => 
         `<span class="category-badge">${cat}</span>`
     ).join('');
+
+
+    const setHost = "window._forge_ide_url=\'" + location.href.split("/").map(b=>(b.indexOf(".html")<0)?b:"").join("/") + "\';";
+
+    const href = bookmarklet.href.replace(/^javascript[:][(]/g, "javascript:" + setHost + "(");
     
     card.innerHTML = `
         <h3>${bookmarklet.title}</h3>
@@ -44,7 +49,7 @@ function createBookmarkletCard(bookmarklet) {
             ${bookmarklet.version ? `<span style="color: #95a5a6; font-size: 0.8rem; margin-left: 0.5rem;">v${bookmarklet.version}</span>` : ''}
         </div>
         <p>${bookmarklet.description}</p>
-        <a href="${bookmarklet.href}" class="bookmarklet-link" onclick="return false;">
+        <a href="${href}" class="bookmarklet-link" onclick="return false;">
             📌 ${bookmarklet.title}
         </a>
         ${bookmarklet.src ? `
