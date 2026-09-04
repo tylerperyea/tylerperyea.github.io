@@ -1,0 +1,36 @@
+{
+  "examples": [
+    {
+      "id": "about-forge-ide",
+      "title": "About FORGE IDE",
+      "icon": "⚒️",
+      "description": "An interactive build board showing how FORGE IDE turns a small idea into working, editable software.",
+      "tags": ["beginner", "forge", "tour"],
+      "requiresForgeApi": false
+    },
+    {
+      "id": "hello-world",
+      "title": "Hello World",
+      "icon": "👋",
+      "description": "The simplest possible FORGE project — HTML, CSS, and JS.",
+      "tags": ["beginner", "static"],
+      "requiresForgeApi": false
+    },
+    {
+      "id": "rest-api",
+      "title": "Drug Label Search",
+      "icon": "💊",
+      "description": "Search FDA drug labels using the openFDA REST API.",
+      "tags": ["intermediate", "api", "openfda"],
+      "requiresForgeApi": false
+    },
+    {
+      "id": "forgeapi-chatroom",
+      "title": "Chatroom",
+      "icon": "💬",
+      "description": "Multi-user chat room using ForgeAPI client-server hosting.",
+      "tags": ["advanced", "forgeapi", "multi-user"],
+      "requiresForgeApi": true
+    }
+  ]
+}
