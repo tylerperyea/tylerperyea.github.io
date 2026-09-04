@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About FDA FORGE IDE</title>
+  <style>
+    /* -- Reset & base -- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #1e1e1e;
+      --bg2:       #252526;
+      --bg3:       #2d2d30;
+      --border:    #3e3e42;
+      --text:      #d4d4d4;
+      --text-dim:  #949494;
+      --blue:      #0e639c;
+      --blue-lt:   #4fc3f7;
+      --green:     #28a745;
+      --purple:    #5c2d91;
+      --teal:      #17a2b8;
+      --red:       #dc3545;
+      --gold:      #e5b611;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a { color: var(--blue-lt); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    code {
+      font-family: 'Consolas', 'Monaco', monospace;
+      background: #0d0d0d;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-size: 0.88em;
+      color: var(--blue-lt);
+    }
+
+    pre {
+      background: #0d0d0d;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.88em;
+      color: var(--blue-lt);
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+
+    /* -- Layout -- */
+    .page-header {
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .page-header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .page-header h1 {
+      font-size: 1.2em;
+      color: #fff;
+    }
+
+    .page-header-links {
+      display: flex;
+      gap: 10px;
+    }
+
+    .header-btn {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s;
+      display: inline-block;
+    }
+
+    .header-btn:hover {
+      background: var(--border);
+      text-decoration: none;
+    }
+
+    .header-btn.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: white;
+    }
+
+    .header-btn.primary:hover { background: #1177bb; }
+
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    section {
+      margin-bottom: 64px;
+    }
+
+    .section-label {
+      font-size: 0.75em;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--blue-lt);
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 1.8em;
+      color: #fff;
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+
+    h3 {
+      font-size: 1.15em;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    p { margin-bottom: 12px; color: var(--text); }
+    p:last-child { margin-bottom: 0; }
+
+    /* -- Hero -- */
+    .hero {
+      text-align: center;
+      padding: 48px 0 32px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 64px;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: var(--blue);
+      color: white;
+      font-size: 0.75em;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: 2.8em;
+      color: #fff;
+      margin-bottom: 16px;
+      line-height: 1.1;
+    }
+
+    .hero-sub {
+      font-size: 1.15em;
+      color: var(--text-dim);
+      max-width: 640px;
+      margin: 0 auto 28px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .hero-note {
+      margin: -10px auto 24px;
+      color: var(--text);
+      font-size: 0.95em;
+    }
+
+    .tradeoff-diagram {
+      margin: 28px 0 18px;
+      padding: 20px;
+      overflow-x: auto;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .tradeoff-diagram svg {
+      display: block;
+      width: 100%;
+      min-width: 700px;
+      height: auto;
+      margin: 0 auto;
+    }
+
+    .tradeoff-diagram .diagram-title {
+      fill: #fff;
+      font-size: 20px;
+      font-weight: 700;
+      text-anchor: middle;
+    }
+
+    .tradeoff-diagram .diagram-circle {
+      fill: var(--bg);
+      stroke: #7f93aa;
+      stroke-width: 3;
+    }
+
+    .tradeoff-diagram .diagram-center {
+      fill: #17324d;
+      stroke: #4fc3f7;
+      stroke-width: 4;
+    }
+
+    .tradeoff-diagram .diagram-label {
+      fill: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      text-anchor: middle;
+    }
+
+    .tradeoff-diagram .diagram-center-label {
+      fill: #7dd3fc;
+      font-size: 18px;
+      font-weight: 700;
+      text-anchor: middle;
+    }
+
+    .tradeoff-diagram .negative-line {
+      stroke: #ff6b6b;
+      stroke-width: 2;
+      stroke-dasharray: 8 7;
+    }
+
+    .tradeoff-diagram .positive-line {
+      stroke: #3fb950;
+      stroke-width: 3;
+    }
+
+    .tradeoff-diagram .negative-mark,
+    .tradeoff-diagram .positive-mark {
+      fill: var(--bg2);
+      stroke-width: 2;
+    }
+
+    .tradeoff-diagram .negative-mark {
+      stroke: #ff6b6b;
+    }
+
+    .tradeoff-diagram .positive-mark {
+      stroke: #3fb950;
+    }
+
+    .tradeoff-diagram .negative-text {
+      fill: #ff8a8a;
+    }
+
+    .tradeoff-diagram .positive-text {
+      fill: #56d364;
+    }
+
+    .tradeoff-diagram .relation-text {
+      font-size: 18px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .tradeoff-diagram .change-arrow {
+      fill: #7f93aa;
+    }
+
+    .diagram-note {
+      max-width: 720px;
+      margin: 0 auto;
+      color: var(--text-dim);
+      text-align: center;
+      font-size: 0.9em;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 10px 22px;
+      border-radius: 5px;
+      font-size: 0.95em;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.1s;
+      border: none;
+    }
+
+    .btn:hover { text-decoration: none; transform: translateY(-1px); }
+    .btn-primary  { background: var(--blue);  color: white; }
+    .btn-primary:hover  { background: #1177bb; }
+    .btn-success  { background: var(--green); color: white; }
+    .btn-success:hover  { background: #218838; }
+    .btn-outline  { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover  { background: var(--bg3); }
+
+    /* -- Ecosystem diagram -- */
+    .ecosystem {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin: 32px 0;
+    }
+
+    .eco-node {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      text-align: center;
+      min-width: 120px;
+      flex-shrink: 0;
+    }
+
+    .eco-node-icon { font-size: 1.8em; margin-bottom: 6px; }
+    .eco-node-label { font-size: 0.8em; font-weight: 600; color: #fff; }
+    .eco-node-sub { font-size: 0.72em; color: var(--text-dim); margin-top: 2px; }
+
+    .eco-arrow {
+      font-size: 1.4em;
+      color: var(--border);
+      padding: 0 8px;
+      flex-shrink: 0;
+    }
+
+    /* -- Getting started steps -- */
+    .phase {
+      margin-bottom: 40px;
+    }
+
+    .phase-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .phase-number {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: white;
+      font-weight: 700;
+      font-size: 1em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .phase-title {
+      font-size: 1.15em;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .phase-subtitle {
+      font-size: 0.82em;
+      color: var(--text-dim);
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--blue-lt);
+      font-size: 0.8em;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-body { flex: 1; }
+
+    .step-title {
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .step-desc {
+      font-size: 0.88em;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    .step-note {
+      margin-top: 6px;
+      font-size: 0.82em;
+      color: var(--text-dim);
+      background: var(--bg3);
+      border-left: 3px solid var(--gold);
+      padding: 6px 10px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* -- Bookmarklet drag target -- */
+    .bookmarklet-zone {
+      background: var(--bg2);
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      margin: 16px 0;
+      transition: border-color 0.2s;
+    }
+
+    .bookmarklet-zone:hover { border-color: var(--blue-lt); }
+
+    .bookmarklet-zone-label {
+      font-size: 0.82em;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+    }
+
+    .bookmarklet-drag-link {
+      display: inline-block;
+      background: var(--blue);
+      color: white;
+      padding: 10px 22px;
+      border-radius: 5px;
+      font-weight: 700;
+      font-size: 1em;
+      cursor: grab;
+      text-decoration: none;
+      border: 2px solid #1177bb;
+      transition: background 0.2s, transform 0.1s;
+      user-select: none;
+    }
+
+    .bookmarklet-drag-link:hover {
+      background: #1177bb;
+      text-decoration: none;
+      transform: scale(1.03);
+    }
+
+    .bookmarklet-drag-link:active { cursor: grabbing; }
+
+    .bookmarklet-loading {
+      color: var(--text-dim);
+      font-size: 0.88em;
+      padding: 16px;
+    }
+
+    .bookmarklet-unavailable {
+      color: var(--text-dim);
+      font-size: 0.85em;
+    }
+
+    /* -- CLI sync section -- */
+    .cli-workflow {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 16px 0;
+    }
+
+    @media (max-width: 600px) {
+      .cli-workflow { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 2em; }
+      .ecosystem { gap: 8px; }
+      .eco-arrow { display: none; }
+    }
+
+    .cli-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+    }
+
+    .cli-card-title {
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+      font-size: 0.95em;
+    }
+
+    .cli-card-desc {
+      font-size: 0.82em;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    /* -- FAQ -- */
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .faq-item {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .faq-question {
+      width: 100%;
+      background: var(--bg2);
+      border: none;
+      color: #fff;
+      padding: 14px 18px;
+      text-align: left;
+      font-size: 0.95em;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.15s;
+    }
+
+    .faq-question:hover { background: var(--bg3); }
+
+    .faq-chevron {
+      font-size: 0.8em;
+      color: var(--text-dim);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+
+    .faq-item.open .faq-chevron { transform: rotate(180deg); }
+
+    .faq-answer {
+      display: none;
+      padding: 14px 18px;
+      font-size: 0.88em;
+      color: var(--text-dim);
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      line-height: 1.6;
+    }
+
+    .faq-item.open .faq-answer { display: block; }
+
+    /* -- Footer -- */
+    .page-footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.82em;
+    }
+
+    .page-footer a { color: var(--blue-lt); }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    /* -- Inline CLI install -- */
+    #cliInstallInline { margin-top: 16px; }
+
+    /* -- Tip box -- */
+    .tip {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--blue-lt);
+      border-radius: 0 6px 6px 0;
+      padding: 12px 16px;
+      font-size: 0.85em;
+      color: var(--text-dim);
+      margin: 12px 0;
+      line-height: 1.5;
+    }
+
+    .tip strong { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="page-header">
+  <div class="page-header-left">
+    <h1>🔥 FDA FORGE IDE</h1>
+  </div>
+  <div class="page-header-links">
+    <a href="index.html" class="header-btn primary">Open IDE →</a>
+    <a href="bookmarklets.html" class="header-btn">Bookmarklets</a>
+    <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/" target="_blank" class="header-btn">GitLab ↗</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-badge">FORGE</div>
+    <h1>Build it together.</h1>
+    <p class="hero-sub">
+      Software has an old rule: good, quick, cheap. Pick two.
+      We think that rule leaves out something important:
+      how the people building the thing work together.
+    </p>
+    <p class="hero-note"><strong>FORGE IDE:</strong> Build it small.</p>
+    <div class="hero-actions">
+      <a href="index.html" class="btn btn-primary">Open the IDE</a>
+      <a href="#getting-started" class="btn btn-outline">Get Started ↓</a>
+      <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/" target="_blank" class="btn btn-outline">View on GitLab ↗</a>
+    </div>
+  </div>
+
+  <!-- FORGE idea -->
+  <section>
+    <div class="section-label">The idea</div>
+    <h2>The old rule is incomplete.</h2>
+    <p>
+      Good, quick, and cheap really can pull against one another.
+      But the way we build changes those tradeoffs. Shorter feedback loops,
+      shared understanding, and fewer handoffs make it easier to improve all three.
+    </p>
+
+    <div class="tradeoff-diagram">
+      <svg viewBox="0 0 920 410"
+           role="img"
+           aria-labelledby="tradeoffTitle tradeoffDesc">
+        <title id="tradeoffTitle">
+          Build it together changes the usual good, quick, cheap tradeoff
+        </title>
+        <desc id="tradeoffDesc">
+          The usual view shows good, quick, and cheap working against one another.
+          FORGE adds Build it Together in the center with positive relationships
+          to all three.
+        </desc>
+
+        <text x="210" y="30" class="diagram-title">The usual tradeoff</text>
+        <text x="710" y="30" class="diagram-title">What FORGE adds</text>
+
+        <!-- Traditional triangle -->
+        <line x1="210" y1="105" x2="78" y2="315"
+              class="negative-line"/>
+        <line x1="210" y1="105" x2="342" y2="315"
+              class="negative-line"/>
+        <line x1="78" y1="315" x2="342" y2="315"
+              class="negative-line"/>
+
+        <circle cx="210" cy="105" r="53" class="diagram-circle"/>
+        <circle cx="78" cy="315" r="53" class="diagram-circle"/>
+        <circle cx="342" cy="315" r="53" class="diagram-circle"/>
+
+        <text x="210" y="100" class="diagram-label">
+          <tspan x="210">Build it</tspan>
+          <tspan x="210" dy="20">Good</tspan>
+        </text>
+        <text x="78" y="310" class="diagram-label">
+          <tspan x="78">Build it</tspan>
+          <tspan x="78" dy="20">Quick</tspan>
+        </text>
+        <text x="342" y="310" class="diagram-label">
+          <tspan x="342">Build it</tspan>
+          <tspan x="342" dy="20">Cheap</tspan>
+        </text>
+
+        <circle cx="143" cy="210" r="14" class="negative-mark"/>
+        <text x="143" y="210"
+              class="relation-text negative-text">-</text>
+
+        <circle cx="277" cy="210" r="14" class="negative-mark"/>
+        <text x="277" y="210"
+              class="relation-text negative-text">-</text>
+
+        <circle cx="210" cy="315" r="14" class="negative-mark"/>
+        <text x="210" y="315"
+              class="relation-text negative-text">-</text>
+
+        <!-- Change arrow -->
+        <path class="change-arrow"
+              d="M430 190h38v-18l34 34-34 34v-18h-38z"/>
+
+        <!-- FORGE relationship -->
+        <line x1="710" y1="105" x2="710" y2="250"
+              class="positive-line"/>
+        <line x1="710" y1="250" x2="570" y2="315"
+              class="positive-line"/>
+        <line x1="710" y1="250" x2="850" y2="315"
+              class="positive-line"/>
+
+        <circle cx="710" cy="105" r="53" class="diagram-circle"/>
+        <circle cx="570" cy="315" r="53" class="diagram-circle"/>
+        <circle cx="850" cy="315" r="53" class="diagram-circle"/>
+        <circle cx="710" cy="250" r="54" class="diagram-center"/>
+
+        <text x="710" y="100" class="diagram-label">
+          <tspan x="710">Build it</tspan>
+          <tspan x="710" dy="20">Good</tspan>
+        </text>
+        <text x="570" y="310" class="diagram-label">
+          <tspan x="570">Build it</tspan>
+          <tspan x="570" dy="20">Quick</tspan>
+        </text>
+        <text x="850" y="310" class="diagram-label">
+          <tspan x="850">Build it</tspan>
+          <tspan x="850" dy="20">Cheap</tspan>
+        </text>
+
+        <text x="710" y="244" class="diagram-center-label">
+          <tspan x="710">Build it</tspan>
+          <tspan x="710" dy="22">Together</tspan>
+        </text>
+
+        <circle cx="710" cy="175" r="14" class="positive-mark"/>
+        <text x="710" y="175"
+              class="relation-text positive-text">+</text>
+
+        <circle cx="640" cy="280" r="14" class="positive-mark"/>
+        <text x="640" y="280"
+              class="relation-text positive-text">+</text>
+
+        <circle cx="780" cy="280" r="14" class="positive-mark"/>
+        <text x="780" y="280"
+              class="relation-text positive-text">+</text>
+      </svg>
+    </div>
+
+    <p class="diagram-note">
+      Building together does not make the tradeoffs disappear.
+      It helps move them in the right direction.
+    </p>
+  </section>
+
+  <!-- Ecosystem -->
+  <section>
+    <div class="section-label">The Ecosystem</div>
+    <h2>How it all fits together</h2>
+    <p>
+      FORGE Tools are a family of tools that work together. You can use just the IDE,
+      or combine all the pieces for a full development workflow.
+    </p>
+
+    <div class="ecosystem">
+      <div class="eco-node">
+        <div class="eco-node-icon">🤖</div>
+        <div class="eco-node-label">Elsa</div>
+        <div class="eco-node-sub">Write the code</div>
+      </div>
+      <div class="eco-arrow">→</div>
+      <div class="eco-node">
+        <div class="eco-node-icon">🛠️</div>
+        <div class="eco-node-label">FORGE CODE</div>
+        <div class="eco-node-sub">Parse &amp; apply</div>
+      </div>
+      <div class="eco-arrow">→</div>
+      <div class="eco-node">
+        <div class="eco-node-icon">🔥</div>
+        <div class="eco-node-label">FORGE IDE</div>
+        <div class="eco-node-sub">Preview &amp; share</div>
+      </div>
+      <div class="eco-arrow">→</div>
+      <div class="eco-node">
+        <div class="eco-node-icon">⚙️</div>
+        <div class="eco-node-label">FORGE CLI</div>
+        <div class="eco-node-sub">Sync locally</div>
+      </div>
+      <div class="eco-arrow">→</div>
+      <div class="eco-node">
+        <div class="eco-node-icon">🦊</div>
+        <div class="eco-node-label">GitLab</div>
+        <div class="eco-node-sub">Collaborate</div>
+      </div>
+    </div>
+
+    <div class="tip">
+      <strong>Just getting started?</strong> You only need the first three steps —
+      Elsa, the bookmarklet, and the IDE. The CLI and GitLab integration are there
+      when you're ready to go deeper.
+    </div>
+  </section>
+
+  <!-- Getting Started -->
+  <section id="getting-started">
+    <div class="section-label">Getting Started</div>
+    <h2>From zero to shared app in 10 minutes</h2>
+    <p>
+      Here's the fastest path to building and sharing something real.
+      All you need is Chrome and access to Elsa.
+    </p>
+
+    <!-- Phase 1 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">1</div>
+        <div>
+          <div class="phase-title">Install the bookmarklet</div>
+          <div class="phase-subtitle">One-time setup — takes about 30 seconds</div>
+        </div>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Make sure your bookmarks bar is visible</div>
+            <div class="step-desc">
+              In Chrome, press <code>Ctrl+Shift+B</code> to show it if it's hidden.
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Drag the button below to your bookmarks bar</div>
+            <div class="step-desc">
+              Click and drag the blue button directly onto your Chrome bookmarks bar.
+              That's it — it's installed.
+            </div>
+            <div class="bookmarklet-zone">
+              <div class="bookmarklet-zone-label">
+                👇 Drag this to your bookmarks bar
+              </div>
+              <div id="bookmarkletTarget">
+                <div class="bookmarklet-loading">Loading bookmarklet...</div>
+              </div>
+            </div>
+            <div class="step-note">
+              💡 Want to see all available bookmarklets?
+              <a href="bookmarklets.html">Visit the Bookmarklets page →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 2 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">2</div>
+        <div>
+          <div class="phase-title">Build something with Elsa</div>
+          <div class="phase-subtitle">Ask Elsa to write a multi-file app, then parse it with one click</div>
+        </div>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Open a new Elsa chat, and launch the Forge Code Bookmarklet</div>
+            <div class="step-desc">
+              No special workspace or setup needed just start a fresh chat.
+              FORGE CODE already knows how to read whatever Elsa writes. The bookmarklet will
+              tell Elsa how to write code that it undersands. 
+
+              You can write your prompt directly in elsa, or you can write it in FORGE CODE's
+              prompt box. A good thing to try is a game. Puzzle games are simple, self-contained,
+              and are a good way to get familiar with how the process works.
+
+              Try something like:
+            </div>
+            <pre style="margin-top: 8px;">"Build me a sliding puzzle game with a 4x4 grid, a move counter, and a win condition."</pre>
+            <div class="step-desc" style="margin-top: 8px;">
+              Or try a crossword puzzle, a Jeopardy-style quiz, a Minesweeper clone,
+              a data visualization, or anything else you're curious about.
+              The more specific you are, the better the result.
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">When Elsa finishes, click "Apply Steps" in FORGE CODE</div>
+            <div class="step-desc">
+              It will scan Elsa's response, find all the code blocks, and show you a summary of what it found.
+              It will put the code into a "virtual file system", which is just in the browser for you only.
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-title">Click "Preview &amp; Share in FORGE IDE"</div>
+            <div class="step-desc">
+              This sends your project straight to the full IDE where you can browse
+              files, edit, preview, and share. The project payload itself stays client-side:
+              it is compressed into the URL fragment after the "#" mark, which the browser
+              uses without sending that fragment to the server. The IDE may still make its
+              own configuration or identity requests. Your project is uploaded only when
+              you intentionally create a server-backed Short Link.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Phase 3 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">3</div>
+        <div>
+          <div class="phase-title">Share your app</div>
+          <div class="phase-subtitle">Get a link anyone at FDA can open in their browser</div>
+        </div>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <div class="step-title">In the IDE, create a Short Link</div>
+            <div class="step-desc">
+              This stores a server-backed copy of the project and creates a compact link
+              that opens it directly in the browser — no install needed for the person
+              you're sharing with. You'll see a privacy notice and can choose an expiration
+              time before creating the link.
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">7</div>
+          <div class="step-body">
+            <div class="step-title">Paste the link wherever you need it</div>
+            <div class="step-desc">
+              Teams chat, email, a ticket — the link opens the live app.
+              If you want a self-contained link that stores nothing on the server,
+              use <strong>Long Link</strong> instead.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Showcase callout -->
+    <div class="tip" style="margin: 0 0 32px; border-left-color: var(--gold); font-size:0.92em;">
+      <strong>🚀 See what others have built.</strong>
+      The <a href="showcase/index.html" target="_blank">FORGE Showcase</a> is a gallery
+      of apps and tools built by the FDA community using this exact workflow —
+      Elsa, the bookmarklet, and the IDE. Browse it for inspiration, or to see
+      what's possible. One click opens any project directly in the IDE so you
+      can explore the code.
+    </div>
+
+    <!-- Phase 4 -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-number">4</div>
+        <div>
+          <div class="phase-title">Sync with your local machine</div>
+          <div class="phase-subtitle">
+            Optional — for when you want to edit locally, use git, or work offline
+          </div>
+        </div>
+      </div>
+      <p style="margin-bottom: 16px;">
+        The FORGE CLI brings <code>forge in</code> and <code>forge out</code> to your terminal.
+        These two commands let you move a project between the IDE and your local file system
+        in seconds — no manual copy-paste of individual files.
+      </p>
+
+      <div class="cli-workflow">
+        <div class="cli-card">
+          <div class="cli-card-title">📥 IDE → Local machine</div>
+          <div class="cli-card-desc">
+            Copy the project JSON from the IDE, then extract it to a local directory.
+          </div>
+          <ol style="font-size:0.85em; color:var(--text-dim); padding-left:18px; line-height:2;">
+            <li>In the IDE: <code>Ctrl+Shift+C</code> (or Export ▾ → Copy JSON)</li>
+            <li>On your machine, navigate to your target directory</li>
+            <li>Run: <pre>forge in</pre></li>
+          </ol>
+          <div class="tip" style="margin-top:10px;">
+            <code>forge in</code> reads from your clipboard by default.
+            It will ask before overwriting existing files.
+          </div>
+        </div>
+        <div class="cli-card">
+          <div class="cli-card-title">📤 Local machine → IDE</div>
+          <div class="cli-card-desc">
+            Package your local directory back to JSON, then paste it into the IDE.
+          </div>
+          <ol style="font-size:0.85em; color:var(--text-dim); padding-left:18px; line-height:2;">
+            <li>In your project directory, run: <pre>forge out</pre></li>
+            <li>In the IDE: <code>Ctrl+Shift+V</code> (or Import ▾ → Paste JSON)</li>
+          </ol>
+          <div class="tip" style="margin-top:10px;">
+            <code>forge out</code> copies to your clipboard automatically.
+            Use a <code>.forgeignore</code> file to exclude <code>node_modules/</code> etc.
+          </div>
+        </div>
+      </div>
+
+      <div class="steps" style="margin-top: 24px;">
+        <div class="step">
+          <div class="step-num">10</div>
+          <div class="step-body">
+            <div class="step-title">Install the FORGE CLI</div>
+            <div class="step-desc">
+              Download and run the self-contained installer for your platform.
+              No git clone or internet access required after download.
+            </div>
+            <div id="cliInstallInline">
+              <div style="color:var(--text-dim); font-size:0.85em; padding:12px 0;">
+                Checking for installers...
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">11</div>
+          <div class="step-body">
+            <div class="step-title">Use a .forgeignore file to keep things clean</div>
+            <div class="step-desc">
+              Works just like <code>.gitignore</code>. Put it in your project root
+              to tell <code>forge out</code> what to skip — typically
+              <code>node_modules/</code>, build output, and secrets.
+              You can edit it directly in the IDE's Project tab.
+            </div>
+            <pre>node_modules/
+dist/
+.env
+*.log</pre>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">12</div>
+          <div class="step-body">
+            <div class="step-title">Push to GitLab when you're ready</div>
+            <div class="step-desc">
+              Once your project is on your local machine via <code>forge in</code>,
+              it's just a regular directory. Initialize a git repo, push to GitLab,
+              and collaborate normally. You can pull it back into the IDE any time
+              using <strong>Import ▾ → Import from GitLab</strong>.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq-section">
+    <div class="section-label">FAQ</div>
+    <h2>Common questions</h2>
+
+    <div class="faq-list">
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Can I host a basic static page?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          Yes — this is the simplest use case and requires nothing special.
+          Build your HTML/CSS/JS in the IDE, then create a <strong>Short Link</strong>
+          or <strong>Fullscreen Link</strong> to get a link that opens your app
+          directly in the browser. Anyone with the link can view it — no install needed.
+          <br><br>
+          Try the <a href="index.html?loadExample=hello-world" target="_blank">Hello World example →</a>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Can I host a page that calls a REST API?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          Yes. Your app runs in the browser and can call any REST API that allows it.
+          <a href="https://open.fda.gov" target="_blank">openFDA</a> works out of the box.
+          Internal FDA APIs may need CORS headers configured to allow requests from the
+          FORGE domain — check with the API owner if you get CORS errors.
+          <br><br>
+          Try the <a href="index.html?loadExample=rest-api" target="_blank">openFDA Drug Search example →</a>
+        </div>
+      </div>
+
+      <div class="faq-item" id="faq-forgeapi" style="display:none;">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Can I host an app that stores data or lets users interact with each other?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          Yes — this is what <strong>ForgeAPI</strong> (client-server hosting) is for.
+          You write a small server script that runs in your browser via the Server Console tab.
+          The FORGE server proxies HTTP requests to it, so other users can connect to your
+          app in real time.
+          <br><br>
+          Messages and data live in memory while your browser tab is open.
+          Persistent storage (so data survives across sessions) is on the roadmap.
+          <br><br>
+          Try the <a href="index.html?loadExample=forgeapi-chatroom" target="_blank">Chatroom example →</a>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Can I use SSO (single sign-on) in my app?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          FORGE now has some identity groundwork, but it is not a general SSO API for
+          prototype code. On supported deployments, the IDE can obtain native FORGE
+          identity or discover the current FDA email from GSRS for IDE display and
+          form seeding. That discovered identity is not exposed to preview app code
+          and is not automatically trusted for authorization. Authenticated application
+          and server-side access controls still depend on the deployment model.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Does this work in browsers other than Chrome?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          The IDE itself works in any modern browser (Chrome, Edge, Firefox, Safari).
+          However, the FORGE CODE bookmarklet works best in Chrome at FDA.
+          Edge may have issues with bookmarklet drag-and-drop. If you're just using
+          the IDE directly (not the bookmarklet), any browser is fine.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Is my code stored anywhere when I use the IDE?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          By default, your project stays in the browser-side virtual file system.
+          Editing and previewing do not upload the project payload, although the IDE
+          may make ordinary requests for its own configuration or identity metadata.
+          <br><br>
+          <strong>Long Link</strong>: your project is compressed and embedded directly
+          in the URL fragment. The project is not stored server-side by FORGE.
+          <br><br>
+          <strong>Short Link</strong>: a compressed copy of your project is stored on
+          the FORGE server. Managed Short Links have bounded expiration and show a
+          privacy notice before creation. Don't use sharing features for information
+          that is not appropriate to place in the resulting link or server-backed share.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          What's the difference between FORGE CODE and FORGE IDE?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          They're designed for different moments in the workflow, and they're
+          better together than either is alone.
+          <br><br>
+          <strong>FORGE CODE</strong> is a bookmarklet that lives in your browser
+          and runs on any webpage — including Elsa. Its home is the LLM conversation:
+          you ask Elsa to write or modify code, FORGE CODE parses the response,
+          applies the changes to a virtual file system, and lets you preview the
+          result without ever leaving the chat. It's built for the fast, iterative
+          "ask → apply → see → ask again" loop.
+          <br><br>
+          <strong>FORGE IDE</strong> (this app) is where you go when you want to
+          do more with what you've built: browse and edit files, preview across
+          pages, share via URL, push to GitLab, or hand the project off to someone
+          else. It's built for the moments after the LLM conversation — reviewing,
+          refining, and shipping.
+          <br><br>
+          The handoff between them is one click in either direction. FORGE CODE
+          has an "Open in FORGE IDE" button that sends your current project straight
+          here. FORGE IDE projects can be exported as a JSON payload and loaded
+          back into FORGE CODE for another round of AI-assisted editing. They're
+          two parts of the same loop, not two separate tools.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Can I use this for Python or R projects?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          The IDE can store and edit any text file, including Python and R scripts.
+          However, the live preview only runs HTML/CSS/JavaScript — it can't execute
+          Python or R in the browser. You can use the IDE to manage and share the
+          source files, then run them locally after extracting with <code>forge in</code>.
+          Python and R execution in the browser (via Pyodide and WebR) is on the roadmap.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          How do I update the FORGE CLI after installing it?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          Download the latest installer and run it with the update flag:
+          <br><br>
+          <strong>Windows:</strong> <code>forge-install.bat -Update</code>
+          <br>
+          <strong>Mac/Linux:</strong> <code>bash forge-install.sh --update</code>
+          <br><br>
+          This removes the old installation and replaces it with the new version.
+          Your PATH configuration is preserved.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          What is .forgeignore and do I need it?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          <code>.forgeignore</code> works exactly like <code>.gitignore</code> —
+          it tells <code>forge out</code> which files and directories to skip when
+          packaging your project to JSON. You don't need it for simple projects,
+          but it's essential once you have a <code>node_modules/</code> directory
+          or other large generated files you don't want included.
+          <br><br>
+          You can edit your <code>.forgeignore</code> directly in the IDE's
+          <strong>Project</strong> tab without leaving the browser.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Can I import an existing GitLab repository?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          Yes. Click <strong>Import ▾ → Import from GitLab</strong> in the IDE.
+          You'll need a personal access token with <code>read_api</code> scope
+          from your GitLab instance. The IDE will fetch the repository tree and
+          all file contents, respecting any <code>.forgeignore</code> patterns
+          it finds in the repo.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Something isn't working. Where do I get help?
+          <span class="faq-chevron">▼</span>
+        </button>
+        <div class="faq-answer">
+          In the IDE, use <strong>Contact</strong> to begin a support email or
+          <strong>Report</strong> to begin a report with useful URL/share context.
+          You can also check the
+          <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/" target="_blank">
+            GitLab repository
+          </a>
+          for known issues, or email
+          <a href="mailto:forge@fda.hhs.gov">forge@fda.hhs.gov</a> directly.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Links -->
+  <section>
+    <div class="section-label">Resources</div>
+    <h2>More to explore</h2>
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:12px; margin-top:8px;">
+      <a href="index.html" class="cli-card" style="text-decoration:none; display:block;">
+        <div style="font-size:1.5em; margin-bottom:6px;">🔥</div>
+        <div class="cli-card-title">FORGE IDE</div>
+        <div class="cli-card-desc">The main development environment</div>
+      </a>
+      <a href="showcase/index.html" class="cli-card" style="text-decoration:none; display:block;">
+        <div style="font-size:1.5em; margin-bottom:6px;">🚀</div>
+        <div class="cli-card-title">Showcase</div>
+        <div class="cli-card-desc">Browse projects built with FORGE</div>
+      </a>
+      <a href="bookmarklets.html" class="cli-card" style="text-decoration:none; display:block;">
+        <div style="font-size:1.5em; margin-bottom:6px;">🔖</div>
+        <div class="cli-card-title">Bookmarklets</div>
+        <div class="cli-card-desc">FDA workflow browser tools</div>
+      </a>
+      <a href="bookmarklet_maker.html" class="cli-card" style="text-decoration:none; display:block;">
+        <div style="font-size:1.5em; margin-bottom:6px;">🛠️</div>
+        <div class="cli-card-title">Bookmarklet Maker</div>
+        <div class="cli-card-desc">Encode and decode bookmarklets</div>
+      </a>
+      <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/" target="_blank"
+         class="cli-card" style="text-decoration:none; display:block;">
+        <div style="font-size:1.5em; margin-bottom:6px;">🦊</div>
+        <div class="cli-card-title">GitLab Repository</div>
+        <div class="cli-card-desc">Source code, issues, and docs</div>
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<!-- Footer -->
+<footer class="page-footer">
+  <div class="footer-links">
+    <a href="index.html">IDE</a>
+    <a href="showcase/index.html">Showcase</a>
+    <a href="bookmarklets.html">Bookmarklets</a>
+    <a href="bookmarklet_maker.html">Bookmarklet Maker</a>
+    <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/" target="_blank">GitLab ↗</a>
+  </div>
+  <div id="footerVersion">FDA FORGE IDE</div>
+</footer>
+
+<script src="forge-cli-install.js"></script>
+<script>
+  // -- Config --------------------------------------------------------------
+  const BOOKMARKLETS_JSON_URL = 'bookmarklets.json';
+  const FORGE_QUICK_IDE_ID    = 'forge-code';
+  // ------------------------------------------------------------------------
+
+  // -- Load bookmarklet drag target -----------------------------------------
+  async function loadBookmarklet() {
+    const target = document.getElementById('bookmarkletTarget');
+    try {
+      const res = await fetch(BOOKMARKLETS_JSON_URL);
+      if (!res.ok) throw new Error('Could not load bookmarklets.json');
+      const data = await res.json();
+
+      const all = [...(data.featured || []), ...(data.utilities || [])];
+      const bm  = all.find(b => b.id === FORGE_QUICK_IDE_ID);
+
+      if (!bm || !bm.href) {
+        target.innerHTML = `
+          <div class="bookmarklet-unavailable">
+            Bookmarklet not found in registry.
+            <a href="bookmarklets.html">Visit the Bookmarklets page →</a>
+          </div>`;
+        return;
+      }
+
+      target.innerHTML = `
+        <a class="bookmarklet-drag-link" href="${bm.href}"
+           title="Drag me to your bookmarks bar!">
+          ${bm.title || '🚀 FORGE CODE'}
+        </a>
+        <div style="margin-top:10px; font-size:0.78em; color:var(--text-dim);">
+          v${bm.version || '?'} &nbsp;·&nbsp; ${bm.description || ''}
+        </div>
+      `;
+    } catch (e) {
+      target.innerHTML = `
+        <div class="bookmarklet-unavailable">
+          Could not load bookmarklet.
+          <a href="bookmarklets.html">Visit the Bookmarklets page to install it →</a>
+        </div>`;
+    }
+  }
+
+  // -- Load CLI install widget -----------------------------------------------
+  async function loadCliInstall() {
+    const container = document.getElementById('cliInstallInline');
+    await ForgeCliInstall.renderInstallUI(container, { compact: true });
+  }
+
+  // -- Footer version --------------------------------------------------------
+  async function loadFooterVersion() {
+    try {
+      const res = await fetch('downloads/manifest.json', { cache: 'no-cache' });
+      if (!res.ok) return;
+      const m = await res.json();
+      document.getElementById('footerVersion').textContent =
+        `FDA FORGE IDE · CLI v${m.version} · Built ${new Date(m.built).toLocaleDateString()}`;
+    } catch (e) { /* silent */ }
+  }
+
+  // -- FAQ accordion ---------------------------------------------------------
+  function toggleFaq(btn) {
+    const item = btn.closest('.faq-item');
+    const isOpen = item.classList.contains('open');
+    // Close all
+    document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+    // Open this one if it was closed
+    if (!isOpen) item.classList.add('open');
+  }
+
+  // -- Smooth scroll for anchor links ---------------------------------------
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        target.scrollIntoView({
+          behavior: reduceMotion ? 'auto' : 'smooth',
+          block: 'start'
+        });
+      }
+    });
+  });
+
+  // -- ForgeAPI section (shown only when forgeAPI feature is enabled) --------
+  async function loadForgeApiSection() {
+    try {
+      const res = await fetch('forge-config.json', { cache: 'no-cache' });
+      if (!res.ok) return;
+      const config = await res.json();
+      const hasForgeApi = config?.serverFeatures?.forgeAPI === true;
+
+      if (hasForgeApi) {
+        // Show the ForgeAPI FAQ item
+        const faqItem = document.getElementById('faq-forgeapi');
+        if (faqItem) faqItem.style.display = '';
+
+        // Insert the ForgeAPI section before the FAQ section
+        const faqSection = document.getElementById('faq-section');
+        if (!faqSection) return;
+
+        const section = document.createElement('section');
+        section.innerHTML = `
+          <div class="section-label">Client-Server Hosting</div>
+          <h2>Run a server from your browser</h2>
+          <p>
+            When the FORGE server is running, you can write server-side JavaScript
+            that executes in your browser and is accessible to others via HTTP.
+            This is called <strong>ForgeAPI</strong> — and it enables things like
+            shared state, multi-user apps, and real-time collaboration.
+          </p>
+
+          <div class="ecosystem" style="margin: 24px 0; justify-content: flex-start; gap: 0;">
+            <div class="eco-node">
+              <div class="eco-node-icon">🌐</div>
+              <div class="eco-node-label">HTTP Request</div>
+              <div class="eco-node-sub">From any browser</div>
+            </div>
+            <div class="eco-arrow">→</div>
+            <div class="eco-node">
+              <div class="eco-node-icon">🔥</div>
+              <div class="eco-node-label">FORGE Server</div>
+              <div class="eco-node-sub">WebSocket proxy</div>
+            </div>
+            <div class="eco-arrow">→</div>
+            <div class="eco-node">
+              <div class="eco-node-icon">💻</div>
+              <div class="eco-node-label">Your Browser</div>
+              <div class="eco-node-sub">Runs the handler</div>
+            </div>
+            <div class="eco-arrow">→</div>
+            <div class="eco-node">
+              <div class="eco-node-icon">📤</div>
+              <div class="eco-node-label">Response</div>
+              <div class="eco-node-sub">Back to caller</div>
+            </div>
+          </div>
+
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-body">
+                <div class="step-title">Write a server.js in your project</div>
+                <div class="step-desc">Use the ForgeAPI to register routes:</div>
+                <pre style="margin-top:8px;">const api = ForgeAPI.create('/sandbox/myapp');
+
+api.get('/hello', (req) => {
+  return { message: 'Hello from your browser!' };
+});
+
+api.start();</pre>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-body">
+                <div class="step-title">Designate it as the server entrypoint</div>
+                <div class="step-desc">
+                  In the Files tab, click the 🖥️ icon next to your server.js file.
+                </div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-body">
+                <div class="step-title">Start the server</div>
+                <div class="step-desc">
+                  Switch to the <strong>Server Console</strong> tab and click
+                  <strong>▶ Start Server</strong>. Your endpoints are now live.
+                </div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">4</div>
+              <div class="step-body">
+                <div class="step-title">Share the Link</div>
+                <div class="step-desc">
+                  Create a <strong>Short Link</strong> to share your app.
+                  Others connect through the FORGE proxy — your browser handles their requests.
+                  Keep your tab open while others are using it.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tip" style="margin-top: 20px;">
+            <strong>Try it:</strong>
+            Load the <a href="index.html?loadExample=forgeapi-chatroom" target="_blank">Chatroom example</a>
+            to see a complete ForgeAPI app — a multi-user chat room that runs entirely in your browser.
+          </div>
+        `;
+        faqSection.parentNode.insertBefore(section, faqSection);
+      }
+    } catch (e) { /* silent — ForgeAPI section is optional */ }
+  }
+
+  // -- Init ------------------------------------------------------------------
+  loadBookmarklet();
+  loadCliInstall();
+  loadFooterVersion();
+  loadForgeApiSection();
+</script>
+</body>
+</html>

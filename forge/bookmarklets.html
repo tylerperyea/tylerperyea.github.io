@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FDA FORGE Bookmarklets</title>
+    <link rel="stylesheet" href="lib/uswds.min.css">
+    <style>
+        body {
+            background: #1b1b1b;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+        }
+        .top-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+            padding: 2rem;
+            border-left: 4px solid #3498db;
+        }
+        .container {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .sidebar {
+            width: 280px;
+            background: #2c3e50;
+            padding: 1.5rem;
+            min-height: calc(100vh - 140px);
+            position: sticky;
+            top: 0;
+            border-right: 2px solid #34495e;
+        }
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+        }
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                min-height: auto;
+                position: relative;
+            }
+        }
+
+        .forge-title {
+            margin: 0;
+            color: #3498db;
+            font-size: 2.5rem;
+        }
+        .forge-subtitle {
+            margin: 0.5rem 0 0 0;
+            color: #95a5a6;
+            font-size: 1.1rem;
+        }
+        .edge-warning {
+            background: #f39c12;
+            color: #000;
+            padding: 1rem 1.5rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #e67e22;
+            font-weight: bold;
+        }
+        .bookmarklet-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .bookmarklet-card {
+            border: 1px solid #34495e;
+            border-radius: 6px;
+            padding: 1rem;
+            background: #2c3e50;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .bookmarklet-card h3 {
+            color: #3498db;
+            margin: 0 0 0.5rem 0;
+            font-size: 1.1rem;
+        }
+        .bookmarklet-card > p:first-of-type {
+            flex-grow: 1;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            margin: 0.5rem 0;
+        }
+        .bookmarklet-link {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: move;
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+        }
+        .bookmarklet-link:hover {
+            background: #2980b9;
+        }
+        .source-link {
+            display: inline-block;
+            margin-top: 0.5rem;
+            color: #3498db;
+            font-size: 0.85rem;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .source-link:hover {
+            text-decoration: underline;
+        }
+        .category-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: #34495e;
+            color: #3498db;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .filter-section {
+            margin-bottom: 2rem;
+        }
+        .filter-title {
+            color: #3498db;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+        .filter-option {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #1a252f;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: 2px solid transparent;
+        }
+        .filter-option:hover {
+            background: #34495e;
+        }
+        .filter-option.active {
+            background: #34495e;
+            border-color: #3498db;
+        }
+        .filter-option input[type="checkbox"] {
+            margin-right: 0.75rem;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+        .filter-label {
+            flex: 1;
+            cursor: pointer;
+        }
+        .filter-count {
+            background: #3498db;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: bold;
+            min-width: 24px;
+            text-align: center;
+        }
+        .clear-filters {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+        .clear-filters:hover {
+            background: #c0392b;
+        }
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: #95a5a6;
+            font-size: 1.2rem;
+        }
+        .difficulty-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+        .difficulty-beginner { background: #27ae60; color: #fff; }
+        .difficulty-intermediate { background: #f39c12; color: #000; }
+        .difficulty-advanced { background: #e74c3c; color: #fff; }
+        .section-title {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #3498db;
+            color: #3498db;
+        }
+        .instructions {
+            background: #34495e;
+            padding: 1rem 1.5rem;
+            border-radius: 4px;
+            margin-top: 1.5rem;
+            border-left: 4px solid #3498db;
+        }
+        .instructions strong {
+            color: #3498db;
+        }
+        .keyboard-shortcut {
+            background: #1a252f;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #3498db;
+            border: 1px solid #34495e;
+        }
+
+        /* Separate text/border accents from filled-control accents for AA contrast. */
+        .forge-title,
+        .bookmarklet-card h3,
+        .source-link,
+        .category-badge,
+        .filter-title,
+        .section-title,
+        .instructions strong,
+        .keyboard-shortcut {
+            color: #4fc3f7;
+        }
+
+        .top-header,
+        .filter-option.active,
+        .section-title,
+        .instructions {
+            border-color: #4fc3f7;
+        }
+
+        .bookmarklet-link,
+        .filter-count {
+            background: #0e639c;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <header class="top-header">
+        <h1 class="forge-title">🔥 FDA FORGE Bookmarklets</h1>
+        <p class="forge-subtitle">Powerful browser tools for FDA workflows</p>
+    </header>
+    
+    <div id="edge-warning" style="display: none;" class="edge-warning">
+        ⚠️ You're using Microsoft Edge. These bookmarklets work best in Chrome at FDA.
+    </div>
+    
+    <div class="instructions" style="max-width: 1400px; margin: 1.5rem auto;">
+        <strong>How to use:</strong> Drag the blue buttons below to your bookmarks bar to install them. 
+        Click them when you need their functionality!
+        <br><br>
+        <strong>Don't see your bookmarks bar?</strong> Press <span class="keyboard-shortcut">Ctrl+Shift+B</span> to show it.
+    </div>
+    
+    <div class="container">
+        <aside class="sidebar">
+            <div class="filter-section">
+                <h2 class="filter-title">📁 Categories</h2>
+                <div id="category-filters"></div>
+                <button class="clear-filters" id="clear-filters" style="display: none;">Clear Filters</button>
+            </div>
+        </aside>
+        
+        <div class="main-content">
+            <main id="app">
+                <div id="featured-section"></div>
+                <div id="utilities-section"></div>
+            </main>
+        </div>
+    </div>
+
+    <script src="bookmarklet_showcase.js"></script>
+</body>
+</html>

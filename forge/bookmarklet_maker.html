@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FORGE Bookmarklet Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5em;
+            margin: 0;
+        }
+
+        .header p {
+            font-size: 0.85em;
+            opacity: 0.9;
+            margin-top: 3px;
+        }
+
+        .header-links {
+            display: flex;
+            gap: 10px;
+        }
+
+        .header-links a {
+            color: white;
+            text-decoration: none;
+            font-size: 0.85em;
+            padding: 5px 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .header-links a:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .controls-bar {
+            background: #252526;
+            border-bottom: 1px solid #3e3e42;
+            padding: 12px 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            color: #858585;
+            font-size: 0.85em;
+            white-space: nowrap;
+        }
+
+        #bookName {
+            background: #1e1e1e;
+            color: #4fc3f7;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 0.9em;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-weight: 600;
+            min-width: 200px;
+        }
+
+        #bookName:focus {
+            outline: none;
+            border-color: #0e639c;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+            color: #d4d4d4;
+        }
+
+        .size-display {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85em;
+            color: #858585;
+        }
+
+        .size-display .size-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .size-display .size-value {
+            color: #4fc3f7;
+            font-weight: 600;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .size-display .size-savings {
+            color: #4caf50;
+            font-weight: 600;
+        }
+
+        .bookmarklet-link {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .bookmarklet-link span {
+            color: #858585;
+            font-size: 0.85em;
+        }
+
+        .bookmarklet-link a {
+            display: inline-block;
+            background: #0e639c;
+            color: white;
+            text-decoration: none;
+            padding: 6px 16px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+
+        .bookmarklet-link a:hover {
+            background: #1177bb;
+        }
+
+        .help-toggle {
+            margin-left: auto;
+            background: transparent;
+            color: #858585;
+            border: 1px solid #3e3e42;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .help-toggle:hover {
+            background: #3e3e42;
+            color: #d4d4d4;
+        }
+
+        .info-box {
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            padding: 15px 20px;
+            display: none;
+        }
+
+        .info-box.visible {
+            display: block;
+        }
+
+        .info-box h2 {
+            color: #4fc3f7;
+            font-size: 1em;
+            margin-bottom: 8px;
+        }
+
+        .info-box p {
+            color: #858585;
+            font-size: 0.85em;
+            line-height: 1.6;
+        }
+
+        .editor-container {
+            flex: 1;
+            display: flex;
+            gap: 0;
+            min-height: 0;
+        }
+
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            overflow: hidden;
+        }
+
+        .editor-panel:last-child {
+            border-right: none;
+        }
+
+        .editor-header {
+            background: #2d2d30;
+            padding: 10px 15px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-header h3 {
+            color: #d4d4d4;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .editor-header .hint {
+            color: #858585;
+            font-size: 0.75em;
+        }
+
+        textarea {
+            flex: 1;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+        }
+
+        textarea::placeholder {
+            color: #858585;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            justify-content: center;
+            padding: 20px;
+            background: #252526;
+        }
+
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background: #1177bb;
+        }
+
+        button.secondary {
+            background: #3e3e42;
+        }
+
+        button.secondary:hover {
+            background: #505050;
+        }
+
+        /* Accessible secondary text on the dark UI surfaces. */
+        .control-group label,
+        .size-display,
+        .bookmarklet-link span,
+        .help-toggle,
+        .info-box p,
+        .editor-header .hint,
+        textarea::placeholder {
+            color: #949494;
+        }
+
+        @media (max-width: 768px) {
+            .controls-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            #bookName {
+                width: 100%;
+            }
+
+            .editor-container {
+                flex-direction: column;
+            }
+
+            .editor-panel {
+                border-right: none;
+                border-bottom: 1px solid #3e3e42;
+                min-height: 200px;
+            }
+
+            .button-group {
+                flex-direction: row;
+                padding: 10px;
+            }
+        }
+    </style>
+    <script>
+        let $ = (a) => document.querySelector(a);
+
+        // Compress to base64
+        async function compress(text) {
+            const stream = new CompressionStream('gzip');
+            const writer = stream.writable.getWriter();
+            writer.write(new TextEncoder().encode(text));
+            writer.close();
+            const buf = await new Response(stream.readable).arrayBuffer();
+            
+            // Convert to base64 in chunks to avoid stack overflow on large payloads
+            const bytes = new Uint8Array(buf);
+            const CHUNK_SIZE = 8192; // 8KB chunks
+            let binary = '';
+            for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+                const chunk = bytes.slice(i, i + CHUNK_SIZE);
+                binary += String.fromCharCode.apply(null, chunk);
+            }
+            return btoa(binary);
+        }
+
+        // Decompress from base64
+        let deCoM = (b64) => {
+            stream = new DecompressionStream('gzip');
+            w = stream.writable.getWriter();
+            w.write(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+            w.close();
+            return new Response(stream.readable).arrayBuffer().then(d => new TextDecoder().decode(d));
+        }
+
+        function map(inp) {
+            return "javascript:(function(){eval(decodeURIComponent(atob('" + btoa(encodeURIComponent(inp)) + "')));})();";
+        }
+
+        function minifyJS(code) {
+            // Very conservative minification to avoid breaking code
+            // Only removes safe whitespace that won't affect string literals or regex
+            return code
+                // Remove leading/trailing whitespace from lines
+                .replace(/^\s+/gm, '')
+                .replace(/\s+$/gm, '')
+                // Replace multiple consecutive newlines with single newline
+                .replace(/\n\n+/g, '\n')
+                .trim();
+        }
+
+        function mapCSPSafe(inp, shouldMinify) {
+            const code = shouldMinify ? minifyJS(inp) : inp;
+            return "javascript:" + encodeURIComponent("(function(){" + code + "})();");
+        }
+
+        function mapCompressed(inp) {
+            return compress(inp).then(v => {
+                return "javascript:(function(){let deCoM=((b64)=>{stream = new DecompressionStream('gzip'); w=stream.writable.getWriter();w.write(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));w.close();return new Response(stream.readable).arrayBuffer().then(d=>new TextDecoder().decode(d));});deCoM('" + v + "').then(v=>eval(v));})();";
+            });
+        }
+
+        function unmapCompressed(inp) {
+            var o = inp.replace(/"/g, "'").split("'");
+            let oi = o.findIndex(oo => oo.indexOf("(") == -1 && oo.length > 20);
+            return deCoM(o[oi]);
+        }
+
+        function unmapCSPSafe(inp) {
+            // Extract the URL-encoded portion from javascript:...
+            const match = inp.match(/^javascript:(.+)$/);
+            if (!match) return inp;
+            
+            // First decode the URL encoding
+            const decoded = decodeURIComponent(match[1]);
+            // Remove the wrapper (function(){...})(); - need to handle the exact format
+            const unwrapped = decoded.replace(/^\(function\(\)\s*\{/, '').replace(/\}\s*\)\s*\(\)\s*;?$/, '');
+            return unwrapped;
+        }
+
+        function unmap(inp) {
+            var o = inp.split("'")[1];
+            var m = decodeURIComponent(atob(o));
+            return m;
+        }
+    </script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-top">
+            <div>
+                <h1>🔖 FORGE Bookmarklet Tool</h1>
+                <p>Encode and decode JavaScript bookmarklets</p>
+            </div>
+            <div class="header-links">
+                <a href="index.html">🚀 FORGE IDE</a>
+                <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide">📚 GitLab Repo</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="controls-bar">
+            <div class="control-group">
+                <label for="bookName">Name:</label>
+                <input id="bookName" value="My Bookmarklet" />
+            </div>
+            <div class="checkbox-group">
+                <input id="compChk" type="checkbox" checked />
+                <label for="compChk">Compress (gzip)</label>
+            </div>
+            <div class="checkbox-group">
+                <input id="cspSafeChk" type="checkbox" />
+                <label for="cspSafeChk">CSP-Safe (no eval)</label>
+            </div>
+            <div class="checkbox-group">
+                <input id="minifyChk" type="checkbox" checked />
+                <label for="minifyChk">Minify (CSP-safe)</label>
+            </div>
+            <div class="size-display">
+                <div class="size-item">
+                    <span>Input:</span>
+                    <span class="size-value" id="inputSize">0 bytes</span>
+                </div>
+                <div class="size-item">
+                    <span>Output:</span>
+                    <span class="size-value" id="outputSize">0 bytes</span>
+                </div>
+                <div class="size-item" id="savingsDisplay" style="display: none;">
+                    <span class="size-savings" id="savings"></span>
+                </div>
+            </div>
+            <div class="bookmarklet-link">
+                <span>📌 Drag to bookmarks:</span>
+                <a id="bookmarklet" href="">My Bookmarklet</a>
+            </div>
+            <button class="help-toggle" onclick="document.querySelector('.info-box').classList.toggle('visible')">
+                ℹ️ Help
+            </button>
+        </div>
+
+        <div class="info-box">
+            <h2>How to Use</h2>
+            <p>
+                <strong>Encode:</strong> Paste JavaScript in the left panel → Click "Encode →" → Get bookmarklet on the right. 
+                Drag the bookmark link above to your bookmarks bar.<br><br>
+                <strong>Decode:</strong> Paste a bookmarklet URL in the right panel → Click "← Decode" → See the original JavaScript on the left.
+                <br><br>
+                <strong>Compression:</strong> Enable for large scripts to reduce URL length. Uses eval() to execute decompressed code (blocked by CSP).<br><br>
+                <strong>CSP-Safe:</strong> Enable for sites with strict Content Security Policy that blocks eval(). Code is inlined directly. Choose compression OR CSP-safe, not both.<br><br>
+                <strong>Minify:</strong> Remove whitespace and comments to reduce size. Works with CSP-Safe mode. Not as effective as gzip compression, but better than nothing.
+            </p>
+        </div>
+
+        <div class="editor-container">
+            <div class="editor-panel">
+                <div class="editor-header">
+                    <h3>JavaScript Code</h3>
+                    <span class="hint">Your readable code</span>
+                </div>
+                <textarea id="input" placeholder="// Paste your JavaScript code here
+// Example:
+alert('Hello from FORGE!');
+
+// Or try something more complex:
+(function() {
+    const name = prompt('What is your name?');
+    alert('Hello, ' + name + '!');
+})();"></textarea>
+            </div>
+
+            <div class="button-group">
+                <button id="map">Encode →</button>
+                <button id="unmap" class="secondary">← Decode</button>
+            </div>
+
+            <div class="editor-panel">
+                <div class="editor-header">
+                    <h3>Bookmarklet Code</h3>
+                    <span class="hint">Encoded for browser</span>
+                </div>
+                <textarea id="output" placeholder="javascript:(function(){...})();
+
+The encoded bookmarklet will appear here.
+Click 'Encode →' to convert your JavaScript."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateSizes(inputText, outputText) {
+            const inputBytes = new Blob([inputText]).size;
+            const outputBytes = new Blob([outputText]).size;
+            
+            $("#inputSize").textContent = inputBytes.toLocaleString() + " bytes";
+            $("#outputSize").textContent = outputBytes.toLocaleString() + " bytes";
+            
+            if (outputBytes < inputBytes) {
+                const saved = inputBytes - outputBytes;
+                const percent = ((saved / inputBytes) * 100).toFixed(1);
+                $("#savings").textContent = `↓ ${saved.toLocaleString()} bytes (${percent}% smaller)`;
+                $("#savingsDisplay").style.display = "flex";
+            } else if (outputBytes > inputBytes) {
+                const added = outputBytes - inputBytes;
+                const percent = ((added / inputBytes) * 100).toFixed(1);
+                $("#savings").textContent = `↑ ${added.toLocaleString()} bytes (${percent}% larger)`;
+                $("#savingsDisplay").style.display = "flex";
+            } else {
+                $("#savingsDisplay").style.display = "none";
+            }
+        }
+
+        $("#map").onclick = ((e) => {
+            const isCompressed = $("#compChk").checked;
+            const isCSPSafe = $("#cspSafeChk").checked;
+            const shouldMinify = $("#minifyChk").checked;
+            const inputText = $("#input").value;
+            
+            if (isCSPSafe) {
+                // CSP-Safe mode: can use minification
+                var m = mapCSPSafe(inputText, shouldMinify);
+                $("#output").value = m;
+                $("#bookmarklet").href = m;
+                updateSizes(inputText, m);
+            } else if (isCompressed) {
+                // Compression mode: uses eval (not CSP-safe)
+                mapCompressed(inputText).then(m => {
+                    $("#output").value = m;
+                    $("#bookmarklet").href = m;
+                    updateSizes(inputText, m);
+                });
+            } else {
+                // Standard mode: uses eval (not CSP-safe)
+                var m = map(inputText);
+                $("#output").value = m;
+                $("#bookmarklet").href = m;
+                updateSizes(inputText, m);
+            }
+        });
+
+        $("#unmap").onclick = ((e) => {
+            let enc = $("#output").value.trim();
+            let decoded = null;
+            
+            // Check if it's compressed (has DecompressionStream)
+            if (enc.indexOf("DecompressionStream(") >= 0) {
+                unmapCompressed(enc).then(m => {
+                    $("#input").value = m;
+                }).catch(err => {
+                    $("#input").value = "Error decompressing: " + err.message;
+                });
+                return;
+            }
+            
+            // Try CSP-safe decoder first (for javascript: URLs without atob)
+            if (enc.startsWith("javascript:") && !enc.includes("atob('")) {
+                decoded = unmapCSPSafe(enc);
+                $("#input").value = decoded;
+                return;
+            }
+            
+            // Try standard decoder (atob-based)
+            if (enc.includes("atob('")) {
+                try {
+                    decoded = unmap(enc);
+                    $("#input").value = decoded;
+                    return;
+                } catch (e) {
+                    $("#input").value = "Error decoding: " + e.message;
+                    return;
+                }
+            }
+            
+            // Unknown format
+            $("#input").value = "Error: Unable to detect bookmarklet format";
+        });
+
+        // Make compression and CSP-safe mutually exclusive
+        $("#compChk").addEventListener('change', (e) => {
+            if (e.target.checked && $("#cspSafeChk").checked) {
+                $("#cspSafeChk").checked = false;
+            }
+        });
+        
+        $("#cspSafeChk").addEventListener('change', (e) => {
+            if (e.target.checked && $("#compChk").checked) {
+                $("#compChk").checked = false;
+            }
+        });
+
+        // Update sizes when input changes
+        $("#input").addEventListener('input', () => {
+            const inputText = $("#input").value;
+            $("#inputSize").textContent = new Blob([inputText]).size.toLocaleString() + " bytes";
+        });
+
+        // Update bookmarklet link text when name changes
+        $("#bookName").addEventListener('input', (e) => {
+            $("#bookmarklet").innerHTML = e.target.value;
+        });
+
+        // Initialize
+        $("#bookmarklet").innerHTML = $("#bookName").value;
+    </script>
+</body>
+</html>

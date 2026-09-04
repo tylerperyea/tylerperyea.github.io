@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FDA FORGE IDE</title>
+  <link rel="stylesheet" href="styles.css">
+  <!--
+    Vue 3 (global build) — loaded from local lib/.
+    To download: curl -o frontend/lib/vue.global.prod.js \
+      https://unpkg.com/vue@3/dist/vue.global.prod.js
+    The global build puts `Vue` on window — no imports needed.
+  -->
+  <script src="lib/vue.global.prod.js"></script>
+  <!-- CodeMirror 5 — syntax highlighting editor -->
+  <link rel="stylesheet" href="lib/codemirror/codemirror.min.css">
+  <link rel="stylesheet" href="lib/codemirror/theme/monokai.min.css">
+  <script src="lib/codemirror/codemirror.min.js"></script>
+  <script src="lib/codemirror/mode/xml/xml.min.js"></script>
+  <script src="lib/codemirror/mode/javascript/javascript.min.js"></script>
+  <script src="lib/codemirror/mode/css/css.min.js"></script>
+  <script src="lib/codemirror/mode/htmlmixed/htmlmixed.min.js"></script>
+  <script src="lib/codemirror/mode/markdown/markdown.min.js"></script>
+  <script src="lib/codemirror/mode/shell/shell.min.js"></script>
+  <script src="lib/codemirror/mode/powershell/powershell.min.js"></script>
+  <link rel="stylesheet" href="lib/codemirror/addon/hint/show-hint.min.css">
+  <script src="lib/codemirror/addon/hint/show-hint.min.js"></script>
+  <script src="lib/codemirror/addon/hint/javascript-hint.min.js"></script>
+  <script src="lib/codemirror/addon/hint/css-hint.min.js"></script>
+  <script src="lib/codemirror/addon/hint/html-hint.min.js"></script>
+  <script src="lib/codemirror/addon/hint/anyword-hint.min.js"></script>
+  <script src="lib/jszip.min.js"></script>
+  <style>
+    /*
+     * FLASH PREVENTION
+     * Body starts invisible. The inline script below immediately checks URL params
+     * and sets the appropriate class on <html> before any rendering occurs.
+     * JS then removes the 'initializing' class once the app is ready.
+     */
+    html.initializing body {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* In fullscreen-load mode, hide the IDE chrome immediately */
+    html.loading-fullscreen .header,
+    html.loading-fullscreen .container,
+    html.loading-fullscreen .status {
+      display: none !important;
+    }
+
+    html.loading-fullscreen .loading-spinner {
+      display: flex !important;
+    }
+
+    /* Legacy body-class selectors kept for JS compat */
+    body.loading-fullscreen .header,
+    body.loading-fullscreen .container,
+    body.loading-fullscreen .status {
+      display: none !important;
+    }
+
+    body.loading-fullscreen .loading-spinner {
+      display: flex !important;
+    }
+  </style>
+  <script>
+    /*
+     * CRITICAL: Runs synchronously before any rendering.
+     * Sets classes on <html> immediately so CSS can hide things
+     * before the first paint — no flash possible.
+     */
+    (function() {
+      document.documentElement.classList.add('initializing');
+
+      var hash = location.hash.substring(1);
+      var params = new URLSearchParams(hash);
+      var searchParams = new URLSearchParams(location.search);
+
+      function getParam(name) {
+        return params.get(name) || searchParams.get(name);
+      }
+
+      var fullscreen  = getParam('fullscreen');
+      var html        = getParam('html');
+      var htmlsha1    = getParam('htmlsha1');
+      var payload     = getParam('payload');
+      var payloadsha1 = getParam('payloadsha1');
+
+      var isFullscreenLoad = fullscreen || html || htmlsha1 ||
+                             (payload && fullscreen) ||
+                             (payloadsha1 && fullscreen);
+
+      if (isFullscreenLoad) {
+        document.documentElement.classList.add('loading-fullscreen');
+      }
+    })();
+  </script>
+</head>
+<body>
+  <!-- Loading Spinner for Fullscreen Mode -->
+  <div class="loading-spinner">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading project...</div>
+  </div>
+
+  <!-- Bridge status banner (full-width, sits above the header) -->
+  <div id="forgeBridgeBanner" class="forge-bridge-banner" hidden>
+    <button id="forgeBridgeBannerBtn" class="forge-bridge-banner-btn" aria-label="Bridge connections">
+      <span id="forgeBridgeBannerDot" class="forge-bridge-banner-dot"></span>
+      <span id="forgeBridgeBannerText">🌉 1 bridge active</span>
+      <span class="forge-bridge-banner-hint">click for details ▾</span>
+    </button>
+    <!-- Popover drops down from the banner -->
+    <div id="forgeBridgePopover" class="forge-bridge-popover" hidden>
+      <div class="forge-bridge-popover-header">
+        <span>🌉 Bridge Connections</span>
+        <button class="forge-bridge-popover-close" id="forgeBridgePopoverClose" aria-label="Close">✕</button>
+      </div>
+      <ul id="forgeBridgePopoverList" class="forge-bridge-popover-list"></ul>
+      <div class="forge-bridge-popover-footer">
+        <span style="font-size:0.75em; color:#666;">Session only &mdash; clears on refresh</span>
+      </div>
+    </div>
+  </div>
+
+  <header class="header">
+    <div class="header-left">
+      <h1>FDA FORGE IDE</h1>
+      <a id="versionBadge"
+         href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/"
+         target="_blank"
+         title="View source on GitLab"
+         style="
+           font-size: 0.72em;
+           color: #a9a9a9;
+           background: #2d2d30;
+           border: 1px solid #3e3e42;
+           border-radius: 10px;
+           padding: 2px 10px;
+           text-decoration: none;
+           font-family: 'Consolas','Monaco',monospace;
+           letter-spacing: 0.03em;
+           transition: color 0.2s, border-color 0.2s;
+           white-space: nowrap;
+         "
+         onmouseover="this.style.color='#4fc3f7';this.style.borderColor='#4fc3f7';"
+         onmouseout="this.style.color='#a9a9a9';this.style.borderColor='#3e3e42';"
+      >v1.0.0-preview</a>
+    </div>
+    <!-- Vue header app mounts here (forge-vue-header.js) -->
+    <div class="header-controls" id="forge-header-app">
+
+      <!-- Examples dropdown -->
+      <div class="forge-dropdown" :class="{ open: isOpen('dd-examples') }" id="dd-examples">
+        <button class="dropdown-trigger secondary" @click.stop="toggleDropdown('dd-examples')" title="Load an example project">
+          🧪 Examples ▾
+        </button>
+        <div class="dropdown-menu" id="examplesDropdownMenu">
+          <div class="dropdown-item" style="cursor:default;">
+            <span style="font-size:0.82em; color:#a9a9a9; padding: 2px 0;">
+              Loading examples...
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Import dropdown -->
+      <div class="forge-dropdown" :class="{ open: isOpen('dd-import') }" id="dd-import">
+        <button class="dropdown-trigger info" @click.stop="toggleDropdown('dd-import')" title="Import a project">
+          📥 Import ▾
+        </button>
+        <div class="dropdown-menu">
+          <div class="dropdown-item" onclick="pasteProjectFromClipboard(); toggleDropdown('dd-import')">
+            <span class="dropdown-icon">📋</span>
+            <span>
+              <strong>Paste JSON</strong>
+              <small>From clipboard (Ctrl+Shift+V)</small>
+            </span>
+          </div>
+          <div class="dropdown-item" onclick="openLoadJsonModal(); toggleDropdown('dd-import')">
+            <span class="dropdown-icon">📄</span>
+            <span>
+              <strong>Load JSON</strong>
+              <small>Paste or type forge JSON</small>
+            </span>
+          </div>
+          <div class="dropdown-item" onclick="importFromZip(); toggleDropdown('dd-import')">
+            <span class="dropdown-icon">📦</span>
+            <span>
+              <strong>Import ZIP</strong>
+              <small>Load from a .zip file</small>
+            </span>
+          </div>
+          <div class="dropdown-item" onclick="toggleDropdown('dd-import'); importFromFolder()">
+            <span class="dropdown-icon">📁</span>
+            <span>
+              <strong>Import Folder</strong>
+              <small>Load a local project folder</small>
+            </span>
+          </div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item" onclick="openGitLabModal(); toggleDropdown('dd-import')">
+            <span class="dropdown-icon">🦊</span>
+            <span>
+              <strong>Import from GitLab</strong>
+              <small>Fetch repo via API</small>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export dropdown -->
+      <div class="forge-dropdown" :class="{ open: isOpen('dd-export') }" id="dd-export">
+        <button class="dropdown-trigger info" @click.stop="toggleDropdown('dd-export')" title="Export the current project">
+          💾 Export ▾
+        </button>
+        <div class="dropdown-menu">
+          <div class="dropdown-item" onclick="copyProjectToClipboard(); toggleDropdown('dd-export')">
+            <span class="dropdown-icon">📋</span>
+            <span>
+              <strong>Copy JSON</strong>
+              <small>To clipboard (Ctrl+Shift+C)</small>
+            </span>
+          </div>
+          <div class="dropdown-item" onclick="downloadProjectJson(); toggleDropdown('dd-export')">
+            <span class="dropdown-icon">💾</span>
+            <span>
+              <strong>Download JSON</strong>
+              <small>Save as .json file</small>
+            </span>
+          </div>
+          <div class="dropdown-item" onclick="downloadProjectZip(); toggleDropdown('dd-export')">
+            <span class="dropdown-icon">📦</span>
+            <span>
+              <strong>Download ZIP</strong>
+              <small>Save as .zip archive</small>
+            </span>
+          </div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item" onclick="ForgeGitLabPush.openPushModal(); toggleDropdown('dd-export')">
+            <span class="dropdown-icon">🦊</span>
+            <span>
+              <strong>Push to GitLab</strong>
+              <small>Commit VFS to a branch &amp; open MR</small>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Share dropdown -->
+      <div class="forge-dropdown" :class="{ open: isOpen('dd-share') }" id="dd-share">
+        <button class="dropdown-trigger success" @click.stop="toggleDropdown('dd-share')" title="Share the current project">
+          📤 Share ▾
+        </button>
+        <div class="dropdown-menu">
+          <div class="dropdown-item" onclick="shareLongUrl(); toggleDropdown('dd-share')">
+            <span class="dropdown-icon">🔗</span>
+            <span>
+              <strong>Long Link</strong>
+              <small>Self-contained — nothing uploaded</small>
+            </span>
+          </div>
+          <div class="dropdown-item" id="shortUrlDropdownItem" hidden onclick="shareShortUrl(); toggleDropdown('dd-share')">
+            <span class="dropdown-icon">⚡</span>
+            <span>
+              <strong>Short Link</strong>
+              <small>Stored by FORGE — see warning</small>
+            </span>
+          </div>
+          <div class="dropdown-item" id="managedShareDropdownItem"
+               hidden
+               onclick="requestShortLink(false); toggleDropdown('dd-share')">
+            <span class="dropdown-icon">⚡</span>
+            <span>
+              <strong>Short Link</strong>
+              <small>Stored by FORGE — managed share</small>
+            </span>
+          </div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item" onclick="shareFullscreenUrl(); toggleDropdown('dd-share')">
+            <span class="dropdown-icon">🖥️</span>
+            <span>
+              <strong>Fullscreen Link</strong>
+              <small>Self-contained — opens app directly</small>
+            </span>
+          </div>
+          <div class="dropdown-item" id="managedFullscreenShareDropdownItem"
+               hidden
+               onclick="requestShortLink(true); toggleDropdown('dd-share')">
+            <span class="dropdown-icon">⚡🖥️</span>
+            <span>
+              <strong>Short Fullscreen Link</strong>
+              <small>Stored by FORGE — opens app directly</small>
+            </span>
+          </div>
+          <div class="dropdown-item" id="shortFullscreenUrlItem" hidden onclick="shareShortFullscreenUrl(); toggleDropdown('dd-share')">
+            <span class="dropdown-icon">⚡🖥️</span>
+            <span>
+              <strong>Short Fullscreen Link</strong>
+              <small>Stored by FORGE — opens app directly</small>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tools dropdown -->
+      <div class="forge-dropdown" :class="{ open: isOpen('dd-tools') }" id="dd-tools">
+        <button class="dropdown-trigger secondary" @click.stop="toggleDropdown('dd-tools')" title="FORGE tools and resources">
+          🔧 Tools ▾
+        </button>
+        <div class="dropdown-menu">
+          <div class="dropdown-item" onclick="window.open('showcase/index.html', '_blank'); toggleDropdown('dd-tools')">
+            <span class="dropdown-icon">🚀</span>
+            <span>
+              <strong>Showcase</strong>
+              <small>Browse community projects</small>
+            </span>
+          </div>
+          <div class="dropdown-item" onclick="window.open('bookmarklets.html', '_blank'); toggleDropdown('dd-tools')">
+            <span class="dropdown-icon">🔖</span>
+            <span>
+              <strong>Bookmarklets</strong>
+              <small>FDA workflow browser tools</small>
+            </span>
+          </div>
+          <div class="dropdown-item" onclick="window.open('bookmarklet_maker.html', '_blank'); toggleDropdown('dd-tools')">
+            <span class="dropdown-icon">🛠️</span>
+            <span>
+              <strong>Bookmarklet Maker</strong>
+              <small>Encode &amp; decode bookmarklets</small>
+            </span>
+          </div>
+
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item" onclick="openCliInstallModal(); toggleDropdown('dd-tools')">
+            <span class="dropdown-icon">⬇️</span>
+            <span>
+              <strong>Install CLI</strong>
+              <small>forge in / forge out for your terminal</small>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-divider"></div>
+
+      <div class="header-divider"></div>
+
+      <a href="about.html" target="_blank"
+         class="help-btn" title="About FORGE — getting started, FAQ, CLI install">
+        ℹ️ About
+      </a>
+      <button class="help-btn" onclick="emailForge()" title="Email the FORGE team">✉️ Contact</button>
+      <button class="help-btn" onclick="openForgeReportModal()" title="Report a FORGE IDE link or problem">🚩 Report</button>
+      <button id="shortcutsBtn" class="help-btn" title="Keyboard shortcuts"
+        aria-label="Keyboard shortcuts">⌨️</button>
+
+      <button id="currentUserBtn"
+              class="help-btn current-user-btn"
+              hidden
+              onclick="currentUserAction()"
+              title="Current FORGE user">
+        👤 User
+      </button>
+    </div>
+  </header>
+
+  <div class="container" role="main">
+
+    <!-- Vue panels app mounts here (forge-vue-panels.js) -->
+    <div class="preview-panel" id="forge-panels-app">
+      <div class="tabs">
+        <div class="project-title-container">
+          <input type="text" class="project-title" id="projectTitle" value="untitledProject">
+          <button class="regenerate-btn" id="regenerateTitleBtn"
+        title="Regenerate project name"
+        aria-label="Regenerate project name">🔄</button>
+          <span class="project-size-badge"
+                title="Total project file size">{{ projectSizeLabel }}</span>
+        </div>
+        <div class="main-tab-list" role="tablist" aria-label="IDE views">
+          <div class="tab" role="tab"
+               id="mainTabPreview"
+               aria-controls="previewTab"
+               :aria-selected="activeTab === 'preview'"
+               :tabindex="activeTab === 'preview' ? 0 : -1"
+               :class="{ active: activeTab === 'preview' }"
+               @click="setTab('preview')"
+               @keydown="onMainTabKeydown($event, 'preview')"
+               data-tab="preview">Preview</div>
+          <div class="tab" role="tab"
+               id="mainTabFiles"
+               aria-controls="filesTab"
+               :aria-selected="activeTab === 'files'"
+               :tabindex="activeTab === 'files' ? 0 : -1"
+               :class="{ active: activeTab === 'files' }"
+               @click="setTab('files')"
+               @keydown="onMainTabKeydown($event, 'files')"
+               data-tab="files">Files</div>
+          <div class="tab" role="tab"
+               id="mainTabProject"
+               aria-controls="projectTab"
+               :aria-selected="activeTab === 'project'"
+               :tabindex="activeTab === 'project' ? 0 : -1"
+               :class="{ active: activeTab === 'project' }"
+               @click="setTab('project')"
+               @keydown="onMainTabKeydown($event, 'project')"
+               data-tab="project">Project</div>
+          <div class="tab" role="tab"
+               id="mainTabServerConsole"
+               aria-controls="serverConsoleTab"
+               :aria-selected="activeTab === 'serverConsole'"
+               :tabindex="activeTab === 'serverConsole' ? 0 : -1"
+               :class="{ active: activeTab === 'serverConsole' }"
+               @click="setTab('serverConsole')"
+               @keydown="onMainTabKeydown($event, 'serverConsole')"
+               data-tab="serverConsole">Server Console</div>
+          <div class="tab" role="tab"
+               id="mainTabConsole"
+               aria-controls="consoleTab"
+               :aria-selected="activeTab === 'console'"
+               :tabindex="activeTab === 'console' ? 0 : -1"
+               :class="{ active: activeTab === 'console' }"
+               @click="setTab('console')"
+               @keydown="onMainTabKeydown($event, 'console')"
+               data-tab="console">Console</div>
+          <div class="tab" role="tab"
+               id="mainTabNetwork"
+               aria-controls="networkTab"
+               :aria-selected="activeTab === 'network'"
+               :tabindex="activeTab === 'network' ? 0 : -1"
+               :class="{ active: activeTab === 'network' }"
+               @click="setTab('network')"
+               @keydown="onMainTabKeydown($event, 'network')"
+               data-tab="network">Network</div>
+        </div>
+        <button id="clearBtn"
+                class="secondary tabs-clear-btn"
+                title="Clear all project files">🗑️ Clear</button>
+      </div>
+
+      <!-- Preview Tab -->
+      <div class="tab-content" id="previewTab"
+           role="tabpanel"
+           aria-labelledby="mainTabPreview"
+           :style="{ display: activeTab === 'preview' ? 'flex' : 'none' }">
+        <div class="preview-tab-wrapper">
+        <div class="preview-header">
+          <span style="font-size:0.9em; color:#949494;">Preview:</span>
+          <input type="text" id="urlBar" class="url-bar" value="No project loaded">
+          <span id="managedShareExpirationBadge" class="managed-share-expiration-badge" hidden></span>
+          <button
+            id="manageManagedShareBtn"
+            title="Edit this managed Short Link's title and expiration"
+            class="secondary preview-action-btn"
+            onclick="openManagedShareManageModal()"
+            hidden
+          >⚙ Manage</button>
+          <button id="refreshPreviewBtn" title="Refresh the current preview" class="secondary preview-action-btn">↻ Refresh</button>
+          <button id="shareCommentBtn" title="Add a comment and copy a self-contained URL" class="secondary preview-action-btn">💬 Comment URL</button>
+          <button id="shareLongUrlBtn"  title="Copy a self-contained long link (nothing stored server-side)" class="secondary preview-action-btn">🔗 Long Link</button>
+          <button id="shareShortUrlBtn" title="Copy a short link stored by FORGE" class="secondary preview-action-btn" hidden>⚡ Short Link</button>
+          <button id="fullscreenBtn" title="Fullscreen preview (Esc to exit)">⛶ Fullscreen</button>
+        </div>
+        <div class="preview-surface">
+          <iframe id="previewFrame" class="preview-frame"
+            title="FORGE project preview"
+            sandbox="allow-scripts allow-forms allow-modals allow-popups-to-escape-sandbox allow-popups allow-downloads allow-pointer-lock allow-presentation"></iframe>
+
+          <div id="previewWelcome" class="preview-welcome">
+            <div class="preview-welcome-card">
+              <div class="preview-welcome-mark">FORGE</div>
+              <h2>Build something small.</h2>
+              <p>
+                FORGE IDE is a lightweight place to turn an idea into working
+                software. Start with a simple example, or create your first file.
+              </p>
+              <div class="preview-welcome-actions">
+                <button id="welcomeForgeTourBtn">⚒️ Explore FORGE IDE</button>
+                <button id="welcomeCreateFileBtn" class="secondary">＋ Create a file</button>
+              </div>
+              <div class="preview-welcome-hint">
+                Everything in the project stays visible and editable.
+                See what others have made in the
+                <a href="showcase/index.html">FORGE Showcase</a>.
+              </div>
+            </div>
+          </div>
+
+          <div id="previewUnavailable" class="preview-welcome" hidden>
+            <div class="preview-welcome-card">
+              <div class="preview-welcome-mark">SHORT LINK</div>
+              <h2 id="previewUnavailableTitle">This Short Link is unavailable.</h2>
+              <p id="previewUnavailableMessage">
+                FORGE could not load the shared project.
+              </p>
+              <div class="preview-welcome-actions">
+                <button onclick="emailForge()">✉️ Email FORGE</button>
+                <button class="secondary"
+                        onclick="openForgeReportModal('Expired or unavailable link')">
+                  🚩 Report this link
+                </button>
+              </div>
+              <div id="previewUnavailableHint" class="preview-welcome-hint"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Context overlay -->
+        <div v-if="contextVisible && contextMessage" class="context-overlay"
+             :style="{ top: contextPos.top + 'px', left: contextPos.center ? '50%' : (contextPos.left != null ? contextPos.left + 'px' : 'auto'), transform: contextPos.center ? 'translateX(-50%)' : 'none', right: contextPos.center || contextPos.left != null ? 'auto' : contextPos.right + 'px' }">
+            <div class="context-overlay-header" @mousedown="contextDragStart">
+                <span class="context-overlay-title">{{ contextFrom ? contextFrom + ' says' : '📋 Context' }}</span>
+                <button class="context-overlay-close" @click="dismissContext"
+        title="Dismiss"
+        aria-label="Dismiss context overlay">✕</button>
+            </div>
+            <div class="context-overlay-body">{{ contextMessage }}</div>
+        </div>
+        </div>
+      </div>
+
+      <!-- Console Tab -->
+      <div class="tab-content" id="consoleTab"
+           role="tabpanel"
+           aria-labelledby="mainTabConsole"
+           :style="{ display: activeTab === 'console' ? 'flex' : 'none' }">
+        <console-panel
+            :entries="consoleLogs"
+            @clear="clearConsole"
+            @copy="copyConsole"
+        ></console-panel>
+      </div>
+
+      <!-- Network Tab -->
+      <div class="tab-content" id="networkTab"
+           role="tabpanel"
+           aria-labelledby="mainTabNetwork"
+           :style="{ display: activeTab === 'network' ? 'flex' : 'none' }">
+        <network-panel
+            :entries="networkLogs"
+            @clear="clearNetwork"
+            @copy="copyNetwork"
+        ></network-panel>
+      </div>
+
+      <!-- Files Tab -->
+      <div class="tab-content" id="filesTab"
+           role="tabpanel"
+           aria-labelledby="mainTabFiles"
+           :style="{ display: activeTab === 'files' ? 'flex' : 'none' }">
+        <div class="file-editor">
+          <div class="file-browser" :class="{ 'is-collapsed': isFileBrowserCollapsed }" :style="{ width: (isFileBrowserCollapsed ? 40 : fileBrowserWidth) + 'px' }">
+            <div
+              class="file-browser-resize-handle"
+              role="separator"
+              tabindex="0"
+              aria-label="Resize file browser"
+              aria-orientation="vertical"
+              aria-valuemin="40"
+              :aria-valuemax="getFileBrowserMaxWidth()"
+              :aria-valuenow="isFileBrowserCollapsed ? 40 : fileBrowserWidth"
+              :aria-valuetext="isFileBrowserCollapsed ? 'Collapsed' : fileBrowserWidth + ' pixels'"
+              title="Resize file browser: Left/Right arrows; Enter or Space collapses/restores"
+              @mousedown="startFileBrowserResize"
+              @keydown="resizeFileBrowserByKeyboard"
+            ></div>
+            <div class="file-browser-header" v-show="!isFileBrowserCollapsed">
+              <span>Project Files</span>
+              <div class="file-browser-header-actions">
+                <div class="file-view-toggle">
+                  <button
+                    class="file-view-toggle-btn"
+                    :class="{ active: fileViewMode === 'tree' }"
+                    @click="setFileViewMode('tree')"
+                    title="Tree view"
+                    aria-label="Tree view"
+                  >🌳</button>
+                  <button
+                    class="file-view-toggle-btn"
+                    :class="{ active: fileViewMode === 'flat' }"
+                    @click="setFileViewMode('flat')"
+                    title="Flat list view"
+                    aria-label="Flat list view"
+                  >📃</button>
+
+                  <button class="file-browser-toggle-btn"
+                    @click="toggleFileBrowser"
+                    title="Collapse file browser"
+                    aria-label="Collapse file browser">–</button>
+                </div>
+              </div>
+            </div>
+            <div v-show="!isFileBrowserCollapsed" style="padding:8px 10px 0;">
+              <button
+                class="secondary global-search-open-btn"
+                onclick="openGlobalSearch()"
+                title="Search across all project files (Ctrl+Shift+F)"
+              >🔍 Search in Files</button>
+            </div>
+            <div class="add-file-container" v-show="!isFileBrowserCollapsed">
+              <div class="add-file-mode-toggle">
+                <button id="addFileModeFileBtn" class="add-mode-btn active" title="Create a new file">📄 File</button>
+                <button id="addFileModeDirBtn" class="add-mode-btn" title="Create a new folder">📁 Folder</button>
+              </div>
+              <div class="add-file-input-row">
+                <input type="text" id="addFileInput" class="add-file-input" placeholder="/path/to/file.html">
+                <button id="addFileBtn" class="add-file-btn success"
+                        aria-label="Create file or folder">+</button>
+              </div>
+            </div>
+            <div class="file-browser-list" id="fileBrowserList" v-show="!isFileBrowserCollapsed">
+              <!-- File list rendered by forge-vue-panels.js -->
+              <forge-file-tree
+                v-if="fileViewMode === 'tree'"
+                :vfs-version="vfsVersion"
+                :selected-path="selectedFilePath"
+                :forge-api-enabled="forgeApiEnabled"
+                @select="onFileSelect"
+                @preview="onFilePreview"
+                @designate-server="onFileDesignateServer"
+                @open-settings="onFileOpenSettings"
+                @move="onFileMove"
+              ></forge-file-tree>
+              <forge-file-list
+                v-else
+                :vfs-version="vfsVersion"
+                :selected-path="selectedFilePath"
+                :forge-api-enabled="forgeApiEnabled"
+                @select="onFileSelect"
+                @preview="onFilePreview"
+                @designate-server="onFileDesignateServer"
+                @open-settings="onFileOpenSettings"
+                @move="onFileMove"
+              ></forge-file-list>
+            </div>
+            <div class="file-browser-collapsed-rail" v-show="isFileBrowserCollapsed">
+              <button class="file-browser-toggle-btn" @click="toggleFileBrowser" title="Restore file explorer" aria-label="Restore file explorer">+</button>
+
+              <span class="file-browser-collapsed-label">File Explorer</span>
+            </div>
+          </div>
+          <div class="editor-container"
+               id="editorWorkspace"
+               role="tabpanel"
+               :aria-label="activeTabPath ? 'Editor for ' + activeTabPath : 'File editor'">
+            <!-- Tab bar — rendered by Vue, sits above the editor header -->
+            <editor-tab-bar
+              :tabs="openTabs"
+              :active-tab-path="activeTabPath"
+              @switch="onTabSwitch"
+              @close="onTabClose"
+            ></editor-tab-bar>
+            <div class="editor-header">
+              <span class="editor-filename" id="editorFilename">No file selected</span>
+              <div class="editor-actions">
+                <button id="deleteFileBtn" class="danger" hidden title="Delete this file">🗑️ Delete</button>
+                <button id="saveFileBtn" hidden title="Save file (Ctrl+S)">💾 Save</button>
+                <button id="rerunBtn" hidden title="Save and re-run preview (Ctrl+R)">▶️ Re-run</button>
+              </div>
+            </div>
+            <!-- In-file Search Bar -->
+            <div class="editor-search-bar" id="editorSearchBar">
+              <div class="editor-search-row">
+                <button class="editor-search-btn secondary editor-search-toggle"
+        id="editorSearchToggleReplace"
+        title="Toggle Replace (Ctrl+H)"
+        aria-label="Toggle replace">▸</button>
+                <input type="text" id="editorSearchInput" class="editor-search-input" placeholder="Find...">
+                <span class="editor-search-count" id="editorSearchCount"></span>
+                <button class="editor-search-btn" id="editorSearchPrev"
+        title="Previous match (Shift+Enter)"
+        aria-label="Previous match">▲</button>
+                <button class="editor-search-btn" id="editorSearchNext"
+        title="Next match (Enter)"
+        aria-label="Next match">▼</button>
+                <button class="editor-search-btn secondary" id="editorSearchClose"
+        title="Close (Escape)"
+        aria-label="Close editor search">✕</button>
+              </div>
+              <div class="editor-search-row editor-replace-row" id="editorReplaceRow">
+                <input type="text" id="editorReplaceInput" class="editor-search-input" placeholder="Replace...">
+                <button class="editor-search-btn" id="editorReplaceOne" title="Replace this match">Replace</button>
+                <button class="editor-search-btn" id="editorReplaceAll" title="Replace all matches">All</button>
+              </div>
+            </div>
+            <div id="editorPlaceholder" class="editor-placeholder">Select a file to edit</div>
+            <textarea id="editorTextarea" class="editor-textarea" hidden></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Tab -->
+      <div class="tab-content" id="projectTab"
+           role="tabpanel"
+           aria-labelledby="mainTabProject"
+           :style="{ display: activeTab === 'project' ? 'flex' : 'none' }">
+        <project-settings-panel
+          :has-project="hasProject"
+          :vfs-version="vfsVersion"
+        ></project-settings-panel>
+      </div>
+
+      <!-- Server Console Tab -->
+      <div class="tab-content" id="serverConsoleTab"
+           role="tabpanel"
+           aria-labelledby="mainTabServerConsole"
+           :style="{ display: activeTab === 'serverConsole' ? 'flex' : 'none' }">
+        <server-console-panel
+          :status="serverStatus"
+          :is-running="serverIsRunning"
+          :has-entrypoint="serverHasEntry"
+          :logs="serverLogs"
+          @start="onStart"
+          @stop="onStop"
+          @clear="clearLogs"
+        ></server-console-panel>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="status" role="status" aria-live="polite">
+    Ready. Load a project to begin.
+  </div>
+
+  <!-- Fullscreen Container (static — controlled by app.js) -->
+  <div class="fullscreen-container" id="fullscreenContainer">
+    <div class="fullscreen-menu" id="fullscreenMenu">
+      <button id="exitFullscreenBtn" title="Exit fullscreen (Esc)">Exit</button>
+      <button onclick="copyFullscreenUrl()" title="Copy fullscreen share URL" style="margin-left:6px;">🔗 Share</button>
+    </div>
+    <iframe id="fullscreenFrame" class="fullscreen-iframe"
+      title="FORGE fullscreen project preview"
+      sandbox="allow-scripts allow-forms allow-modals allow-popups-to-escape-sandbox allow-popups allow-downloads allow-pointer-lock allow-presentation"></iframe>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Global Search Modal (also used for Quick Open, mode-switched via JS) -->
+  <div class="modal-overlay" id="globalSearchModal">
+    <div class="modal global-search-modal">
+      <div class="modal-header">
+        <h2 id="globalSearchTitle">🔍 Search in Files</h2>
+        <button class="secondary" onclick="closeGlobalSearch()"
+                aria-label="Close search">✕</button>
+      </div>
+      <div class="modal-body" style="padding:0;">
+        <div class="global-search-input-row">
+          <button class="global-search-replace-toggle" id="globalSearchReplaceToggle"
+        title="Toggle Replace (Ctrl+Shift+H)"
+        aria-label="Toggle replace"
+        hidden>▸</button>
+          <div class="global-search-input-wrap">
+            <span class="global-search-icon">🔍</span>
+            <input type="text" id="globalSearchInput" class="global-search-input"
+                  placeholder="Search across all files...">
+          </div>
+          <label class="global-search-case-toggle" id="globalSearchCaseToggleWrap" title="Match case">
+            <input type="checkbox" id="globalSearchCaseSensitive"> Aa
+          </label>
+          <button class="global-search-regex-toggle" id="globalSearchRegexToggle"
+        title="Use regular expression — format: /pattern/ or /pattern/flags"
+        aria-label="Use regular expression">.*</button>
+        </div>
+        <div class="global-search-replace-row" id="globalSearchReplaceRow">
+          <input type="text" id="globalSearchReplaceInput" class="global-search-replace-input" placeholder="Replace...">
+          <button class="global-search-replace-btn" id="globalSearchReplaceOneBtn" title="Replace the selected match">Replace</button>
+          <button class="global-search-replace-btn" id="globalSearchReplaceAllBtn" title="Replace all matches in all files">Replace All</button>
+        </div>
+        <div class="global-search-summary" id="globalSearchSummary"
+             role="status" aria-live="polite"></div>
+        <div class="global-search-results" id="globalSearchResults"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Load JSON Modal -->
+  <div class="modal-overlay" id="loadJsonModal">
+    <div class="modal load-json-modal">
+      <div class="modal-header">
+        <h2>📄 Load Project from JSON</h2>
+        <button class="secondary" onclick="closeLoadJsonModal()"
+                aria-label="Close Load Project dialog">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85em; color: #949494; margin-bottom: 12px;">
+          Paste a forge JSON project below, or use
+          <span class="shortcut-key">Ctrl+Shift+V</span>
+          to load directly from your clipboard without opening this dialog.
+        </p>
+        <textarea id="jsonInput"
+          style="width:100%; height:300px; font-family:'Consolas','Monaco',monospace; font-size:0.8em; background:#1e1e1e; color:#d4d4d4; border:1px solid #3e3e42; border-radius:4px; padding:10px; resize:vertical;"
+          placeholder='{"title": "myProject", "files": [{"path": "/index.html", "contents": "<!DOCTYPE html>..."}]}'></textarea>
+        <div id="fileList" class="file-list" hidden>
+          <strong>Loaded Files:</strong>
+          <div id="fileListContent"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" onclick="closeLoadJsonModal()">Cancel</button>
+        <button class="success" id="loadBtn">Load Project</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GitLab Import Modal -->
+  <div class="modal-overlay" id="gitlabModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>📥 Import from GitLab</h2>
+        <button class="secondary" onclick="closeGitLabModal()"
+                aria-label="Close GitLab import dialog">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="gitlabUrl">GitLab URL</label>
+          <input type="text" id="gitlabUrl" value="https://git.fda.gov" readonly>
+          <small>Configured by the FORGE deployment</small>
+        </div>
+        <div class="form-group">
+          <label for="gitlabToken">Access Token</label>
+          <input type="password" id="gitlabToken"
+                 placeholder="glpat-xxxxxxxxxxxxx"
+                 required aria-required="true">
+          <small>Personal access token with read_api scope</small>
+        </div>
+        <div class="form-group">
+          <label for="gitlabProject">Project ID or Path</label>
+          <div class="gitlab-project-input-row">
+            <input type="text" id="gitlabProject"
+                   placeholder="8802 or FDA/OC/FORGE/pubtracker-frontend"
+                   required aria-required="true">
+            <button type="button" class="secondary gitlab-browse-btn"
+                    id="gitlabBrowseProjectsBtn" aria-expanded="false"
+                    aria-controls="gitlabProjectBrowser">
+              Browse projects
+            </button>
+          </div>
+          <small>Enter a project manually or browse repositories available to your token.</small>
+        </div>
+
+        <div id="gitlabProjectBrowser" class="gitlab-project-browser" hidden>
+          <div id="gitlabRecentProjects" class="gitlab-recent-projects" hidden></div>
+
+          <div class="gitlab-project-search-row">
+            <input type="search" id="gitlabProjectSearch"
+                   placeholder="Search repositories…"
+                   aria-label="Search GitLab repositories">
+            <button type="button" class="secondary" id="gitlabProjectSearchBtn">Search</button>
+          </div>
+
+          <div id="gitlabProjectResults" class="gitlab-project-results"
+               role="listbox" aria-label="GitLab repositories"></div>
+
+          <div id="gitlabProjectPagination" class="gitlab-project-pagination" hidden>
+            <button type="button" class="secondary" id="gitlabProjectPrevBtn">← Prev</button>
+            <span id="gitlabProjectPageLabel"></span>
+            <button type="button" class="secondary" id="gitlabProjectNextBtn">Next →</button>
+          </div>
+
+          <div id="gitlabProjectBrowseStatus" class="gitlab-project-browse-status"
+               role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="gitlabBranch">Branch (optional)</label>
+          <input type="text" id="gitlabBranch" placeholder="main">
+          <small>Leave empty to use default branch</small>
+        </div>
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="saveToken">
+            <label for="saveToken" class="checkbox-label">Save token in browser (localStorage)</label>
+          </div>
+        </div>
+        <div id="importProgress" role="status" aria-live="polite"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" onclick="closeGitLabModal()">Cancel</button>
+        <button class="success" onclick="importFromGitLab()">Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Short URL Warning Modal -->
+  <div class="modal-overlay" id="shortUrlWarningModal">
+    <div class="modal unsaved-modal">
+      <div class="modal-header">
+        <h2>⚡ Short Link — Privacy Notice</h2>
+      </div>
+      <div class="modal-body">
+        <p style="line-height:1.6;">
+          Creating a Short Link uploads a compressed copy of your <strong>entire project's source code</strong>
+          to the FORGE server, where it is stored and accessible to anyone with the link.
+        </p>
+        <p style="margin-top: 12px; line-height:1.6; color: #f48771;">
+          ⚠️ <strong>Do not use Short Link if your project contains sensitive information</strong>
+          such as API keys, passwords, internal data, PII, or proprietary code.
+          Use the Long Link option instead — it stores nothing on the server.
+        </p>
+
+        <div
+          class="form-group short-url-expiration-group"
+          id="shortUrlExpirationGroup"
+          hidden
+        >
+          <label for="shortUrlExpirationInput">⏳ Expiration</label>
+          <input
+            type="datetime-local"
+            id="shortUrlExpirationInput"
+          >
+          <div
+            class="info-text"
+            id="shortUrlExpirationHelp"
+            style="margin-top: 6px;"
+          >
+            Managed Short Links expire automatically. The server default is
+            preselected; choose another future date and time if needed.
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" id="shortUrlWarningCancelBtn">Cancel</button>
+        <button class="warning" id="shortUrlWarningConfirmBtn">I understand — Create Short Link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Managed Short Link Metadata Modal -->
+  <div class="modal-overlay" id="managedShareManageModal">
+    <div class="modal unsaved-modal">
+      <div class="modal-header">
+        <h2>⚙ Manage Short Link</h2>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="managedShareManageTitle">Title</label>
+          <input
+            type="text"
+            id="managedShareManageTitle"
+            maxlength="200"
+            placeholder="Optional Short Link title"
+          >
+          <div class="info-text" style="margin-top:6px;">
+            This changes the managed Short Link metadata only. It does not
+            rename or modify the project in the IDE.
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top:16px;">
+          <label for="managedShareManageExpiration">⏳ Expiration</label>
+          <input
+            type="datetime-local"
+            id="managedShareManageExpiration"
+          >
+          <div class="info-text" style="margin-top:6px;">
+            Choose a future date and time. Updating expiration does not
+            re-upload or alter the shared project payload.
+          </div>
+        </div>
+
+        <div
+          id="managedShareManageIdentity"
+          class="info-text"
+          style="margin-top:16px; overflow-wrap:anywhere;"
+        ></div>
+
+        <div
+          style="margin-top:20px; padding-top:16px; border-top:1px solid #444;"
+        >
+          <div style="font-weight:600; margin-bottom:6px;">
+            Delete Short Link
+          </div>
+          <div class="info-text" style="margin-bottom:10px;">
+            Request that this managed Short Link be made unavailable. Depending
+            on deployment policy, the request may be applied immediately or
+            routed for review. This does not guarantee immediate physical
+            deletion of the immutable project payload.
+          </div>
+          <button
+            class="danger"
+            id="managedShareManageDeleteBtn"
+            onclick="requestManagedShareDeletion()"
+          >🗑️ Request deletion</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" onclick="closeManagedShareManageModal()">Cancel</button>
+        <button
+          class="success"
+          id="managedShareManageSaveBtn"
+          onclick="saveManagedShareMetadata()"
+        >Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clipboard Paste Confirmation Modal -->
+  <div class="modal-overlay" id="clipboardPasteModal">
+    <div class="modal unsaved-modal">
+      <div class="modal-header">
+        <h2>📋 Load from Clipboard</h2>
+      </div>
+      <div class="modal-body">
+        <p>Your clipboard contains a forge JSON project:</p>
+        <p style="margin-top:8px;">
+          <strong id="clipboardPasteTitle" style="color:#4fc3f7;"></strong>
+        </p>
+        <p id="clipboardPasteStats" style="margin-top:6px; font-size:0.85em; color:#949494;"></p>
+        <p style="margin-top:12px; color:#f48771;">
+          ⚠️ This will replace your current project. This cannot be undone.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" id="clipboardPasteCancelBtn">Cancel</button>
+        <button class="success" id="clipboardPasteConfirmBtn">Load Project</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unsaved Changes Modal -->
+  <div class="modal-overlay" id="unsavedModal">
+    <div class="modal unsaved-modal">
+      <div class="modal-header">
+        <h2>⚠️ Unsaved Changes</h2>
+      </div>
+      <div class="modal-body">
+        <p>You have unsaved changes in <strong id="unsavedFileName"></strong>.</p>
+        <p>What would you like to do?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" id="unsavedCancelBtn">Cancel</button>
+        <button class="danger" id="unsavedDiscardBtn">Discard</button>
+        <button class="success" id="unsavedSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLI Install Modal -->
+  <div class="modal-overlay" id="cliInstallModal">
+    <div class="modal cli-install-modal">
+      <div class="modal-header">
+        <h2>⬇️ Install FORGE CLI</h2>
+        <button class="secondary" onclick="closeCliInstallModal()"
+                aria-label="Close CLI install dialog">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85em; color:#949494; margin-bottom:16px;">
+          The FORGE CLI brings <code style="color:#4fc3f7;">forge in</code> and
+          <code style="color:#4fc3f7;">forge out</code> to your terminal —
+          package any directory to JSON and extract JSON back to files.
+          Works on Windows (PowerShell), Mac, Linux, and Git Bash.
+        </p>
+        <div id="cliInstallContainer">
+          <div style="text-align:center; padding:20px; color:#949494;">
+            Checking for installers...
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" onclick="closeCliInstallModal()">Close</button>
+        <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/"
+           target="_blank" class="btn info">
+          📦 View Repository
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report to FORGE Modal -->
+  <div class="modal-overlay" id="forgeReportModal">
+    <div class="modal unsaved-modal">
+      <div class="modal-header">
+        <h2>🚩 Report to FORGE</h2>
+        <button class="secondary" onclick="closeForgeReportModal()"
+                aria-label="Close report dialog">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-top:0;">
+          Choose the reason that best describes what you are reporting.
+          Your email will include the current FORGE IDE URL and payload hash
+          when one is available.
+        </p>
+
+        <div style="display:grid; gap:8px; margin:16px 0;">
+          <label>
+            <input type="radio" name="forgeReportReason"
+                   value="Expired or unavailable link">
+            Expired or unavailable link
+          </label>
+          <label>
+            <input type="radio" name="forgeReportReason"
+                   value="Broken or misleading project">
+            Broken or misleading project
+          </label>
+          <label>
+            <input type="radio" name="forgeReportReason"
+                   value="Privacy or security concern">
+            Privacy or security concern
+          </label>
+          <label>
+            <input type="radio" name="forgeReportReason"
+                   value="Inappropriate content">
+            Inappropriate content
+          </label>
+          <label>
+            <input type="radio" name="forgeReportReason"
+                   value="Other" checked>
+            Other
+          </label>
+        </div>
+
+        <label for="forgeReportDetails">Additional details</label>
+        <textarea id="forgeReportDetails"
+                  rows="5"
+                  placeholder="Tell the FORGE team what happened or what you noticed."
+                  style="width:100%; box-sizing:border-box; margin-top:6px;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" onclick="closeForgeReportModal()">Cancel</button>
+        <button id="forgeReportEmailBtn" onclick="sendForgeReportEmail()">
+          ✉️ Begin email
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Help Modal -->
+  <div class="modal-overlay" id="shortcutsModal">
+    <div class="modal shortcuts-modal">
+      <div class="modal-header">
+        <h2>⌨️ Keyboard Shortcuts</h2>
+        <button class="secondary" onclick="closeShortcutsModal()"
+                aria-label="Close keyboard shortcuts dialog">✕</button>
+      </div>
+      <div class="modal-body">
+        <ul class="shortcuts-list">
+          <li>
+            <span class="shortcut-desc">Save current file</span>
+            <span class="shortcut-key">Ctrl+S</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Re-run preview</span>
+            <span class="shortcut-key">Ctrl+R</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Copy project JSON to clipboard</span>
+            <span class="shortcut-key">Ctrl+Shift+C</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Paste project JSON from clipboard</span>
+            <span class="shortcut-key">Ctrl+Shift+V</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Switch to Preview tab</span>
+            <span class="shortcut-key">Ctrl+1</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Switch to Files tab</span>
+            <span class="shortcut-key">Ctrl+2</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Exit fullscreen</span>
+            <span class="shortcut-key">Esc</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Close open dialog</span>
+            <span class="shortcut-key">Esc</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Leave code editor</span>
+            <span class="shortcut-key">Esc, then Tab</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Search in current file</span>
+            <span class="shortcut-key">Ctrl+F</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Search and replace in current file</span>
+            <span class="shortcut-key">Ctrl+H</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Search in all files</span>
+            <span class="shortcut-key">Ctrl+Shift+F</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Search and replace in all files</span>
+            <span class="shortcut-key">Ctrl+Shift+H</span>
+          </li>
+          <li>
+            <span class="shortcut-desc">Go to file</span>
+            <span class="shortcut-key">Ctrl+Shift+P</span>
+          </li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" onclick="closeShortcutsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GitLab Push Modal -->
+  <div class="modal-overlay" id="gitlabPushModal">
+    <div class="modal gitlab-push-modal">
+      <div class="modal-header">
+        <h2>📤 Push to GitLab</h2>
+        <button class="secondary" onclick="ForgeGitLabPush.closePushModal()"
+                aria-label="Close GitLab push dialog">✕</button>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="push-tab-bar" role="tablist" aria-label="GitLab push views">
+        <button id="pushTabPush"
+                class="push-tab active"
+                role="tab"
+                aria-selected="true"
+                aria-controls="pushPanePush"
+                tabindex="0"
+                data-push-tab="push"
+                onclick="ForgeGitLabPush.showTab('push')"
+                onkeydown="ForgeGitLabPush.onTabKeydown(event)">⚙️ Settings</button>
+        <button id="pushTabPreview"
+                class="push-tab"
+                role="tab"
+                aria-selected="false"
+                aria-controls="pushPanePreview"
+                tabindex="-1"
+                data-push-tab="preview"
+                onclick="ForgeGitLabPush.previewChanges()"
+                onkeydown="ForgeGitLabPush.onTabKeydown(event)">🔍 Preview Changes</button>
+        <button id="pushTabLog"
+                class="push-tab"
+                role="tab"
+                aria-selected="false"
+                aria-controls="pushPaneLog"
+                tabindex="-1"
+                data-push-tab="log"
+                onclick="ForgeGitLabPush.showTab('log')"
+                onkeydown="ForgeGitLabPush.onTabKeydown(event)">📋 Log</button>
+      </div>
+
+      <!-- Settings pane -->
+      <div id="pushPanePush"
+           class="push-pane modal-body active"
+           role="tabpanel"
+           aria-labelledby="pushTabPush">
+
+        <div class="form-group">
+          <label for="pushGitlabUrl">GitLab URL</label>
+          <input type="text" id="pushGitlabUrl" value="https://git.fda.gov" readonly>
+        </div>
+        <div class="form-group">
+          <label for="pushGitlabToken">Access Token
+            <span class="push-scope-hint">(needs <code>write_repository</code> scope;
+            <code>api</code> scope for MR creation)</span>
+          </label>
+          <input type="password" id="pushGitlabToken" placeholder="glpat-xxxxxxxxxxxxx">
+        </div>
+        <div class="form-group">
+          <label for="pushGitlabProject">Project ID or Path</label>
+          <div class="gitlab-project-input-row">
+            <input type="text" id="pushGitlabProject"
+                   placeholder="8802 or FDA/OC/FORGE/my-project">
+            <button type="button" class="secondary gitlab-browse-btn"
+                    id="pushGitlabBrowseProjectsBtn"
+                    aria-expanded="false"
+                    aria-controls="pushGitlabProjectBrowser"
+                    onclick="ForgeGitLabPush.toggleProjectBrowser()">
+              Browse projects
+            </button>
+          </div>
+          <small>Enter a project manually or browse repositories available to your token.</small>
+
+          <div id="pushGitlabProjectBrowser"
+               class="gitlab-project-browser"
+               hidden>
+            <div id="pushGitlabRecentProjects"
+                 class="gitlab-recent-projects"
+                 hidden></div>
+
+            <div class="gitlab-project-search-row">
+              <input type="search"
+                     id="pushGitlabProjectSearch"
+                     placeholder="Search repositories..."
+                     aria-label="Search GitLab repositories for push"
+                     onkeydown="ForgeGitLabPush.onProjectSearchKeydown(event)">
+              <button type="button"
+                      class="secondary"
+                      id="pushGitlabProjectSearchBtn"
+                      onclick="ForgeGitLabPush.searchProjects()">
+                Search
+              </button>
+            </div>
+
+            <div id="pushGitlabProjectResults"
+                 class="gitlab-project-results"
+                 role="listbox"
+                 aria-label="GitLab repositories for push"></div>
+
+            <div id="pushGitlabProjectPagination"
+                 class="gitlab-project-pagination"
+                 hidden>
+              <button type="button"
+                      class="secondary"
+                      id="pushGitlabProjectPrevBtn"
+                      onclick="ForgeGitLabPush.previousProjectPage()">
+                ← Prev
+              </button>
+              <span id="pushGitlabProjectPageLabel"></span>
+              <button type="button"
+                      class="secondary"
+                      id="pushGitlabProjectNextBtn"
+                      onclick="ForgeGitLabPush.nextProjectPage()">
+                Next →
+              </button>
+            </div>
+
+            <div id="pushGitlabProjectBrowseStatus"
+                 class="gitlab-project-browse-status"
+                 role="status"
+                 aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="push-branch-toggle">
+            <label class="push-radio-label">
+              <input type="radio" name="repositoryMode" id="repositoryModeExisting"
+                     value="existing" checked
+                     onchange="ForgeGitLabPush.onRepositoryModeChange()">
+              Existing repository
+            </label>
+            <label class="push-radio-label">
+              <input type="radio" name="repositoryMode" id="repositoryModeNew"
+                     value="new"
+                     onchange="ForgeGitLabPush.onRepositoryModeChange()">
+              New repository
+            </label>
+          </div>
+        </div>
+
+        <div id="pushNewRepositoryFields" hidden>
+          <div class="push-row">
+            <div class="form-group push-form-field">
+              <label for="pushNewRepositoryName">
+                Repository name <span class="required-marker" aria-hidden="true">*</span>
+              </label>
+              <input type="text" id="pushNewRepositoryName"
+                     placeholder="my-project"
+                     required aria-required="true">
+            </div>
+            <div class="form-group push-form-field">
+              <label for="pushNewDefaultBranch">
+                Default branch <span class="required-marker" aria-hidden="true">*</span>
+              </label>
+              <input type="text" id="pushNewDefaultBranch"
+                     value="main" placeholder="main"
+                     required aria-required="true">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="pushNewRepositoryDescription">Description (optional)</label>
+            <textarea id="pushNewRepositoryDescription" rows="2"
+                      placeholder="What this project does..."></textarea>
+          </div>
+
+          <div class="push-row">
+            <div class="form-group push-form-field">
+              <label for="pushNewNamespace">Namespace / owner</label>
+              <select id="pushNewNamespace">
+                <option value="">Personal namespace (GitLab default)</option>
+              </select>
+              <button type="button" class="secondary"
+                      style="margin-top:6px;"
+                      onclick="ForgeGitLabPush.loadNamespaces()">
+                ↻ Refresh namespaces
+              </button>
+            </div>
+
+            <div class="form-group push-form-field">
+              <label for="pushNewVisibility">Visibility</label>
+              <select id="pushNewVisibility">
+                <option value="private" selected>Private</option>
+                <option value="internal">Internal</option>
+                <option value="public">Public</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="push-warn">
+            ℹ️ Creating a repository requires a PAT with <strong>api</strong>
+            scope. GitLab creates a minimal README commit to establish the
+            requested default branch; FORGE then replaces that bootstrap
+            content with the current VFS.
+          </div>
+        </div>
+
+        <div class="push-row">
+          <div class="form-group push-form-field">
+            <label for="pushSourceBranch">Source branch (base)</label>
+            <input type="text" id="pushSourceBranch" placeholder="main"
+                   oninput="ForgeGitLabPush.onBranchModeChange()">
+          </div>
+          <div class="form-group push-form-field">
+            <label for="pushTargetBranch">Target branch</label>
+            <input type="text" id="pushTargetBranch"
+                   oninput="ForgeGitLabPush.onTargetBranchChange()"
+                   placeholder="forge/changes-...">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="push-branch-toggle">
+            <label class="push-radio-label">
+              <input type="radio" name="branchMode" id="branchModeNew"
+                     value="new" checked
+                     onchange="ForgeGitLabPush.onBranchModeChange()">
+              New branch
+            </label>
+            <label class="push-radio-label">
+              <input type="radio" name="branchMode" id="branchModeExisting"
+                     value="existing"
+                     onchange="ForgeGitLabPush.onBranchModeChange()">
+              Existing branch
+            </label>
+          </div>
+          <div id="pushForceWarn" class="push-warn" hidden>
+            ⚠️ Pushing to an existing branch appends a new commit.
+            All VFS files will be created or updated; no history is rewritten.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="pushCommitMessage">
+            Commit message <span class="required-marker" aria-hidden="true">*</span>
+          </label>
+          <textarea id="pushCommitMessage" rows="2"
+                    placeholder="feat: update via FORGE IDE"
+                    required aria-required="true"></textarea>
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="pushOpenMr" checked
+                   onchange="
+                     var s=document.getElementById('pushMrFields').style;
+                     s.display=this.checked?'block':'none';
+                   ">
+            <label for="pushOpenMr" class="checkbox-label">Open Merge Request</label>
+          </div>
+        </div>
+
+        <div id="pushMrFields">
+          <div class="form-group">
+            <label for="pushMrTitle">MR Title</label>
+            <input type="text" id="pushMrTitle" placeholder="target → source">
+          </div>
+          <div class="form-group">
+            <label for="pushMrDescription">MR Description (optional)</label>
+            <textarea id="pushMrDescription" rows="8"
+                      placeholder="## Summary&#10;&#10;What changed and why...&#10;&#10;## Testing&#10;&#10;- [ ] ..."></textarea>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="pushDeleteRemote"
+                   onchange="ForgeGitLabPush.onDeleteRemoteChange()">
+            <label for="pushDeleteRemote" class="checkbox-label">
+              Delete remote files not present in VFS
+            </label>
+          </div>
+          <div id="pushDeleteWarn" class="push-warn" hidden>
+            ⚠️ Files on the remote branch that are not in your current VFS
+            will be deleted in this commit.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="pushIncludeIde">
+            <label for="pushIncludeIde" class="checkbox-label">
+              Include IDE metadata files (.forgeconfig, .forgeignore)
+            </label>
+          </div>
+          <small style="color:#949494; display:block; margin-top:4px;">
+            These files are useful if your team uses the FORGE CLI,
+            but may clutter repos that don't.
+          </small>
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="pushSaveToken">
+            <label for="pushSaveToken" class="checkbox-label">
+              Save token in browser (localStorage)
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview pane -->
+      <div id="pushPanePreview"
+           class="push-pane modal-body"
+           role="tabpanel"
+           aria-labelledby="pushTabPreview"
+           hidden>
+        <div id="pushPreviewContent" class="push-preview-loading">
+          Click "🔍 Preview Changes" to compute the diff against the remote branch.
+        </div>
+      </div>
+
+      <!-- Log pane -->
+      <div id="pushPaneLog"
+           class="push-pane modal-body"
+           role="tabpanel"
+           aria-labelledby="pushTabLog"
+           hidden>
+        <div id="pushProgress" class="push-progress"
+             role="status" aria-live="polite"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="secondary" onclick="ForgeGitLabPush.closePushModal()">Cancel</button>
+        <button class="info"    onclick="ForgeGitLabPush.previewChanges()">🔍 Preview</button>
+        <button class="success" onclick="ForgeGitLabPush.pushToGitLab()">Push →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Git-backed Managed Share Credential Modal -->
+  <div class="modal-overlay" id="managedShareGitCredentialModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>GitHub Sharing Credential</h2>
+        <button class="secondary"
+                onclick="closeManagedShareGitCredentialModal()"
+                aria-label="Close GitHub sharing credential dialog">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p style="margin-top:0;">
+          Enter the credential for the configured untrusted GitHub inbox.
+          It is used only by this trusted FORGE IDE page and is never added
+          to the project, inbox packet, URL, or exported files.
+        </p>
+
+        <div class="form-group">
+          <label for="managedShareGitCredential">
+            GitHub inbox credential
+          </label>
+          <input type="password"
+                 id="managedShareGitCredential"
+                 autocomplete="off"
+                 spellcheck="false"
+                 placeholder="GitHub token"
+                 required
+                 aria-required="true">
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="managedShareGitRemember">
+            <label for="managedShareGitRemember"
+                   class="checkbox-label">
+              Remember on this browser (localStorage)
+            </label>
+          </div>
+          <small>
+            Leave unchecked to keep the credential in memory only until
+            this page is reloaded.
+          </small>
+        </div>
+
+        <p style="font-size:0.85em;">
+          The inbox credential should have authority only over the disposable
+          request inbox. It must not be able to publish trusted shares.
+        </p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="secondary"
+                onclick="forgetManagedShareGitCredential()">
+          Forget saved credential
+        </button>
+        <button class="secondary"
+                onclick="closeManagedShareGitCredentialModal()">
+          Cancel
+        </button>
+        <button class="success"
+                onclick="saveManagedShareGitCredential()">
+          Use credential
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Git-backed Managed Share Processor Admin -->
+  <div class="modal-overlay" id="managedShareAdminModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Git Share Processor</h2>
+        <button class="secondary"
+                onclick="closeManagedShareAdminModal()"
+                aria-label="Close Git Share Processor">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p style="margin-top:0;">
+          Process requests from the configured Git inbox into the trusted
+          share repository. This panel appears only when enabled by deployment
+          config and opened with <code>?admin=true</code>.
+        </p>
+
+        <p>
+          <strong>Work in progress:</strong>
+          the processor currently attempts to process every inbox request
+          automatically. Configurable accept, reject, and manual-review
+          policies have not been implemented yet.
+        </p>
+
+        <div class="form-group">
+          <label for="managedShareAdminCredential">
+            Trusted repository write credential
+          </label>
+          <input type="password"
+                 id="managedShareAdminCredential"
+                 autocomplete="off"
+                 spellcheck="false"
+                 placeholder="GitHub token">
+        </div>
+
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="managedShareAdminRemember">
+            <label for="managedShareAdminRemember"
+                   class="checkbox-label">
+              Remember on this browser (localStorage)
+            </label>
+          </div>
+          <small>
+            This credential is never read from deployment config.
+          </small>
+        </div>
+
+        <p id="managedShareAdminStatus"
+           role="status"
+           aria-live="polite">
+          Processor stopped
+        </p>
+
+        <pre id="managedShareAdminLog"
+             style="max-height:260px; overflow:auto; white-space:pre-wrap;"></pre>
+      </div>
+
+      <div class="modal-footer">
+        <button class="secondary"
+                onclick="forgetManagedShareAdminCredential()">
+          Forget credential
+        </button>
+        <button class="secondary"
+                onclick="stopManagedShareAdminPolling()">
+          Stop
+        </button>
+        <button class="info"
+                id="managedShareAdminProcessBtn"
+                onclick="processManagedShareAdminInbox()">
+          Process now
+        </button>
+        <button class="success"
+                onclick="startManagedShareAdminPolling()">
+          Start polling
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move File or Folder Modal -->
+  <div class="modal-overlay" id="fileMoveModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="fileMoveTitle">Move File or Folder</h2>
+        <button class="secondary" onclick="closeFileMoveModal()"
+                aria-label="Close Move dialog">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Moving</label>
+          <code id="fileMoveSource"></code>
+        </div>
+        <div class="form-group">
+          <label for="fileMoveDestination">Destination folder</label>
+          <select id="fileMoveDestination"></select>
+        </div>
+        <p style="font-size:0.85em;">
+          This provides the same move operation as dragging an item in the tree.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" id="fileMoveCancelBtn"
+                onclick="closeFileMoveModal()">Cancel</button>
+        <button class="success" id="fileMoveConfirmBtn"
+                onclick="confirmFileMoveModal()">Move</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Forge Bridge Waiting Modal (opened via #bridge in URL) -->
+  <div class="modal-overlay" id="forgeBridgeWaitingModal" aria-hidden="true">
+    <div class="modal unsaved-modal">
+      <div class="modal-header">
+        <h2>🌉 Bridge Ready</h2>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:12px;">
+          Forge IDE is waiting for an external page to connect via the bridge.
+        </p>
+        <div style="background:#1e1e1e; border:1px solid #3e3e42; border-left:3px solid #4fc3f7; border-radius:4px; padding:10px 14px; margin-bottom:14px;">
+          <div style="font-size:0.78em; color:#949494; margin-bottom:4px;">Expected origin</div>
+          <code id="forgeBridgeWaitingOrigin" style="color:#4fc3f7; font-size:0.95em; word-break:break-all;">Any trusted origin</code>
+        </div>
+        <div id="forgeBridgeWaitingStatus" style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:#1e1e1e; border:1px solid #3e3e42; border-radius:4px; margin-bottom:12px;">
+          <span id="forgeBridgeWaitingSpinner" style="display:inline-block; width:14px; height:14px; border:2px solid #3e3e42; border-top-color:#4fc3f7; border-radius:50%; animation:spin 0.8s linear infinite; flex-shrink:0;"></span>
+          <span id="forgeBridgeWaitingStatusText" style="font-size:0.88em; color:#949494;">Waiting for connection...</span>
+        </div>
+        <p style="font-size:0.85em; color:#949494; line-height:1.6;">
+          When the connecting page sends a handshake, you may be asked to
+          confirm the connection. Close this dialog to cancel.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" id="forgeBridgeWaitingCancel">Cancel</button>
+        <button class="success" id="forgeBridgeWaitingDone" hidden>Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forge Bridge Trust Modal -->
+  <div class="modal-overlay" id="forgeBridgeTrustModal" aria-hidden="true">
+    <div class="modal unsaved-modal">
+      <div class="modal-header">
+        <h2 id="forgeBridgeTrustHeading">🌉 Bridge Connection Request</h2>
+      </div>
+      <div class="modal-body">
+        <p id="forgeBridgeTrustWarning" style="margin-bottom:12px;">
+          A page is requesting access to the Forge IDE Bridge.
+        </p>
+        <p style="margin-bottom:12px;">
+          Allowing access lets this page proxy <strong>.gov</strong> network
+          requests through Forge IDE and run sandboxed code on your behalf.
+        </p>
+        <div style="background:#1e1e1e; border:1px solid #3e3e42; border-left:3px solid #ffc107; border-radius:4px; padding:10px 14px; margin-bottom:14px;">
+          <div style="font-size:0.78em; color:#949494; margin-bottom:4px;">Requesting origin</div>
+          <code id="forgeBridgeTrustOrigin" style="color:#4fc3f7; font-size:0.95em; word-break:break-all;"></code>
+        </div>
+        <p style="font-size:0.85em; color:#949494; line-height:1.6;">
+          <strong style="color:#d4d4d4;">Allow Once</strong> — permits this session only. You'll be asked again next time.<br>
+          <strong style="color:#d4d4d4;">Always Allow</strong> — saves this origin to your browser. You won't be asked again.<br>
+          <strong style="color:#d4d4d4;">Deny</strong> — blocks this origin. The requesting page will be notified.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="danger"   id="forgeBridgeDeny">Deny</button>
+        <button class="success"  id="forgeBridgeAllowOnce">Allow for this session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forge Bridge Privileged Eval Modal -->
+  <div class="modal-overlay" id="forgeBridgePrivEvalModal" aria-hidden="true">
+    <div class="modal unsaved-modal" style="max-width:520px;">
+      <div class="modal-header">
+        <h2>⚠️ Privileged Code Execution Request</h2>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:10px;">
+          A connected page wants to run code <strong>directly inside Forge IDE</strong>
+          with full access to your project, VFS, and stored credentials.
+        </p>
+        <div style="background:#1e1e1e; border:1px solid #3e3e42; border-left:3px solid #ffc107; border-radius:4px; padding:8px 12px; margin-bottom:10px;">
+          <div style="font-size:0.78em; color:#949494; margin-bottom:3px;">From</div>
+          <code id="forgeBridgePrivEvalOrigin" style="color:#4fc3f7; font-size:0.88em;"></code>
+        </div>
+        <div style="background:#1e1e1e; border:1px solid #3e3e42; border-radius:4px; padding:8px 12px; margin-bottom:12px;">
+          <div style="font-size:0.78em; color:#949494; margin-bottom:4px;">Code to execute (preview)</div>
+          <pre id="forgeBridgePrivEvalCode" style="margin:0; font-size:0.8em; color:#d4d4d4; white-space:pre-wrap; word-break:break-all; max-height:120px; overflow-y:auto;"></pre>
+        </div>
+        <p style="font-size:0.85em; color:#f48771; line-height:1.5;">
+          ⚠️ This grants full access to your IDE session. Only allow if you
+          trust this page and initiated this action yourself.
+          There is no "always allow" for privileged execution.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="danger"   id="forgeBridgePrivEvalDeny">Deny</button>
+        <button class="warning"  id="forgeBridgePrivEvalAllow">Allow This Once</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load modules in order -->
+  <style>
+    /* Bridge banner -- full width strip above the header */
+    .forge-bridge-banner {
+      position: relative;
+      width: 100%;
+      background: #1a3a2a;
+      border-bottom: 1px solid #2a5a3a;
+      z-index: 200;
+    }
+    .forge-bridge-banner-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 5px 16px;
+      background: none;
+      border: none;
+      color: #48bb78;
+      font-size: 0.8em;
+      cursor: pointer;
+      text-align: left;
+    }
+    .forge-bridge-banner-btn:hover { background: rgba(72,187,120,0.08); }
+    .forge-bridge-banner-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #48bb78;
+      animation: bridgePulse 2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    .forge-bridge-banner-hint {
+      margin-left: auto;
+      font-size: 0.9em;
+      color: #2a7a4a;
+    }
+    @keyframes bridgePulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+    /* Popover drops down from the banner */
+    .forge-bridge-popover {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 300px;
+      background: #252526;
+      border: 1px solid #3e3e42;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      z-index: 9999;
+      font-size: 0.85em;
+      color: #d4d4d4;
+    }
+    .forge-bridge-popover-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      border-bottom: 1px solid #3e3e42;
+      font-weight: 600;
+    }
+    .forge-bridge-popover-close {
+      background: none;
+      border: none;
+      color: #949494;
+      cursor: pointer;
+      font-size: 1em;
+      padding: 0 2px;
+    }
+    .forge-bridge-popover-list {
+      list-style: none;
+      margin: 0;
+      padding: 6px 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .forge-bridge-popover-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      gap: 8px;
+    }
+    .forge-bridge-popover-list li:hover { background: #2a2d2e; }
+    .forge-bridge-popover-origin {
+      font-size: 0.82em;
+      color: #4fc3f7;
+      word-break: break-all;
+      flex: 1;
+    }
+    .forge-bridge-popover-disconnect {
+      background: none;
+      border: 1px solid #5a2a2a;
+      border-radius: 3px;
+      color: #f48771;
+      font-size: 0.75em;
+      padding: 2px 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .forge-bridge-popover-footer {
+      padding: 6px 12px;
+      border-top: 1px solid #3e3e42;
+    }
+  </style>
+  <script src="forge-ide-bridge.js"></script>
+  <script src="vfs.js"></script>
+  <script src="forge-value-utils.js"></script>
+  <script src="forge-codemirror.js"></script>
+  <script src="html-processor.js"></script>
+  <script src="forge-cli-install.js"></script>
+  <script src="forge-file-move.js"></script>
+  <script src="forge-vue-header.js"></script>
+  <script src="forge-vue-panels.js"></script>
+  <script src="forge-fetch.js"></script>
+  <script src="forge-config-utils.js"></script>
+  <script src="forge-file-settings.js"></script>
+  <script src="managed-share-processor.js"></script>
+  <script src="forge-managed-share-git.js"></script>
+  <script src="app.js"></script>
+  <script src="forge-gitlab-push.js"></script>
+  <script src="forge-global-search.js"></script>
+  <!-- Share Comment Modal -->
+  <div class="modal-overlay" id="shareCommentModal">
+      <div class="modal share-comment-modal">
+      <div class="modal-header">
+        <h2>💬 Comment URL</h2>
+        <button class="secondary" onclick="closeShareCommentModal()"
+                aria-label="Close Comment URL dialog">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="share-comment-field">
+          <label for="shareCommentName" class="share-comment-label">Your Name (optional)</label>
+          <input type="text" id="shareCommentName" class="share-comment-control" placeholder="e.g. Tyler">
+        </div>
+        <div class="share-comment-field">
+          <label for="shareCommentMessage" class="share-comment-label">Comment</label>
+          <textarea id="shareCommentMessage" class="share-comment-control share-comment-message" rows="4" placeholder="Type your comment here..."></textarea>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button class="secondary" onclick="closeShareCommentModal()">Cancel</button>
+          <button class="success" onclick="generateShareCommentUrl()">📋 Copy URL</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
