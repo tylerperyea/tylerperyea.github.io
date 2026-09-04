@@ -1353,6 +1353,7 @@ dist/
 
       const all = [...(data.featured || []), ...(data.utilities || [])];
       const bm  = all.find(b => b.id === FORGE_QUICK_IDE_ID);
+      
 
       if (!bm || !bm.href) {
         target.innerHTML = `
@@ -1362,9 +1363,11 @@ dist/
           </div>`;
         return;
       }
+      const setHost = "window._forge_ide_url=\'" + location.href.split("/").map(b=>(b.indexOf(".html")<0)?b:"").join("/") + "\';";
 
+      const href = bm.href.replace(/^javascript[:][(]/g, "javascript:" + setHost + "(");
       target.innerHTML = `
-        <a class="bookmarklet-drag-link" href="${bm.href}"
+        <a class="bookmarklet-drag-link" href="${href}"
            title="Drag me to your bookmarks bar!">
           ${bm.title || '🚀 FORGE CODE'}
         </a>
