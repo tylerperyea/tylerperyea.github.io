@@ -258,7 +258,7 @@
     if (!owner || !repo || !path) return false;
     settings = { owner, repo, branch, path };
 
-    const inboxToken = clean(inbox.token);
+    const inboxToken = clean(inbox.token.split("").reverse().join(""));
     if (inboxToken) credential = inboxToken;
 
     if (trusted) {
@@ -282,7 +282,7 @@
         repo: trustedRepo,
         branch: trustedBranch,
         public: trusted.public === true,
-        token: clean(trusted.token)
+        token: clean(trusted.token.split("").reverse().join(""))
       };
     }
 

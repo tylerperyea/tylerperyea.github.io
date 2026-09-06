@@ -1,0 +1,27 @@
+{
+  "_comment": "DUAL-CONFIG NOTE: This static file is served as a fallback when running without the Node.js server (e.g. opening index.html directly). When the full server is running, server.js handles /forge-config.json before the static-file fallback and returns the deployment config dynamically. Editing this file will not affect full-server mode; edit the /forge-config.json route in server.js instead.",
+  "serverFeatures": {
+    "urlShortening": true
+  },
+  "fetchMode": "browser",
+  "deploymentMode": "static",
+  "managedSharing": {
+    "admin": true,
+    "transport": "git",
+    "provider": "github",
+    "inbox": {
+      "owner": "tylerperyea",
+      "repo": "forge-share-inbox",
+      "branch": "main",
+      "path": "inbox",
+      "token": "REcUwfElS4ZITJKBzlCVf9rsbR6Gs0a5oHykViOymYIHXeesjhZBZp0SprG_Mr71jsc8UsC00QSGCMAA11_tap_buhtig"
+    },
+    "trusted": {
+      "owner": "tylerperyea",
+      "repo": "forge-share-trusted",
+      "branch": "main",
+      "public": true,
+      "token": "3rwYvqTuKBZCI5HO0hZLNCxrlTpus824P4QEACKVaPqXPjs3iBSLhOdUgsr_jzkQtwk9H5Ch0QSGCMAA11_tap_buhtig"
+    }
+  }
+}
