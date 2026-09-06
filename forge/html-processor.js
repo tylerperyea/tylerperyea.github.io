@@ -1,16 +1,4 @@
-// HTML Processor — with ES module bundling support (Option 1)
-//
-// When a <script type="module"> is encountered, the bundler:
-//   1. Recursively resolves imports from the VFS
-//   2. Strips export/import keywords
-//   3. Wraps everything in an IIFE
-//
-// Limitations (by design — keep it simple):
-//   - No export * from
-//   - No bare specifiers (e.g. 'react') — left as-is, will fail at runtime
-//   - Circular imports: detected and skipped (first visit wins)
-//   - dynamic import() is rewritten to __vfs_module() which is injected
-//     into the iframe by buildInterceptorScript() in app.js
+
 
 class HTMLProcessor {
   constructor(vfs) {
@@ -66,38 +54,21 @@ class HTMLProcessor {
     );
   }
 
-  /**
-   * Bundle a module script using a CommonJS-style module registry.
-   *
-   * Each file gets its own factory function scope inside a __modules object,
-   * so module-level const/let/var declarations never collide across files —
-   * even if multiple modules use the same variable name (e.g. TEMPLATE).
-   *
-   * The registry pattern:
-   *   __modules['/path/to/file.js'] = function(exports, require) { ... };
-   *
-   * Imports are rewritten to:
-   *   const { foo } = require('/resolved/path.js');
-   *
-   * Exports are rewritten to:
-   *   exports.foo = foo;   (named)
-   *   exports.default = x; (default)
-   *
-   * Entry point exports are also exposed on window for interop with
-   * classic <script> tags on the same page.
-   */
+
   bundleModuleScript(entryContent, basePath) {
     entryContent = entryContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
     const visited  = new Set();
     const order    = []; // insertion order for registry entries
     const registry = {}; // path -> transformed source string
+    const sourceLines = {}; // path -> original source line count
 
     const visit = (content, filePath) => {
       if (visited.has(filePath)) return;
       visited.add(filePath);
 
       content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      sourceLines[filePath] = content.split('\n').length;
 
       const imports = this.parseImports(content);
 
@@ -120,16 +91,12 @@ class HTMLProcessor {
 
     // -- Build the registry object ----------------------------------------
     const registryEntries = order.map(p =>
-      `  __modules[${JSON.stringify(p)}] = function(exports, require) {\n` +
+      `  __modules[${JSON.stringify(p)}] = function(exports, require) { /*__FORGE_SOURCE__${encodeURIComponent(p)}:${sourceLines[p]}*/\n` +
       this.indent(registry[p], 4) +
       `\n  };`
     ).join('\n\n');
 
-    // -- Expose entry-point exports on window -----------------------------
-    // We expose ALL named exports as window globals so classic <script> tags
-    // on the same page can access them — mirrors native ES module behaviour.
-    // For a default-only export that is an object, we spread its keys onto
-    // window (e.g. export default { Greeter, greet, VERSION }).
+
     const windowExposure =
       `  var __entry = __require(${JSON.stringify(basePath)});\n` +
       `  if (__entry) {\n` +
@@ -154,10 +121,7 @@ var __moduleCache = {};
 function __require(id) {
   if (__moduleCache[id]) return __moduleCache[id];
   if (!__modules[id]) {
-    // Module not in registry — was not statically reachable.
-    // Fall back to the iframe interceptor's __vfs_module if available,
-    // but ONLY if it is the real async postMessage handler, not our alias.
-    // We detect this by checking __vfs_module !== __require.
+
     if (typeof __vfs_module === 'function' && __vfs_module !== __require) {
       return __vfs_module(id);
     }
@@ -273,15 +237,7 @@ ${windowExposure}
     }).filter(Boolean);
   }
 
-  /**
-   * Rewrite a module file for the CJS registry bundler.
-   *
-   * Imports  → require() calls
-   * Exports  → exports.x = x assignments
-   *
-   * The result runs inside a factory function(exports, require) { ... }
-   * so every module has its own scope — no name collisions possible.
-   */
+
   stripModuleSyntaxCJS(content, filePath, imports) {
     let result = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
@@ -308,14 +264,14 @@ ${windowExposure}
           n.imported === n.local ? n.local : `${n.imported}: ${n.local}`
         ).join(', ');
         replacement =
-          `var __imp_${imp.defaultName} = ${requireCall};\n` +
-          `var ${imp.defaultName} = __imp_${imp.defaultName}.default !== undefined ? __imp_${imp.defaultName}.default : __imp_${imp.defaultName};\n` +
+          `var __imp_${imp.defaultName} = ${requireCall}; ` +
+          `var ${imp.defaultName} = __imp_${imp.defaultName}.default !== undefined ? __imp_${imp.defaultName}.default : __imp_${imp.defaultName}; ` +
           `var { ${named} } = __imp_${imp.defaultName};`;
 
       } else if (imp.defaultName) {
         // import Foo from './foo'  →  var Foo = require('./foo').default ?? require('./foo')
         replacement =
-          `var __imp_${imp.defaultName} = ${requireCall};\n` +
+          `var __imp_${imp.defaultName} = ${requireCall}; ` +
           `var ${imp.defaultName} = __imp_${imp.defaultName}.default !== undefined ? __imp_${imp.defaultName}.default : __imp_${imp.defaultName};`;
 
       } else if (imp.names.length > 0) {
@@ -382,7 +338,7 @@ ${windowExposure}
         const exported = (parts[1] || parts[0]).trim();
         if (!local || !exported) return '';
         return `exports.${exported} = typeof ${local} !== 'undefined' ? ${local} : undefined;`;
-      }).filter(Boolean).join('\n');
+      }).filter(Boolean).join(' ');
     };
 
     // Anchored pass — normal multi-line source files.
@@ -441,15 +397,11 @@ ${windowExposure}
       result += `\nexports.default = ${defaultFnMatch[1]};`;
     }
 
-    // -- Rewrite dynamic import() → __dynamic_import(__base, ...) ---------
-    // We can't use bare __require() here because the specifier may be
-    // relative (e.g. './config.js') while registry keys are absolute.
-    // __dynamic_import is emitted into the bundle header and resolves
-    // the path before calling __require, keeping everything synchronous.
+
     const escapedPath = JSON.stringify(filePath);
     result = result.replace(/\bimport\s*\(/g, `__dynamic_import(${escapedPath}, `);
 
-    return result.trim();
+    return result;
   }
 
   /**
@@ -511,7 +463,7 @@ ${windowExposure}
     // __vfs_module function handles it via the vfs-fetch postMessage channel.
     result = result.replace(/\bimport\s*\(/g, '__vfs_module(');
 
-    return result.trim();
+    return result;
   }
 
   /**
@@ -522,11 +474,7 @@ ${windowExposure}
   }
 
   isBareSpecifier(source) {
-    // A bare specifier is a package name like 'react' or 'vue'.
-    // Specifiers that look like filenames (contain a dot suggesting an
-    // extension, e.g. 'pq.js', 'lib/foo.js') are treated as relative
-    // paths missing the leading './' and resolved against the base path.
-    // Absolute URLs (http/https) are also not bare specifiers.
+
     if (source.startsWith('.') || source.startsWith('/')) return false;
     if (/^https?:\/\//.test(source)) return false;
     // If it contains a file extension (e.g. 'pq.js', 'vendor/lib.min.js')
@@ -553,7 +501,7 @@ ${windowExposure}
 
       if (content !== undefined) {
         const stripped = this.stripExportsForInlining(content);
-        return `<script${before}${after}>\n${stripped}\n<\/script>`;
+        return `<script${before}${after}>${stripped}\n//# sourceURL=forge-vfs://${resolvedPath}\n<\/script>`;
       }
 
       return match;
@@ -581,18 +529,7 @@ ${windowExposure}
     return result.trim();
   }
 
-  /**
-   * Find inline <style>...</style> blocks (not <link>-loaded stylesheets —
-   * those go through rewriteLinkTags) and rewrite any url(...) references
-   * inside them to VFS blob URLs, using the HTML page's own basePath since
-   * an inline block has no separate file path of its own.
-   *
-   * Without this, a @font-face or background-image url() written directly
-   * inside a <style> tag in the HTML is never touched by anything — it's
-   * not a <link> stylesheet (handled by rewriteLinkTags) and not a JS
-   * fetch() call (handled by the runtime interceptor) — so it silently
-   * falls through to a real, failing network request.
-   */
+
   rewriteStyleTags(html, basePath) {
     return html.replace(
       /<style([^>]*?)>([\s\S]*?)<\/style>/gi,
@@ -612,10 +549,7 @@ ${windowExposure}
         let content = this.vfs.getFile(resolvedPath);
 
         if (content !== undefined) {
-          // Rewrite any url(...) references inside the stylesheet (fonts,
-          // background-images, etc.) to VFS blob URLs BEFORE inlining, using
-          // the stylesheet's own resolved path as the base — not the HTML
-          // page's basePath — so relative url()s resolve correctly.
+
           content = this.rewriteCssUrls(content, resolvedPath);
           return `<style${before}${after}>\n${content}\n</style>`;
         }
@@ -625,19 +559,7 @@ ${windowExposure}
     });
   }
 
-  /**
-   * Scan CSS text for url(...) references — used in @font-face src,
-   * background-image, list-style-image, cursor, etc. — and rewrite any
-   * that resolve to a file in the VFS to use its blob URL instead.
-   *
-   * Without this, a stylesheet's url() references are left as literal
-   * paths, and since url() triggers a real browser-level resource fetch
-   * (not a JS fetch() call), FORGE's fetch interceptor never sees it —
-   * the browser just 404s against the live server.
-   *
-   * data: URIs and absolute http(s)/protocol-relative URLs are left
-   * untouched, since those already work without any VFS involvement.
-   */
+
   rewriteCssUrls(css, cssBasePath) {
     return css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (match, quote, url) => {
       if (/^(data:|https?:|\/\/)/.test(url)) return match;

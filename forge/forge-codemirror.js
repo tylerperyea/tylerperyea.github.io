@@ -227,25 +227,6 @@ const ForgeEditor = (() => {
      * so we inject stub objects that mirror the real API shapes.
      */
     function seedHintContext() {
-        // ForgeAPI — server-side API for ForgeAPI projects
-        if (!window.ForgeAPI) {
-            window.ForgeAPI = {
-                create: function(path) {},
-                vfs: {
-                    readFile: function(path) {}
-                }
-            };
-        }
-
-        // Stub api object returned by ForgeAPI.create()
-        // Users type `api.get(...)` etc. so we need this on window too
-        if (!window.api) {
-            window.api = {
-                get:   function(route, handler) {},
-                post:  function(route, handler) {},
-                start: function() {},
-            };
-        }
 
         // Vue 3 globals
         if (!window.Vue) {
@@ -279,7 +260,7 @@ const ForgeEditor = (() => {
             window.JSZip = function() {};
         }
 
-        // VFS — available in ForgeAPI server scripts via postMessage
+        // VFS helpers available to previewed projects
         if (!window.vfs) {
             window.vfs = {
                 getFile:    function(path) {},

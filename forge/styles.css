@@ -205,6 +205,54 @@ body {
     margin: 4px 0;
 }
 
+.current-user-dropdown .dropdown-menu {
+    left: auto;
+    right: 0;
+    min-width: 270px;
+}
+
+.current-user-dropdown button.dropdown-item {
+    width: 100%;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+}
+
+.current-user-dropdown button.dropdown-item:hover,
+.current-user-dropdown button.dropdown-item:focus-visible {
+    background: #3e3e42;
+}
+
+.current-user-menu-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 14px 8px;
+    min-width: 0;
+}
+
+.current-user-menu-summary strong {
+    color: #d4d4d4;
+    font-size: 0.88em;
+    overflow-wrap: anywhere;
+}
+
+.current-user-menu-summary small,
+.current-user-menu-note {
+    color: var(--forge-muted-text);
+    font-size: 0.75em;
+    line-height: 1.35;
+}
+
+.current-user-menu-note {
+    padding: 10px 14px;
+}
+
+.current-user-logout strong {
+    color: #f48771;
+}
+
 button {
     background: #0e639c;
     color: white;
@@ -2063,68 +2111,14 @@ body.loading-fullscreen .loading-spinner {
     color: #d4d4d4;
 }
 
-/* Server Console Tab */
-.server-console-container {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    background: #1e1e1e;
-    overflow: hidden;
-}
 
-.server-console-header {
-    padding: 10px 15px;
-    background: #2d2d30;
-    border-bottom: 1px solid #3e3e42;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-#serverStatusDisplay {
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 0.9em;
-    color: #d4d4d4;
-}
-
-.server-console-actions button {
-    padding: 6px 12px;
-    font-size: 0.85em;
-}
 
 button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-.server-log-output {
-    flex: 1;
-    min-height: 0;
-    padding: 15px;
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 0.85em;
-    line-height: 1.6;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
-    background: #1e1e1e;
-    max-width: calc(100vw - 251px);
-}
 
-.server-log-output .log-entry {
-    padding: 2px 0;
-    border-bottom: 1px solid #2a2a2a;
-}
-
-.server-log-output .log-entry:last-child {
-    border-bottom: none;
-}
-
-.server-log-output .log-info   { color: #d4d4d4; }
-.server-log-output .log-error  { color: #f48771; }
-.server-log-output .log-warn   { color: #ffd700; }
-.server-log-output .log-system { color: #4fc3f7; font-style: italic; }
 
 /* == Console Tab == */
 .console-log-output {
@@ -2353,50 +2347,7 @@ body.is-dragging-context iframe {
     text-align: center;
 }
 
-/* ForgeAPI banner — single compact line */
-.forgeapi-banner {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    padding: 5px 10px;
-    background: #1a2a1a;
-    border-left: 2px solid #48bb78;
-    font-size: 0.82em;
-    font-family: 'Consolas', 'Monaco', monospace;
-    color: #858585;
-    flex-wrap: wrap;
-    line-height: 1.4;
-}
 
-.forgeapi-banner-icon { flex-shrink: 0; }
-
-.forgeapi-banner-text {
-    flex: 1;
-    min-width: 0;
-}
-
-.forgeapi-banner-text code {
-    color: #4fc3f7;
-    font-size: 0.95em;
-}
-
-.forgeapi-banner-text b { color: #c0c0c0; font-weight: 600; }
-
-.forgeapi-banner-note { color: #4a4a4a; }
-
-.forgeapi-banner-dismiss {
-    background: transparent;
-    border: none;
-    color: #3a5a3a;
-    padding: 0 0 0 4px;
-    cursor: pointer;
-    font-size: 0.9em;
-    flex-shrink: 0;
-    transition: color 0.15s;
-    align-self: center;
-}
-
-.forgeapi-banner-dismiss:hover { color: #48bb78; }
 
 /* Global Search Modal */
 .global-search-modal {

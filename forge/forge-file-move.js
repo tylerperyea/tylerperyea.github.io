@@ -96,9 +96,7 @@
             if (typeof _lazy === 'function') _lazy('urlBar').value = currentPath;
         }
 
-        if (typeof serverEntrypoint !== 'undefined' && serverEntrypoint && map[serverEntrypoint]) {
-            serverEntrypoint = map[serverEntrypoint];
-        }
+
     }
 
     /**
@@ -262,9 +260,7 @@
             }
         }
 
-        if (typeof serverEntrypoint !== 'undefined' && serverEntrypoint && isInsideDeleted(serverEntrypoint)) {
-            serverEntrypoint = null;
-        }
+
 
         if (typeof updateFileList === 'function') updateFileList();
         if (typeof updateFileBrowser === 'function') updateFileBrowser();

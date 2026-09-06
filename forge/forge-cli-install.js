@@ -198,7 +198,8 @@ const ForgeCliInstall = (() => {
                     from the <code style="color: #4fc3f7;">forge_cli/</code> directory.
                 </div>
                 <div style="margin-top: 16px;">
-                    <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/"
+                    <a href="#"
+                       data-forge-repository-link
                        target="_blank"
                        style="color: #4fc3f7; font-size: 0.9em;">
                         📦 View Repository →

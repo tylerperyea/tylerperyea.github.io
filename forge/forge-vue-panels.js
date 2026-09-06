@@ -8,11 +8,10 @@
     const ForgeFileList = {
         name: 'ForgeFileList',
         props: {
-            vfsVersion:       { type: Number,  default: 0 },
-            selectedPath:     { type: String,  default: null },
-            forgeApiEnabled:  { type: Boolean, default: false },
+            vfsVersion:   { type: Number, default: 0 },
+            selectedPath: { type: String, default: null },
         },
-        emits: ['select', 'preview', 'designate-server', 'open-settings', 'move'],
+        emits: ['select', 'preview', 'open-settings', 'move'],
         computed: {
             fileItems() {
                 void this.vfsVersion;
@@ -161,12 +160,7 @@
                             @keydown="onFileActionKeydown($event, item)"
                             title="Preview"
                             aria-label="Preview file">👁️</button>
-                        <button v-if="item.isJs && !item.isExcluded && forgeApiEnabled"
-                            class="file-item-btn"
-                            @click.stop="$emit('designate-server', item.path)"
-                            @keydown="onFileActionKeydown($event, item)"
-                            title="Set as server entrypoint"
-                            aria-label="Set as server entrypoint">🖥️</button>
+
                         <button
                             class="file-item-btn"
                             @click.stop="$emit('move', { path: item.path, type: 'file' })"
@@ -186,71 +180,7 @@
         `
     };
 
-    // -- Server Console Panel --------------------------------------------------
-
-    const ServerConsolePanel = {
-        name: 'ServerConsolePanel',
-        props: {
-            status:        { type: String,  default: 'Status: No server running.' },
-            isRunning:     { type: Boolean, default: false },
-            logs:          { type: Array,   default: () => [] },
-            hasEntrypoint: { type: Boolean, default: false },
-        },
-        emits: ['start', 'stop', 'clear'],
-        methods: {
-            shareApp() { if (typeof shareAppUrl === 'function') shareAppUrl(); },
-            openApp()  { if (typeof openAppUrl  === 'function') openAppUrl();  },
-        },
-        updated() {
-            const el = this.$refs.logOutput;
-            if (el) el.scrollTop = el.scrollHeight;
-        },
-        template: `
-            <div class="server-console-container">
-                <div class="server-console-header">
-                    <div
-                        id="serverStatusDisplay"
-                        :style="{ color: isRunning ? '#48bb78' : '#d4d4d4' }"
-                        style="font-family:'Consolas','Monaco',monospace; font-size:0.9em;"
-                    >{{ status }}</div>
-                    <div class="server-console-actions">
-                        <button class="success"
-                            :disabled="!hasEntrypoint || isRunning"
-                            @click="$emit('start')"
-                            aria-label="Start server">▶ Start Server</button>
-                        <button class="danger"
-                            :disabled="!isRunning"
-                            @click="$emit('stop')"
-                            aria-label="Stop server">■ Stop Server</button>
-                        <button v-if="isRunning" class="success"
-                            style="display:inline-flex; align-items:center; gap:6px;"
-                            @click="shareApp"
-                            title="Copy a fullscreen share URL for this app">📤 Share App</button>
-                        <button v-if="isRunning" class="success"
-                            style="display:inline-flex; align-items:center; gap:6px;"
-                            @click="openApp"
-                            title="Open the running app in a new tab">↗️ Open App</button>
-                        <button class="secondary"
-                            @click="$emit('clear')"
-                            aria-label="Clear log">Clear Log</button>
-                    </div>
-                </div>
-                <div id="serverLogOutput" class="server-log-output" ref="logOutput">
-                    <div
-                        v-for="(entry, i) in logs"
-                        :key="i"
-                        class="log-entry"
-                        :class="'log-' + entry.level"
-                    >
-                        <span style="color:#949494;">[{{ entry.timestamp }}]</span>
-                        {{ ' ' + entry.message }}
-                    </div>
-                </div>
-            </div>
-        `
-    };
-
-    // -- Project Settings Panel ------------------------------------------------
+// -- Project Settings Panel
 
     const ProjectSettingsPanel = {
         name: 'ProjectSettingsPanel',
@@ -480,13 +410,12 @@
     const TreeNode = {
         name: 'TreeNode',
         props: {
-            node:            { type: Object,  required: true },
-            depth:           { type: Number,  default: 0 },
-            selectedPath:    { type: String,  default: null },
-            forgeApiEnabled: { type: Boolean, default: false },
-            collapsedPaths:  { type: Object,  required: true },
+            node:           { type: Object, required: true },
+            depth:          { type: Number, default: 0 },
+            selectedPath:   { type: String, default: null },
+            collapsedPaths: { type: Object, required: true },
         },
-        emits: ['select', 'preview', 'designate-server', 'open-settings', 'move'],
+        emits: ['select', 'preview', 'open-settings', 'move'],
         data() {
             return {
                 renaming: false,
@@ -790,11 +719,7 @@
                             @keydown="onActionKeydown"
                             title="Preview"
                             aria-label="Preview file">👁️</button>
-                        <button v-if="!isDir && isJs && !isExcluded && forgeApiEnabled" class="file-item-btn"
-                            @click.stop="$emit('designate-server', node.path)"
-                            @keydown="onActionKeydown"
-                            title="Set as server entrypoint"
-                            aria-label="Set as server entrypoint">🖥️</button>
+
                         <button class="file-item-btn"
                             @click.stop="$emit('move', { path: node.path, type: node.type })"
                             @keydown="onActionKeydown"
@@ -819,11 +744,9 @@
                         :node="child"
                         :depth="depth + 1"
                         :selected-path="selectedPath"
-                        :forge-api-enabled="forgeApiEnabled"
                         :collapsed-paths="collapsedPaths"
                         @select="$emit('select', $event)"
                         @preview="$emit('preview', $event)"
-                        @designate-server="$emit('designate-server', $event)"
                         @open-settings="$emit('open-settings', $event)"
                         @move="$emit('move', $event)"
                     ></tree-node>
@@ -838,11 +761,10 @@
         name: 'ForgeFileTree',
         components: { TreeNode },
         props: {
-            vfsVersion:      { type: Number,  default: 0 },
-            selectedPath:    { type: String,  default: null },
-            forgeApiEnabled: { type: Boolean, default: false },
+            vfsVersion:   { type: Number, default: 0 },
+            selectedPath: { type: String, default: null },
         },
-        emits: ['select', 'preview', 'designate-server', 'open-settings', 'move'],
+        emits: ['select', 'preview', 'open-settings', 'move'],
         data() {
             return { collapsedPaths: Vue.reactive(new Set()) };
         },
@@ -892,11 +814,9 @@
                     :node="node"
                     :depth="0"
                     :selected-path="selectedPath"
-                    :forge-api-enabled="forgeApiEnabled"
                     :collapsed-paths="collapsedPaths"
                     @select="$emit('select', $event)"
                     @preview="$emit('preview', $event)"
-                    @designate-server="$emit('designate-server', $event)"
                     @open-settings="$emit('open-settings', $event)"
                     @move="$emit('move', $event)"
                 ></tree-node>
@@ -1100,7 +1020,7 @@
                     </div>
                     <div class="console-actions">
                         <button class="secondary" @click="$emit('copy')" title="Copy all console entries as JSON">📋 Copy</button>
-                        <button class="secondary" @click="$emit('clear')" title="Clear console">🗑 Clear</button>
+                        <button class="secondary" @click="$emit('clear')" title="Clear console">🗑 Clear Console</button>
                     </div>
                 </div>
                 <div class="console-log-output" ref="logOutput">
@@ -1176,7 +1096,7 @@
                             Copy
                         </button>
                         <button class="secondary" @click="$emit('clear')" :disabled="entries.length === 0">
-                            Clear
+                            Clear Network Log
                         </button>
                     </div>
                 </div>
@@ -1234,13 +1154,12 @@
     // -- Main app --------------------------------------------------------------
 
     const app = createApp({
-        components: { ServerConsolePanel, ProjectSettingsPanel, ForgeFileList,ForgeFileTree, EditorTabBar, ConsolePanel, NetworkPanel },
+        components: { ProjectSettingsPanel, ForgeFileList, ForgeFileTree, EditorTabBar, ConsolePanel, NetworkPanel },
 
         setup() {
             const activeTab        = ref('preview');
             const vfsVersion       = ref(0);
             const selectedFilePath = ref(null);
-            const forgeApiEnabled  = ref(false);
 
             const FILE_VIEW_MODE_KEY = 'forge_file_view_mode';
             const fileViewMode = ref(
@@ -1382,12 +1301,6 @@
                 if (typeof vfs === 'undefined') return '0 B';
                 return vfs.formatBytes(vfs.getTotalSizeBytes());
             });
-
-            // Server state
-            const serverStatus    = ref('Status: No server running.');
-            const serverIsRunning = ref(false);
-            const serverHasEntry  = ref(false);
-            const serverLogs      = ref([]);
 
             // Console state
             const consoleLogs = ref([]);
@@ -1624,33 +1537,7 @@
                 selectedFilePath.value = path;
             }
 
-            function setForgeApiEnabled(val) {
-                forgeApiEnabled.value = !!val;
-            }
 
-            function updateServerStatus(message, isRunning) {
-                serverStatus.value    = message;
-                serverIsRunning.value = !!isRunning;
-            }
-
-            function updateServerEntrypoint(hasEntry) {
-                serverHasEntry.value = hasEntry;
-            }
-
-            function addLog(message, level, timestamp) {
-                serverLogs.value.push({
-                    message: String(message),
-                    level,
-                    timestamp: timestamp || new Date().toLocaleTimeString()
-                });
-            }
-
-            function clearLogs() {
-                serverLogs.value = [];
-            }
-
-            function onStart() { if (typeof startServer === 'function') startServer(); }
-            function onStop()  { if (typeof stopServer  === 'function') stopServer();  }
 
             // File browser event handlers
             function onFileSelect(path) {
@@ -1668,9 +1555,6 @@
                 if (typeof previewFile === 'function') previewFile(path);
             }
 
-            function onFileDesignateServer(path) {
-                if (typeof designateServerFile === 'function') designateServerFile(path);
-            }
 
             function onFileOpenSettings(path) {
                 selectedFilePath.value = path;
@@ -1699,28 +1583,15 @@
                 activeTab,
                 vfsVersion,
                 selectedFilePath,
-                forgeApiEnabled,
                 hasProject,
                 projectSizeLabel,
-                serverStatus,
-                serverIsRunning,
-                serverHasEntry,
-                serverLogs,
                 setTab,
                 onMainTabKeydown,
                 refresh,
                 refreshProject,
                 selectPath,
-                setForgeApiEnabled,
-                updateServerStatus,
-                updateServerEntrypoint,
-                addLog,
-                clearLogs,
-                onStart,
-                onStop,
                 onFileSelect,
                 onFilePreview,
-                onFileDesignateServer,
                 onFileOpenSettings,
                 onFileMove,
                 consoleLogs,

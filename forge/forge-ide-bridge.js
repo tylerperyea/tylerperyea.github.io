@@ -735,7 +735,8 @@
   // The bridge listener sees these because it listens on window, but
   // they are not bridge messages -- filter them out of the log entirely.
   const INTERNAL_MSG_TYPES = new Set([
-    'forge-network', 'vfs-fetch', 'forge-repl-eval', 'forge-repl-result',
+    'forge-network', 'vfs-fetch', 'vfs-navigate', 'vfs-spa-navigate', 'vfs-hash-change', 'vfs-shortcut',
+    'forge-repl-eval', 'forge-repl-result',
     'forge-bridge-sandbox-ready', 'forge-panels-mounted',
     'forge-network-response', 'vfs-fetch-response',
     'forge-console', 'page-title',

@@ -627,7 +627,7 @@
   <div class="page-header-links">
     <a href="index.html" class="header-btn primary">Open IDE →</a>
     <a href="bookmarklets.html" class="header-btn">Bookmarklets</a>
-    <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/" target="_blank" class="header-btn">GitLab ↗</a>
+    <a href="#" data-forge-repository-link target="_blank" class="header-btn">GitLab ↗</a>
   </div>
 </header>
 
@@ -646,7 +646,7 @@
     <div class="hero-actions">
       <a href="index.html" class="btn btn-primary">Open the IDE</a>
       <a href="#getting-started" class="btn btn-outline">Get Started ↓</a>
-      <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/" target="_blank" class="btn btn-outline">View on GitLab ↗</a>
+      <a href="#" data-forge-repository-link target="_blank" class="btn btn-outline">View on GitLab ↗</a>
     </div>
   </div>
 
@@ -1110,23 +1110,6 @@ dist/
         </div>
       </div>
 
-      <div class="faq-item" id="faq-forgeapi" style="display:none;">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          Can I host an app that stores data or lets users interact with each other?
-          <span class="faq-chevron">▼</span>
-        </button>
-        <div class="faq-answer">
-          Yes — this is what <strong>ForgeAPI</strong> (client-server hosting) is for.
-          You write a small server script that runs in your browser via the Server Console tab.
-          The FORGE server proxies HTTP requests to it, so other users can connect to your
-          app in real time.
-          <br><br>
-          Messages and data live in memory while your browser tab is open.
-          Persistent storage (so data survives across sessions) is on the roadmap.
-          <br><br>
-          Try the <a href="index.html?loadExample=forgeapi-chatroom" target="_blank">Chatroom example →</a>
-        </div>
-      </div>
 
       <div class="faq-item">
         <button class="faq-question" onclick="toggleFaq(this)">
@@ -1136,10 +1119,15 @@ dist/
         <div class="faq-answer">
           FORGE now has some identity groundwork, but it is not a general SSO API for
           prototype code. On supported deployments, the IDE can obtain native FORGE
-          identity or discover the current FDA email from GSRS for IDE display and
-          form seeding. That discovered identity is not exposed to preview app code
-          and is not automatically trusted for authorization. Authenticated application
-          and server-side access controls still depend on the deployment model.
+          identity or discover the current FDA email from GSRS. Preview apps may read
+          that normalized identity through a narrow compatibility endpoint: local
+          <code>GET</code> requests whose path ends in <code>/whoami</code> or
+          <code>/whoami.cfm</code> are answered with FORGE's person object
+          (<code>email</code>, and when available <code>fullName</code> and
+          <code>identifier</code>). No SSO cookies or FORGE authentication headers are
+          exposed to the preview. This identity is a convenience for application UI,
+          not proof of authorization; authenticated application and server-side access
+          controls still depend on the deployment model.
         </div>
       </div>
 
@@ -1277,7 +1265,7 @@ dist/
           In the IDE, use <strong>Contact</strong> to begin a support email or
           <strong>Report</strong> to begin a report with useful URL/share context.
           You can also check the
-          <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/" target="_blank">
+          <a href="#" data-forge-repository-link target="_blank">
             GitLab repository
           </a>
           for known issues, or email
@@ -1313,7 +1301,7 @@ dist/
         <div class="cli-card-title">Bookmarklet Maker</div>
         <div class="cli-card-desc">Encode and decode bookmarklets</div>
       </a>
-      <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/" target="_blank"
+      <a href="#" data-forge-repository-link target="_blank"
          class="cli-card" style="text-decoration:none; display:block;">
         <div style="font-size:1.5em; margin-bottom:6px;">🦊</div>
         <div class="cli-card-title">GitLab Repository</div>
@@ -1331,11 +1319,12 @@ dist/
     <a href="showcase/index.html">Showcase</a>
     <a href="bookmarklets.html">Bookmarklets</a>
     <a href="bookmarklet_maker.html">Bookmarklet Maker</a>
-    <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/" target="_blank">GitLab ↗</a>
+    <a href="#" data-forge-repository-link target="_blank">GitLab ↗</a>
   </div>
   <div id="footerVersion">FDA FORGE IDE</div>
 </footer>
 
+<script src="forge-version.js"></script>
 <script src="forge-cli-install.js"></script>
 <script>
   // -- Config --------------------------------------------------------------
@@ -1426,123 +1415,10 @@ dist/
     });
   });
 
-  // -- ForgeAPI section (shown only when forgeAPI feature is enabled) --------
-  async function loadForgeApiSection() {
-    try {
-      const res = await fetch('forge-config.json', { cache: 'no-cache' });
-      if (!res.ok) return;
-      const config = await res.json();
-      const hasForgeApi = config?.serverFeatures?.forgeAPI === true;
-
-      if (hasForgeApi) {
-        // Show the ForgeAPI FAQ item
-        const faqItem = document.getElementById('faq-forgeapi');
-        if (faqItem) faqItem.style.display = '';
-
-        // Insert the ForgeAPI section before the FAQ section
-        const faqSection = document.getElementById('faq-section');
-        if (!faqSection) return;
-
-        const section = document.createElement('section');
-        section.innerHTML = `
-          <div class="section-label">Client-Server Hosting</div>
-          <h2>Run a server from your browser</h2>
-          <p>
-            When the FORGE server is running, you can write server-side JavaScript
-            that executes in your browser and is accessible to others via HTTP.
-            This is called <strong>ForgeAPI</strong> — and it enables things like
-            shared state, multi-user apps, and real-time collaboration.
-          </p>
-
-          <div class="ecosystem" style="margin: 24px 0; justify-content: flex-start; gap: 0;">
-            <div class="eco-node">
-              <div class="eco-node-icon">🌐</div>
-              <div class="eco-node-label">HTTP Request</div>
-              <div class="eco-node-sub">From any browser</div>
-            </div>
-            <div class="eco-arrow">→</div>
-            <div class="eco-node">
-              <div class="eco-node-icon">🔥</div>
-              <div class="eco-node-label">FORGE Server</div>
-              <div class="eco-node-sub">WebSocket proxy</div>
-            </div>
-            <div class="eco-arrow">→</div>
-            <div class="eco-node">
-              <div class="eco-node-icon">💻</div>
-              <div class="eco-node-label">Your Browser</div>
-              <div class="eco-node-sub">Runs the handler</div>
-            </div>
-            <div class="eco-arrow">→</div>
-            <div class="eco-node">
-              <div class="eco-node-icon">📤</div>
-              <div class="eco-node-label">Response</div>
-              <div class="eco-node-sub">Back to caller</div>
-            </div>
-          </div>
-
-          <div class="steps">
-            <div class="step">
-              <div class="step-num">1</div>
-              <div class="step-body">
-                <div class="step-title">Write a server.js in your project</div>
-                <div class="step-desc">Use the ForgeAPI to register routes:</div>
-                <pre style="margin-top:8px;">const api = ForgeAPI.create('/sandbox/myapp');
-
-api.get('/hello', (req) => {
-  return { message: 'Hello from your browser!' };
-});
-
-api.start();</pre>
-              </div>
-            </div>
-            <div class="step">
-              <div class="step-num">2</div>
-              <div class="step-body">
-                <div class="step-title">Designate it as the server entrypoint</div>
-                <div class="step-desc">
-                  In the Files tab, click the 🖥️ icon next to your server.js file.
-                </div>
-              </div>
-            </div>
-            <div class="step">
-              <div class="step-num">3</div>
-              <div class="step-body">
-                <div class="step-title">Start the server</div>
-                <div class="step-desc">
-                  Switch to the <strong>Server Console</strong> tab and click
-                  <strong>▶ Start Server</strong>. Your endpoints are now live.
-                </div>
-              </div>
-            </div>
-            <div class="step">
-              <div class="step-num">4</div>
-              <div class="step-body">
-                <div class="step-title">Share the Link</div>
-                <div class="step-desc">
-                  Create a <strong>Short Link</strong> to share your app.
-                  Others connect through the FORGE proxy — your browser handles their requests.
-                  Keep your tab open while others are using it.
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="tip" style="margin-top: 20px;">
-            <strong>Try it:</strong>
-            Load the <a href="index.html?loadExample=forgeapi-chatroom" target="_blank">Chatroom example</a>
-            to see a complete ForgeAPI app — a multi-user chat room that runs entirely in your browser.
-          </div>
-        `;
-        faqSection.parentNode.insertBefore(section, faqSection);
-      }
-    } catch (e) { /* silent — ForgeAPI section is optional */ }
-  }
-
   // -- Init ------------------------------------------------------------------
   loadBookmarklet();
   loadCliInstall();
   loadFooterVersion();
-  loadForgeApiSection();
 </script>
 </body>
 </html>

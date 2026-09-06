@@ -170,7 +170,7 @@ document.addEventListener('click', (e) => {
         setCreateMode('dir');
     }
     if (e.target && e.target.id === 'welcomeForgeTourBtn') {
-        loadExampleProject('about-forge-ide');
+        window.location.href = 'about.html';
     }
     if (e.target && e.target.id === 'welcomeCreateFileBtn') {
         const filesTab = document.querySelector('.tab[data-tab="files"]');
@@ -187,13 +187,6 @@ document.addEventListener('click', (e) => {
 
 // Global keyboard shortcuts
 document.addEventListener('keydown', (e) => {
-    // Check if we're focused inside the preview iframe
-    const activeElement = document.activeElement;
-    const isInPreview = activeElement && (
-        activeElement.id === 'previewFrame' ||
-        activeElement.id === 'fullscreenFrame'
-    );
-
     // Ctrl+S or Cmd+S - Save file
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
@@ -203,24 +196,12 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
-    // Ctrl+Shift+C - Copy project JSON to clipboard
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey &&
+        projectClipboardShortcut(e.key)) {
         e.preventDefault();
-        copyProjectToClipboard();
         return;
     }
 
-    // Ctrl+Shift+V - Paste project JSON from clipboard
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
-        e.preventDefault();
-        pasteProjectFromClipboard();
-        return;
-    }
-
-    // Don't handle other shortcuts if focus is in preview
-    if (isInPreview) {
-        return;
-    }
 
     // Ctrl+R or Cmd+R - Re-run preview
     if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
@@ -390,6 +371,13 @@ window.addEventListener('load', () => {
 
 // --- Clipboard project copy/paste ---
 
+function projectClipboardShortcut(key) {
+    if (key === 'C') copyProjectToClipboard();
+    else if (key === 'V') pasteProjectFromClipboard();
+    else return false;
+    return true;
+}
+
 async function copyProjectToClipboard() {
     if (vfs.getAllPaths().length === 0) {
         showToast('No project to copy', 'error');
@@ -536,8 +524,6 @@ function loadProjectFromParsed(
             renderPage(entryPoint);
 
             // A project with a visual entry point should open on Preview.
-            // Still detect/configure ForgeAPI without letting it steal the tab.
-            autoDetectForgeApiProject(false);
             switchTab('preview');
 
             // If we're in fullscreen mode (e.g. loaded via fullscreen share URL),
@@ -567,8 +553,6 @@ function loadProjectFromParsed(
             }
         } else {
             // A project without HTML has nothing useful to preview.
-            // Detect server metadata without moving the user away from Files.
-            autoDetectForgeApiProject(false);
             switchTab('files');
         }
 
@@ -584,122 +568,7 @@ function loadProjectFromParsed(
     }
 }
 
-/**
- * Check if the loaded project contains a ForgeAPI server file.
- * If so, auto-designate it as the entrypoint and guide the user.
- * Returns true if a ForgeAPI project was detected.
- */
-function autoDetectForgeApiProject(switchToConsole = true) {
-    // Find a file containing ForgeAPI.create(
-    const paths = vfs.getAllPaths();
-    const serverFile = paths.find(p => {
-        const content = vfs.getFile(p);
-        return content && content.includes('ForgeAPI.create(');
-    });
 
-    if (!serverFile) return false;
-
-    console.log('[FORGE] ForgeAPI project detected:', serverFile);
-
-    // Server-only projects should surface the console. Callers that already
-    // have a visual entry point can keep Preview active while setup runs.
-    if (switchToConsole) {
-        switchTab('serverConsole');
-    }
-
-    // Auto-designate if no entrypoint is set and server isn't running
-    if (!serverWorker) {
-        if (serverFeatures.forgeAPI) {
-            // Full server available — designate and enable start button
-            designateServerFile(serverFile);
-        } else {
-            // Static mode — still show the banner but explain the limitation
-            serverEntrypoint = serverFile;
-        }
-        // Show the getting started banner
-        showForgeApiGettingStarted(serverFile);
-    }
-
-    return true;
-}
-
-/**
- * Show the ForgeAPI getting started banner in the server console.
- */
-function showForgeApiGettingStarted(serverFilePath) {
-    // Clear Vue-managed logs first, then append banner to the DOM element
-    if (window.forgePanels) window.forgePanels.clearLogs();
-
-    const output = document.getElementById('serverLogOutput');
-    if (!output) {
-        console.warn('[FORGE] serverLogOutput not found — cannot show banner');
-        return;
-    }
-
-    // Clear any existing getting-started banner
-    const existing = output.querySelector('.forgeapi-banner');
-    if (existing) existing.remove();
-
-    const hasServer = serverFeatures.forgeAPI;
-
-    const banner = document.createElement('div');
-    banner.className = 'forgeapi-banner';
-
-    const icon = document.createElement('span');
-    icon.className = 'forgeapi-banner-icon';
-    icon.textContent = '🖥️';
-
-    const text = document.createElement('span');
-    text.className = 'forgeapi-banner-text';
-
-    const code = document.createElement('code');
-    code.textContent = serverFilePath;
-    text.append(code, document.createTextNode(' detected — '));
-
-    const appendBold = (value) => {
-        const bold = document.createElement('b');
-        bold.textContent = value;
-        text.appendChild(bold);
-    };
-
-    if (hasServer) {
-        appendBold('1)');
-        text.appendChild(document.createTextNode(' click '));
-        appendBold('▶ Start Server');
-        text.appendChild(document.createTextNode(' \u00a0 '));
-
-        appendBold('2)');
-        text.appendChild(document.createTextNode(' check '));
-        appendBold('Preview');
-        text.appendChild(document.createTextNode(' \u00a0 '));
-
-        appendBold('3)');
-        text.appendChild(document.createTextNode(' click '));
-        appendBold('📤 Share App');
-        text.appendChild(document.createTextNode(' to invite others'));
-
-        const note = document.createElement('span');
-        note.className = 'forgeapi-banner-note';
-        note.textContent = ' — keep this tab open';
-        text.appendChild(note);
-    } else {
-        const note = document.createElement('span');
-        note.className = 'forgeapi-banner-note';
-        note.textContent = 'ForgeAPI not available on this server instance.';
-        text.appendChild(note);
-    }
-
-    const dismiss = document.createElement('button');
-    dismiss.className = 'forgeapi-banner-dismiss';
-    dismiss.type = 'button';
-    dismiss.title = 'Dismiss';
-    dismiss.textContent = '✕';
-    dismiss.addEventListener('click', () => banner.remove());
-
-    banner.append(icon, text, dismiss);
-    output.appendChild(banner);
-    console.log('[FORGE] ForgeAPI banner shown in serverLogOutput');
-}
 
 // GitLab import functionality
 const gitlabModal = document.getElementById('gitlabModal');
@@ -1139,6 +1008,18 @@ gitlabProjectNextBtn.addEventListener('click', () => {
 
 function openGitLabModal() {
     gitlabUrlInput.value = window.FORGE_GITLAB_ORIGIN;
+
+    // Rehydrate on every open rather than only at page startup. The push
+    // workflow can save or clear this credential during the same IDE session.
+    const persistedToken = localStorage.getItem('gitlabToken') || '';
+    if (persistedToken) {
+        gitlabTokenInput.value = persistedToken;
+        saveTokenCheckbox.checked = true;
+    } else if (saveTokenCheckbox.checked) {
+        gitlabTokenInput.value = '';
+        saveTokenCheckbox.checked = false;
+    }
+
     renderRecentGitLabProjects();
 
     const browseProjects =
@@ -1791,8 +1672,7 @@ function showToast(message, type = 'info', duration = 3000) {
 // Server Feature Detection
 let serverFeatures = {
   urlShortening: false,
-  sharing: false,
-  forgeAPI: false
+  sharing: false
 };
 
 let serverSharePolicy = {
@@ -2486,6 +2366,11 @@ async function sendManagedShareRequest(packet) {
 // the nested user.email field into FORGE's existing asserted-email mechanism.
 const GSRS_WHOAMI_URL = '/ginas/app/api/v1/whoami';
 
+// A FORGE logout should be able to clear a GSRS-derived asserted identity
+// without the next identity refresh immediately discovering it again.
+// This is intentionally page-local: a full reload may discover SSO again.
+let suppressGsrsIdentitySeed = false;
+
 function gsrsIdentitySeedEligible() {
   const host = window.location.hostname.toLowerCase();
   return host.startsWith('gsrs.') && host.endsWith('.fda.gov');
@@ -2522,7 +2407,7 @@ function bootstrapGsrsSso() {
 }
 
 async function loadGsrsAssertedEmailSeed() {
-  if (!gsrsIdentitySeedEligible()) return null;
+  if (!gsrsIdentitySeedEligible() || suppressGsrsIdentitySeed) return null;
 
   try {
     await bootstrapGsrsSso();
@@ -2608,6 +2493,72 @@ async function loadCurrentUser() {
   return currentUser;
 }
 
+function closeCurrentUserMenu() {
+  const dropdown = document.getElementById('currentUserDropdown');
+  const button = document.getElementById('currentUserBtn');
+
+  if (dropdown) dropdown.classList.remove('open');
+  if (button) button.setAttribute('aria-expanded', 'false');
+}
+
+function refreshCurrentUserMenuUi() {
+  const email = document.getElementById('currentUserMenuEmail');
+  const kind = document.getElementById('currentUserMenuKind');
+  const changeButton = document.getElementById(
+    'currentUserChangeIdentityBtn'
+  );
+  const changeLabel = document.getElementById(
+    'currentUserChangeIdentityLabel'
+  );
+  const refreshSsoButton = document.getElementById(
+    'currentUserRefreshSsoBtn'
+  );
+  const logoutButton = document.getElementById(
+    'currentUserLogoutBtn'
+  );
+  const managedNote = document.getElementById(
+    'currentUserManagedIdentityNote'
+  );
+
+  if (email) {
+    email.textContent = currentUser && currentUser.email
+      ? currentUser.email
+      : 'No current identity';
+  }
+
+  if (kind) {
+    kind.textContent = serverAuth.assertedIdentity
+      ? 'Asserted identity (unverified)'
+      : 'Deployment-managed identity';
+  }
+
+  if (changeButton) {
+    changeButton.hidden = !serverAuth.assertedIdentity;
+  }
+
+  if (changeLabel) {
+    changeLabel.textContent = currentUser
+      ? 'Change identity'
+      : 'Set identity';
+  }
+
+  if (refreshSsoButton) {
+    refreshSsoButton.hidden =
+      !serverAuth.assertedIdentity ||
+      !gsrsIdentitySeedEligible();
+  }
+
+  if (logoutButton) {
+    logoutButton.hidden =
+      !serverAuth.assertedIdentity ||
+      !currentUser;
+  }
+
+  if (managedNote) {
+    managedNote.hidden = serverAuth.assertedIdentity;
+  }
+}
+
 function refreshCurrentUserUi() {
   const button = document.getElementById('currentUserBtn');
   if (!button) return;
@@ -2615,7 +2566,9 @@ function refreshCurrentUserUi() {
   // A deployment with no FORGE server auth can still have a user discovered
   // from its surrounding SSO environment (for example GSRS).
   if (serverAuth.mode === 'none' && !currentUser) {
+    closeCurrentUserMenu();
     button.hidden = true;
+    refreshCurrentUserMenuUi();
     return;
   }
 
@@ -2623,47 +2576,127 @@ function refreshCurrentUserUi() {
 
   if (serverAuth.assertedIdentity) {
     if (currentUser) {
-      const label = currentUser.fullName || currentUser.identifier || currentUser.email;
+      const label =
+        currentUser.fullName ||
+        currentUser.identifier ||
+        currentUser.email;
+
       button.textContent = `👤 ${label}`;
       button.title =
-        `Asserted identity (unverified): ${currentUser.email}. Click to change or clear.`;
+        `Asserted identity (unverified): ${currentUser.email}. ` +
+        'Click for identity options.';
     } else {
       button.textContent = '👤 Set email';
       button.title =
-        'Set an asserted email for this FORGE deployment (unverified)';
+        'Set or refresh the asserted identity for this FORGE deployment';
     }
-    return;
-  }
+  } else if (currentUser) {
+    const label =
+      currentUser.fullName ||
+      currentUser.identifier ||
+      currentUser.email;
 
-  if (currentUser) {
-    const label = currentUser.fullName || currentUser.identifier || currentUser.email;
     button.textContent = `👤 ${label}`;
-    button.title = `Signed in as ${currentUser.email}`;
+    button.title =
+      `Signed in as ${currentUser.email}. Click for identity details.`;
   } else {
     button.textContent = '👤 Not signed in';
-    button.title = 'No authenticated FORGE user was reported by this deployment';
+    button.title =
+      'No authenticated FORGE user was reported by this deployment';
+  }
+
+  refreshCurrentUserMenuUi();
+}
+
+function currentUserAction(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  const dropdown = document.getElementById('currentUserDropdown');
+  const button = document.getElementById('currentUserBtn');
+  if (!dropdown || !button) return;
+
+  refreshCurrentUserMenuUi();
+
+  const opening = !dropdown.classList.contains('open');
+  closeCurrentUserMenu();
+
+  if (opening) {
+    dropdown.classList.add('open');
+    button.setAttribute('aria-expanded', 'true');
   }
 }
 
-function currentUserAction() {
-  if (serverAuth.assertedIdentity) {
-    setAssertedIdentity();
+async function logoutCurrentUser() {
+  if (!serverAuth.assertedIdentity) {
+    closeCurrentUserMenu();
     return;
   }
 
+  closeCurrentUserMenu();
+  suppressGsrsIdentitySeed = true;
+
+  try {
+    localStorage.removeItem(ASSERTED_EMAIL_STORAGE_KEY);
+  } catch {
+    // Storage failure should not prevent the in-page identity from clearing.
+  }
+
+  currentUser = null;
+  refreshCurrentUserUi();
+
+  showToast(
+    'Logged out of FORGE identity. Reload or use Refresh from SSO to sign in again.',
+    'info',
+    4000
+  );
+}
+
+async function refreshAssertedIdentityFromSso() {
+  if (!serverAuth.assertedIdentity) return;
+
+  closeCurrentUserMenu();
+  suppressGsrsIdentitySeed = false;
+
+  try {
+    localStorage.removeItem(ASSERTED_EMAIL_STORAGE_KEY);
+  } catch {
+    // Continue: identity discovery can still run without persistent storage.
+  }
+
+  await loadCurrentUser();
+  refreshCurrentUserUi();
+
   if (currentUser) {
-    showToast(`Signed in as ${currentUser.email}`, 'info', 3000);
-  } else if (serverAuth.mode !== 'none') {
-    showToast('No authenticated FORGE user', 'info', 3000);
+    showToast(
+      `Refreshed SSO identity: ${currentUser.email}`,
+      'info',
+      3000
+    );
+  } else {
+    showToast(
+      'No SSO identity was available',
+      'info',
+      3000
+    );
   }
 }
 
 async function setAssertedIdentity() {
   if (!serverAuth.assertedIdentity) return;
 
-  const current = getAssertedEmail() || '';
+  closeCurrentUserMenu();
+
+  const current =
+    getAssertedEmail() ||
+    (currentUser && currentUser.email) ||
+    '';
+
   const value = window.prompt(
-    'Asserted email (unverified)\n\nEnter your email, or leave blank to clear it:',
+    'Asserted email (unverified)\n\n' +
+    'Enter the email to use, or leave blank to log out:',
     current
   );
 
@@ -2672,24 +2705,49 @@ async function setAssertedIdentity() {
   const trimmed = value.trim();
 
   if (!trimmed) {
-    localStorage.removeItem(ASSERTED_EMAIL_STORAGE_KEY);
-    await loadCurrentUser();
-    refreshCurrentUserUi();
-    showToast('Asserted email cleared', 'info', 2500);
+    await logoutCurrentUser();
     return;
   }
 
   const email = normalizeAssertedEmail(trimmed);
   if (!email) {
-    showToast('Please enter a valid email address', 'error', 3500);
+    showToast(
+      'Please enter a valid email address',
+      'error',
+      3500
+    );
     return;
   }
 
+  suppressGsrsIdentitySeed = false;
   localStorage.setItem(ASSERTED_EMAIL_STORAGE_KEY, email);
+
   await loadCurrentUser();
   refreshCurrentUserUi();
-  showToast(`Using asserted email: ${email}`, 'info', 3000);
+
+  showToast(
+    `Using asserted email: ${email}`,
+    'info',
+    3000
+  );
 }
+
+document.addEventListener('click', event => {
+  const dropdown = document.getElementById('currentUserDropdown');
+  if (
+    dropdown &&
+    dropdown.classList.contains('open') &&
+    !dropdown.contains(event.target)
+  ) {
+    closeCurrentUserMenu();
+  }
+});
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    closeCurrentUserMenu();
+  }
+});
 
 // GitLab API requests are pinned to one deployment-controlled origin.
 // The server config may override this default; project/URL content may not.
@@ -2823,8 +2881,7 @@ async function detectServerFeatures() {
 
       serverFeatures = config.serverFeatures || {
         urlShortening: false,
-        sharing: false,
-        forgeAPI: false
+        sharing: false
       };
 
       const configuredDefaultTtlMs = Number(
@@ -2882,7 +2939,7 @@ async function detectServerFeatures() {
   // Default: static-only mode
   return {
     urlShortening: false,
-    forgeAPI: false
+    sharing: false
   };
 }
 
@@ -2929,15 +2986,6 @@ function applyFeatureVisibility() {
             !hasLegacyShortening || hasManagedSharing;
     }
 
-    // Tell Vue about ForgeAPI availability (controls 🖥️ button in file list)
-    if (window.forgePanels) {
-        window.forgePanels.setForgeApiEnabled(serverFeatures.forgeAPI);
-    }
-
-    // Show Server Console tab only when ForgeAPI is available.
-    const serverTab = document.querySelector('.tab[data-tab="serverConsole"]');
-    if (serverTab) serverTab.hidden = !serverFeatures.forgeAPI;
-
     console.log('Feature visibility applied:', serverFeatures);
 }
 
@@ -2950,9 +2998,6 @@ let currentViewMode = 'editor'; // 'editor' | 'settings'
 let hasUnsavedChanges = false;
 let originalContent = '';
 let pendingNavigation = null;
-let serverEntrypoint = null;
-let serverWorker = null;
-let serverSecretKey = null; // To store the key for reconnection
 
 // UI Elements
 const jsonInput = document.getElementById('jsonInput');
@@ -2984,20 +3029,6 @@ const rerunBtn        = _lazy('rerunBtn');
 const addFileInput    = _lazy('addFileInput');
 const addFileBtn      = _lazy('addFileBtn');
 
-// Server Console UI Elements
-// Server console elements are rendered by Vue (forge-vue-panels.js).
-// Shims keep any remaining references from throwing.
-const serverConsoleTab    = { click: () => switchTab('serverConsole') };
-const startServerBtn      = { disabled: false };
-const stopServerBtn       = { disabled: true  };
-const clearLogBtn         = { };
-const serverLogOutput     = {
-    appendChild: () => {},
-    scrollTop: 0, scrollHeight: 0,
-    querySelector: (s) => document.getElementById('serverLogOutput')?.querySelector(s),
-    innerHTML: ''
-};
-const serverStatusDisplay = { textContent: '', style: {} };
 
 // Unsaved changes modal
 const unsavedModal = document.getElementById('unsavedModal');
@@ -5567,7 +5598,157 @@ function setPreviewWelcomeVisible(visible) {
     welcome.hidden = !visible;
 }
 
-function commitPreviewFrame(frameEl, html) {
+const previewSourceRanges = {};
+
+function indexPreviewSources(html, sourcePath, sourceHtml) {
+    const ranges = [];
+    const lineAt = (text, index) =>
+        text.slice(0, index).split('\n').length;
+
+    const moduleRe =
+        /\/\*__FORGE_SOURCE__([^:]+):(\d+)\*\//g;
+    let match;
+
+    while ((match = moduleRe.exec(html))) {
+        const start = lineAt(html, match.index) + 1;
+        const count = Number(match[2]);
+
+        ranges.push({
+            path: decodeURIComponent(match[1]),
+            start,
+            end: start + count - 1,
+            sourceStart: 1,
+            columnOffset: 4
+        });
+    }
+
+    if (!sourcePath || typeof sourceHtml !== 'string') {
+        return ranges;
+    }
+
+    const scriptRe =
+        /<script([^>]*)>([\s\S]*?)<\/script>/gi;
+    let scriptCursor = 0;
+
+    while ((match = scriptRe.exec(sourceHtml))) {
+        const attrs = match[1];
+
+        if (
+            /\bsrc\s*=/i.test(attrs) ||
+            /\btype\s*=\s*["']module["']/i.test(attrs)
+        ) {
+            continue;
+        }
+
+        const openingLength =
+            match[0].indexOf('>') + 1;
+        const content = match[2];
+        const finalIndex =
+            html.indexOf(match[0], scriptCursor);
+
+        if (finalIndex < 0) continue;
+
+        const sourceContentIndex =
+            match.index + openingLength;
+        const finalContentIndex =
+            finalIndex + openingLength;
+        const count =
+            content.split('\n').length;
+
+        ranges.push({
+            path: sourcePath,
+            start: lineAt(html, finalContentIndex),
+            end:
+                lineAt(html, finalContentIndex) +
+                count - 1,
+            sourceStart:
+                lineAt(sourceHtml, sourceContentIndex),
+            columnOffset: 0
+        });
+
+        scriptCursor =
+            finalIndex + match[0].length;
+    }
+
+    const handlerRe =
+        /\bon[a-z][\w:-]*\s*=\s*(["'])([\s\S]*?)\1/gi;
+    let handlerCursor = 0;
+
+    while ((match = handlerRe.exec(sourceHtml))) {
+        const finalIndex =
+            html.indexOf(match[0], handlerCursor);
+
+        if (finalIndex < 0) continue;
+
+        const generatedLine =
+            lineAt(html, finalIndex);
+
+        ranges.push({
+            path: sourcePath,
+            start: generatedLine,
+            end: generatedLine,
+            sourceStart:
+                lineAt(sourceHtml, match.index),
+            columnOffset: 0
+        });
+
+        handlerCursor =
+            finalIndex + match[0].length;
+    }
+
+    return ranges;
+}
+
+function mapPreviewSourceLocations(msg, source) {
+    if (typeof msg !== 'string') return msg;
+
+    const frameId = ['previewFrame', 'fullscreenFrame'].find(id =>
+        source === document.getElementById(id)?.contentWindow
+    );
+
+    const ranges =
+        previewSourceRanges[frameId] ||
+        (frameId === 'fullscreenFrame'
+            ? previewSourceRanges.previewFrame
+            : null);
+
+    if (!ranges || !ranges.length) return msg;
+
+    return msg.replace(
+        /about:srcdoc:(\d+)(?::(\d+))?/g,
+        (raw, line, column) => {
+            const generatedLine = Number(line);
+            const range = ranges.find(item =>
+                generatedLine >= item.start &&
+                generatedLine <= item.end
+            );
+
+            if (!range) return raw;
+
+            const sourceLine =
+                range.sourceStart +
+                generatedLine - range.start;
+
+            const sourceColumn = column
+                ? Math.max(
+                    1,
+                    Number(column) -
+                        (range.columnOffset || 0)
+                )
+                : null;
+
+            return `forge-vfs://${range.path}:${sourceLine}` +
+                (sourceColumn ? `:${sourceColumn}` : '');
+        }
+    );
+}
+
+function commitPreviewFrame(
+    frameEl,
+    html,
+    sourcePath,
+    sourceHtml
+) {
     if (!frameEl || !frameEl.parentNode) return null;
 
     // A fresh browsing context has not reported its page title yet. Clear the
@@ -5581,6 +5762,12 @@ function commitPreviewFrame(frameEl, html) {
     updateBrowserTitle();
 
     const replacement = frameEl.cloneNode(false);
+    previewSourceRanges[replacement.id] =
+        indexPreviewSources(
+            html,
+            sourcePath,
+            sourceHtml
+        );
     replacement.srcdoc = html;
     frameEl.parentNode.replaceChild(replacement, frameEl);
     return replacement;
@@ -5698,13 +5885,14 @@ const PREVIEW_IDB_KEEPALIVE_STORE = '__forge_internal_keepalive_v1__';
 
 let forgePreviewIdbNextConnection = 1;
 const forgePreviewIdbConnections = new Map();
-const forgePreviewIdbUpgrades = new Map();
-const forgePreviewIdbTransactions = new Map();
+const forgePreviewIdbSessions = new Map();
 
 function previewIdbError(error) {
     return {
         name: error && error.name ? error.name : 'Error',
-        message: error && error.message ? error.message : String(error || 'Unknown error')
+        message: error && error.message
+            ? error.message
+            : String(error || 'Unknown error')
     };
 }
 
@@ -5716,30 +5904,198 @@ function previewIdbStores(db) {
 function postPreviewIdb(target, message) {
     try {
         target.postMessage(message, '*');
-    } catch (e) {
-        console.warn('[FORGE] Could not post IndexedDB bridge response:', e);
+    } catch (error) {
+        console.warn(
+            '[FORGE] Could not post IndexedDB bridge response:',
+            error
+        );
+    }
+}
+
+function previewIdbOperation(store, message) {
+    const op = String(message.operation);
+
+    if (op === 'put' || op === 'add') {
+        return message.hasKey
+            ? store[op](message.value, message.key)
+            : store[op](message.value);
+    }
+
+    if (op === 'get' || op === 'delete') {
+        return store[op](message.key);
+    }
+
+    if (op === 'clear') return store.clear();
+
+    if (op === 'count') {
+        return message.hasQuery
+            ? store.count(message.query)
+            : store.count();
+    }
+
+    if (op === 'getAll' || op === 'getAllKeys') {
+        if (message.hasCount) {
+            return store[op](
+                message.hasQuery ? message.query : undefined,
+                message.count
+            );
+        }
+
+        return message.hasQuery
+            ? store[op](message.query)
+            : store[op]();
+    }
+
+    throw new DOMException(
+        'Unsupported FORGE IndexedDB operation',
+        'NotSupportedError'
+    );
+}
+
+function previewIdbRequest(source, store, message) {
+    const request = previewIdbOperation(store, message);
+
+    request.onsuccess = () => postPreviewIdb(source, {
+        type: 'forge-idb-op-success',
+        requestId: String(message.requestId || ''),
+        result: request.result
+    });
+
+    request.onerror = () => postPreviewIdb(source, {
+        type: 'forge-idb-op-error',
+        requestId: String(message.requestId || ''),
+        error: previewIdbError(request.error)
+    });
+
+    return request;
+}
+
+function previewIdbPump(session) {
+    if (!forgePreviewIdbSessions.has(session.id)) return;
+
+    try {
+        if (session.abort || Date.now() > session.expiresAt) {
+            session.tx.abort();
+            return;
+        }
+
+        while (session.queue.length) {
+            const message = session.queue.shift();
+
+            if (session.kind === 'upgrade') {
+                const name = String(message.name);
+
+                if (name === PREVIEW_IDB_KEEPALIVE_STORE) {
+                    throw new DOMException(
+                        'Reserved FORGE IndexedDB object-store name',
+                        'ConstraintError'
+                    );
+                }
+
+                if (message.type === 'forge-idb-create-store') {
+                    session.db.createObjectStore(
+                        name,
+                        message.options &&
+                        typeof message.options === 'object'
+                            ? message.options
+                            : undefined
+                    );
+                } else {
+                    session.db.deleteObjectStore(name);
+                }
+
+                continue;
+            }
+
+            try {
+                previewIdbRequest(
+                    session.source,
+                    session.tx.objectStore(
+                        String(message.storeName)
+                    ),
+                    message
+                );
+            } catch (error) {
+                postPreviewIdb(session.source, {
+                    type: 'forge-idb-op-error',
+                    requestId: String(message.requestId || ''),
+                    error: previewIdbError(error)
+                });
+                throw error;
+            }
+        }
+
+        if (session.done) {
+            if (
+                session.kind === 'upgrade' &&
+                session.db.objectStoreNames.contains(
+                    PREVIEW_IDB_KEEPALIVE_STORE
+                )
+            ) {
+                session.db.deleteObjectStore(
+                    PREVIEW_IDB_KEEPALIVE_STORE
+                );
+            }
+
+            forgePreviewIdbSessions.delete(session.id);
+            return;
+        }
+
+        const keepalive = session.keepalive.get(0);
+
+        keepalive.onsuccess = () => previewIdbPump(session);
+        keepalive.onerror = () => {
+            try {
+                session.tx.abort();
+            } catch (error) {}
+        };
+    } catch (error) {
+        if (session.kind === 'upgrade') {
+            postPreviewIdb(session.source, {
+                type: 'forge-idb-schema-error',
+                requestId: session.id,
+                error: previewIdbError(error)
+            });
+        }
+
+        try {
+            session.tx.abort();
+        } catch (abortError) {}
     }
 }
 
 function handlePreviewIndexedDbMessage(event) {
     const message = event.data;
+    const type = message.type;
 
-    if (message.type === 'forge-idb-open') {
+    if (type === 'forge-idb-open') {
         const requestId = String(message.requestId || '');
-        const requestedName = String(message.name || '');
-        const dbId = 'forge-idb-' + forgePreviewIdbNextConnection++;
-        const physicalName = PREVIEW_IDB_PREFIX + requestedName;
+        const dbId =
+            'forge-idb-' + forgePreviewIdbNextConnection++;
+        const physicalName =
+            PREVIEW_IDB_PREFIX + String(message.name || '');
 
         let request;
+
         try {
             if (message.version == null) {
                 request = indexedDB.open(physicalName);
             } else {
                 const version = Number(message.version);
-                if (!Number.isInteger(version) || version <= 0) {
-                    throw new TypeError('IndexedDB version must be a positive integer');
+
+                if (
+                    !Number.isInteger(version) ||
+                    version <= 0
+                ) {
+                    throw new TypeError(
+                        'IndexedDB version must be a positive integer'
+                    );
                 }
-                request = indexedDB.open(physicalName, version);
+
+                request = indexedDB.open(
+                    physicalName,
+                    version
+                );
             }
         } catch (error) {
             postPreviewIdb(event.source, {
@@ -5756,95 +6112,44 @@ function handlePreviewIndexedDbMessage(event) {
 
             forgePreviewIdbConnections.set(dbId, db);
 
-            let keepaliveStore;
+            let keepalive;
+
             try {
-                if (db.objectStoreNames.contains(PREVIEW_IDB_KEEPALIVE_STORE)) {
-                    keepaliveStore = tx.objectStore(PREVIEW_IDB_KEEPALIVE_STORE);
-                } else {
-                    keepaliveStore = db.createObjectStore(PREVIEW_IDB_KEEPALIVE_STORE);
-                }
+                keepalive = db.objectStoreNames.contains(
+                    PREVIEW_IDB_KEEPALIVE_STORE
+                )
+                    ? tx.objectStore(
+                        PREVIEW_IDB_KEEPALIVE_STORE
+                    )
+                    : db.createObjectStore(
+                        PREVIEW_IDB_KEEPALIVE_STORE
+                    );
             } catch (error) {
-                try { tx.abort(); } catch (e) {}
+                try {
+                    tx.abort();
+                } catch (abortError) {}
                 return;
             }
 
             const session = {
-                requestId,
-                dbId,
+                id: requestId,
+                kind: 'upgrade',
+                source: event.source,
                 db,
                 tx,
-                keepaliveStore,
-                commands: [],
-                doneRequested: false,
-                abortRequested: false,
+                keepalive,
+                queue: [],
+                done: false,
+                abort: false,
                 expiresAt: Date.now() + 5000
             };
 
-            forgePreviewIdbUpgrades.set(requestId, session);
+            forgePreviewIdbSessions.set(
+                requestId,
+                session
+            );
 
-            function keepUpgradeAlive() {
-                if (!forgePreviewIdbUpgrades.has(requestId)) return;
-
-                try {
-                    if (Date.now() > session.expiresAt || session.abortRequested) {
-                        forgePreviewIdbUpgrades.delete(requestId);
-                        tx.abort();
-                        return;
-                    }
-
-                    while (session.commands.length > 0) {
-                        const command = session.commands.shift();
-
-                        if (command.type === 'create-store') {
-                            if (command.name === PREVIEW_IDB_KEEPALIVE_STORE) {
-                                throw new DOMException(
-                                    'Reserved FORGE IndexedDB object-store name',
-                                    'ConstraintError'
-                                );
-                            }
-
-                            db.createObjectStore(
-                                command.name,
-                                command.options || undefined
-                            );
-                        } else if (command.type === 'delete-store') {
-                            if (command.name === PREVIEW_IDB_KEEPALIVE_STORE) {
-                                throw new DOMException(
-                                    'Reserved FORGE IndexedDB object-store name',
-                                    'ConstraintError'
-                                );
-                            }
-
-                            db.deleteObjectStore(command.name);
-                        }
-                    }
-
-                    if (session.doneRequested) {
-                        if (db.objectStoreNames.contains(PREVIEW_IDB_KEEPALIVE_STORE)) {
-                            db.deleteObjectStore(PREVIEW_IDB_KEEPALIVE_STORE);
-                        }
-                        forgePreviewIdbUpgrades.delete(requestId);
-                        return;
-                    }
-
-                    const keepaliveRequest = keepaliveStore.get(0);
-                    keepaliveRequest.onsuccess = keepUpgradeAlive;
-                    keepaliveRequest.onerror = () => {
-                        forgePreviewIdbUpgrades.delete(requestId);
-                        try { tx.abort(); } catch (e) {}
-                    };
-                } catch (error) {
-                    forgePreviewIdbUpgrades.delete(requestId);
-                    postPreviewIdb(event.source, {
-                        type: 'forge-idb-schema-error',
-                        requestId,
-                        error: previewIdbError(error)
-                    });
-                    try { tx.abort(); } catch (e) {}
-                }
-            }
-
-            keepUpgradeAlive();
+            previewIdbPump(session);
 
             postPreviewIdb(event.source, {
                 type: 'forge-idb-upgrade',
@@ -5858,6 +6163,7 @@ function handlePreviewIndexedDbMessage(event) {
 
         request.onsuccess = () => {
             const db = request.result;
+
             forgePreviewIdbConnections.set(dbId, db);
 
             postPreviewIdb(event.source, {
@@ -5870,7 +6176,7 @@ function handlePreviewIndexedDbMessage(event) {
         };
 
         request.onerror = () => {
-            forgePreviewIdbUpgrades.delete(requestId);
+            forgePreviewIdbSessions.delete(requestId);
             forgePreviewIdbConnections.delete(dbId);
 
             postPreviewIdb(event.source, {
@@ -5883,46 +6189,52 @@ function handlePreviewIndexedDbMessage(event) {
         return;
     }
 
-    if (message.type === 'forge-idb-create-store') {
-        const session = forgePreviewIdbUpgrades.get(String(message.requestId || ''));
-        if (!session) return;
+    if (
+        type === 'forge-idb-create-store' ||
+        type === 'forge-idb-delete-store'
+    ) {
+        const session = forgePreviewIdbSessions.get(
+            String(message.requestId || '')
+        );
 
-        session.commands.push({
-            type: 'create-store',
-            name: String(message.name),
-            options: message.options && typeof message.options === 'object'
-                ? message.options
-                : undefined
-        });
+        if (
+            session &&
+            session.kind === 'upgrade'
+        ) {
+            session.queue.push(message);
+        }
+
         return;
     }
 
-    if (message.type === 'forge-idb-delete-store') {
-        const session = forgePreviewIdbUpgrades.get(String(message.requestId || ''));
-        if (!session) return;
+    if (
+        type === 'forge-idb-upgrade-done' ||
+        type === 'forge-idb-upgrade-abort'
+    ) {
+        const session = forgePreviewIdbSessions.get(
+            String(message.requestId || '')
+        );
 
-        session.commands.push({
-            type: 'delete-store',
-            name: String(message.name)
-        });
+        if (
+            session &&
+            session.kind === 'upgrade'
+        ) {
+            if (type === 'forge-idb-upgrade-done') {
+                session.done = true;
+            } else {
+                session.abort = true;
+            }
+        }
+
         return;
     }
 
-    if (message.type === 'forge-idb-upgrade-done') {
-        const session = forgePreviewIdbUpgrades.get(String(message.requestId || ''));
-        if (session) session.doneRequested = true;
-        return;
-    }
-
-    if (message.type === 'forge-idb-upgrade-abort') {
-        const session = forgePreviewIdbUpgrades.get(String(message.requestId || ''));
-        if (session) session.abortRequested = true;
-        return;
-    }
-
-    if (message.type === 'forge-idb-transaction-open') {
-        const db = forgePreviewIdbConnections.get(String(message.dbId || ''));
-        const transactionId = String(message.transactionId || '');
+    if (type === 'forge-idb-transaction-open') {
+        const transactionId =
+            String(message.transactionId || '');
+        const db = forgePreviewIdbConnections.get(
+            String(message.dbId || '')
+        );
 
         if (!db || !transactionId) {
             postPreviewIdb(event.source, {
@@ -5937,31 +6249,39 @@ function handlePreviewIndexedDbMessage(event) {
         }
 
         try {
-            const storeNames = Array.isArray(message.storeNames)
+            const names = Array.isArray(message.storeNames)
                 ? message.storeNames.map(String)
                 : [String(message.storeNames)];
 
-            const mode = message.mode === 'readwrite'
-                ? 'readwrite'
-                : 'readonly';
-
-            const tx = db.transaction(storeNames, mode);
-            const keepaliveStore = tx.objectStore(storeNames[0]);
+            const tx = db.transaction(
+                names,
+                message.mode === 'readwrite'
+                    ? 'readwrite'
+                    : 'readonly'
+            );
 
             const session = {
-                transactionId,
-                tx,
+                id: transactionId,
+                kind: 'transaction',
                 source: event.source,
-                commands: [],
-                doneRequested: false,
-                abortRequested: false,
+                tx,
+                keepalive: tx.objectStore(names[0]),
+                queue: [],
+                done: false,
+                abort: false,
                 expiresAt: Date.now() + 15000
             };
 
-            forgePreviewIdbTransactions.set(transactionId, session);
+            forgePreviewIdbSessions.set(
+                transactionId,
+                session
+            );
 
             tx.oncomplete = () => {
-                forgePreviewIdbTransactions.delete(transactionId);
+                forgePreviewIdbSessions.delete(
+                    transactionId
+                );
+
                 postPreviewIdb(session.source, {
                     type: 'forge-idb-transaction-complete',
                     transactionId
@@ -5969,121 +6289,24 @@ function handlePreviewIndexedDbMessage(event) {
             };
 
             tx.onabort = () => {
-                forgePreviewIdbTransactions.delete(transactionId);
+                forgePreviewIdbSessions.delete(
+                    transactionId
+                );
+
                 postPreviewIdb(session.source, {
                     type: 'forge-idb-transaction-abort',
                     transactionId,
-                    error: previewIdbError(tx.error || new DOMException(
-                        'IndexedDB transaction aborted',
-                        'AbortError'
-                    ))
+                    error: previewIdbError(
+                        tx.error ||
+                        new DOMException(
+                            'IndexedDB transaction aborted',
+                            'AbortError'
+                        )
+                    )
                 });
             };
 
-            function pumpTransaction() {
-                if (!forgePreviewIdbTransactions.has(transactionId)) return;
-
-                try {
-                    if (
-                        Date.now() > session.expiresAt ||
-                        session.abortRequested
-                    ) {
-                        tx.abort();
-                        return;
-                    }
-
-                    while (session.commands.length > 0) {
-                        const command = session.commands.shift();
-                        const store = tx.objectStore(command.storeName);
-
-                        let request;
-                        if (command.operation === 'put') {
-                            request = command.hasKey
-                                ? store.put(command.value, command.key)
-                                : store.put(command.value);
-                        } else if (command.operation === 'add') {
-                            request = command.hasKey
-                                ? store.add(command.value, command.key)
-                                : store.add(command.value);
-                        } else if (command.operation === 'get') {
-                            request = store.get(command.key);
-                        } else if (command.operation === 'delete') {
-                            request = store.delete(command.key);
-                        } else if (command.operation === 'clear') {
-                            request = store.clear();
-                        } else if (command.operation === 'count') {
-                            request = command.hasQuery
-                                ? store.count(command.query)
-                                : store.count();
-                        } else if (command.operation === 'getAll') {
-                            if (command.hasCount) {
-                                request = store.getAll(
-                                    command.hasQuery ? command.query : undefined,
-                                    command.count
-                                );
-                            } else if (command.hasQuery) {
-                                request = store.getAll(command.query);
-                            } else {
-                                request = store.getAll();
-                            }
-                        } else if (command.operation === 'getAllKeys') {
-                            if (command.hasCount) {
-                                request = store.getAllKeys(
-                                    command.hasQuery ? command.query : undefined,
-                                    command.count
-                                );
-                            } else if (command.hasQuery) {
-                                request = store.getAllKeys(command.query);
-                            } else {
-                                request = store.getAllKeys();
-                            }
-                        } else {
-                            throw new DOMException(
-                                'Unsupported FORGE IndexedDB transaction operation',
-                                'NotSupportedError'
-                            );
-                        }
-
-                        request.onsuccess = () => {
-                            postPreviewIdb(session.source, {
-                                type: 'forge-idb-op-success',
-                                requestId: command.requestId,
-                                result: request.result
-                            });
-                        };
-
-                        request.onerror = () => {
-                            postPreviewIdb(session.source, {
-                                type: 'forge-idb-op-error',
-                                requestId: command.requestId,
-                                error: previewIdbError(request.error)
-                            });
-                            // Do not preventDefault(): native IndexedDB semantics
-                            // abort the transaction for an unhandled request error.
-                        };
-                    }
-
-                    if (session.doneRequested) {
-                        return;
-                    }
-
-                    const keepaliveRequest = keepaliveStore.get(0);
-                    keepaliveRequest.onsuccess = pumpTransaction;
-                    keepaliveRequest.onerror = () => {
-                        try { tx.abort(); } catch (e) {}
-                    };
-                } catch (error) {
-                    try { tx.abort(); } catch (e) {}
-
-                    postPreviewIdb(session.source, {
-                        type: 'forge-idb-transaction-abort',
-                        transactionId,
-                        error: previewIdbError(error)
-                    });
-                }
-            }
-
-            pumpTransaction();
+            previewIdbPump(session);
         } catch (error) {
             postPreviewIdb(event.source, {
                 type: 'forge-idb-transaction-abort',
@@ -6091,56 +6314,62 @@ function handlePreviewIndexedDbMessage(event) {
                 error: previewIdbError(error)
             });
         }
+
         return;
     }
 
-    if (message.type === 'forge-idb-transaction-op') {
-        const session = forgePreviewIdbTransactions.get(
+    if (type === 'forge-idb-transaction-op') {
+        const session = forgePreviewIdbSessions.get(
             String(message.transactionId || '')
         );
-        if (!session) return;
 
-        session.commands.push({
-            requestId: String(message.requestId || ''),
-            storeName: String(message.storeName),
-            operation: String(message.operation),
-            value: message.value,
-            key: message.key,
-            hasKey: !!message.hasKey,
-            query: message.query,
-            count: message.count,
-            hasQuery: !!message.hasQuery,
-            hasCount: !!message.hasCount
-        });
-        return;
-    }
-
-    if (message.type === 'forge-idb-transaction-done') {
-        const session = forgePreviewIdbTransactions.get(
-            String(message.transactionId || '')
-        );
-        if (session) session.doneRequested = true;
-        return;
-    }
-
-    if (message.type === 'forge-idb-transaction-abort') {
-        const session = forgePreviewIdbTransactions.get(
-            String(message.transactionId || '')
-        );
-        if (session) {
-            session.abortRequested = true;
-            try { session.tx.abort(); } catch (e) {}
+        if (
+            session &&
+            session.kind === 'transaction'
+        ) {
+            session.queue.push(message);
         }
+
         return;
     }
 
-    if (message.type === 'forge-idb-delete-db') {
-        const requestId = String(message.requestId || '');
-        const physicalName = PREVIEW_IDB_PREFIX + String(message.name || '');
+    if (
+        type === 'forge-idb-transaction-done' ||
+        type === 'forge-idb-transaction-abort'
+    ) {
+        const session = forgePreviewIdbSessions.get(
+            String(message.transactionId || '')
+        );
 
+        if (
+            !session ||
+            session.kind !== 'transaction'
+        ) {
+            return;
+        }
+
+        if (type === 'forge-idb-transaction-done') {
+            session.done = true;
+        } else {
+            session.abort = true;
+
+            try {
+                session.tx.abort();
+            } catch (error) {}
+        }
+
+        return;
+    }
+
+    if (type === 'forge-idb-delete-db') {
+        const requestId = String(message.requestId || '');
         let request;
+
         try {
-            request = indexedDB.deleteDatabase(physicalName);
+            request = indexedDB.deleteDatabase(
+                PREVIEW_IDB_PREFIX +
+                String(message.name || '')
+            );
         } catch (error) {
             postPreviewIdb(event.source, {
                 type: 'forge-idb-delete-db-error',
@@ -6150,120 +6379,82 @@ function handlePreviewIndexedDbMessage(event) {
             return;
         }
 
-        request.onsuccess = () => {
-            postPreviewIdb(event.source, {
+        request.onsuccess = () => postPreviewIdb(
+            event.source,
+            {
                 type: 'forge-idb-delete-db-success',
                 requestId
-            });
-        };
+            }
+        );
 
-        request.onerror = () => {
-            postPreviewIdb(event.source, {
+        request.onerror = () => postPreviewIdb(
+            event.source,
+            {
                 type: 'forge-idb-delete-db-error',
                 requestId,
                 error: previewIdbError(request.error)
-            });
-        };
+            }
+        );
 
-        request.onblocked = () => {
-            postPreviewIdb(event.source, {
+        request.onblocked = () => postPreviewIdb(
+            event.source,
+            {
                 type: 'forge-idb-delete-db-blocked',
                 requestId
-            });
-        };
+            }
+        );
+
         return;
     }
 
-    if (message.type === 'forge-idb-close') {
-        const db = forgePreviewIdbConnections.get(String(message.dbId || ''));
+    if (type === 'forge-idb-close') {
+        const dbId = String(message.dbId || '');
+        const db = forgePreviewIdbConnections.get(dbId);
+
         if (db) {
-            try { db.close(); } catch (e) {}
-            forgePreviewIdbConnections.delete(String(message.dbId || ''));
+            try {
+                db.close();
+            } catch (error) {}
+
+            forgePreviewIdbConnections.delete(dbId);
         }
+
         return;
     }
 
-    if (message.type === 'forge-idb-op') {
+    if (type === 'forge-idb-op') {
         const requestId = String(message.requestId || '');
-        const db = forgePreviewIdbConnections.get(String(message.dbId || ''));
+        const db = forgePreviewIdbConnections.get(
+            String(message.dbId || '')
+        );
 
         if (!db) {
             postPreviewIdb(event.source, {
                 type: 'forge-idb-op-error',
                 requestId,
-                error: { name: 'InvalidStateError', message: 'IndexedDB connection is closed' }
+                error: {
+                    name: 'InvalidStateError',
+                    message: 'IndexedDB connection is closed'
+                }
             });
             return;
         }
 
         try {
-            const mode = message.mode === 'readwrite' ? 'readwrite' : 'readonly';
-            const tx = db.transaction(String(message.storeName), mode);
-            const store = tx.objectStore(String(message.storeName));
+            const tx = db.transaction(
+                String(message.storeName),
+                message.mode === 'readwrite'
+                    ? 'readwrite'
+                    : 'readonly'
+            );
 
-            let request;
-            if (message.operation === 'put') {
-                request = message.hasKey
-                    ? store.put(message.value, message.key)
-                    : store.put(message.value);
-            } else if (message.operation === 'add') {
-                request = message.hasKey
-                    ? store.add(message.value, message.key)
-                    : store.add(message.value);
-            } else if (message.operation === 'get') {
-                request = store.get(message.key);
-            } else if (message.operation === 'delete') {
-                request = store.delete(message.key);
-            } else if (message.operation === 'clear') {
-                request = store.clear();
-            } else if (message.operation === 'count') {
-                request = message.hasQuery
-                    ? store.count(message.query)
-                    : store.count();
-            } else if (message.operation === 'getAll') {
-                if (message.hasCount) {
-                    request = store.getAll(
-                        message.hasQuery ? message.query : undefined,
-                        message.count
-                    );
-                } else if (message.hasQuery) {
-                    request = store.getAll(message.query);
-                } else {
-                    request = store.getAll();
-                }
-            } else if (message.operation === 'getAllKeys') {
-                if (message.hasCount) {
-                    request = store.getAllKeys(
-                        message.hasQuery ? message.query : undefined,
-                        message.count
-                    );
-                } else if (message.hasQuery) {
-                    request = store.getAllKeys(message.query);
-                } else {
-                    request = store.getAllKeys();
-                }
-            } else {
-                throw new DOMException(
-                    'Unsupported FORGE IndexedDB operation',
-                    'NotSupportedError'
-                );
-            }
-
-            request.onsuccess = () => {
-                postPreviewIdb(event.source, {
-                    type: 'forge-idb-op-success',
-                    requestId,
-                    result: request.result
-                });
-            };
-
-            request.onerror = () => {
-                postPreviewIdb(event.source, {
-                    type: 'forge-idb-op-error',
-                    requestId,
-                    error: previewIdbError(request.error)
-                });
-            };
+            previewIdbRequest(
+                event.source,
+                tx.objectStore(
+                    String(message.storeName)
+                ),
+                message
+            );
         } catch (error) {
             postPreviewIdb(event.source, {
                 type: 'forge-idb-op-error',
@@ -6318,6 +6509,25 @@ async function inlineVfsMisses(html) {
 
 // Shared by renderPage() and renderFullscreen() to ensure the
 // interceptor script is always injected regardless of which frame is used.
+function injectPreviewHead(html, content) {
+    const head = `<head>${content}</head>`;
+    const headTag = /<head(\s[^>]*)?>/i;
+
+    if (headTag.test(html)) {
+        return html.replace(headTag, match => match + content);
+    }
+
+    const htmlTag = /<html(\s[^>]*)?>/i;
+    if (htmlTag.test(html)) {
+        return html.replace(htmlTag, match => match + head);
+    }
+
+    return html.replace(
+        /^(<!doctype[^>]*>\s*)?/i,
+        match => match + head
+    );
+}
+
 async function renderHtmlIntoFrame(path, frameEl, basePath) {
     let html = vfs.getFile(path);
     if (!html) {
@@ -6325,6 +6535,7 @@ async function renderHtmlIntoFrame(path, frameEl, basePath) {
         return;
     }
 
+    const sourceHtml = html;
     html = processor.process(html, path);
 
     // Inline <script src> tags resolvable via VFS or IDE-origin lib fallback
@@ -6338,8 +6549,16 @@ async function renderHtmlIntoFrame(path, frameEl, basePath) {
     const cspMeta = buildPreviewCspMeta();
     // Inject policy before the interceptor so it governs the whole preview.
     // Any project-supplied CSP remains in place and is applied in addition.
-    html = html.replace(/<head(\s[^>]*)?>/i, (m) => m + cspMeta + interceptorScript);
-    commitPreviewFrame(frameEl, html);
+    html = injectPreviewHead(
+        html,
+        cspMeta + interceptorScript
+    );
+    commitPreviewFrame(
+        frameEl,
+        html,
+        path,
+        sourceHtml
+    );
 }
 
 // Build the injected interceptor script (extracted so both frames can use it)
@@ -6350,11 +6569,7 @@ function buildInterceptorScript(pageTitle, basePath) {
     return `
 
         <script>
-        // --- Sandbox Origin Masking ---
-        // Legacy scripts often check if a link is internal by comparing 
-        // this.hostname == location.hostname. In a sandboxed iframe, location.hostname 
-        // is empty, but relative <a> tags inherit the parent IDE's hostname, causing 
-        // the check to fail. We override the DOM getters to mask the parent's origin.
+
         (function() {
             const parentHostname = ${JSON.stringify(window.location.hostname)};
             const parentHost = ${JSON.stringify(window.location.host)};
@@ -6548,12 +6763,9 @@ function buildInterceptorScript(pageTitle, basePath) {
                     ${sessionStorageSnapshot}
                 );
 
-                // Experimental IndexedDB compatibility bridge. This intentionally
-                // implements only the small surface needed to prove that a real
-                // parent versionchange transaction can survive the round trip:
-                // open -> upgradeneeded -> createObjectStore -> success -> put/get.
-                const __forge_idb_requests = new Map();
-                const __forge_idb_transactions = new Map();
+                // IndexedDB facade for opaque-origin previews. Native IndexedDB
+                // remains in the parent; this side only mirrors the useful API.
+                const __forge_idb_pending = new Map();
                 let __forge_idb_next_request = 1;
                 let __forge_idb_next_transaction = 1;
 
@@ -6563,17 +6775,59 @@ function buildInterceptorScript(pageTitle, basePath) {
 
                 function __forge_idb_error(info) {
                     const error = new Error(
-                        info && info.message ? info.message : 'IndexedDB bridge error'
+                        info && info.message
+                            ? info.message
+                            : 'IndexedDB bridge error'
                     );
                     error.name = info && info.name ? info.name : 'Error';
                     return error;
                 }
 
-                function __forge_idb_request(kind) {
+                function __forge_idb_target(target) {
                     const listeners = Object.create(null);
-                    const request = {
+
+                    target.addEventListener = function(type, listener) {
+                        if (typeof listener !== 'function') return;
+                        (listeners[type] || (listeners[type] = []))
+                            .push(listener);
+                    };
+
+                    target.removeEventListener = function(type, listener) {
+                        const list = listeners[type];
+                        if (!list) return;
+                        const index = list.indexOf(listener);
+                        if (index >= 0) list.splice(index, 1);
+                    };
+
+                    target.__fire = function(type, detail) {
+                        const event = Object.assign({
+                            type,
+                            target,
+                            currentTarget: target
+                        }, detail || {});
+
+                        const handler = target['on' + type];
+                        if (typeof handler === 'function') {
+                            handler.call(target, event);
+                        }
+
+                        const list = listeners[type];
+                        if (list) {
+                            for (const listener of list.slice()) {
+                                listener.call(target, event);
+                            }
+                        }
+                    };
+
+                    return target;
+                }
+
+                function __forge_idb_request(kind, name) {
+                    const request = __forge_idb_target({
                         __forgeKind: kind,
-                        __forgeId: 'idb-request-' + (__forge_idb_next_request++),
+                        __forgeId:
+                            'idb-request-' + (__forge_idb_next_request++),
+                        __forgeName: name == null ? '' : String(name),
                         readyState: 'pending',
                         result: undefined,
                         error: null,
@@ -6582,496 +6836,414 @@ function buildInterceptorScript(pageTitle, basePath) {
                         onsuccess: null,
                         onerror: null,
                         onupgradeneeded: null,
-                        onblocked: null,
+                        onblocked: null
+                    });
 
-                        addEventListener(type, listener) {
-                            if (typeof listener !== 'function') return;
-                            if (!listeners[type]) listeners[type] = [];
-                            listeners[type].push(listener);
-                        },
-
-                        removeEventListener(type, listener) {
-                            const list = listeners[type];
-                            if (!list) return;
-                            const index = list.indexOf(listener);
-                            if (index >= 0) list.splice(index, 1);
-                        },
-
-                        __fire(type, detail) {
-                            const event = Object.assign({
-                                type,
-                                target: request,
-                                currentTarget: request
-                            }, detail || {});
-
-                            const handler = request['on' + type];
-                            if (typeof handler === 'function') {
-                                handler.call(request, event);
-                            }
-
-                            const list = listeners[type] || [];
-                            for (const listener of list.slice()) {
-                                listener.call(request, event);
-                            }
-                        }
-                    };
-
-                    __forge_idb_requests.set(request.__forgeId, request);
+                    __forge_idb_pending.set(request.__forgeId, request);
                     return request;
                 }
 
                 function __forge_idb_store_list(initialStores) {
-                    const stores = Array.from(initialStores || []);
+                    const names = Array.from(initialStores || []).map(String);
 
                     return {
                         get length() {
-                            return stores.length;
+                            return names.length;
                         },
 
                         contains(name) {
-                            return stores.includes(String(name));
+                            return names.includes(String(name));
                         },
 
                         item(index) {
-                            return stores[index] === undefined ? null : stores[index];
+                            return names[index] === undefined
+                                ? null
+                                : names[index];
                         },
 
                         [Symbol.iterator]() {
-                            return stores[Symbol.iterator]();
+                            return names[Symbol.iterator]();
                         },
 
                         __add(name) {
                             name = String(name);
-                            if (!stores.includes(name)) stores.push(name);
+                            if (!names.includes(name)) names.push(name);
                         },
 
                         __delete(name) {
-                            name = String(name);
-                            const index = stores.indexOf(name);
-                            if (index >= 0) stores.splice(index, 1);
+                            const index = names.indexOf(String(name));
+                            if (index >= 0) names.splice(index, 1);
                         },
 
-                        __replace(nextStores) {
-                            stores.length = 0;
-                            stores.push(...Array.from(nextStores || []));
+                        __replace(next) {
+                            names.length = 0;
+                            names.push(
+                                ...Array.from(next || []).map(String)
+                            );
                         }
                     };
                 }
 
-                function __forge_idb_object_store(dbId, storeName, mode, transaction) {
+                function __forge_idb_store(
+                    dbId,
+                    storeName,
+                    mode,
+                    transaction
+                ) {
+                    storeName = String(storeName);
+
                     const store = {
-                        name: storeName,
+                        name: storeName
+                    };
 
-                        __send(operation, value, key, hasKey, extra) {
-                            if (transaction) transaction.__assertActive();
-
-                            const request = __forge_idb_request('operation');
-                            request.source = store;
-                            request.transaction = transaction || null;
-
-                            if (transaction) transaction.__requestStarted();
-
-                            const message = {
-                                type: transaction
-                                    ? 'forge-idb-transaction-op'
-                                    : 'forge-idb-op',
-                                requestId: request.__forgeId,
-                                dbId,
-                                storeName,
-                                mode,
-                                operation,
-                                value,
-                                hasKey: !!hasKey,
-                                ...(extra || {})
-                            };
-
-                            if (transaction) {
-                                message.transactionId = transaction.__forgeId;
-                            }
-
-                            if (
-                                hasKey ||
-                                operation === 'get' ||
-                                operation === 'delete'
-                            ) {
-                                message.key = key;
-                            }
-
-                            __forge_idb_post(message);
-                            return request;
-                        },
-
-                        put(value, key) {
-                            return store.__send(
-                                'put',
-                                value,
-                                key,
-                                arguments.length > 1
-                            );
-                        },
-
-                        add(value, key) {
-                            return store.__send(
-                                'add',
-                                value,
-                                key,
-                                arguments.length > 1
-                            );
-                        },
-
-                        get(key) {
-                            return store.__send(
-                                'get',
-                                undefined,
-                                key,
-                                false
-                            );
-                        },
-
-                        delete(key) {
-                            return store.__send(
-                                'delete',
-                                undefined,
-                                key,
-                                false
-                            );
-                        },
-
-                        clear() {
-                            return store.__send(
-                                'clear',
-                                undefined,
-                                undefined,
-                                false
-                            );
-                        },
-
-                        count(query) {
-                            return store.__send(
-                                'count',
-                                undefined,
-                                undefined,
-                                false,
-                                {
-                                    hasQuery: arguments.length > 0,
-                                    query
-                                }
-                            );
-                        },
-
-                        getAll(query, count) {
-                            return store.__sendQuery(
-                                'getAll',
-                                arguments.length,
-                                query,
-                                count
-                            );
-                        },
-
-                        getAllKeys(query, count) {
-                            return store.__sendQuery(
-                                'getAllKeys',
-                                arguments.length,
-                                query,
-                                count
-                            );
-                        },
-
-                        __sendQuery(operation, argumentCount, query, count) {
-                            if (transaction) transaction.__assertActive();
-
-                            const request = __forge_idb_request('operation');
-                            request.source = store;
-                            request.transaction = transaction || null;
-
-                            if (transaction) transaction.__requestStarted();
-
-                            __forge_idb_post({
-                                type: transaction
-                                    ? 'forge-idb-transaction-op'
-                                    : 'forge-idb-op',
-                                requestId: request.__forgeId,
-                                transactionId: transaction
-                                    ? transaction.__forgeId
-                                    : undefined,
-                                dbId,
-                                storeName,
-                                mode,
-                                operation,
-                                query,
-                                count,
-                                hasQuery: argumentCount > 0,
-                                hasCount: argumentCount > 1
-                            });
-
-                            return request;
+                    function send(operation, detail) {
+                        if (transaction) {
+                            transaction.__requestStarted();
                         }
+
+                        const request = __forge_idb_request('operation');
+                        request.source = store;
+                        request.transaction = transaction || null;
+
+                        const message = Object.assign({
+                            type: transaction
+                                ? 'forge-idb-transaction-op'
+                                : 'forge-idb-op',
+                            requestId: request.__forgeId,
+                            dbId,
+                            storeName,
+                            mode,
+                            operation
+                        }, detail || {});
+
+                        if (transaction) {
+                            message.transactionId =
+                                transaction.__forgeId;
+                        }
+
+                        __forge_idb_post(message);
+                        return request;
+                    }
+
+                    store.put = function(value, key) {
+                        return send('put', {
+                            value,
+                            key,
+                            hasKey: arguments.length > 1
+                        });
+                    };
+
+                    store.add = function(value, key) {
+                        return send('add', {
+                            value,
+                            key,
+                            hasKey: arguments.length > 1
+                        });
+                    };
+
+                    store.get = function(key) {
+                        return send('get', { key });
+                    };
+
+                    store.delete = function(key) {
+                        return send('delete', { key });
+                    };
+
+                    store.clear = function() {
+                        return send('clear');
+                    };
+
+                    store.count = function(query) {
+                        return send('count', {
+                            query,
+                            hasQuery: arguments.length > 0
+                        });
+                    };
+
+                    store.getAll = function(query, count) {
+                        return send('getAll', {
+                            query,
+                            count,
+                            hasQuery: arguments.length > 0,
+                            hasCount: arguments.length > 1
+                        });
+                    };
+
+                    store.getAllKeys = function(query, count) {
+                        return send('getAllKeys', {
+                            query,
+                            count,
+                            hasQuery: arguments.length > 0,
+                            hasCount: arguments.length > 1
+                        });
                     };
 
                     return store;
                 }
 
-                function __forge_idb_transaction(dbId, storeNames, mode) {
+                function __forge_idb_transaction(
+                    dbId,
+                    storeNames,
+                    mode
+                ) {
                     const names = Array.isArray(storeNames)
                         ? storeNames.map(String)
                         : [String(storeNames)];
 
                     const transactionMode =
-                        mode === 'readwrite' ? 'readwrite' : 'readonly';
+                        mode === 'readwrite'
+                            ? 'readwrite'
+                            : 'readonly';
 
-                    const transactionId =
-                        'idb-transaction-' + (__forge_idb_next_transaction++);
-
-                    const listeners = Object.create(null);
                     let pendingRequests = 0;
                     let doneTimer = null;
                     let inactive = false;
 
-                    const transaction = {
-                        __forgeId: transactionId,
+                    const transaction = __forge_idb_target({
+                        __forgeId:
+                            'idb-transaction-' +
+                            (__forge_idb_next_transaction++),
                         mode: transactionMode,
-                        objectStoreNames: __forge_idb_store_list(names),
+                        objectStoreNames:
+                            __forge_idb_store_list(names),
                         error: null,
                         oncomplete: null,
                         onabort: null,
-                        onerror: null,
+                        onerror: null
+                    });
 
-                        objectStore(name) {
-                            transaction.__assertActive();
-
-                            name = String(name);
-                            if (!names.includes(name)) {
-                                throw new DOMException(
-                                    'Object store is not in this transaction',
-                                    'NotFoundError'
-                                );
-                            }
-
-                            return __forge_idb_object_store(
-                                dbId,
-                                name,
-                                transactionMode,
-                                transaction
+                    function assertActive() {
+                        if (inactive) {
+                            throw new DOMException(
+                                'Transaction is inactive',
+                                'TransactionInactiveError'
                             );
-                        },
-
-                        abort() {
-                            if (inactive) {
-                                throw new DOMException(
-                                    'Transaction is inactive',
-                                    'InvalidStateError'
-                                );
-                            }
-
-                            inactive = true;
-                            if (doneTimer) clearTimeout(doneTimer);
-
-                            __forge_idb_post({
-                                type: 'forge-idb-transaction-abort',
-                                transactionId
-                            });
-                        },
-
-                        addEventListener(type, listener) {
-                            if (typeof listener !== 'function') return;
-                            if (!listeners[type]) listeners[type] = [];
-                            listeners[type].push(listener);
-                        },
-
-                        removeEventListener(type, listener) {
-                            const list = listeners[type];
-                            if (!list) return;
-                            const index = list.indexOf(listener);
-                            if (index >= 0) list.splice(index, 1);
-                        },
-
-                        __fire(type, detail) {
-                            const event = Object.assign({
-                                type,
-                                target: transaction,
-                                currentTarget: transaction
-                            }, detail || {});
-
-                            const handler = transaction['on' + type];
-                            if (typeof handler === 'function') {
-                                handler.call(transaction, event);
-                            }
-
-                            const list = listeners[type] || [];
-                            for (const listener of list.slice()) {
-                                listener.call(transaction, event);
-                            }
-                        },
-
-                        __assertActive() {
-                            if (inactive) {
-                                throw new DOMException(
-                                    'Transaction is inactive',
-                                    'TransactionInactiveError'
-                                );
-                            }
-                        },
-
-                        __requestStarted() {
-                            transaction.__assertActive();
-                            pendingRequests++;
-
-                            if (doneTimer) {
-                                clearTimeout(doneTimer);
-                                doneTimer = null;
-                            }
-                        },
-
-                        __requestFinished() {
-                            if (pendingRequests > 0) pendingRequests--;
-                            scheduleDone();
-                        },
-
-                        __finish() {
-                            inactive = true;
-                            if (doneTimer) clearTimeout(doneTimer);
                         }
-                    };
+                    }
 
                     function scheduleDone() {
-                        if (inactive || pendingRequests > 0 || doneTimer) return;
+                        if (
+                            inactive ||
+                            pendingRequests > 0 ||
+                            doneTimer
+                        ) {
+                            return;
+                        }
 
-                        doneTimer = setTimeout(() => {
+                        doneTimer = setTimeout(function() {
                             doneTimer = null;
                             if (inactive || pendingRequests > 0) return;
 
                             inactive = true;
                             __forge_idb_post({
                                 type: 'forge-idb-transaction-done',
-                                transactionId
+                                transactionId:
+                                    transaction.__forgeId
                             });
                         }, 0);
                     }
 
-                    __forge_idb_transactions.set(transactionId, transaction);
+                    transaction.objectStore = function(name) {
+                        assertActive();
+                        name = String(name);
+
+                        if (!names.includes(name)) {
+                            throw new DOMException(
+                                'Object store is not in this transaction',
+                                'NotFoundError'
+                            );
+                        }
+
+                        return __forge_idb_store(
+                            dbId,
+                            name,
+                            transactionMode,
+                            transaction
+                        );
+                    };
+
+                    transaction.abort = function() {
+                        assertActive();
+                        inactive = true;
+
+                        if (doneTimer) clearTimeout(doneTimer);
+
+                        __forge_idb_post({
+                            type: 'forge-idb-transaction-abort',
+                            transactionId: transaction.__forgeId
+                        });
+                    };
+
+                    transaction.__requestStarted = function() {
+                        assertActive();
+                        pendingRequests++;
+
+                        if (doneTimer) {
+                            clearTimeout(doneTimer);
+                            doneTimer = null;
+                        }
+                    };
+
+                    transaction.__requestFinished = function() {
+                        if (pendingRequests > 0) pendingRequests--;
+                        scheduleDone();
+                    };
+
+                    transaction.__finish = function() {
+                        inactive = true;
+                        if (doneTimer) clearTimeout(doneTimer);
+                    };
+
+                    __forge_idb_pending.set(
+                        transaction.__forgeId,
+                        transaction
+                    );
 
                     __forge_idb_post({
                         type: 'forge-idb-transaction-open',
-                        transactionId,
+                        transactionId: transaction.__forgeId,
                         dbId,
                         storeNames: names,
                         mode: transactionMode
                     });
 
-                    // Native IndexedDB auto-commits an otherwise idle
-                    // transaction. Give synchronous application code the
-                    // current turn to enqueue requests first.
+                    // Match native auto-commit closely enough to allow
+                    // synchronous requests and request callback chaining.
                     scheduleDone();
-
                     return transaction;
                 }
 
-                function __forge_idb_database(dbId, name, version, stores, upgradeRequestId) {
-                    const objectStoreNames = __forge_idb_store_list(stores);
-                    let activeUpgradeRequestId = upgradeRequestId || null;
+                function __forge_idb_database(
+                    dbId,
+                    name,
+                    version,
+                    stores,
+                    upgradeRequestId
+                ) {
+                    const objectStoreNames =
+                        __forge_idb_store_list(stores);
 
-                    return {
+                    let upgradeId = upgradeRequestId || null;
+
+                    const db = {
                         name,
                         version,
-                        objectStoreNames,
+                        objectStoreNames
+                    };
 
-                        createObjectStore(storeName, options) {
-                            if (!activeUpgradeRequestId) {
-                                throw new DOMException(
-                                    'createObjectStore() may only be called during an upgrade',
-                                    'InvalidStateError'
-                                );
-                            }
+                    db.createObjectStore = function(
+                        storeName,
+                        options
+                    ) {
+                        if (!upgradeId) {
+                            throw new DOMException(
+                                'createObjectStore() requires an upgrade',
+                                'InvalidStateError'
+                            );
+                        }
 
-                            storeName = String(storeName);
-                            objectStoreNames.__add(storeName);
+                        storeName = String(storeName);
+                        objectStoreNames.__add(storeName);
 
-                            __forge_idb_post({
-                                type: 'forge-idb-create-store',
-                                requestId: activeUpgradeRequestId,
-                                name: storeName,
-                                options: options && typeof options === 'object'
+                        __forge_idb_post({
+                            type: 'forge-idb-create-store',
+                            requestId: upgradeId,
+                            name: storeName,
+                            options:
+                                options &&
+                                typeof options === 'object'
                                     ? options
                                     : undefined
-                            });
+                        });
 
-                            return __forge_idb_object_store(
-                                dbId,
-                                storeName,
-                                'versionchange'
-                            );
-                        },
-
-                        deleteObjectStore(storeName) {
-                            if (!activeUpgradeRequestId) {
-                                throw new DOMException(
-                                    'deleteObjectStore() may only be called during an upgrade',
-                                    'InvalidStateError'
-                                );
-                            }
-
-                            storeName = String(storeName);
-
-                            if (!objectStoreNames.contains(storeName)) {
-                                throw new DOMException(
-                                    'Object store does not exist',
-                                    'NotFoundError'
-                                );
-                            }
-
-                            objectStoreNames.__delete(storeName);
-
-                            __forge_idb_post({
-                                type: 'forge-idb-delete-store',
-                                requestId: activeUpgradeRequestId,
-                                name: storeName
-                            });
-                        },
-
-                        transaction(storeName, mode) {
-                            return __forge_idb_transaction(
-                                dbId,
-                                storeName,
-                                mode
-                            );
-                        },
-
-                        close() {
-                            __forge_idb_post({
-                                type: 'forge-idb-close',
-                                dbId
-                            });
-                        },
-
-                        __finishUpgrade() {
-                            activeUpgradeRequestId = null;
-                        },
-
-                        __update(nextVersion, nextStores) {
-                            this.version = nextVersion;
-                            objectStoreNames.__replace(nextStores);
-                        }
+                        return __forge_idb_store(
+                            dbId,
+                            storeName,
+                            'versionchange',
+                            null
+                        );
                     };
+
+                    db.deleteObjectStore = function(storeName) {
+                        if (!upgradeId) {
+                            throw new DOMException(
+                                'deleteObjectStore() requires an upgrade',
+                                'InvalidStateError'
+                            );
+                        }
+
+                        storeName = String(storeName);
+
+                        if (!objectStoreNames.contains(storeName)) {
+                            throw new DOMException(
+                                'Object store does not exist',
+                                'NotFoundError'
+                            );
+                        }
+
+                        objectStoreNames.__delete(storeName);
+
+                        __forge_idb_post({
+                            type: 'forge-idb-delete-store',
+                            requestId: upgradeId,
+                            name: storeName
+                        });
+                    };
+
+                    db.transaction = function(storeNames, mode) {
+                        return __forge_idb_transaction(
+                            dbId,
+                            storeNames,
+                            mode
+                        );
+                    };
+
+                    db.close = function() {
+                        __forge_idb_post({
+                            type: 'forge-idb-close',
+                            dbId
+                        });
+                    };
+
+                    db.__finishUpgrade = function() {
+                        upgradeId = null;
+                    };
+
+                    db.__update = function(
+                        nextVersion,
+                        nextStores
+                    ) {
+                        db.version = nextVersion;
+                        objectStoreNames.__replace(nextStores);
+                    };
+
+                    return db;
                 }
 
                 const __forge_indexed_db = {
                     open(name, version) {
-                        const request = __forge_idb_request('open');
-                        request.__forgeName = String(name);
+                        const request =
+                            __forge_idb_request('open', name);
 
                         __forge_idb_post({
                             type: 'forge-idb-open',
                             requestId: request.__forgeId,
                             name: String(name),
-                            version: version === undefined ? null : version
+                            version:
+                                version === undefined
+                                    ? null
+                                    : version
                         });
 
                         return request;
                     },
 
                     deleteDatabase(name) {
-                        const request = __forge_idb_request('deleteDatabase');
-                        request.__forgeName = String(name);
+                        const request =
+                            __forge_idb_request(
+                                'deleteDatabase',
+                                name
+                            );
 
                         __forge_idb_post({
                             type: 'forge-idb-delete-db',
@@ -7089,167 +7261,248 @@ function buildInterceptorScript(pageTitle, basePath) {
                     value: __forge_indexed_db
                 });
 
-                window.addEventListener('message', function(event) {
-                    if (event.source !== window.parent) return;
-                    if (!event.data || typeof event.data !== 'object') return;
-
-                    const message = event.data;
-
-                    if (
-                        message.type === 'forge-idb-transaction-complete' ||
-                        message.type === 'forge-idb-transaction-abort'
-                    ) {
-                        const transaction = __forge_idb_transactions.get(
-                            String(message.transactionId || '')
-                        );
-                        if (!transaction) return;
-
-                        transaction.__finish();
-
-                        if (message.type === 'forge-idb-transaction-complete') {
-                            transaction.__fire('complete');
-                        } else {
-                            transaction.error = __forge_idb_error(message.error);
-                            transaction.__fire('abort');
+                window.addEventListener(
+                    'message',
+                    function(event) {
+                        if (event.source !== window.parent) return;
+                        if (
+                            !event.data ||
+                            typeof event.data !== 'object'
+                        ) {
+                            return;
                         }
 
-                        __forge_idb_transactions.delete(transaction.__forgeId);
-                        return;
-                    }
+                        const message = event.data;
 
-                    const request = __forge_idb_requests.get(
-                        String(message.requestId || '')
-                    );
-                    if (!request) return;
+                        if (
+                            message.type ===
+                                'forge-idb-transaction-complete' ||
+                            message.type ===
+                                'forge-idb-transaction-abort'
+                        ) {
+                            const transaction =
+                                __forge_idb_pending.get(
+                                    String(
+                                        message.transactionId || ''
+                                    )
+                                );
 
-                    if (message.type === 'forge-idb-upgrade') {
-                        request.result = __forge_idb_database(
-                            message.dbId,
-                            request.__forgeName,
-                            message.newVersion,
-                            message.stores,
-                            request.__forgeId
-                        );
+                            if (!transaction) return;
 
-                        request.transaction = { mode: 'versionchange' };
+                            transaction.__finish();
 
-                        let upgradeError = null;
-                        try {
-                            request.__fire('upgradeneeded', {
-                                oldVersion: message.oldVersion,
-                                newVersion: message.newVersion
+                            if (
+                                message.type ===
+                                'forge-idb-transaction-complete'
+                            ) {
+                                transaction.__fire('complete');
+                            } else {
+                                transaction.error =
+                                    __forge_idb_error(
+                                        message.error
+                                    );
+                                transaction.__fire('abort');
+                            }
+
+                            __forge_idb_pending.delete(
+                                transaction.__forgeId
+                            );
+                            return;
+                        }
+
+                        const request =
+                            __forge_idb_pending.get(
+                                String(message.requestId || '')
+                            );
+
+                        if (!request) return;
+
+                        if (message.type === 'forge-idb-upgrade') {
+                            request.result =
+                                __forge_idb_database(
+                                    message.dbId,
+                                    request.__forgeName,
+                                    message.newVersion,
+                                    message.stores,
+                                    request.__forgeId
+                                );
+
+                            request.transaction = {
+                                mode: 'versionchange'
+                            };
+
+                            let upgradeError = null;
+
+                            try {
+                                request.__fire(
+                                    'upgradeneeded',
+                                    {
+                                        oldVersion:
+                                            message.oldVersion,
+                                        newVersion:
+                                            message.newVersion
+                                    }
+                                );
+                            } catch (error) {
+                                upgradeError = error;
+                            }
+
+                            __forge_idb_post({
+                                type: upgradeError
+                                    ? 'forge-idb-upgrade-abort'
+                                    : 'forge-idb-upgrade-done',
+                                requestId: request.__forgeId
                             });
-                        } catch (error) {
-                            upgradeError = error;
+
+                            if (upgradeError) {
+                                setTimeout(function() {
+                                    throw upgradeError;
+                                }, 0);
+                            }
+                            return;
                         }
 
-                        __forge_idb_post({
-                            type: upgradeError
-                                ? 'forge-idb-upgrade-abort'
-                                : 'forge-idb-upgrade-done',
-                            requestId: request.__forgeId
-                        });
-
-                        if (upgradeError) {
-                            setTimeout(() => { throw upgradeError; }, 0);
-                        }
-                        return;
-                    }
-
-                    if (message.type === 'forge-idb-schema-error') {
-                        request.error = __forge_idb_error(message.error);
-                        return;
-                    }
-
-                    if (message.type === 'forge-idb-delete-db-blocked') {
-                        request.__fire('blocked');
-                        return;
-                    }
-
-                    if (message.type === 'forge-idb-delete-db-success') {
-                        request.readyState = 'done';
-                        request.result = undefined;
-                        request.__fire('success');
-                        __forge_idb_requests.delete(request.__forgeId);
-                        return;
-                    }
-
-                    if (message.type === 'forge-idb-delete-db-error') {
-                        request.readyState = 'done';
-                        request.error = __forge_idb_error(message.error);
-                        request.__fire('error');
-                        __forge_idb_requests.delete(request.__forgeId);
-                        return;
-                    }
-
-                    if (message.type === 'forge-idb-open-success') {
-                        request.readyState = 'done';
-
-                        if (!request.result) {
-                            request.result = __forge_idb_database(
-                                message.dbId,
-                                request.__forgeName,
-                                message.version,
-                                message.stores,
-                                null
-                            );
-                        } else {
-                            request.result.__finishUpgrade();
-                            request.result.__update(
-                                message.version,
-                                message.stores
-                            );
+                        if (
+                            message.type ===
+                            'forge-idb-schema-error'
+                        ) {
+                            request.error =
+                                __forge_idb_error(
+                                    message.error
+                                );
+                            return;
                         }
 
-                        request.transaction = null;
-                        request.__fire('success');
-                        __forge_idb_requests.delete(request.__forgeId);
-                        return;
-                    }
+                        if (
+                            message.type ===
+                            'forge-idb-delete-db-blocked'
+                        ) {
+                            request.__fire('blocked');
+                            return;
+                        }
 
-                    if (message.type === 'forge-idb-open-error') {
-                        request.readyState = 'done';
-                        request.error = __forge_idb_error(message.error);
-                        request.__fire('error');
-                        __forge_idb_requests.delete(request.__forgeId);
-                        return;
-                    }
-
-                    if (message.type === 'forge-idb-op-success') {
-                        request.readyState = 'done';
-                        request.result = message.result;
-
-                        try {
+                        if (
+                            message.type ===
+                            'forge-idb-delete-db-success'
+                        ) {
+                            request.readyState = 'done';
+                            request.result = undefined;
                             request.__fire('success');
-                        } finally {
-                            if (
-                                request.transaction &&
-                                request.transaction.__requestFinished
-                            ) {
-                                request.transaction.__requestFinished();
-                            }
-                            __forge_idb_requests.delete(request.__forgeId);
+                            __forge_idb_pending.delete(
+                                request.__forgeId
+                            );
+                            return;
                         }
-                        return;
-                    }
 
-                    if (message.type === 'forge-idb-op-error') {
-                        request.readyState = 'done';
-                        request.error = __forge_idb_error(message.error);
-
-                        try {
+                        if (
+                            message.type ===
+                            'forge-idb-delete-db-error'
+                        ) {
+                            request.readyState = 'done';
+                            request.error =
+                                __forge_idb_error(
+                                    message.error
+                                );
                             request.__fire('error');
-                        } finally {
-                            if (
-                                request.transaction &&
-                                request.transaction.__requestFinished
-                            ) {
-                                request.transaction.__requestFinished();
+                            __forge_idb_pending.delete(
+                                request.__forgeId
+                            );
+                            return;
+                        }
+
+                        if (
+                            message.type ===
+                            'forge-idb-open-success'
+                        ) {
+                            request.readyState = 'done';
+
+                            if (!request.result) {
+                                request.result =
+                                    __forge_idb_database(
+                                        message.dbId,
+                                        request.__forgeName,
+                                        message.version,
+                                        message.stores,
+                                        null
+                                    );
+                            } else {
+                                request.result
+                                    .__finishUpgrade();
+                                request.result.__update(
+                                    message.version,
+                                    message.stores
+                                );
                             }
-                            __forge_idb_requests.delete(request.__forgeId);
+
+                            request.transaction = null;
+                            request.__fire('success');
+                            __forge_idb_pending.delete(
+                                request.__forgeId
+                            );
+                            return;
+                        }
+
+                        if (
+                            message.type ===
+                            'forge-idb-open-error'
+                        ) {
+                            request.readyState = 'done';
+                            request.error =
+                                __forge_idb_error(
+                                    message.error
+                                );
+                            request.__fire('error');
+                            __forge_idb_pending.delete(
+                                request.__forgeId
+                            );
+                            return;
+                        }
+
+                        if (
+                            message.type ===
+                                'forge-idb-op-success' ||
+                            message.type ===
+                                'forge-idb-op-error'
+                        ) {
+                            request.readyState = 'done';
+
+                            if (
+                                message.type ===
+                                'forge-idb-op-success'
+                            ) {
+                                request.result =
+                                    message.result;
+                            } else {
+                                request.error =
+                                    __forge_idb_error(
+                                        message.error
+                                    );
+                            }
+
+                            try {
+                                request.__fire(
+                                    message.type ===
+                                        'forge-idb-op-success'
+                                        ? 'success'
+                                        : 'error'
+                                );
+                            } finally {
+                                if (
+                                    request.transaction &&
+                                    request.transaction
+                                        .__requestFinished
+                                ) {
+                                    request.transaction
+                                        .__requestFinished();
+                                }
+
+                                __forge_idb_pending.delete(
+                                    request.__forgeId
+                                );
+                            }
                         }
                     }
-                });
+                );
                 
                 // Base path for resolving relative fetch() URLs — baked in at render time.
                 const __fetch_base = ${JSON.stringify(basePath || '/')};
@@ -7343,7 +7596,16 @@ function buildInterceptorScript(pageTitle, basePath) {
                 });
 
                 window.fetch = function(url, ...args) {
-                    if (url instanceof Request) { url = url.url; }
+                    const fetchOptions = args[0] || {};
+                    let requestMethod =
+                        fetchOptions.method ||
+                        (url instanceof Request ? url.method : 'GET');
+
+                    if (url instanceof Request) {
+                        url = url.url;
+                    }
+
+                    requestMethod = String(requestMethod || 'GET').toUpperCase();
                     const resolvedUrl = __resolve_fetch_url(url, __fetch_base);
 
                     // Use a MessageChannel so each fetch gets its own private
@@ -7353,21 +7615,37 @@ function buildInterceptorScript(pageTitle, basePath) {
                         const channel = new MessageChannel();
 
                         channel.port1.onmessage = (event) => {
-                            const { found, content, mimeType } = event.data;
+                            const {
+                                found,
+                                content,
+                                mimeType,
+                                status,
+                                route
+                            } = event.data;
                             if (found) {
+                                const responseStatus =
+                                    Number.isInteger(status) ? status : 200;
+                                const responseRoute = route || 'vfs';
+
                                 __report_network({
                                     via: 'fetch',
                                     requested: String(url),
                                     resolved: String(resolvedUrl),
-                                    route: 'vfs',
+                                    route: responseRoute,
                                     outcome: 'response',
-                                    status: 200,
-                                    ok: true
+                                    status: responseStatus,
+                                    ok:
+                                        responseStatus >= 200 &&
+                                        responseStatus < 400
                                 });
 
                                 resolve(new Response(content, {
-                                    status: 200,
-                                    headers: { 'Content-Type': mimeType }
+                                    status: responseStatus,
+                                    headers: {
+                                        'Content-Type':
+                                            mimeType ||
+                                            'application/octet-stream'
+                                    }
                                 }));
                             } else {
                                 // Not in VFS — fall back to real network fetch
@@ -7401,7 +7679,11 @@ function buildInterceptorScript(pageTitle, basePath) {
                         };
 
                         window.parent.postMessage(
-                            { type: 'vfs-fetch', url: resolvedUrl },
+                            {
+                                type: 'vfs-fetch',
+                                url: resolvedUrl,
+                                method: requestMethod
+                            },
                             '*',
                             [channel.port2]
                         );
@@ -7410,45 +7692,44 @@ function buildInterceptorScript(pageTitle, basePath) {
 
                 // -- VFS Navigation Interceptor ------------------------------
                 const isInternal = (href) => {
-                    if (!href) return false;
-                    if (href.startsWith('http://') || href.startsWith('https://') ||
-                        href.startsWith('//') || href.startsWith('mailto:') ||
+                    if (!href ||
+                        href.startsWith('http://') ||
+                        href.startsWith('https://') ||
+                        href.startsWith('//') ||
+                        href.startsWith('mailto:') ||
                         href.startsWith('javascript:')) return false;
-                    // Don't intercept SPA-style paths that have no file extension —
-                    // these are client-side routes (e.g. Vue Router), not VFS files.
-                    // A VFS file path will always have an extension like .html, .js, etc.
-                    const pathOnly = href.split('?')[0].split('#')[0];
-                    const lastSegment = pathOnly.split('/').pop();
-                    
-                    // Allow paths that end with a slash (directory index resolution)
-                    // or paths that have a file extension.
-                    const isDirectory = pathOnly.endsWith('/');
-                    if (!isDirectory && (!lastSegment || !lastSegment.includes('.'))) return false;
-                    
-                    // Resolve '..' paths and check they don't escape the VFS root.
-                    // e.g. '../index.html' from '/docs/api.html' is fine (resolves to '/index.html')
-                    // but '../index.html' from a top-level page would escape root — let browser handle it.
-                    if (pathOnly.includes('..')) {
-                        const base = ${JSON.stringify(basePath || '/')};
-                        const dir = base.substring(0, base.lastIndexOf('/') + 1);
-                        const parts = (dir + pathOnly).split('/');
-                        const out = [];
-                        let underflow = false;
-                        for (const part of parts) {
-                            if (part === '..') {
-                                if (out.length === 0) { underflow = true; break; }
-                                out.pop();
-                            } else if (part !== '.' && part !== '') {
-                                out.push(part);
-                            }
+
+                    const path = href.split('?')[0].split('#')[0];
+                    const last = path.split('/').pop();
+
+                    // Extensionless paths are SPA routes, not VFS documents.
+                    if (!path.endsWith('/') &&
+                        (!last || !last.includes('.'))) return false;
+
+                    if (!path.includes('..')) return true;
+
+                    const base = ${JSON.stringify(basePath || '/')};
+                    const dir = base.slice(0, base.lastIndexOf('/') + 1);
+                    let depth = 0;
+
+                    for (const part of (dir + path).split('/')) {
+                        if (part === '..') {
+                            if (!depth) return false;
+                            depth--;
+                        } else if (part && part !== '.') {
+                            depth++;
                         }
-                        if (underflow) return false;
                     }
+
                     return true;
                 };
 
                 const sendNav = (href) => {
                     window.parent.postMessage({ type: 'vfs-navigate', href }, '*');
+                };
+
+                const sendSpa = (path) => {
+                    window.parent.postMessage({ type: 'vfs-spa-navigate', path }, '*');
                 };
 
                 const sendHash = () => {
@@ -7510,42 +7791,83 @@ function buildInterceptorScript(pageTitle, basePath) {
                 const _pushState    = history.pushState.bind(history);
                 const _replaceState = history.replaceState.bind(history);
 
-                // Extract the hash portion from a pushState/replaceState url argument.
-                // We cannot rely on window.location.hash after the call because
-                // srcdoc iframes throw a SecurityError and the location never updates.
-                function extractHash(url) {
-                    const s = String(url);
-                    const idx = s.indexOf('#');
-                    return idx >= 0 ? s.substring(idx) : '';
+                function reportHistory(url) {
+                    if (url == null || url === '') return;
+
+                    let value = String(url);
+
+                    if (value.startsWith('#')) {
+                        window.parent.postMessage({
+                            type: 'vfs-hash-change',
+                            hash: value
+                        }, '*');
+                        return;
+                    }
+
+                    if (value.startsWith('about:///')) {
+                        // Vue Router exposes opaque srcdoc routes as about:///path.
+                        value = value.slice(8);
+                        if (value === '/srcdoc' ||
+                            value.startsWith('/srcdoc?') ||
+                            value.startsWith('/srcdoc#')) return;
+                    } else if (
+                        value.startsWith('http://') ||
+                        value.startsWith('https://')
+                    ) {
+                        try {
+                            const parsed = new URL(value);
+                            const base = new URL(document.baseURI);
+                            if (parsed.origin !== base.origin) return;
+                            value = parsed.pathname + parsed.search + parsed.hash;
+                        } catch(e) {
+                            return;
+                        }
+                    } else if (value.startsWith('//')) {
+                        return;
+                    } else {
+                        const colon = value.indexOf(':');
+                        const slash = value.indexOf('/');
+                        if (colon > 0 &&
+                            (slash < 0 || colon < slash)) return;
+                    }
+
+                    if (value.startsWith('?')) {
+                        value = ${JSON.stringify(basePath || '/')} + value;
+                    }
+
+                    const path = value.split('?')[0].split('#')[0];
+                    const last = path.split('/').pop();
+                    const isSpa =
+                        path.endsWith('/') ||
+                        !last ||
+                        !last.includes('.');
+
+                    (isSpa ? sendSpa : sendNav)(value);
                 }
 
                 history.pushState = (state, title, url) => {
-                    // Wrap in try/catch: srcdoc iframes throw a SecurityError
-                    // if a library (e.g. Vue Router) tries to call pushState
-                    // with the parent page's https:// URL, because about:srcdoc
-                    // documents cannot own history entries for external origins.
-                    try { _pushState(state, title, url); } catch(e) { /* srcdoc SecurityError — safe to ignore */ }
-                    if (url && isInternal(String(url))) {
-                        sendNav(String(url));
-                    } else if (url) {
-                        const hash = extractHash(url);
-                        window.parent.postMessage({ type: 'vfs-hash-change', hash }, '*');
-                    } else {
-                        setTimeout(sendHash, 50);
-                    }
+                    try { _pushState(state, title, url); } catch(e) {}
+                    if (url != null) reportHistory(url);
+                    else setTimeout(sendHash, 50);
                 };
 
                 history.replaceState = (state, title, url) => {
-                    try { _replaceState(state, title, url); } catch(e) { /* srcdoc SecurityError — safe to ignore */ }
-                    if (url && isInternal(String(url))) {
-                        sendNav(String(url));
-                    } else if (url) {
-                        const hash = extractHash(url);
-                        window.parent.postMessage({ type: 'vfs-hash-change', hash }, '*');
-                    } else {
-                        setTimeout(sendHash, 50);
-                    }
+                    try { _replaceState(state, title, url); } catch(e) {}
+                    if (url != null) reportHistory(url);
+                    else setTimeout(sendHash, 50);
                 };
+
+                window.addEventListener('keydown', e => {
+                    const key = e.key;
+                    if (!e.defaultPrevented &&
+                        (e.ctrlKey || e.metaKey) && e.shiftKey &&
+                        (key === 'C' || key === 'V')) {
+                        e.preventDefault();
+                        window.parent.postMessage(
+                            { type: 'vfs-shortcut', key }, '*'
+                        );
+                    }
+                });
 
                 window.addEventListener('hashchange', sendHash);
                 if (window.location.hash) sendHash();
@@ -7710,10 +8032,12 @@ function buildInterceptorScript(pageTitle, basePath) {
                         };
                     });
                     window.addEventListener('error', function(e) {
-                        window.parent.postMessage({ type: 'forge-console', level: 'error', msg: (e.message || 'Unknown error') + (e.filename ? ' (' + e.filename + ':' + e.lineno + ')' : '') }, '*');
+                        const msg = e.error && e.error.stack;
+                        window.parent.postMessage({ type: 'forge-console', level: 'error', msg: msg || (e.message || 'Unknown error') + (e.filename ? ' (' + e.filename + ':' + e.lineno + ':' + e.colno + ')' : '') }, '*');
                     });
                     window.addEventListener('unhandledrejection', function(e) {
-                        window.parent.postMessage({ type: 'forge-console', level: 'error', msg: 'Unhandled promise rejection: ' + (e.reason ? String(e.reason) : 'unknown') }, '*');
+                        const reason = e.reason;
+                        window.parent.postMessage({ type: 'forge-console', level: 'error', msg: 'Unhandled promise rejection: ' + (reason && reason.stack ? reason.stack : reason == null ? 'unknown' : String(reason)) }, '*');
                     });
                 })();
 
@@ -7852,6 +8176,7 @@ async function renderPage(path) {
         return;
     }
 
+    const sourceHtml = html;
     html = processor.process(html, filePath);
     
     // Extract title from HTML for page title
@@ -7864,13 +8189,19 @@ async function renderPage(path) {
 
     // Apply the same preview connection policy used by fullscreen rendering.
     // Any project-supplied CSP remains in place and is applied in addition.
-    html = html.replace(
-        /<head(\s[^>]*)?>/i,
-        (m) => m + buildPreviewCspMeta() + buildInterceptorScript(pageTitle, filePath)
+    html = injectPreviewHead(
+        html,
+        buildPreviewCspMeta() +
+            buildInterceptorScript(pageTitle, filePath)
     );
 
     const frame = document.getElementById('previewFrame');
-    commitPreviewFrame(frame, html);
+    commitPreviewFrame(
+        frame,
+        html,
+        filePath,
+        sourceHtml
+    );
 
     // A location supplied directly to renderPage wins; otherwise restore any
     // previewHash embedded in the parent/shared URL. The preview is opaque
@@ -7897,6 +8228,73 @@ async function renderFullscreen(path) {
 }
 
 // Handle messages from the preview iframes.
+// Preview applications sometimes expect a deployment-provided whoami endpoint.
+// Keep this deliberately narrow: only local preview paths are eligible, never
+// explicit remote URLs. The response is a Forge person object, not credentials.
+function isPreviewWhoamiRequest(url) {
+    if (typeof url !== 'string') return false;
+
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    if (
+        /^https?:\/\//i.test(cleanUrl) ||
+        cleanUrl.startsWith('//')
+    ) {
+        return false;
+    }
+
+    const path = cleanUrl.startsWith('/')
+        ? cleanUrl
+        : '/' + cleanUrl;
+
+    return /\/whoami(?:\.cfm)?$/i.test(path);
+}
+
+// people.json is a well-known FORGE directory resource. Apps historically
+// reference it from several deployment-specific locations, but the IDE can
+// resolve those references through its own canonical ./data/people.json.
+//
+// A project-local VFS file still wins; this helper is only used after a miss.
+function isPreviewPeopleDirectoryRequest(url) {
+    if (typeof url !== 'string') return false;
+
+    try {
+        const parsed = new URL(url, window.location.href);
+        const segments = parsed.pathname.split('/').filter(Boolean);
+        const filename = segments.length
+            ? segments[segments.length - 1]
+            : '';
+
+        return filename.toLowerCase() === 'people.json';
+    } catch {
+        const cleanUrl = url.split('?')[0].split('#')[0];
+        return /(?:^|\/)people\.json$/i.test(cleanUrl);
+    }
+}
+
+function getPreviewWhoamiPerson() {
+    if (
+        !currentUser ||
+        typeof currentUser.email !== 'string' ||
+        !currentUser.email.trim()
+    ) {
+        return null;
+    }
+
+    const person = {
+        email: currentUser.email
+    };
+
+    if (typeof currentUser.fullName === 'string') {
+        person.fullName = currentUser.fullName;
+    }
+
+    if (typeof currentUser.identifier === 'string') {
+        person.identifier = currentUser.identifier;
+    }
+
+    return person;
+}
+
 // Source validation remains useful even if previews later become opaque-origin.
 window.addEventListener('message', (event) => {
     const previewEl = document.getElementById('previewFrame');
@@ -7925,6 +8323,37 @@ window.addEventListener('message', (event) => {
 
     } else if (event.data.type === 'vfs-fetch') {
         const url = event.data.url;
+        const method = String(event.data.method || 'GET').toUpperCase();
+
+        // Compatibility identity endpoint for preview apps. A project may use
+        // /whoami, /whoami.cfm, /ginas/app/api/v1/whoami, or another local
+        // path ending in the same endpoint name. Identity stays in the parent
+        // IDE; only the normalized Forge person object crosses the bridge.
+        if (method === 'GET' && isPreviewWhoamiRequest(url)) {
+            const user = getPreviewWhoamiPerson();
+            const payload = {
+                found: true,
+                content: JSON.stringify(
+                    user || { error: 'Unauthenticated' }
+                ),
+                mimeType: 'application/json',
+                status: user ? 200 : 401,
+                route: 'identity'
+            };
+
+            if (event.ports && event.ports[0]) {
+                event.ports[0].postMessage(payload);
+            } else {
+                event.source.postMessage({
+                    type: 'vfs-fetch-response',
+                    url,
+                    ...payload
+                }, '*');
+            }
+
+            return;
+        }
+
         // Strip query string and fragment before VFS lookup — the VFS uses
         // exact path matching and has no concept of query params.
         const cleanUrl = url.split('?')[0].split('#')[0];
@@ -7941,12 +8370,54 @@ window.addEventListener('message', (event) => {
             const port = event.ports[0];
             if (found) {
                 port.postMessage({ found: true, content, mimeType });
+            } else if (
+                (method === 'GET' || method === 'HEAD') &&
+                isPreviewPeopleDirectoryRequest(url)
+            ) {
+                // Historical FORGE apps point people.json at several GSRS or
+                // QuickShare locations. Resolve all of those names through the
+                // IDE deployment's canonical directory instead. Because this
+                // fetch runs in the parent, normal SSO/session cookies apply.
+                const peopleDirectoryUrl = new URL(
+                    './data/people.json',
+                    window.location.href
+                ).href;
+
+                fetch(peopleDirectoryUrl, {
+                    method,
+                    credentials: 'include',
+                    cache: 'no-store',
+                    headers: {
+                        Accept: 'application/json'
+                    }
+                })
+                    .then(async response => {
+                        const directoryContent =
+                            method === 'HEAD'
+                                ? ''
+                                : await response.text();
+
+                        port.postMessage({
+                            found: true,
+                            content: directoryContent,
+                            mimeType:
+                                response.headers.get('Content-Type') ||
+                                'application/json',
+                            status: response.status,
+                            route: 'people-directory'
+                        });
+                    })
+                    .catch(() => {
+                        // If the IDE deployment has no canonical directory,
+                        // preserve the preview's ordinary network fallback.
+                        port.postMessage({
+                            found: false,
+                            content: null,
+                            mimeType: null
+                        });
+                    });
             } else {
-                // VFS miss — attempt lib fallback: fetch the path from the IDE's
-                // own origin so the request carries the user's session cookies.
-                // This allows lib/vue.global.prod.js etc. to resolve on
-                // authenticated deployments (e.g. quickshare behind SSO) where
-                // the sandboxed opaque-origin iframe cannot carry credentials.
+
                 const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
                 const libFallbackUrl = window.location.origin + basePath + path;
                 fetch(libFallbackUrl, { credentials: 'include' })
@@ -7976,24 +8447,16 @@ window.addEventListener('message', (event) => {
         }
 
     } else if (event.data.type === 'vfs-navigate') {
-        // Intercept internal navigation from the preview iframe.
-        // Works for both the small preview and the fullscreen overlay.
         const href = event.data.href;
-
-        // Resolve relative to current previewed path
         const resolved = processor.resolvePath(href, currentPath || '/index.html');
-
-        // Query/hash state is navigation metadata, not part of the VFS path.
         const previewLocation = splitPreviewLocation(resolved);
         let cleanPath = previewLocation.path;
         const query = previewLocation.query;
         const hash = previewLocation.hash;
 
-        // Resolve directory indexes before checking existence
         cleanPath = vfs.resolveDirectoryIndex(cleanPath);
 
         if (vfs.hasFile(cleanPath)) {
-            // Determine which iframe sent this message so we can update the right one
             const fullscreenEl = document.getElementById('fullscreenFrame');
             const isFullscreen = fullscreenEl &&
                 document.getElementById('fullscreenContainer') &&
@@ -8006,14 +8469,10 @@ window.addEventListener('message', (event) => {
                 renderPage(cleanPath);
             }
 
-            // Keep the VFS path clean while preserving navigation state in the
-            // visible URL and parent/share URL.
             currentPath = cleanPath;
             urlBar.value = previewLocation.display;
             syncPreviewLocationToParent(cleanPath, query, hash);
 
-            // Ask the opaque frame to perform its own hash navigation after
-            // the fresh browsing context has loaded.
             if (hash) {
                 setTimeout(() => {
                     const target = isFullscreen
@@ -8052,6 +8511,14 @@ window.addEventListener('message', (event) => {
                 url.href.replace(url.hash || '', '') + parentHash
             );
         } catch(e) { /* non-critical */ }
+
+    } else if (event.data.type === 'vfs-shortcut') {
+        const source = event.source;
+        if (['previewFrame', 'fullscreenFrame'].some(id =>
+            source === document.getElementById(id)?.contentWindow
+        )) {
+            projectClipboardShortcut(event.data.key);
+        }
 
     } else if (event.data.type === 'vfs-hash-change') {
         // SPA hash changed inside the iframe — sync to IDE url bar and parent URL
@@ -8107,7 +8574,10 @@ window.addEventListener('message', (event) => {
 
     } else if (event.data.type === 'forge-console') {
         if (window.forgePanels && window.forgePanels.addConsoleEntry) {
-            window.forgePanels.addConsoleEntry(event.data.level, event.data.msg);
+            window.forgePanels.addConsoleEntry(
+                event.data.level,
+                mapPreviewSourceLocations(event.data.msg, event.source)
+            );
         }
 
     } else if (event.data.type === 'forge-repl-result') {
@@ -8142,191 +8612,6 @@ window.addEventListener('message', (event) => {
         updateBrowserTitle();
     }
 });
-// Server Console Functions
-function designateServerFile(path) {
-    if (serverWorker) {
-        showToast('Stop the current server before changing the entrypoint.', 'warn');
-        return;
-    }
-    serverEntrypoint = path;
-    serverSecretKey  = null;
-    logToServerConsole(`Server entrypoint set to: ${path}. The secret key has been reset.`, 'system');
-    updateServerStatus(`Entrypoint: ${path}. Status: Stopped.`, false);
-    if (window.forgePanels) window.forgePanels.updateServerEntrypoint(true);
-    switchTab('serverConsole');
-}
-
-const serverStatus={
-    path:null
-};
-
-function updateServerStatus(message, isRunning, path) {
-  let msg = message;
-  if (path) msg = msg + '. Served on: ' + path;
-
-  if (window.forgePanels) {
-    window.forgePanels.updateServerStatus(msg, !!isRunning);
-    if (serverEntrypoint) {
-      window.forgePanels.updateServerEntrypoint(true);
-    }
-  }
-}
-
-function logToServerConsole(message, level = 'info') {
-  const timestamp = new Date().toLocaleTimeString();
-  const text = String(message);
-
-  if (window.forgePanels) {
-    window.forgePanels.addLog(text, level, timestamp);
-  } else {
-    // Fallback: append directly to DOM if Vue not yet mounted
-    const el = document.getElementById('serverLogOutput');
-    if (el) {
-      const div = document.createElement('div');
-      div.className = `log-entry log-${level}`;
-
-      const time = document.createElement('span');
-      time.style.color = '#949494';
-      time.textContent = `[${timestamp}]`;
-
-      div.append(time, document.createTextNode(` ${text}`));
-      el.appendChild(div);
-      el.scrollTop = el.scrollHeight;
-    }
-  }
-}
-
-function startServer() {
-    if (serverWorker) {
-        logToServerConsole('Server is already running.', 'warn');
-        return;
-    }
-
-    if (!serverEntrypoint) {
-        showToast('No server entrypoint designated.', 'error');
-        return;
-    }
-
-    logToServerConsole(`Starting server with entrypoint: ${serverEntrypoint}`, 'system');
-
-    try {
-        // The shim is now the worker itself.
-        serverWorker = new Worker('forge-api-shim.js');
-    } catch (e) {
-        logToServerConsole(`Failed to create worker. Error: ${e.message}`, 'error');
-        return;
-    }
-
-    serverWorker.onmessage = (e) => {
-        const { type, payload } = e.data;
-        if (type === 'log') {
-            logToServerConsole(payload.message, payload.level);
-        } else if (type === 'status') {
-            const isRunning = payload.status === 'Running';
-            
-
-            updateServerStatus(
-                `Entrypoint: ${serverEntrypoint}. Status: ${payload.status}`,
-                isRunning
-            );
-            // When server comes online, show a helpful toast
-            if (isRunning) {
-                let root=location.href.split(/[?#]/)[0];
-                if(root.indexOf("/") > 0 && !root.endsWith("/")){
-                    let m=root.split("/");
-                    m.pop();
-                    root=m.join("/");
-                }
-                if(root.endsWith("/")){
-                    let o=root.split("");
-                    o.pop();
-                    root=o.join("");
-                }
-                
-                var servedOn=root+payload.path+"/";
-                serverStatus.path=servedOn;
-
-                updateServerStatus(
-                `Entrypoint: ${serverEntrypoint}. Status: ${payload.status}`,
-                isRunning,
-                servedOn
-            );
-                console.log(servedOn);
-                showToast('Server running! Click "📤 Share App" to share with others.', 'success', 5000);
-                // Clear the getting-started banner
-                const banner = document.querySelector('.forgeapi-banner');
-                if (banner) banner.remove();
-                logToServerConsole('✅ Server is running. Click "📤 Share App" in the toolbar to share.', 'system');
-            }
-        } else if (type === 'secretKeyUpdate') {
-            serverSecretKey = payload.secretKey;
-            logToServerConsole(`Secret key updated. Future connections for this project will use this key.`, 'system');
-        } else if (type === 'vfs-read') {
-            const { path, requestId } = payload;
-            const content = vfs.getFile(path);
-            const mimeType = vfs.getMimeType(path);
-            
-            serverWorker.postMessage({
-                type: 'vfs-read-response',
-                payload: {
-                    requestId,
-                    path, // Pass path back for better error messages
-                    content,
-                    mimeType,
-                    found: content !== undefined
-                }
-            });
-        } else if (type === 'error') {
-            logToServerConsole(payload.message, 'error');
-            stopServer();
-        }
-    };
-
-    serverWorker.onerror = (e) => {
-        logToServerConsole(`Worker error: ${e.message}`, 'error');
-        stopServer();
-    };
-
-    const userCode = vfs.getFile(serverEntrypoint);
-    if (userCode === undefined) {
-        logToServerConsole(`Could not find file: ${serverEntrypoint}`, 'error');
-        stopServer();
-        return;
-    }
-
-    // Construct WebSocket URL. Assumes server is at the same origin.
-    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${location.host}${pref}`;
-
-    serverWorker.postMessage({
-        type: 'start',
-        payload: {
-            userScriptPath: serverEntrypoint,
-            userScriptContent: userCode,
-            wsUrl: wsUrl,
-            secretKey: serverSecretKey // Pass the stored key
-        }
-    });
-
-    updateServerStatus(`Entrypoint: ${serverEntrypoint}. Status: Starting...`);
-    startServerBtn.disabled = true;
-    stopServerBtn.disabled = false;
-}
-
-function stopServer() {
-    if (serverWorker) {
-        serverWorker.terminate();
-        serverWorker = null;
-        logToServerConsole('Server stopped.', 'system');
-    }
-    const statusMsg = serverEntrypoint
-        ? `Entrypoint: ${serverEntrypoint}. Status: Stopped.`
-        : 'Status: No server running.';
-    updateServerStatus(statusMsg, false);
-}
-
-// Server console button listeners are handled by Vue's @start/@stop/@clear
-// events on ServerConsolePanel in forge-vue-panels.js.
 // Update file list display
 function updateFileList() {
     const paths = vfs.getAllPaths().filter(p => !p.endsWith('/' + FORGE_DIR_PLACEHOLDER));
@@ -8642,12 +8927,7 @@ async function populateExamplesDropdown() {
         const res = await fetch('examples/manifest.json');
         if (!res.ok) throw new Error('No manifest');
         const data = await res.json();
-        const examples = data.examples || [];
-
-        // Filter out ForgeAPI examples if server doesn't support it
-        const visible = examples.filter(ex =>
-            !ex.requiresForgeApi || serverFeatures.forgeAPI
-        );
+        const visible = data.examples || [];
 
         if (visible.length === 0) {
             menu.innerHTML = `
@@ -8670,19 +8950,6 @@ async function populateExamplesDropdown() {
             </div>
         `).join('');
 
-        // If ForgeAPI examples exist but aren't shown, add a note
-        const hidden = examples.filter(ex => ex.requiresForgeApi && !serverFeatures.forgeAPI);
-        if (hidden.length > 0) {
-            menu.innerHTML += `
-                <div class="dropdown-divider"></div>
-                <div class="dropdown-item" style="cursor:default; opacity:0.5;">
-                    <span class="dropdown-icon">🖥️</span>
-                    <span>
-                        <strong style="font-size:0.82em;">${hidden.length} server example${hidden.length > 1 ? 's' : ''} hidden</strong>
-                        <small>Requires ForgeAPI server</small>
-                    </span>
-                </div>`;
-        }
 
     } catch (e) {
         menu.innerHTML = `
@@ -8692,35 +8959,6 @@ async function populateExamplesDropdown() {
                 </span>
             </div>`;
     }
-}
-
-// -- Share App (ForgeAPI running server) ----------------------------------
-
-function openAppUrl() {
-    if (vfs.getAllPaths().length === 0) {
-        showToast('No project to share', 'error');
-        return;
-    }
-
-    if (!serverWorker) {
-        showToast('Start the server first before sharing the app URL.', 'error', 4000);
-        return;
-    }
-    window.open(serverStatus.path, "_blank");
-}
-async function shareAppUrl() {
-    if (vfs.getAllPaths().length === 0) {
-        showToast('No project to share', 'error');
-        return;
-    }
-
-    if (!serverWorker) {
-        showToast('Start the server first before sharing the app URL.', 'error', 4000);
-        return;
-    }
-    await copyToClipboard(serverStatus.path);
-    
-    showToast('Running App path copied to clipboard', 'success', 5000);
 }
 
 // -- Fullscreen URL sharing ------------------------------------------------
@@ -8761,11 +8999,7 @@ async function copyFullscreenUrl() {
     await shareFullscreenUrl();
 }
 
-// -- Hash change listener --------------------------------------------------
-// Re-processes URL params when the user manually edits the browser hash and
-// presses Enter. Hash changes written by FORGE itself (payload, previewHash,
-// url) are ignored — we only react when the new hash contains import-related
-// params.
+
 
 const IMPORT_PARAMS = [
     'loadExample',

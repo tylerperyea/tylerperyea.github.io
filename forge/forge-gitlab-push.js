@@ -109,7 +109,8 @@
     }
 
     function _populateModal() {
-        const token = _ctx.token || localStorage.getItem('gitlabToken') || '';
+        const savedToken = localStorage.getItem('gitlabToken') || '';
+        const token = _ctx.token || savedToken;
         const suggestedName =
             typeof projectTitle === 'string' &&
             projectTitle.trim() &&
@@ -119,6 +120,15 @@
 
         _setVal('pushGitlabUrl',      _gitlabOrigin());
         _setVal('pushGitlabToken',    token);
+
+        // The checkbox describes the credential currently shown in the
+        // field. If that exact token came from localStorage, keep persistence
+        // enabled so a normal push does not accidentally delete it.
+        const saveToken = document.getElementById('pushSaveToken');
+        if (saveToken) {
+            saveToken.checked = !!savedToken && token === savedToken;
+        }
+
         _setVal('pushGitlabProject',  _ctx.projectPath   || _ctx.projectId || '');
         _setVal('pushSourceBranch',   _ctx.sourceBranch  || _ctx.defaultBranch || 'main');
         _setVal('pushTargetBranch',   _defaultTargetName());

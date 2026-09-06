@@ -128,9 +128,9 @@
     <div class="header-left">
       <h1>FDA FORGE IDE</h1>
       <a id="versionBadge"
-         href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/"
+         href="#"
          target="_blank"
-         title="View source on GitLab"
+         title="FORGE IDE version details"
          style="
            font-size: 0.72em;
            color: #a9a9a9;
@@ -356,13 +356,76 @@
       <button id="shortcutsBtn" class="help-btn" title="Keyboard shortcuts"
         aria-label="Keyboard shortcuts">⌨️</button>
 
-      <button id="currentUserBtn"
-              class="help-btn current-user-btn"
-              hidden
-              onclick="currentUserAction()"
-              title="Current FORGE user">
-        👤 User
-      </button>
+      <div class="forge-dropdown current-user-dropdown"
+           id="currentUserDropdown">
+        <button id="currentUserBtn"
+                class="help-btn current-user-btn"
+                hidden
+                onclick="currentUserAction(event)"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="currentUserMenu"
+                title="Current FORGE user">
+          👤 User
+        </button>
+
+        <div class="dropdown-menu"
+             id="currentUserMenu"
+             role="menu"
+             aria-label="Current FORGE user">
+          <div class="current-user-menu-summary">
+            <strong id="currentUserMenuEmail">Current identity</strong>
+            <small id="currentUserMenuKind"></small>
+          </div>
+
+          <div class="dropdown-divider"></div>
+
+          <button id="currentUserChangeIdentityBtn"
+                  class="dropdown-item"
+                  type="button"
+                  role="menuitem"
+                  onclick="setAssertedIdentity()">
+            <span class="dropdown-icon">✏️</span>
+            <span>
+              <strong id="currentUserChangeIdentityLabel">
+                Change identity
+              </strong>
+              <small>Use a different asserted email</small>
+            </span>
+          </button>
+
+          <button id="currentUserRefreshSsoBtn"
+                  class="dropdown-item"
+                  type="button"
+                  role="menuitem"
+                  onclick="refreshAssertedIdentityFromSso()">
+            <span class="dropdown-icon">↻</span>
+            <span>
+              <strong>Refresh from SSO</strong>
+              <small>Re-read the current GSRS whoami identity</small>
+            </span>
+          </button>
+
+          <button id="currentUserLogoutBtn"
+                  class="dropdown-item current-user-logout"
+                  type="button"
+                  role="menuitem"
+                  onclick="logoutCurrentUser()">
+            <span class="dropdown-icon">↪</span>
+            <span>
+              <strong>Log out</strong>
+              <small>Clear the FORGE identity for this page</small>
+            </span>
+          </button>
+
+          <div id="currentUserManagedIdentityNote"
+               class="current-user-menu-note"
+               hidden>
+            Sign-in is managed by this deployment. FORGE does not have an
+            upstream SSO logout endpoint to call.
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -407,15 +470,7 @@
                @click="setTab('project')"
                @keydown="onMainTabKeydown($event, 'project')"
                data-tab="project">Project</div>
-          <div class="tab" role="tab"
-               id="mainTabServerConsole"
-               aria-controls="serverConsoleTab"
-               :aria-selected="activeTab === 'serverConsole'"
-               :tabindex="activeTab === 'serverConsole' ? 0 : -1"
-               :class="{ active: activeTab === 'serverConsole' }"
-               @click="setTab('serverConsole')"
-               @keydown="onMainTabKeydown($event, 'serverConsole')"
-               data-tab="serverConsole">Server Console</div>
+
           <div class="tab" role="tab"
                id="mainTabConsole"
                aria-controls="consoleTab"
@@ -437,7 +492,7 @@
         </div>
         <button id="clearBtn"
                 class="secondary tabs-clear-btn"
-                title="Clear all project files">🗑️ Clear</button>
+                title="Clear all project files">🗑️ Clear all Project Files</button>
       </div>
 
       <!-- Preview Tab -->
@@ -615,10 +670,8 @@
                 v-if="fileViewMode === 'tree'"
                 :vfs-version="vfsVersion"
                 :selected-path="selectedFilePath"
-                :forge-api-enabled="forgeApiEnabled"
                 @select="onFileSelect"
                 @preview="onFilePreview"
-                @designate-server="onFileDesignateServer"
                 @open-settings="onFileOpenSettings"
                 @move="onFileMove"
               ></forge-file-tree>
@@ -626,10 +679,8 @@
                 v-else
                 :vfs-version="vfsVersion"
                 :selected-path="selectedFilePath"
-                :forge-api-enabled="forgeApiEnabled"
                 @select="onFileSelect"
                 @preview="onFilePreview"
-                @designate-server="onFileDesignateServer"
                 @open-settings="onFileOpenSettings"
                 @move="onFileMove"
               ></forge-file-list>
@@ -701,21 +752,7 @@
         ></project-settings-panel>
       </div>
 
-      <!-- Server Console Tab -->
-      <div class="tab-content" id="serverConsoleTab"
-           role="tabpanel"
-           aria-labelledby="mainTabServerConsole"
-           :style="{ display: activeTab === 'serverConsole' ? 'flex' : 'none' }">
-        <server-console-panel
-          :status="serverStatus"
-          :is-running="serverIsRunning"
-          :has-entrypoint="serverHasEntry"
-          :logs="serverLogs"
-          @start="onStart"
-          @stop="onStop"
-          @clear="clearLogs"
-        ></server-console-panel>
-      </div>
+
     </div>
   </div>
 
@@ -1060,7 +1097,8 @@
       </div>
       <div class="modal-footer">
         <button class="secondary" onclick="closeCliInstallModal()">Close</button>
-        <a href="https://git.fda.gov/FDA/OC/FORGE/forge-ide/"
+        <a href="#"
+           data-forge-repository-link
            target="_blank" class="btn info">
           📦 View Repository
         </a>
@@ -1913,6 +1951,7 @@
   <script src="forge-value-utils.js"></script>
   <script src="forge-codemirror.js"></script>
   <script src="html-processor.js"></script>
+  <script src="forge-version.js"></script>
   <script src="forge-cli-install.js"></script>
   <script src="forge-file-move.js"></script>
   <script src="forge-vue-header.js"></script>
