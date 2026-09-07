@@ -5,6 +5,7 @@
 // Both modes share the same modal, styling, and keyboard navigation.
 
 (function () {
+    const $=s=>document.querySelector(s);
     const MAX_RESULTS_PER_FILE = 20;
     const MAX_TOTAL_RESULTS    = 300;
 
@@ -158,12 +159,12 @@
     function openGlobalSearch(newMode, showReplace) {
         mode = newMode === 'files' ? 'files' : 'content';
 
-        const modal          = document.getElementById('globalSearchModal');
-        const input          = document.getElementById('globalSearchInput');
-        const title          = document.getElementById('globalSearchTitle');
-        const caseToggleWrap = document.getElementById('globalSearchCaseToggleWrap');
-        const regexToggle = document.getElementById('globalSearchRegexToggle');
-        const replaceToggle = document.getElementById('globalSearchReplaceToggle');
+        const modal          = $('#globalSearchModal');
+        const input          = $('#globalSearchInput');
+        const title          = $('#globalSearchTitle');
+        const caseToggleWrap = $('#globalSearchCaseToggleWrap');
+        const regexToggle = $('#globalSearchRegexToggle');
+        const replaceToggle = $('#globalSearchReplaceToggle');
         if (!modal) return;
 
         modal.classList.toggle('quick-open-position', mode === 'files');
@@ -205,16 +206,36 @@
     }
 
     function setGlobalReplaceVisible(visible) {
-        const row = document.getElementById('globalSearchReplaceRow');
-        const toggle = document.getElementById('globalSearchReplaceToggle');
+        const row=$('#globalSearchReplaceRow');
+        const toggle=$('#globalSearchReplaceToggle');
         if (row) row.classList.toggle('active', visible);
         if (toggle) toggle.textContent = visible ? '▾' : '▸';
     }
 
     function toggleGlobalReplace() {
-        const row = document.getElementById('globalSearchReplaceRow');
-        const isVisible = row && row.classList.contains('active');
-        setGlobalReplaceVisible(!isVisible);
+        const row=$('#globalSearchReplaceRow');
+        setGlobalReplaceVisible(!(row&&row.classList.contains('active')));
+    }
+
+    function globalReplaceContext() {
+        const queryInput=$('#globalSearchInput');
+        const replaceInput=$('#globalSearchReplaceInput');
+        if(!queryInput||!replaceInput||typeof vfs==='undefined')return null;
+
+        const query=queryInput.value;
+        if(!query||!query.trim())return null;
+
+        const {regex:matcher,error}=buildMatcher(
+            query,
+            $('#globalSearchCaseSensitive')?.checked,
+            regexEnabled
+        );
+        if(error){
+            showToast('Invalid regex: '+error,'error');
+            return null;
+        }
+
+        return {query,replaceInput,matcher};
     }
 
     function performGlobalReplaceOne() {
@@ -228,21 +249,9 @@
         const result = getFlatResult(activeIndex);
         if (!result || result.isFileMatch) return;
 
-        const queryInput   = document.getElementById('globalSearchInput');
-        const replaceInput = document.getElementById('globalSearchReplaceInput');
-        if (!queryInput || !replaceInput) return;
-
-        const query = queryInput.value;
-        if (!query || !query.trim()) return;
-
-        if (typeof vfs === 'undefined') return;
-
-        const caseSensitive = document.getElementById('globalSearchCaseSensitive')?.checked;
-        const { regex: matcher, error } = buildMatcher(query, caseSensitive, regexEnabled);
-        if (error) {
-            showToast('Invalid regex: ' + error, 'error');
-            return;
-        }
+        const context=globalReplaceContext();
+        if(!context)return;
+        const {query,replaceInput,matcher}=context;
 
         const content = vfs.getFile(result.path);
         if (typeof content !== 'string') return;
@@ -299,22 +308,9 @@
     function performGlobalReplaceAll() {
         if (mode !== 'content') return;
 
-        const queryInput = document.getElementById('globalSearchInput');
-        const replaceInput = document.getElementById('globalSearchReplaceInput');
-        if (!queryInput  || !replaceInput) return;
-
-        const query = queryInput.value;
-        if (!query || !query.trim()) return;
-
-        if (typeof vfs == 'undefined') return;
-
-        const caseSensitive = document.getElementById('globalSearchCaseSensitive')?.checked;
-        const { regex: matcher, error } = buildMatcher(query, caseSensitive, regexEnabled);
-
-        if (error) {
-            showToast('Invalid regex: ' + error, 'error');
-            return;
-        }
+        const context=globalReplaceContext();
+        if(!context)return;
+        const {query,replaceInput,matcher}=context;
 
         const paths = vfs.getAllPaths();
         const affected = [];
@@ -379,8 +375,8 @@
     }
 
     function runFileSearch(query) {
-        const resultsEl = document.getElementById('globalSearchResults');
-        const summaryEl = document.getElementById('globalSearchSummary');
+        const resultsEl = $('#globalSearchResults');
+        const summaryEl = $('#globalSearchSummary');
         if (!resultsEl || !summaryEl) return;
 
         activeIndex = -1;
@@ -425,8 +421,8 @@
     }
 
     function runContentSearch(query) {
-        const resultsEl = document.getElementById('globalSearchResults');
-        const summaryEl = document.getElementById('globalSearchSummary');
+        const resultsEl = $('#globalSearchResults');
+        const summaryEl = $('#globalSearchSummary');
         if (!resultsEl || !summaryEl) return;
 
         currentResults = [];
@@ -444,7 +440,7 @@
             return;
         }
 
-        const caseSensitive = document.getElementById('globalSearchCaseSensitive')?.checked;
+        const caseSensitive = $('#globalSearchCaseSensitive')?.checked;
         const { regex: matcher, error: regexError } = buildMatcher(query, caseSensitive, regexEnabled);
 
         if (regexError) {
@@ -453,7 +449,7 @@
             </div>`;
             summaryEl.textContent = '';
             // Highlight the input red so the error is immediately obvious
-            document.getElementById('globalSearchInput')?.classList.add('no-match');
+            $('#globalSearchInput')?.classList.add('no-match');
             return;
         }
 
@@ -524,7 +520,7 @@
     // -- Rendering ------------------------------------------------------------
 
     function renderResults() {
-        const resultsEl = document.getElementById('globalSearchResults');
+        const resultsEl = $('#globalSearchResults');
         if (!resultsEl) return;
 
         let html = '';
@@ -598,7 +594,7 @@
         document.querySelectorAll('[data-flat-index].active').forEach(el =>
             el.classList.remove('active'));
         if (activeIndex < 0) return;
-        const el = document.querySelector(`[data-flat-index="${activeIndex}"]`);
+        const el = $(`[data-flat-index="${activeIndex}"]`);
         if (el) {
             el.classList.add('active');
             el.scrollIntoView({ block: 'nearest' });
@@ -653,8 +649,8 @@
     window.closeGlobalSearch = closeGlobalSearch;
 
     document.addEventListener('DOMContentLoaded', () => {
-        const input      = document.getElementById('globalSearchInput');
-        const caseToggle = document.getElementById('globalSearchCaseSensitive');
+        const input      = $('#globalSearchInput');
+        const caseToggle = $('#globalSearchCaseSensitive');
 
         if (input) {
             input.addEventListener('input', () => {
@@ -687,14 +683,14 @@
         }
 
 
-        const regexToggleBtn = document.getElementById('globalSearchRegexToggle');
+        const regexToggleBtn = $('#globalSearchRegexToggle');
         if (regexToggleBtn) {
             regexToggleBtn.addEventListener('click', () => {
                 regexEnabled = !regexEnabled;
                 regexToggleBtn.classList.toggle('active', regexEnabled);
 
                 // Update the placeholder to hint at the /pattern/flags format
-                const input = document.getElementById('globalSearchInput');
+                const input = $('#globalSearchInput');
                 if (input) {
                     input.placeholder = regexEnabled
                         ? 'e.g. /foo.*bar/ or /foo/i'
@@ -706,17 +702,17 @@
             });
         }
 
-        const replaceToggleBtn = document.getElementById('globalSearchReplaceToggle');
+        const replaceToggleBtn = $('#globalSearchReplaceToggle');
         if (replaceToggleBtn) {
             replaceToggleBtn.addEventListener('click', toggleGlobalReplace);
         }
 
-        const replaceOneBtn = document.getElementById('globalSearchReplaceOneBtn');
+        const replaceOneBtn = $('#globalSearchReplaceOneBtn');
         if (replaceOneBtn) {
             replaceOneBtn.addEventListener('click', performGlobalReplaceOne);
         }
 
-        const replaceAllBtn = document.getElementById('globalSearchReplaceAllBtn');
+        const replaceAllBtn = $('#globalSearchReplaceAllBtn');
         if (replaceAllBtn) {
             replaceAllBtn.addEventListener('click', performGlobalReplaceAll);
         }

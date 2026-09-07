@@ -12,7 +12,7 @@
     The global build puts `Vue` on window — no imports needed.
   -->
   <script src="lib/vue.global.prod.js"></script>
-  <!-- CodeMirror 5 — syntax highlighting editor -->
+
   <link rel="stylesheet" href="lib/codemirror/codemirror.min.css">
   <link rel="stylesheet" href="lib/codemirror/theme/monokai.min.css">
   <script src="lib/codemirror/codemirror.min.js"></script>
@@ -35,14 +35,14 @@
      * FLASH PREVENTION
      * Body starts invisible. The inline script below immediately checks URL params
      * and sets the appropriate class on <html> before any rendering occurs.
-     * JS then removes the 'initializing' class once the app is ready.
+
      */
     html.initializing body {
       opacity: 0;
       pointer-events: none;
     }
 
-    /* In fullscreen-load mode, hide the IDE chrome immediately */
+
     html.loading-fullscreen .header,
     html.loading-fullscreen .container,
     html.loading-fullscreen .status {
@@ -53,7 +53,7 @@
       display: flex !important;
     }
 
-    /* Legacy body-class selectors kept for JS compat */
+
     body.loading-fullscreen .header,
     body.loading-fullscreen .container,
     body.loading-fullscreen .status {
@@ -104,7 +104,7 @@
     <div class="loading-text">Loading project...</div>
   </div>
 
-  <!-- Bridge status banner (full-width, sits above the header) -->
+
   <div id="forgeBridgeBanner" class="forge-bridge-banner" hidden>
     <button id="forgeBridgeBannerBtn" class="forge-bridge-banner-btn" aria-label="Bridge connections">
       <span id="forgeBridgeBannerDot" class="forge-bridge-banner-dot"></span>
@@ -148,7 +148,7 @@
          onmouseout="this.style.color='#a9a9a9';this.style.borderColor='#3e3e42';"
       >v1.0.0-preview</a>
     </div>
-    <!-- Vue header app mounts here (forge-vue-header.js) -->
+
     <div class="header-controls" id="forge-header-app">
 
       <!-- Examples dropdown -->
@@ -203,7 +203,7 @@
           <div class="dropdown-item" onclick="openGitLabModal(); toggleDropdown('dd-import')">
             <span class="dropdown-icon">🦊</span>
             <span>
-              <strong>Import from GitLab</strong>
+              <strong>Import from Git</strong>
               <small>Fetch repo via API</small>
             </span>
           </div>
@@ -238,11 +238,11 @@
             </span>
           </div>
           <div class="dropdown-divider"></div>
-          <div class="dropdown-item" onclick="ForgeGitLabPush.openPushModal(); toggleDropdown('dd-export')">
+          <div class="dropdown-item" onclick="ForgeGitPush.openPushModal(); toggleDropdown('dd-export')">
             <span class="dropdown-icon">🦊</span>
             <span>
-              <strong>Push to GitLab</strong>
-              <small>Commit VFS to a branch &amp; open MR</small>
+              <strong>Push to Git</strong>
+              <small>Commit VFS to a branch &amp; open review</small>
             </span>
           </div>
         </div>
@@ -431,7 +431,7 @@
 
   <div class="container" role="main">
 
-    <!-- Vue panels app mounts here (forge-vue-panels.js) -->
+
     <div class="preview-panel" id="forge-panels-app">
       <div class="tabs">
         <div class="project-title-container">
@@ -665,7 +665,7 @@
               </div>
             </div>
             <div class="file-browser-list" id="fileBrowserList" v-show="!isFileBrowserCollapsed">
-              <!-- File list rendered by forge-vue-panels.js -->
+
               <forge-file-tree
                 v-if="fileViewMode === 'tree'"
                 :vfs-version="vfsVersion"
@@ -695,7 +695,7 @@
                id="editorWorkspace"
                role="tabpanel"
                :aria-label="activeTabPath ? 'Editor for ' + activeTabPath : 'File editor'">
-            <!-- Tab bar — rendered by Vue, sits above the editor header -->
+
             <editor-tab-bar
               :tabs="openTabs"
               :active-tab-path="activeTabPath"
@@ -760,7 +760,7 @@
     Ready. Load a project to begin.
   </div>
 
-  <!-- Fullscreen Container (static — controlled by app.js) -->
+
   <div class="fullscreen-container" id="fullscreenContainer">
     <div class="fullscreen-menu" id="fullscreenMenu">
       <button id="exitFullscreenBtn" title="Exit fullscreen (Esc)">Exit</button>
@@ -774,7 +774,7 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <!-- Global Search Modal (also used for Quick Open, mode-switched via JS) -->
+
   <div class="modal-overlay" id="globalSearchModal">
     <div class="modal global-search-modal">
       <div class="modal-header">
@@ -840,17 +840,23 @@
     </div>
   </div>
 
-  <!-- GitLab Import Modal -->
   <div class="modal-overlay" id="gitlabModal">
     <div class="modal">
       <div class="modal-header">
-        <h2>📥 Import from GitLab</h2>
+        <h2>📥 Import from Git</h2>
         <button class="secondary" onclick="closeGitLabModal()"
-                aria-label="Close GitLab import dialog">✕</button>
+                aria-label="Close Git import dialog">✕</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label for="gitlabUrl">GitLab URL</label>
+          <label for="gitImportProvider">Provider</label>
+          <select id="gitImportProvider" onchange="setGitImportProvider(this.value)">
+            <option value="gitlab">GitLab</option>
+            <option value="github">GitHub</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="gitlabUrl">API URL</label>
           <input type="text" id="gitlabUrl" value="https://git.fda.gov" readonly>
           <small>Configured by the FORGE deployment</small>
         </div>
@@ -859,13 +865,17 @@
           <input type="password" id="gitlabToken"
                  placeholder="glpat-xxxxxxxxxxxxx"
                  required aria-required="true">
-          <small>Personal access token with read_api scope</small>
+          <div class="checkbox-group">
+            <input type="checkbox" id="saveToken">
+            <label for="saveToken" class="checkbox-label">Save token in browser (localStorage)</label>
+          </div>
+          <small>Token needs repository read access</small>
         </div>
         <div class="form-group">
-          <label for="gitlabProject">Project ID or Path</label>
+          <label for="gitlabProject">Repository</label>
           <div class="gitlab-project-input-row">
             <input type="text" id="gitlabProject"
-                   placeholder="8802 or FDA/OC/FORGE/pubtracker-frontend"
+                   placeholder="owner/repository or project ID"
                    required aria-required="true">
             <button type="button" class="secondary gitlab-browse-btn"
                     id="gitlabBrowseProjectsBtn" aria-expanded="false"
@@ -882,12 +892,12 @@
           <div class="gitlab-project-search-row">
             <input type="search" id="gitlabProjectSearch"
                    placeholder="Search repositories…"
-                   aria-label="Search GitLab repositories">
+                   aria-label="Search repositories">
             <button type="button" class="secondary" id="gitlabProjectSearchBtn">Search</button>
           </div>
 
           <div id="gitlabProjectResults" class="gitlab-project-results"
-               role="listbox" aria-label="GitLab repositories"></div>
+               role="listbox" aria-label="Repositories"></div>
 
           <div id="gitlabProjectPagination" class="gitlab-project-pagination" hidden>
             <button type="button" class="secondary" id="gitlabProjectPrevBtn">← Prev</button>
@@ -904,22 +914,17 @@
           <input type="text" id="gitlabBranch" placeholder="main">
           <small>Leave empty to use default branch</small>
         </div>
-        <div class="form-group">
-          <div class="checkbox-group">
-            <input type="checkbox" id="saveToken">
-            <label for="saveToken" class="checkbox-label">Save token in browser (localStorage)</label>
-          </div>
-        </div>
+
         <div id="importProgress" role="status" aria-live="polite"></div>
       </div>
       <div class="modal-footer">
         <button class="secondary" onclick="closeGitLabModal()">Cancel</button>
-        <button class="success" onclick="importFromGitLab()">Import</button>
+        <button class="success" id="gitImportBtn" onclick="importFromGitLab()">Import</button>
       </div>
     </div>
   </div>
 
-  <!-- Short URL Warning Modal -->
+
   <div class="modal-overlay" id="shortUrlWarningModal">
     <div class="modal unsaved-modal">
       <div class="modal-header">
@@ -1242,13 +1247,13 @@
   <div class="modal-overlay" id="gitlabPushModal">
     <div class="modal gitlab-push-modal">
       <div class="modal-header">
-        <h2>📤 Push to GitLab</h2>
-        <button class="secondary" onclick="ForgeGitLabPush.closePushModal()"
-                aria-label="Close GitLab push dialog">✕</button>
+        <h2>📤 Push to Git</h2>
+        <button class="secondary" onclick="ForgeGitPush.closePushModal()"
+                aria-label="Close Git push dialog">✕</button>
       </div>
 
       <!-- Tab bar -->
-      <div class="push-tab-bar" role="tablist" aria-label="GitLab push views">
+      <div class="push-tab-bar" role="tablist" aria-label="Git push views">
         <button id="pushTabPush"
                 class="push-tab active"
                 role="tab"
@@ -1256,8 +1261,8 @@
                 aria-controls="pushPanePush"
                 tabindex="0"
                 data-push-tab="push"
-                onclick="ForgeGitLabPush.showTab('push')"
-                onkeydown="ForgeGitLabPush.onTabKeydown(event)">⚙️ Settings</button>
+                onclick="ForgeGitPush.showTab('push')"
+                onkeydown="ForgeGitPush.onTabKeydown(event)">⚙️ Settings</button>
         <button id="pushTabPreview"
                 class="push-tab"
                 role="tab"
@@ -1265,8 +1270,8 @@
                 aria-controls="pushPanePreview"
                 tabindex="-1"
                 data-push-tab="preview"
-                onclick="ForgeGitLabPush.previewChanges()"
-                onkeydown="ForgeGitLabPush.onTabKeydown(event)">🔍 Preview Changes</button>
+                onclick="ForgeGitPush.previewChanges()"
+                onkeydown="ForgeGitPush.onTabKeydown(event)">🔍 Preview Changes</button>
         <button id="pushTabLog"
                 class="push-tab"
                 role="tab"
@@ -1274,8 +1279,8 @@
                 aria-controls="pushPaneLog"
                 tabindex="-1"
                 data-push-tab="log"
-                onclick="ForgeGitLabPush.showTab('log')"
-                onkeydown="ForgeGitLabPush.onTabKeydown(event)">📋 Log</button>
+                onclick="ForgeGitPush.showTab('log')"
+                onkeydown="ForgeGitPush.onTabKeydown(event)">📋 Log</button>
       </div>
 
       <!-- Settings pane -->
@@ -1285,26 +1290,34 @@
            aria-labelledby="pushTabPush">
 
         <div class="form-group">
-          <label for="pushGitlabUrl">GitLab URL</label>
+          <label for="pushGitProvider">Provider</label>
+          <select id="pushGitProvider" onchange="ForgeGitPush.setProvider(this.value)">
+            <option value="gitlab">GitLab</option>
+            <option value="github">GitHub</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="pushGitlabUrl">API URL</label>
           <input type="text" id="pushGitlabUrl" value="https://git.fda.gov" readonly>
         </div>
         <div class="form-group">
-          <label for="pushGitlabToken">Access Token
-            <span class="push-scope-hint">(needs <code>write_repository</code> scope;
-            <code>api</code> scope for MR creation)</span>
-          </label>
-          <input type="password" id="pushGitlabToken" placeholder="glpat-xxxxxxxxxxxxx">
+          <label for="pushGitlabToken">Access Token</label>
+          <input type="password" id="pushGitlabToken" placeholder="Access token">
+          <div class="checkbox-group">
+            <input type="checkbox" id="pushSaveToken">
+            <label for="pushSaveToken" class="checkbox-label">Save token in browser (localStorage)</label>
+          </div>
         </div>
         <div class="form-group">
-          <label for="pushGitlabProject">Project ID or Path</label>
+          <label for="pushGitlabProject">Repository</label>
           <div class="gitlab-project-input-row">
             <input type="text" id="pushGitlabProject"
-                   placeholder="8802 or FDA/OC/FORGE/my-project">
+                   placeholder="owner/repository or project ID">
             <button type="button" class="secondary gitlab-browse-btn"
                     id="pushGitlabBrowseProjectsBtn"
                     aria-expanded="false"
                     aria-controls="pushGitlabProjectBrowser"
-                    onclick="ForgeGitLabPush.toggleProjectBrowser()">
+                    onclick="ForgeGitPush.toggleProjectBrowser()">
               Browse projects
             </button>
           </div>
@@ -1321,12 +1334,12 @@
               <input type="search"
                      id="pushGitlabProjectSearch"
                      placeholder="Search repositories..."
-                     aria-label="Search GitLab repositories for push"
-                     onkeydown="ForgeGitLabPush.onProjectSearchKeydown(event)">
+                     aria-label="Search repositories for push"
+                     onkeydown="ForgeGitPush.onProjectSearchKeydown(event)">
               <button type="button"
                       class="secondary"
                       id="pushGitlabProjectSearchBtn"
-                      onclick="ForgeGitLabPush.searchProjects()">
+                      onclick="ForgeGitPush.searchProjects()">
                 Search
               </button>
             </div>
@@ -1334,7 +1347,7 @@
             <div id="pushGitlabProjectResults"
                  class="gitlab-project-results"
                  role="listbox"
-                 aria-label="GitLab repositories for push"></div>
+                 aria-label="Repositories for push"></div>
 
             <div id="pushGitlabProjectPagination"
                  class="gitlab-project-pagination"
@@ -1342,14 +1355,14 @@
               <button type="button"
                       class="secondary"
                       id="pushGitlabProjectPrevBtn"
-                      onclick="ForgeGitLabPush.previousProjectPage()">
+                      onclick="ForgeGitPush.previousProjectPage()">
                 ← Prev
               </button>
               <span id="pushGitlabProjectPageLabel"></span>
               <button type="button"
                       class="secondary"
                       id="pushGitlabProjectNextBtn"
-                      onclick="ForgeGitLabPush.nextProjectPage()">
+                      onclick="ForgeGitPush.nextProjectPage()">
                 Next →
               </button>
             </div>
@@ -1366,13 +1379,13 @@
             <label class="push-radio-label">
               <input type="radio" name="repositoryMode" id="repositoryModeExisting"
                      value="existing" checked
-                     onchange="ForgeGitLabPush.onRepositoryModeChange()">
+                     onchange="ForgeGitPush.onRepositoryModeChange()">
               Existing repository
             </label>
             <label class="push-radio-label">
               <input type="radio" name="repositoryMode" id="repositoryModeNew"
                      value="new"
-                     onchange="ForgeGitLabPush.onRepositoryModeChange()">
+                     onchange="ForgeGitPush.onRepositoryModeChange()">
               New repository
             </label>
           </div>
@@ -1412,7 +1425,7 @@
               </select>
               <button type="button" class="secondary"
                       style="margin-top:6px;"
-                      onclick="ForgeGitLabPush.loadNamespaces()">
+                      onclick="ForgeGitPush.loadNamespaces()">
                 ↻ Refresh namespaces
               </button>
             </div>
@@ -1439,12 +1452,12 @@
           <div class="form-group push-form-field">
             <label for="pushSourceBranch">Source branch (base)</label>
             <input type="text" id="pushSourceBranch" placeholder="main"
-                   oninput="ForgeGitLabPush.onBranchModeChange()">
+                   oninput="ForgeGitPush.onBranchModeChange()">
           </div>
           <div class="form-group push-form-field">
             <label for="pushTargetBranch">Target branch</label>
             <input type="text" id="pushTargetBranch"
-                   oninput="ForgeGitLabPush.onTargetBranchChange()"
+                   oninput="ForgeGitPush.onTargetBranchChange()"
                    placeholder="forge/changes-...">
           </div>
         </div>
@@ -1454,13 +1467,13 @@
             <label class="push-radio-label">
               <input type="radio" name="branchMode" id="branchModeNew"
                      value="new" checked
-                     onchange="ForgeGitLabPush.onBranchModeChange()">
+                     onchange="ForgeGitPush.onBranchModeChange()">
               New branch
             </label>
             <label class="push-radio-label">
               <input type="radio" name="branchMode" id="branchModeExisting"
                      value="existing"
-                     onchange="ForgeGitLabPush.onBranchModeChange()">
+                     onchange="ForgeGitPush.onBranchModeChange()">
               Existing branch
             </label>
           </div>
@@ -1486,17 +1499,17 @@
                      var s=document.getElementById('pushMrFields').style;
                      s.display=this.checked?'block':'none';
                    ">
-            <label for="pushOpenMr" class="checkbox-label">Open Merge Request</label>
+            <label for="pushOpenMr" class="checkbox-label">Open Review</label>
           </div>
         </div>
 
         <div id="pushMrFields">
           <div class="form-group">
-            <label for="pushMrTitle">MR Title</label>
+            <label for="pushMrTitle">Review Title</label>
             <input type="text" id="pushMrTitle" placeholder="target → source">
           </div>
           <div class="form-group">
-            <label for="pushMrDescription">MR Description (optional)</label>
+            <label for="pushMrDescription">Review Description (optional)</label>
             <textarea id="pushMrDescription" rows="8"
                       placeholder="## Summary&#10;&#10;What changed and why...&#10;&#10;## Testing&#10;&#10;- [ ] ..."></textarea>
           </div>
@@ -1505,7 +1518,7 @@
         <div class="form-group">
           <div class="checkbox-group">
             <input type="checkbox" id="pushDeleteRemote"
-                   onchange="ForgeGitLabPush.onDeleteRemoteChange()">
+                   onchange="ForgeGitPush.onDeleteRemoteChange()">
             <label for="pushDeleteRemote" class="checkbox-label">
               Delete remote files not present in VFS
             </label>
@@ -1529,17 +1542,10 @@
           </small>
         </div>
 
-        <div class="form-group">
-          <div class="checkbox-group">
-            <input type="checkbox" id="pushSaveToken">
-            <label for="pushSaveToken" class="checkbox-label">
-              Save token in browser (localStorage)
-            </label>
-          </div>
-        </div>
+
       </div>
 
-      <!-- Preview pane -->
+
       <div id="pushPanePreview"
            class="push-pane modal-body"
            role="tabpanel"
@@ -1561,14 +1567,14 @@
       </div>
 
       <div class="modal-footer">
-        <button class="secondary" onclick="ForgeGitLabPush.closePushModal()">Cancel</button>
-        <button class="info"    onclick="ForgeGitLabPush.previewChanges()">🔍 Preview</button>
-        <button class="success" onclick="ForgeGitLabPush.pushToGitLab()">Push →</button>
+        <button class="secondary" onclick="ForgeGitPush.closePushModal()">Cancel</button>
+        <button class="info"    onclick="ForgeGitPush.previewChanges()">Preview =&gt;</button>
+        <button class="success" onclick="ForgeGitPush.pushToGitLab()">Push =&gt;</button>
       </div>
     </div>
   </div>
 
-  <!-- Git-backed Managed Share Credential Modal -->
+
   <div class="modal-overlay" id="managedShareGitCredentialModal">
     <div class="modal">
       <div class="modal-header">
@@ -1635,7 +1641,7 @@
     </div>
   </div>
 
-  <!-- Git-backed Managed Share Processor Admin -->
+
   <div class="modal-overlay" id="managedShareAdminModal">
     <div class="modal">
       <div class="modal-header">
@@ -1746,7 +1752,7 @@
   </div>
 
 
-  <!-- Forge Bridge Waiting Modal (opened via #bridge in URL) -->
+
   <div class="modal-overlay" id="forgeBridgeWaitingModal" aria-hidden="true">
     <div class="modal unsaved-modal">
       <div class="modal-header">
@@ -1841,7 +1847,7 @@
 
   <!-- Load modules in order -->
   <style>
-    /* Bridge banner -- full width strip above the header */
+
     .forge-bridge-banner {
       position: relative;
       width: 100%;

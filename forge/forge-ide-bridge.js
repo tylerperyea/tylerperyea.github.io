@@ -1,19 +1,3 @@
-// forge-ide-bridge.js
-// Allows a trusted external page (Forge Code bookmarklet, LLM chat UI)
-// to use Forge IDE as a fetch proxy and sandboxed eval engine, bypassing
-// CSP restrictions on the calling page.
-//
-// SECURITY MODEL:
-// - Callers must pass an origin handshake before any capability is granted.
-// - On first contact from an unknown origin, a confirmation modal is shown.
-//   The user can Allow Once, Always Allow (saved to localStorage), or Deny.
-// - Pre-trusted origin patterns (*.gov, known LLM hosts) skip the modal.
-// - forge-proxy-fetch: proxies HTTPS requests to *.gov targets only.
-// - forge-bridge-eval: runs code in the sandboxed preview iframe (no
-//   access to IDE secrets, localStorage, or VFS).
-// - forge-bridge-eval-privileged: runs code in the IDE window context
-//   (full access). Requires explicit per-request user confirmation always --
-//   no "always allow" for this capability.
 
 (function () {
   'use strict';
@@ -39,6 +23,8 @@
   // the user must confirm each new browser session. This is intentional:
   // localStorage trust would persist silently across restarts and could
   // be inherited by anyone with access to the browser profile.
+
+  const $=s=>document.querySelector(s);
 
   // Origins approved by the user for this session.
   const sessionTrustedOrigins = new Set();
@@ -111,13 +97,11 @@
 
   // ── Modal / confirmation system ────────────────────────────────────────
 
-  // Queue of pending trust requests so concurrent handshakes don't
-  // stack multiple modals.
+
   const pendingTrustRequests = [];
   let modalActive = false;
 
-  // Show the bridge trust modal for the given origin.
-  // Resolves with 'allow-once' | 'always-allow' | 'deny'.
+
   function requestTrustDecision(origin, trusted) {
     return new Promise(function (resolve) {
       pendingTrustRequests.push({ origin, trusted, resolve });
@@ -139,12 +123,12 @@
   }
 
   function showTrustModal(origin, trusted, callback) {
-    const modal      = document.getElementById('forgeBridgeTrustModal');
-    const originEl   = document.getElementById('forgeBridgeTrustOrigin');
-    const allowOnceBtn = document.getElementById('forgeBridgeAllowOnce');
-    const denyBtn    = document.getElementById('forgeBridgeDeny');
-    const warningEl  = document.getElementById('forgeBridgeTrustWarning');
-    const headingEl  = document.getElementById('forgeBridgeTrustHeading');
+    const modal      = $('#forgeBridgeTrustModal');
+    const originEl   = $('#forgeBridgeTrustOrigin');
+    const allowOnceBtn = $('#forgeBridgeAllowOnce');
+    const denyBtn    = $('#forgeBridgeDeny');
+    const warningEl  = $('#forgeBridgeTrustWarning');
+    const headingEl  = $('#forgeBridgeTrustHeading');
 
     if (!modal || !originEl || !allowOnceBtn || !denyBtn) {
       console.warn('[ForgeBridge] Trust modal not found in DOM. Denying:', origin);
@@ -223,14 +207,11 @@
       return;
     }
 
-    // Always require explicit confirmation -- no silent fast-path even
-    // for built-in trusted patterns. The trusted flag only affects the
-    // modal's tone (calm vs. scary), not whether it appears.
+
     const knownOrigin = matchesBuiltinPattern(callerOrigin);
     console.log('[ForgeBridge] Bridge connection request from:', callerOrigin, knownOrigin ? '(known)' : '(unknown)');
 
-    // If a modal is already open for this origin (retry arrived while
-    // user is still deciding), silently drop the duplicate.
+
     if (pendingTrustOrigins.has(callerOrigin)) {
       console.log('[ForgeBridge] Trust decision already pending for:', callerOrigin, '-- ignoring duplicate');
       return;
@@ -283,8 +264,8 @@
   // ── Bridge indicator ───────────────────────────────────────────────────
 
   function updateBridgeIndicator() {
-    const banner  = document.getElementById('forgeBridgeBanner');
-    const textEl  = document.getElementById('forgeBridgeBannerText');
+    const banner  = $('#forgeBridgeBanner');
+    const textEl  = $('#forgeBridgeBannerText');
     if (!banner) return;
 
     const origins = Array.from(registeredThisSession);
@@ -302,9 +283,9 @@
   }
 
   function initBridgeIndicator() {
-    const bannerBtn = document.getElementById('forgeBridgeBannerBtn');
-    const popover   = document.getElementById('forgeBridgePopover');
-    const closeBtn  = document.getElementById('forgeBridgePopoverClose');
+    const bannerBtn = $('#forgeBridgeBannerBtn');
+    const popover   = $('#forgeBridgePopover');
+    const closeBtn  = $('#forgeBridgePopoverClose');
     if (!bannerBtn || !popover) return;
 
     bannerBtn.addEventListener('click', function (e) {
@@ -314,7 +295,7 @@
       if (!isHidden) return;
 
       // Populate list
-      const list = document.getElementById('forgeBridgePopoverList');
+      const list = $('#forgeBridgePopoverList');
       if (!list) return;
       list.innerHTML = '';
       Array.from(registeredThisSession).forEach(function (origin) {
@@ -390,17 +371,21 @@
     };
   }
 
-  async function handleProxyFetch(event) {
-    const msg = event.data;
-    const nonce = msg.nonce || null;
-
-    function reply(payload) {
+  function makeReply(event) {
+    return function (payload) {
       if (event.ports && event.ports[0]) {
         event.ports[0].postMessage(payload);
       } else if (event.source) {
         event.source.postMessage(payload, event.origin);
       }
-    }
+    };
+  }
+
+  async function handleProxyFetch(event) {
+    const msg = event.data;
+    const nonce = msg.nonce || null;
+
+    const reply = makeReply(event);
 
     if (!isSafeProxyTarget(msg.url)) {
       reply({
@@ -428,9 +413,6 @@
     }
   }
 
-  // ── Sandboxed eval handler (preview iframe) ────────────────────────────
-  // Evals are queued so concurrent requests don't race on the single
-  // forge-repl-result channel.
 
   const evalQueue = [];
   let evalBusy = false;
@@ -439,13 +421,7 @@
     const msg   = event.data;
     const nonce = msg.nonce || null;
 
-    function reply(payload) {
-      if (event.ports && event.ports[0]) {
-        event.ports[0].postMessage(payload);
-      } else if (event.source) {
-        event.source.postMessage(payload, event.origin);
-      }
-    }
+    const reply = makeReply(event);
 
     // Queue this eval and drain sequentially.
     return new Promise(function (resolve) {
@@ -465,9 +441,7 @@
     });
   }
 
-  // Minimal srcdoc for the bridge eval sandbox.
-  // Contains only the forge-repl-eval listener -- no VFS, no secrets.
-  // Signals readiness via forge-bridge-sandbox-ready.
+
   const BRIDGE_SANDBOX_SRCDOC = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' +
     '<script>' +
     'window.addEventListener("message", function(e) {' +
@@ -502,22 +476,21 @@
     '</scr' + 'ipt>' +
     '</body></html>';
 
-  // Track whether the bridge sandbox iframe is initialised this session.
-  // We reuse it across evals rather than reloading it every time.
+
   let bridgeSandboxReady = false;
 
   function ensureBridgeSandbox() {
     return new Promise(function (resolve) {
-      const previewFrame = document.getElementById('previewFrame');
+      const previewFrame = $('#previewFrame');
       if (!previewFrame) { resolve(null); return; }
 
-      // If the iframe already has our sandbox loaded, resolve immediately.
+
       if (bridgeSandboxReady && previewFrame.srcdoc === BRIDGE_SANDBOX_SRCDOC) {
         resolve(previewFrame);
         return;
       }
 
-      // Listen for the ready signal from the sandbox.
+
       const timer = setTimeout(function () {
         window.removeEventListener('message', onReady);
         resolve(null); // timed out
@@ -534,9 +507,7 @@
 
       window.addEventListener('message', onReady);
 
-      // Inject the minimal sandbox. This replaces whatever is in the
-      // preview frame -- if the user has a project open they'll see it
-      // briefly replaced. We only do this when the frame is empty/blank.
+
       const currentSrc = previewFrame.srcdoc || '';
       const isEmpty = !currentSrc || currentSrc.trim() === '';
 
@@ -544,9 +515,8 @@
         // Frame is blank -- safe to inject.
         previewFrame.srcdoc = BRIDGE_SANDBOX_SRCDOC;
       } else {
-        // Frame has a project. Use a hidden dedicated sandbox iframe
-        // instead of disturbing the user's preview.
-        let sandboxEl = document.getElementById('forgeBridgeSandboxFrame');
+
+        let sandboxEl = $('#forgeBridgeSandboxFrame');
         if (!sandboxEl) {
           sandboxEl = document.createElement('iframe');
           sandboxEl.id = 'forgeBridgeSandboxFrame';
@@ -573,8 +543,7 @@
     });
   }
 
-  // Invalidate sandbox cache when a new project is loaded so the
-  // hidden frame gets refreshed if needed.
+
   window.addEventListener('forge-panels-mounted', function () {
     bridgeSandboxReady = false;
   });
@@ -626,20 +595,173 @@
     });
   }
 
-  // ── Privileged eval handler (IDE window context) ───────────────────────
-  // Always requires per-request user confirmation. No "always allow".
+  const previewConsoleHistory = [];
+  const previewEvalQueue = [];
+  let previewEvalBusy = false;
+
+  function mapPreviewConsole(msg, source) {
+    return typeof mapPreviewSourceLocations === 'function'
+      ? mapPreviewSourceLocations(msg, source)
+      : msg;
+  }
+
+  function recordPreviewConsole(event) {
+    const frame = $('#previewFrame');
+    if (!frame || event.source !== frame.contentWindow) return;
+
+    previewConsoleHistory.push({
+      level: event.data.level,
+      msg: mapPreviewConsole(event.data.msg, event.source),
+      timestamp: Date.now()
+    });
+
+    if (previewConsoleHistory.length > 500) {
+      previewConsoleHistory.shift();
+    }
+  }
+
+  function handlePreviewEval(event) {
+    const msg = event.data;
+
+    const reply = makeReply(event);
+
+    return new Promise(function (resolve) {
+      previewEvalQueue.push({ msg, reply, resolve });
+      drainPreviewEvalQueue();
+    });
+  }
+
+  function drainPreviewEvalQueue() {
+    if (previewEvalBusy || !previewEvalQueue.length) return;
+
+    previewEvalBusy = true;
+    const job = previewEvalQueue.shift();
+
+    runPreviewEval(job.msg, job.reply).finally(function () {
+      previewEvalBusy = false;
+      job.resolve();
+      drainPreviewEvalQueue();
+    });
+  }
+
+  async function runPreviewEval(msg, reply) {
+    const nonce = msg.nonce || null;
+    const all = msg.captureConsole === 'all';
+    const history = all ? previewConsoleHistory.slice() : [];
+
+    if (msg.code == null) {
+      reply({
+        type: 'forge-bridge-preview-eval-response',
+        nonce,
+        success: true,
+        result: null,
+        console: history,
+        error: null
+      });
+      return;
+    }
+
+    const frame = $('#previewFrame');
+
+    if (!frame || !frame.contentWindow) {
+      reply({
+        type: 'forge-bridge-preview-eval-response',
+        nonce,
+        success: false,
+        result: null,
+        console: history,
+        error: {
+          name: 'Error',
+          message: 'No active FORGE preview frame.'
+        }
+      });
+      return;
+    }
+
+    const captured = [];
+
+    const outcome = await new Promise(function (resolve) {
+      const timer = setTimeout(function () {
+        cleanup();
+        resolve({
+          result: null,
+          error: {
+            name: 'Error',
+            message: 'Preview eval timed out after 15s'
+          }
+        });
+      }, 15000);
+
+      function cleanup() {
+        clearTimeout(timer);
+        window.removeEventListener('message', onRuntimeMessage);
+      }
+
+      function onRuntimeMessage(ev) {
+        if (ev.source !== frame.contentWindow || !ev.data) return;
+
+        if (ev.data.type === 'forge-console') {
+          captured.push({
+            level: ev.data.level,
+            msg: mapPreviewConsole(ev.data.msg, ev.source),
+            timestamp: Date.now()
+          });
+          return;
+        }
+
+        if (ev.data.type !== 'forge-repl-result') return;
+
+        cleanup();
+
+        if (ev.data.success) {
+          resolve({
+            result: ev.data.result,
+            error: null
+          });
+          return;
+        }
+
+        const error = ev.data.error || {
+          name: 'Error',
+          message: 'Preview eval failed.'
+        };
+
+        if (error.stack) {
+          error.stack =
+            mapPreviewConsole(error.stack, ev.source);
+        }
+
+        resolve({
+          result: null,
+          error
+        });
+      }
+
+      window.addEventListener('message', onRuntimeMessage);
+
+      frame.contentWindow.postMessage({
+        type: 'forge-repl-eval',
+        code: String(msg.code)
+      }, '*');
+    });
+
+    reply({
+      type: 'forge-bridge-preview-eval-response',
+      nonce,
+      success: !outcome.error,
+      result: outcome.result,
+      console: history.concat(captured),
+      error: outcome.error || null
+    });
+  }
+
+  // Privileged IDE-context eval remains separately confirmed per request.
 
   async function handlePrivilegedEval(event) {
     const msg   = event.data;
     const nonce = msg.nonce || null;
 
-    function reply(payload) {
-      if (event.ports && event.ports[0]) {
-        event.ports[0].postMessage(payload);
-      } else if (event.source) {
-        event.source.postMessage(payload, event.origin);
-      }
-    }
+    const reply = makeReply(event);
 
     // Show a confirmation for every privileged eval request.
     const confirmed = await requestPrivilegedEvalConfirmation(event.origin, msg.code);
@@ -684,11 +806,11 @@
 
   function requestPrivilegedEvalConfirmation(origin, code) {
     return new Promise(function (resolve) {
-      const modal    = document.getElementById('forgeBridgePrivEvalModal');
-      const originEl = document.getElementById('forgeBridgePrivEvalOrigin');
-      const codeEl   = document.getElementById('forgeBridgePrivEvalCode');
-      const allowBtn = document.getElementById('forgeBridgePrivEvalAllow');
-      const denyBtn  = document.getElementById('forgeBridgePrivEvalDeny');
+    const modal    = $('#forgeBridgePrivEvalModal');
+    const originEl = $('#forgeBridgePrivEvalOrigin');
+    const codeEl   = $('#forgeBridgePrivEvalCode');
+    const allowBtn = $('#forgeBridgePrivEvalAllow');
+    const denyBtn  = $('#forgeBridgePrivEvalDeny');
 
       if (!modal || !allowBtn || !denyBtn) {
         console.warn('[ForgeBridge] Privileged eval modal not found. Denying.');
@@ -729,11 +851,7 @@
     });
   }
 
-  // ── Main message listener ──────────────────────────────────────────────
 
-  // Internal message types sent by the preview iframe to the IDE.
-  // The bridge listener sees these because it listens on window, but
-  // they are not bridge messages -- filter them out of the log entirely.
   const INTERNAL_MSG_TYPES = new Set([
     'forge-network', 'vfs-fetch', 'vfs-navigate', 'vfs-spa-navigate', 'vfs-hash-change', 'vfs-shortcut',
     'forge-repl-eval', 'forge-repl-result',
@@ -745,7 +863,10 @@
   function onMessage(event) {
     const type = event.data && event.data.type;
 
-    // Skip internal iframe<->IDE messages entirely -- not bridge traffic.
+    if (type === 'forge-console') {
+      recordPreviewConsole(event);
+    }
+
     if (type && INTERNAL_MSG_TYPES.has(type)) return;
 
     // Log bridge-related messages for diagnostics.
@@ -798,6 +919,13 @@
       return;
     }
 
+    if (type === 'forge-bridge-preview-eval') {
+      handlePreviewEval(event).catch(err =>
+        console.error('[ForgeBridge] Error in preview eval:', err)
+      );
+      return;
+    }
+
     if (type === 'forge-bridge-eval-privileged') {
       handlePrivilegedEval(event).catch(err =>
         console.error('[ForgeBridge] Error in privileged eval:', err)
@@ -809,11 +937,11 @@
   // ── Waiting modal helpers ──────────────────────────────────────────────
 
   function setWaitingModalConnected(origin) {
-    const statusText = document.getElementById('forgeBridgeWaitingStatusText');
-    const spinner    = document.getElementById('forgeBridgeWaitingSpinner');
-    const doneBtn    = document.getElementById('forgeBridgeWaitingDone');
-    const cancelBtn  = document.getElementById('forgeBridgeWaitingCancel');
-    const originEl   = document.getElementById('forgeBridgeWaitingOrigin');
+    const statusText = $('#forgeBridgeWaitingStatusText');
+    const spinner    = $('#forgeBridgeWaitingSpinner');
+    const doneBtn    = $('#forgeBridgeWaitingDone');
+    const cancelBtn  = $('#forgeBridgeWaitingCancel');
+    const originEl   = $('#forgeBridgeWaitingOrigin');
 
     if (statusText) {
       statusText.textContent = '✅ Connected: ' + origin;
@@ -833,7 +961,7 @@
   }
 
   function isWaitingModalOpen() {
-    const modal = document.getElementById('forgeBridgeWaitingModal');
+    const modal = $('#forgeBridgeWaitingModal');
     return modal && modal.classList.contains('active');
   }
 
@@ -850,11 +978,11 @@
   }
 
   function openWaitingModal(expectedOrigin) {
-    const originEl  = document.getElementById('forgeBridgeWaitingOrigin');
-    const cancelBtn = document.getElementById('forgeBridgeWaitingCancel');
-    const doneBtn   = document.getElementById('forgeBridgeWaitingDone');
-    const statusText = document.getElementById('forgeBridgeWaitingStatusText');
-    const spinner   = document.getElementById('forgeBridgeWaitingSpinner');
+    const originEl  = $('#forgeBridgeWaitingOrigin');
+    const cancelBtn = $('#forgeBridgeWaitingCancel');
+    const doneBtn   = $('#forgeBridgeWaitingDone');
+    const statusText = $('#forgeBridgeWaitingStatusText');
+    const spinner   = $('#forgeBridgeWaitingSpinner');
 
     // Reset state
     if (originEl)   originEl.textContent  = expectedOrigin || 'Any trusted origin';

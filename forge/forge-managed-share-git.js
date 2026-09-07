@@ -339,6 +339,24 @@
       .slice(0, bounded);
   }
 
+  async function readGitHubFile(response, path, error) {
+    if (!response.ok) throw new Error(await providerError(response));
+
+    const body = await response.json();
+    if (
+      !body || body.type !== 'file' ||
+      typeof body.sha !== 'string' ||
+      typeof body.content !== 'string'
+    ) throw new Error(error);
+
+    return {
+      path,
+      sha: body.sha,
+      size: body.size,
+      text: unbase64Utf8(body.content)
+    };
+  }
+
   async function readInbox(path) {
     const inboxPath = requireInboxPath(path);
     const response = await inboxFetch(
@@ -346,21 +364,11 @@
       {method: 'GET', cache: 'no-store'}
     );
 
-    if (!response.ok) throw new Error(await providerError(response));
-    const body = await response.json();
-
-    if (
-      !body || body.type !== 'file' ||
-      typeof body.sha !== 'string' ||
-      typeof body.content !== 'string'
-    ) throw new Error('Invalid GitHub inbox file response');
-
-    return {
-      path: inboxPath,
-      sha: body.sha,
-      size: body.size,
-      text: unbase64Utf8(body.content)
-    };
+    return readGitHubFile(
+      response,
+      inboxPath,
+      'Invalid GitHub inbox file response'
+    );
   }
 
   async function removeInbox(path, sha) {
@@ -422,21 +430,11 @@
     );
 
     if (response.status === 404) return null;
-    if (!response.ok) throw new Error(await providerError(response));
-
-    const body = await response.json();
-    if (
-      !body || body.type !== 'file' ||
-      typeof body.sha !== 'string' ||
-      typeof body.content !== 'string'
-    ) throw new Error('Invalid trusted GitHub file response');
-
-    return {
-      path: trustedPath,
-      sha: body.sha,
-      size: body.size,
-      text: unbase64Utf8(body.content)
-    };
+    return readGitHubFile(
+      response,
+      trustedPath,
+      'Invalid trusted GitHub file response'
+    );
   }
 
   async function readPublicTrusted(path) {
@@ -464,21 +462,11 @@
     );
 
     if (response.status === 404) return null;
-    if (!response.ok) throw new Error(await providerError(response));
-
-    const body = await response.json();
-    if (
-      !body || body.type !== 'file' ||
-      typeof body.sha !== 'string' ||
-      typeof body.content !== 'string'
-    ) throw new Error('Invalid trusted GitHub file response');
-
-    return {
-      path: trustedPath,
-      sha: body.sha,
-      size: body.size,
-      text: unbase64Utf8(body.content)
-    };
+    return readGitHubFile(
+      response,
+      trustedPath,
+      'Invalid trusted GitHub file response'
+    );
   }
 
   async function writeTrusted(path, text, sha = null) {

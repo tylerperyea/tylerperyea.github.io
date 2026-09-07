@@ -16,6 +16,33 @@
      * @returns {{ ok:true, renames:Array<{old:string,new:string}> } |
      *           { ok:false, reason:string, conflictPath?:string }}
      */
+    function planFolderRename(sourcePath, newPrefix) {
+        const affected = vfs.getAllPaths().filter(
+            p => p === sourcePath || p.startsWith(sourcePath + '/')
+        );
+        if (affected.length === 0) {
+            return { ok: false, reason: 'empty-folder' };
+        }
+
+        const renames = affected.map(p => ({
+            old: p,
+            new: newPrefix + p.substring(sourcePath.length),
+        }));
+
+        const movingSet = new Set(affected);
+        for (const r of renames) {
+            if (vfs.hasFile(r.new) && !movingSet.has(r.new)) {
+                return {
+                    ok: false,
+                    reason: 'conflict',
+                    conflictPath: r.new
+                };
+            }
+        }
+
+        return { ok: true, renames };
+    }
+
     function planMove(sourcePath, targetDir, sourceType) {
         const cleanTargetDir = targetDir === '/' ? '' : targetDir;
 
@@ -38,24 +65,7 @@
         const newPrefix = joinPath(cleanTargetDir, baseName);
         if (newPrefix === sourcePath) return { ok: false, reason: 'same-location' };
 
-        const allPaths = vfs.getAllPaths();
-        const affected = allPaths.filter(p => p === sourcePath || p.startsWith(sourcePath + '/'));
-        if (affected.length === 0) return { ok: false, reason: 'empty-folder' };
-
-        const renames = affected.map(p => ({
-            old: p,
-            new: newPrefix + p.substring(sourcePath.length),
-        }));
-
-        // Reject if the destination collides with a file NOT part of this move
-        const movingSet = new Set(affected);
-        for (const r of renames) {
-            if (vfs.hasFile(r.new) && !movingSet.has(r.new)) {
-                return { ok: false, reason: 'conflict', conflictPath: r.new };
-            }
-        }
-
-        return { ok: true, renames };
+        return planFolderRename(sourcePath, newPrefix);
     }
 
     /** Execute a planned set of renames against the VFS. */
@@ -102,6 +112,12 @@
     /**
      * Public entry point used by the tree view's drag & drop handlers.
      */
+    function refreshAfterFileChange() {
+        if (typeof updateFileList === 'function') updateFileList();
+        if (typeof updateFileBrowser === 'function') updateFileBrowser();
+        if (typeof refreshProjectSettingsTab === 'function') refreshProjectSettingsTab();
+    }
+
     function moveFileOrFolder(sourcePath, targetDir, sourceType) {
         if (typeof vfs === 'undefined') return false;
 
@@ -120,9 +136,7 @@
         applyRenames(plan.renames);
         updateReferencesAfterMove(plan.renames);
 
-        if (typeof updateFileList === 'function') updateFileList();
-        if (typeof updateFileBrowser === 'function') updateFileBrowser();
-        if (typeof refreshProjectSettingsTab === 'function') refreshProjectSettingsTab();
+        refreshAfterFileChange();
 
         const count = plan.renames.length;
         const label = sourceType === 'dir'
@@ -160,23 +174,7 @@
         }
 
         // sourceType === 'dir' — rename the prefix on every descendant path
-        const allPaths = vfs.getAllPaths();
-        const affected = allPaths.filter(p => p === sourcePath || p.startsWith(sourcePath + '/'));
-        if (affected.length === 0) return { ok: false, reason: 'empty-folder' };
-
-        const renames = affected.map(p => ({
-            old: p,
-            new: newPath + p.substring(sourcePath.length),
-        }));
-
-        const movingSet = new Set(affected);
-        for (const r of renames) {
-            if (vfs.hasFile(r.new) && !movingSet.has(r.new)) {
-                return { ok: false, reason: 'conflict', conflictPath: r.new };
-            }
-        }
-
-        return { ok: true, renames };
+        return planFolderRename(sourcePath, newPath);
     }
 
     /**
@@ -201,9 +199,7 @@
         applyRenames(plan.renames);
         updateReferencesAfterMove(plan.renames);
 
-        if (typeof updateFileList === 'function') updateFileList();
-        if (typeof updateFileBrowser === 'function') updateFileBrowser();
-        if (typeof refreshProjectSettingsTab === 'function') refreshProjectSettingsTab();
+        refreshAfterFileChange();
 
         showToast(sourceType === 'dir' ? 'Folder renamed' : 'File renamed', 'success');
         return true;
@@ -262,9 +258,7 @@
 
 
 
-        if (typeof updateFileList === 'function') updateFileList();
-        if (typeof updateFileBrowser === 'function') updateFileBrowser();
-        if (typeof refreshProjectSettingsTab === 'function') refreshProjectSettingsTab();
+        refreshAfterFileChange();
 
         showToast(`Folder deleted: ${folderPath}`, 'success');
     }

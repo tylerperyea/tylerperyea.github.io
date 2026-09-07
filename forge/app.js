@@ -505,11 +505,9 @@ function loadProjectFromParsed(
         if (typeof applyForgeConfigToVFS === 'function') applyForgeConfigToVFS();
 
         // Restore any saved GitLab context from .forgeconfig
-        if (typeof ForgeGitLabPush !== 'undefined') ForgeGitLabPush.loadContextFromVfs();
+        if (typeof ForgeGitPush !== 'undefined') ForgeGitPush.loadContextFromVfs();
 
-        updateFileList();
-        updateFileBrowser();
-        refreshProjectSettingsTab();
+        refreshProjectViews();
         closeEditor();
 
         // Check if a specific page was embedded in the shared URL. Query/hash
@@ -594,6 +592,18 @@ const gitlabProjectBrowseStatus = document.getElementById('gitlabProjectBrowseSt
 const GITLAB_PROJECT_PAGE_SIZE = 8;
 const GITLAB_RECENT_PROJECTS_KEY = 'forge-gitlab-recent-projects';
 const GITLAB_RECENT_PROJECTS_LIMIT = 3;
+let gitImportProviderName='gitlab';
+const gitImportOrigin=()=>gitImportProviderName==='github'?(window.FORGE_GITHUB_ORIGIN||'https://api.github.com'):window.FORGE_GITLAB_ORIGIN;
+function setGitImportProvider(n){
+    const t=gitlabTokenInput.value.trim(),k=gitImportProviderName+'Token';
+    saveTokenCheckbox.checked&&t?localStorage.setItem(k,t):localStorage.removeItem(k);
+    gitImportProviderName=n;
+    const s=localStorage.getItem(n+'Token')||'';
+    gitlabUrlInput.value=gitImportOrigin();gitlabTokenInput.value=s;saveTokenCheckbox.checked=!!s;
+    gitlabProjectInput.value=gitlabBranchInput.value='';
+    renderRecentGitLabProjects();setGitLabProjectBrowserExpanded(false);
+    document.getElementById('gitImportBtn').disabled=0;
+}
 
 let gitlabProjectSearchQuery = '';
 let gitlabProjectSearchPage = 1;
@@ -736,7 +746,7 @@ function selectGitLabProject(project) {
         gitlabBranchInput.value = normalized.default_branch;
     }
 
-    rememberGitLabProject(normalized);
+    if(gitImportProviderName==='gitlab')rememberGitLabProject(normalized);
     renderRecentGitLabProjects();
     setGitLabProjectBrowserExpanded(false);
     gitlabProjectInput.focus();
@@ -787,7 +797,7 @@ function createGitLabProjectOption(
 }
 
 function renderRecentGitLabProjects() {
-    const recent = getRecentGitLabProjects();
+    const recent = gitImportProviderName==='gitlab'?getRecentGitLabProjects():[];
     gitlabRecentProjects.textContent = '';
 
     if (recent.length === 0) {
@@ -865,41 +875,33 @@ function renderGitLabProjectResults(projects, page) {
         : '';
 }
 
-async function fetchGitLabProjects(token, query = '', page = 1) {
-    const normalizedQuery = query.trim();
-    const normalizedPage = Math.max(1, page);
-
-    const params = new URLSearchParams({
-        per_page: String(GITLAB_PROJECT_PAGE_SIZE),
-        page: String(normalizedPage),
-        order_by: 'last_activity_at',
-        sort: 'desc'
+async function fetchGitLabProjects(token,query='',page=1,provider='gitlab'){
+    const q=query.trim(),p=Math.max(1,page),n=GITLAB_PROJECT_PAGE_SIZE;
+    if(provider==='github'){
+        const base=window.FORGE_GITHUB_ORIGIN||'https://api.github.com',all=[];
+        let i=q?1:p,d;
+        do{
+            const r=await fetch(`${base}/user/repos?per_page=${q?100:n}&page=${i++}&sort=pushed&direction=desc`,{
+                headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json'}
+            });
+            if(!r.ok)throw new Error(`GitHub API error ${r.status}: ${r.statusText}`);
+            d=await r.json();all.push(...d);
+        }while(q&&d.length===100);
+        const a=(q?all.filter(r=>r.full_name.toLowerCase().includes(q.toLowerCase())):all)
+            .slice(q?(p-1)*n:0,q?p*n:n);
+        return a.map(r=>({
+            id:r.id,path_with_namespace:r.full_name,name:r.name,
+            default_branch:r.default_branch,description:r.description,
+            visibility:r.visibility,last_activity_at:r.pushed_at
+        }));
+    }
+    const x=new URLSearchParams({per_page:String(n),page:String(p),order_by:'last_activity_at',sort:'desc'});
+    if(q)x.set('search',q);else x.set('membership','true');
+    const r=await fetch(`${window.FORGE_GITLAB_ORIGIN}/api/v4/projects?${x}`,{
+        headers:{'PRIVATE-TOKEN':token,Accept:'application/json'}
     });
-
-    if (normalizedQuery) {
-        params.set('search', normalizedQuery);
-    } else {
-        params.set('membership', 'true');
-    }
-
-    const response = await fetch(
-        `${window.FORGE_GITLAB_ORIGIN}/api/v4/projects?${params.toString()}`,
-        {
-            headers: {
-                'PRIVATE-TOKEN': token,
-                'Accept': 'application/json'
-            }
-        }
-    );
-
-    if (!response.ok) {
-        throw new Error(
-            `GitLab API error ${response.status}: ${response.statusText}`
-        );
-    }
-
-    const projects = await response.json();
-    return Array.isArray(projects) ? projects : [];
+    if(!r.ok)throw new Error(`GitLab API error ${r.status}: ${r.statusText}`);
+    const d=await r.json();return Array.isArray(d)?d:[];
 }
 
 async function loadGitLabProjects(query = '', page = 1) {
@@ -913,24 +915,9 @@ async function loadGitLabProjects(query = '', page = 1) {
         return;
     }
 
-    const gitlabUrl = window.FORGE_GITLAB_ORIGIN;
-    gitlabUrlInput.value = gitlabUrl;
-
+    gitlabUrlInput.value=gitImportOrigin();
     gitlabProjectSearchQuery = query.trim();
     gitlabProjectSearchPage = Math.max(1, page);
-
-    const params = new URLSearchParams({
-        per_page: String(GITLAB_PROJECT_PAGE_SIZE),
-        page: String(gitlabProjectSearchPage),
-        order_by: 'last_activity_at',
-        sort: 'desc'
-    });
-
-    if (gitlabProjectSearchQuery) {
-        params.set('search', gitlabProjectSearchQuery);
-    } else {
-        params.set('membership', 'true');
-    }
 
     setGitLabProjectBrowseLoading();
     gitlabProjectSearchBtn.disabled = true;
@@ -939,7 +926,8 @@ async function loadGitLabProjects(query = '', page = 1) {
         const projects = await fetchGitLabProjects(
             token,
             gitlabProjectSearchQuery,
-            gitlabProjectSearchPage
+            gitlabProjectSearchPage,
+            gitImportProviderName
         );
 
         renderGitLabProjectResults(
@@ -956,13 +944,13 @@ async function loadGitLabProjects(query = '', page = 1) {
     }
 }
 
-window.ForgeGitLabProjects = {
-    pageSize: GITLAB_PROJECT_PAGE_SIZE,
-    normalize: normalizeRecentGitLabProject,
-    getRecent: getRecentGitLabProjects,
-    remember: rememberGitLabProject,
-    fetchProjects: fetchGitLabProjects,
-    createOption: createGitLabProjectOption
+window.ForgeGitProjects=window.ForgeGitLabProjects={
+    pageSize:GITLAB_PROJECT_PAGE_SIZE,
+    normalize:normalizeRecentGitLabProject,
+    getRecent:getRecentGitLabProjects,
+    remember:rememberGitLabProject,
+    fetchProjects:fetchGitLabProjects,
+    createOption:createGitLabProjectOption
 };
 
 function toggleGitLabProjectBrowser() {
@@ -1007,11 +995,9 @@ gitlabProjectNextBtn.addEventListener('click', () => {
 });
 
 function openGitLabModal() {
-    gitlabUrlInput.value = window.FORGE_GITLAB_ORIGIN;
-
-    // Rehydrate on every open rather than only at page startup. The push
-    // workflow can save or clear this credential during the same IDE session.
-    const persistedToken = localStorage.getItem('gitlabToken') || '';
+    gitlabUrlInput.value=gitImportOrigin();
+    const p=document.getElementById('gitImportProvider');if(p)p.value=gitImportProviderName;
+    const persistedToken=localStorage.getItem(gitImportProviderName+'Token')||'';
     if (persistedToken) {
         gitlabTokenInput.value = persistedToken;
         saveTokenCheckbox.checked = true;
@@ -1129,25 +1115,30 @@ function markInvalidFormField(input) {
 }
 
 async function importFromGitLab() {
-    // Never derive the credential destination from editable DOM, project
-    // metadata, or URL parameters.
-    const gitlabUrl = window.FORGE_GITLAB_ORIGIN;
-    gitlabUrlInput.value = gitlabUrl;
+    const provider=gitImportProviderName;
+    const gitlabUrl=gitImportOrigin();
+    const isGithub=provider==='github';
+    const providerLabel=isGithub?'GitHub':'GitLab';
+    gitlabUrlInput.value=gitlabUrl;
 
-    const token = gitlabTokenInput.value.trim();
-    const projectInput = gitlabProjectInput.value.trim();
-    const branch = gitlabBranchInput.value.trim();
+    const token=gitlabTokenInput.value.trim();
+    const projectInput=gitlabProjectInput.value.trim();
+    const headers=isGithub
+        ? {Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json'}
+        : {'PRIVATE-TOKEN':token};
+    const rawHeaders=isGithub
+        ? {...headers,Accept:'application/vnd.github.raw+json'}
+        : headers;
 
-    // Resolve MR branch if one was stashed by the URL parser
-    const pendingMr = gitlabUrlInput.dataset.mrNumber;
-    if (pendingMr && token && gitlabUrl) {
+    const pendingMr=gitlabUrlInput.dataset.mrNumber;
+    if (!isGithub && pendingMr && token && gitlabUrl) {
         try {
             logProgress(`Resolving MR !${pendingMr} branch…`);
             importProgress.style.display = 'block';
             let mrProjectId = projectInput;
             if (isNaN(mrProjectId)) mrProjectId = mrProjectId.replace(/\//g, '%2F');
             const mrUrl = `${gitlabUrl}/api/v4/projects/${mrProjectId}/merge_requests/${pendingMr}`;
-            const mrResp = await fetch(mrUrl, { headers: { 'PRIVATE-TOKEN': token } });
+            const mrResp=await fetch(mrUrl,{headers});
             if (mrResp.ok) {
                 const mrData = await mrResp.json();
                 const sourceBranch = mrData.source_branch;
@@ -1174,40 +1165,49 @@ async function importFromGitLab() {
         return;
     }
 
-    // Save token if requested
+
     if (saveTokenCheckbox.checked) {
-        localStorage.setItem('gitlabToken', token);
+        localStorage.setItem(provider+'Token',token);
     } else {
-        localStorage.removeItem('gitlabToken');
+        localStorage.removeItem(provider+'Token');
     }
 
     importProgress.textContent = '';
     logProgress('Starting import...');
 
     try {
-        // Determine if input is a project ID or path
-        let projectId = projectInput;
-        if (isNaN(projectInput)) {
-            // It's a path, need to encode it
-            projectId = projectInput.replace(/\//g, '%2F');
-            logProgress(`Using project path: ${projectInput}`);
-        } else {
-            logProgress(`Using project ID: ${projectInput}`);
+
+        let projectId=projectInput;
+        if(!isGithub){
+            if(isNaN(projectInput)){
+                projectId=projectInput.replace(/\//g,'%2F');
+                logProgress(`Using project path: ${projectInput}`);
+            }else{
+                logProgress(`Using project ID: ${projectInput}`);
+            }
         }
 
-        // Fetch project info
+        const repoPath=isGithub
+            ? projectInput.split('/').map(encodeURIComponent).join('/')
+            : projectId;
+
         logProgress('Fetching project info...');
-        const projectUrl = `${gitlabUrl}/api/v4/projects/${projectId}`;
-        const projectResponse = await fetch(projectUrl, {
-            headers: {'PRIVATE-TOKEN': token}
-        });
+        const projectUrl=isGithub
+            ? `${gitlabUrl}/repos/${repoPath}`
+            : `${gitlabUrl}/api/v4/projects/${projectId}`;
+        const projectResponse=await fetch(projectUrl,{headers});
 
-        if (!projectResponse.ok) {
-            throw new Error(`Failed to fetch project: ${projectResponse.status} ${projectResponse.statusText}`);
+        if(!projectResponse.ok){
+            throw new Error(`Failed to fetch repository: ${projectResponse.status} ${projectResponse.statusText}`);
         }
 
-        const projectData = await projectResponse.json();
-        rememberGitLabProject(projectData);
+        const projectRaw=await projectResponse.json();
+        const projectData=isGithub?{
+            ...projectRaw,
+            id:projectRaw.full_name,
+            path_with_namespace:projectRaw.full_name
+        }:projectRaw;
+        if(!isGithub)rememberGitLabProject(projectData);
         logProgress(`✓ Found project: ${projectData.name}`);
         logProgress(`  Path: ${projectData.path_with_namespace}`);
 
@@ -1216,16 +1216,16 @@ async function importFromGitLab() {
         projectTitle = projectData.path_with_namespace;
         logProgress(`  Branch: ${targetBranch}`);
 
-        // Try to fetch .forgeignore file first
+
         logProgress('\nChecking for .forgeignore...');
         let ignorePatterns = [];
         let forgeIgnoreContent = null;
         
         try {
-            const forgeIgnoreUrl = `${gitlabUrl}/api/v4/projects/${projectData.id}/repository/files/${encodeURIComponent('.forgeignore')}/raw?ref=${targetBranch}`;
-            const forgeIgnoreResponse = await fetch(forgeIgnoreUrl, {
-                headers: {'PRIVATE-TOKEN': token}
-            });
+            const forgeIgnoreUrl=isGithub
+                ? `${gitlabUrl}/repos/${repoPath}/contents/.forgeignore?ref=${encodeURIComponent(targetBranch)}`
+                : `${gitlabUrl}/api/v4/projects/${projectData.id}/repository/files/${encodeURIComponent('.forgeignore')}/raw?ref=${targetBranch}`;
+            const forgeIgnoreResponse=await fetch(forgeIgnoreUrl,{headers:rawHeaders});
             
             if (forgeIgnoreResponse.ok) {
                 forgeIgnoreContent = await forgeIgnoreResponse.text();
@@ -1239,22 +1239,24 @@ async function importFromGitLab() {
             logProgress('  No .forgeignore file found');
         }
 
-        // Fetch repository tree
-        logProgress('\nFetching repository tree...');
-        const treeUrl = `${gitlabUrl}/api/v4/projects/${projectData.id}/repository/tree?recursive=true&per_page=1000&ref=${targetBranch}`;
-        const treeResponse = await fetch(treeUrl, {
-            headers: {'PRIVATE-TOKEN': token}
-        });
 
-        if (!treeResponse.ok) {
+        logProgress('\nFetching repository tree...');
+        const treeUrl=isGithub
+            ? `${gitlabUrl}/repos/${repoPath}/git/trees/${encodeURIComponent(targetBranch)}?recursive=1`
+            : `${gitlabUrl}/api/v4/projects/${projectData.id}/repository/tree?recursive=true&per_page=1000&ref=${targetBranch}`;
+        const treeResponse=await fetch(treeUrl,{headers});
+
+        if(!treeResponse.ok){
             throw new Error(`Failed to fetch tree: ${treeResponse.status} ${treeResponse.statusText}`);
         }
 
-        const treeData = await treeResponse.json();
-        const files = treeData.filter(item => item.type === 'blob');
+        const treeRaw=await treeResponse.json();
+        if(isGithub&&treeRaw.truncated)throw new Error('Repository tree is truncated.');
+        const treeData=isGithub?treeRaw.tree:treeRaw;
+        const files=treeData.filter(item=>item.type==='blob');
         logProgress(`✓ Found ${files.length} files`);
 
-        // Fetch all file contents
+
         logProgress('\nFetching file contents...');
         const projectFiles = [];
         let fetchedCount = 0;
@@ -1265,7 +1267,7 @@ async function importFromGitLab() {
             const matchedPattern = shouldIgnoreFile(filePath, ignorePatterns);
             
                 if (matchedPattern) {
-                    // File is excluded - store as spec-compliant excluded entry
+
                     projectFiles.push({
                         path: filePath,
                         contents: '',
@@ -1277,19 +1279,25 @@ async function importFromGitLab() {
                         logProgress(`  Excluded ${ignoredCount} files...`);
                     }
                 } else {
-                // File is not ignored - fetch it
-                const filePathEncoded = encodeURIComponent(file.path);
-                const fileUrl = `${gitlabUrl}/api/v4/projects/${projectData.id}/repository/files/${filePathEncoded}/raw?ref=${targetBranch}`;
-                
-                const fileResponse = await fetch(fileUrl, {
-                    headers: {'PRIVATE-TOKEN': token}
-                });
+
+                const filePathEncoded=isGithub
+                    ? file.path.split('/').map(encodeURIComponent).join('/')
+                    : encodeURIComponent(file.path);
+                const fileUrl=isGithub
+                    ? `${gitlabUrl}/repos/${repoPath}/contents/${filePathEncoded}?ref=${encodeURIComponent(targetBranch)}`
+                    : `${gitlabUrl}/api/v4/projects/${projectData.id}/repository/files/${filePathEncoded}/raw?ref=${targetBranch}`;
+
+                const fileResponse=await fetch(fileUrl,{headers:rawHeaders});
 
                 if (fileResponse.ok) {
-                    const content = await fileResponse.text();
+                    const imported=await readImportedFile(
+                        fileResponse,
+                        file.path
+                    );
                     projectFiles.push({
-                        path: filePath,
-                        contents: content
+                        path:filePath,
+                        contents:imported.content,
+                        encoding:imported.encoding
                     });
                     fetchedCount++;
                     if (fetchedCount % 5 === 0 || fetchedCount === files.length - ignoredCount) {
@@ -1306,10 +1314,10 @@ async function importFromGitLab() {
             logProgress(`✓ Ignored ${ignoredCount} files based on .forgeignore`);
         }
 
-        // Reset editor session
+
         resetEditorSession();
 
-        // Load into VFS
+
         logProgress('\nLoading into virtual file system...');
         vfs.clear();
         for (const file of projectFiles) {
@@ -1322,40 +1330,31 @@ async function importFromGitLab() {
             vfs.addFile(file.path, file.contents, meta);
         }
 
-        // Project title was already set from GitLab repo path above
+
         updateProjectTitleDisplay();
 
-        // Apply any .forgeconfig metadata to VFS
+
         if (typeof applyForgeConfigToVFS === 'function') applyForgeConfigToVFS();
 
-        updateFileList();
-        updateFileBrowser();
-        refreshProjectSettingsTab();
-
-        const entryPoint = vfs.findEntryPoint();
-        if (entryPoint) {
-            renderPage(entryPoint);
-            switchTab('preview');
-        } else {
-            switchTab('files');
-        }
+        refreshAndOpenProject();
 
         logProgress('\n✓ Import complete!');
-        showToast(`Imported ${fetchedCount} files from GitLab (${ignoredCount} excluded)`, 'success', 4000);
+        showToast(`Imported ${fetchedCount} files from ${providerLabel} (${ignoredCount} excluded)`,'success',4000);
 
-        // Record import context so the Push modal can pre-populate
-        if (typeof ForgeGitLabPush !== 'undefined') {
-            ForgeGitLabPush.recordImportContext(
+
+        if (typeof ForgeGitPush !== 'undefined') {
+            ForgeGitPush.recordImportContext(
                 gitlabUrl,
                 projectData.id,
                 projectData.path_with_namespace,
                 targetBranch,
                 projectData.default_branch,
-                token
+                token,
+                provider
             );
         }
 
-        // Close modal after a delay
+
         setTimeout(() => {
             closeGitLabModal();
         }, 2000);
@@ -1363,7 +1362,7 @@ async function importFromGitLab() {
     } catch (error) {
         logProgress(`\n❌ Error: ${error.message}`);
         showToast('Import failed: ' + error.message, 'error', 5000);
-        console.error('GitLab import error:', error);
+        console.error('Git import error:',error);
     }
 }
 // Compression/Decompression utilities
@@ -2001,6 +2000,19 @@ function closeManagedShareGitCredentialModal() {
   finishManagedShareGitCredentialPrompt(false);
 }
 
+function managedShareGitCredentialInputs() {
+  return {
+    tokenInput: document.getElementById('managedShareGitCredential'),
+    rememberInput: document.getElementById('managedShareGitRemember')
+  };
+}
+
+function resetManagedShareGitCredentialInputs() {
+  const { tokenInput, rememberInput } = managedShareGitCredentialInputs();
+  if (tokenInput) tokenInput.value = '';
+  if (rememberInput) rememberInput.checked = false;
+}
+
 function openManagedShareGitCredentialModal() {
   const git = window.ForgeManagedShareGit;
 
@@ -2023,15 +2035,7 @@ function openManagedShareGitCredentialModal() {
     return managedShareGitCredentialPromise;
   }
 
-  const tokenInput = document.getElementById(
-    'managedShareGitCredential'
-  );
-  const rememberInput = document.getElementById(
-    'managedShareGitRemember'
-  );
-
-  if (tokenInput) tokenInput.value = '';
-  if (rememberInput) rememberInput.checked = false;
+  resetManagedShareGitCredentialInputs();
 
   managedShareGitCredentialPromise = new Promise(resolve => {
     managedShareGitCredentialResolve = resolve;
@@ -2056,12 +2060,8 @@ function openManagedShareGitCredentialModal() {
 
 function saveManagedShareGitCredential() {
   const git = window.ForgeManagedShareGit;
-  const tokenInput = document.getElementById(
-    'managedShareGitCredential'
-  );
-  const rememberInput = document.getElementById(
-    'managedShareGitRemember'
-  );
+  const { tokenInput, rememberInput } =
+    managedShareGitCredentialInputs();
 
   const token = tokenInput
     ? tokenInput.value.trim()
@@ -2094,15 +2094,7 @@ function forgetManagedShareGitCredential() {
     git.clearCredential();
   }
 
-  const tokenInput = document.getElementById(
-    'managedShareGitCredential'
-  );
-  const rememberInput = document.getElementById(
-    'managedShareGitRemember'
-  );
-
-  if (tokenInput) tokenInput.value = '';
-  if (rememberInput) rememberInput.checked = false;
+  resetManagedShareGitCredentialInputs();
 
   showToast(
     'GitHub sharing credential forgotten from this browser.',
@@ -3191,6 +3183,23 @@ const BINARY_EXTENSIONS = new Set([
   'db','sqlite','sqlite3','pkl','npy','npz',
 ]);
 
+async function readImportedFile(response,path){
+    const ext=path.split('.').pop().toLowerCase();
+    if(!BINARY_EXTENSIONS.has(ext)){
+        return {content:await response.text(),encoding:null};
+    }
+
+    const bytes=new Uint8Array(await response.arrayBuffer());
+    let binary='';
+    for(let i=0;i<bytes.length;i+=8192){
+        binary+=String.fromCharCode.apply(
+            null,
+            bytes.subarray(i,i+8192)
+        );
+    }
+    return {content:btoa(binary),encoding:'base64'};
+}
+
 async function importFromZip() {
     const input = document.createElement('input');
     input.type = 'file';
@@ -3291,17 +3300,7 @@ async function importFromZip() {
             // Apply any .forgeconfig metadata to VFS
             if (typeof applyForgeConfigToVFS === 'function') applyForgeConfigToVFS();
 
-            updateFileList();
-            updateFileBrowser();
-            refreshProjectSettingsTab();
-
-            const entryPoint = vfs.findEntryPoint();
-            if (entryPoint) {
-                renderPage(entryPoint);
-                switchTab('preview');
-            } else {
-                switchTab('files');
-            }
+            refreshAndOpenProject();
 
             showToast(`Imported ${files.length} files from ZIP`, 'success', 4000);
             
@@ -3358,18 +3357,7 @@ async function importFromFolder() {
                 applyForgeConfigToVFS();
             }
 
-            updateFileList();
-            updateFileBrowser();
-            refreshProjectSettingsTab();
-
-            const entryPoint = vfs.findEntryPoint();
-
-            if (entryPoint) {
-                renderPage(entryPoint);
-                switchTab('preview');
-            } else {
-                switchTab('files');
-            }
+            refreshAndOpenProject();
 
             showToast(`Imported ${selectedFiles.length} files from folder`, 'success', 4000);
         }
@@ -3409,6 +3397,24 @@ function refreshProjectSettingsTab() {
     if (window.forgePanels) {
         window.forgePanels.refreshProject();
     }
+}
+
+function refreshProjectViews() {
+    updateFileList();
+    updateFileBrowser();
+    refreshProjectSettingsTab();
+}
+
+function refreshAndOpenProject() {
+    refreshProjectViews();
+    const entryPoint = vfs.findEntryPoint();
+    if (entryPoint) {
+        renderPage(entryPoint);
+        switchTab('preview');
+    } else {
+        switchTab('files');
+    }
+    return entryPoint;
 }
 
 
@@ -3472,21 +3478,14 @@ loadBtn.addEventListener('click', () => {
         // Apply any .forgeconfig metadata to VFS
         if (typeof applyForgeConfigToVFS === 'function') applyForgeConfigToVFS();
 
-        updateFileList();
-        updateFileBrowser();
-        refreshProjectSettingsTab();
-
-        const entryPoint = vfs.findEntryPoint();
+        const entryPoint = refreshAndOpenProject();
         if (entryPoint) {
-            renderPage(entryPoint);
-            switchTab('preview');
             const statusMsg = excludedCount > 0
                 ? `Loaded ${loadedCount} file(s) successfully (${excludedCount} excluded)`
                 : `Loaded ${loadedCount} file(s) successfully`;
             setStatus(statusMsg, 'success');
             showToast(statusMsg, 'success');
         } else {
-            switchTab('files');
             setStatus(
                 `Loaded ${loadedCount} file(s); no HTML preview found`,
                 'success'
@@ -3670,15 +3669,21 @@ function deleteFile(){
         }
     }
 }
+function commitCurrentEditorContent(){
+    const newContent = ForgeEditor.isReady() ? ForgeEditor.getValue() : editorTextarea.value;
+    vfs.addFile(currentEditingFile, newContent);
+    originalContent = newContent;
+    hasUnsavedChanges = false;
+    tabUnsavedMap.set(currentEditingFile, false);
+    tabContentCache.delete(currentEditingFile);
+    if (window.forgePanels) {
+        window.forgePanels.setTabUnsaved(currentEditingFile, false);
+    }
+}
+
 function rerunProject(){
     if (currentEditingFile) {
-        const newContent = ForgeEditor.isReady() ? ForgeEditor.getValue() : editorTextarea.value;
-        vfs.addFile(currentEditingFile, newContent);
-        originalContent   = newContent;
-        hasUnsavedChanges = false;
-        tabUnsavedMap.set(currentEditingFile, false);
-        tabContentCache.delete(currentEditingFile);
-        if (window.forgePanels) window.forgePanels.setTabUnsaved(currentEditingFile, false);
+        commitCurrentEditorContent();
 
         const entryPoint = vfs.findEntryPoint();
         if (entryPoint) {
@@ -3690,13 +3695,7 @@ function rerunProject(){
 }
 function saveFile(){
     if (currentEditingFile) {
-        const newContent = ForgeEditor.isReady() ? ForgeEditor.getValue() : editorTextarea.value;
-        vfs.addFile(currentEditingFile, newContent);
-        originalContent   = newContent;
-        hasUnsavedChanges = false;
-        tabUnsavedMap.set(currentEditingFile, false);
-        tabContentCache.delete(currentEditingFile); // VFS is now up to date, no cache needed
-        if (window.forgePanels) window.forgePanels.setTabUnsaved(currentEditingFile, false);
+        commitCurrentEditorContent();
         showToast('File saved', 'success');
         updateFileList();
     }
@@ -3751,12 +3750,15 @@ function extractCarriedParams() {
     return carried;
 }
 
+function requireShareableProject() {
+    if (vfs.getAllPaths().length) return true;
+    showToast('No project to share', 'error');
+    return false;
+}
+
 // Share Comment Modal
 function openShareCommentModal() {
-    if (vfs.getAllPaths().length === 0) {
-        showToast('No project to share', 'error');
-        return;
-    }
+    if (!requireShareableProject()) return;
 
     const nameInput = document.getElementById('shareCommentName');
 
@@ -3890,10 +3892,7 @@ async function generateShareCommentUrl() {
 
 // Long URL share — compressed, self-contained, nothing stored on server
 async function shareLongUrl() {
-    if (vfs.getAllPaths().length === 0) {
-        showToast('No project to share', 'error');
-        return;
-    }
+    if (!requireShareableProject()) return;
     try {
         const json = JSON.stringify(vfs.toJSON());
         const compressed = await compress(json);
@@ -3957,10 +3956,7 @@ function prepareShortLinkExpirationPicker() {
 }
 
 function requestShortLink(fullscreen = false) {
-    if (vfs.getAllPaths().length === 0) {
-        showToast('No project to share', 'error');
-        return;
-    }
+    if (!requireShareableProject()) return;
 
     if (
         !managedSharingAvailable() &&
@@ -4081,10 +4077,7 @@ async function createShorterURL(fullscreen) {
 }
 
 async function shareManagedUrl(fullscreen = false, expiresAt = null) {
-    if (vfs.getAllPaths().length === 0) {
-        showToast('No project to share', 'error');
-        return;
-    }
+    if (!requireShareableProject()) return;
 
     if (!managedSharingAvailable()) {
         showToast('Managed sharing is not available on this deployment.', 'error', 4000);
@@ -4271,6 +4264,24 @@ async function shareManagedUrl(fullscreen = false, expiresAt = null) {
     }
 }
 
+async function throwUnavailableManagedShare(response) {
+    let reason = null;
+    try {
+        const errorBody = await response.json();
+        reason = errorBody && errorBody.error;
+    } catch (e) {
+        // Fall through to the generic unavailable message.
+    }
+
+    if (reason === 'Share tombstoned') {
+        throw new Error('Share has been tombstoned');
+    }
+    if (reason === 'Share expired') {
+        throw new Error('Share has expired');
+    }
+    throw new Error('Share is no longer available');
+}
+
 async function loadManagedShare(payloadHash) {
     if (!/^[a-f0-9]{40}$/i.test(payloadHash || '')) {
         throw new Error('Invalid share hash');
@@ -4365,21 +4376,7 @@ async function loadManagedShare(payloadHash) {
 
     if (!shareResponse.ok) {
         if (shareResponse.status === 410) {
-            let reason = null;
-            try {
-                const errorBody = await shareResponse.json();
-                reason = errorBody && errorBody.error;
-            } catch (e) {
-                // Fall through to the generic unavailable message.
-            }
-
-            if (reason === 'Share tombstoned') {
-                throw new Error('Share has been tombstoned');
-            }
-            if (reason === 'Share expired') {
-                throw new Error('Share has expired');
-            }
-            throw new Error('Share is no longer available');
+            await throwUnavailableManagedShare(shareResponse);
         }
         if (shareResponse.status === 404) {
             throw new Error('Share was not found');
@@ -4404,21 +4401,7 @@ async function loadManagedShare(payloadHash) {
 
     if (!payloadResponse.ok) {
         if (payloadResponse.status === 410) {
-            let reason = null;
-            try {
-                const errorBody = await payloadResponse.json();
-                reason = errorBody && errorBody.error;
-            } catch (e) {
-                // Fall through to the generic unavailable message.
-            }
-
-            if (reason === 'Share tombstoned') {
-                throw new Error('Share has been tombstoned');
-            }
-            if (reason === 'Share expired') {
-                throw new Error('Share has expired');
-            }
-            throw new Error('Share is no longer available');
+            await throwUnavailableManagedShare(payloadResponse);
         }
 
         throw new Error(
@@ -4558,6 +4541,101 @@ function closeManagedShareManageModal() {
     ForgeModal.close('managedShareManageModal');
 }
 
+function managedShareMatchesPayload(metadata, payloadHash) {
+    return !!(
+        metadata &&
+        typeof metadata.payloadHash === 'string' &&
+        metadata.payloadHash.toLowerCase() === payloadHash
+    );
+}
+
+async function readManagedShareError(response) {
+    let errorBody = null;
+    try {
+        errorBody = await response.json();
+    } catch {
+        // Preserve a useful status-only error for non-JSON responses.
+    }
+
+    return {
+        errorBody,
+        detail: errorBody && errorBody.error
+            ? `: ${errorBody.error}`
+            : ''
+    };
+}
+
+function requireManagedShareRequestId() {
+    const requestId = createManagedShareRequestId();
+    if (requestId) return requestId;
+
+    showToast(
+        'Unable to create managed-share request identity.',
+        'error',
+        3500
+    );
+    return null;
+}
+
+function handleManagedShareReviewRequired(
+    response,
+    errorBody,
+    payloadHash,
+    message
+) {
+    if (
+        response.status !== 409 ||
+        !errorBody ||
+        errorBody.status !== 'review-required'
+    ) {
+        return false;
+    }
+
+    const reviewShare = errorBody.share;
+    if (managedShareMatchesPayload(reviewShare, payloadHash)) {
+        setCurrentManagedShareMetadata(reviewShare);
+    }
+
+    closeManagedShareManageModal();
+    showToast(message, 'info', 4500);
+    return true;
+}
+
+async function sendManagedShareMutation(
+    packet,
+    payloadHash,
+    reviewMessage
+) {
+    const response = await sendManagedShareRequest(packet);
+
+    if (!response.ok) {
+        const { detail, errorBody } =
+            await readManagedShareError(response);
+
+        if (handleManagedShareReviewRequired(
+            response,
+            errorBody,
+            payloadHash,
+            reviewMessage
+        )) return null;
+
+        throw new Error(
+            `Share server responded with ${response.status}${detail}`
+        );
+    }
+
+    const updatedMetadata = await response.json();
+    if (!managedShareMatchesPayload(updatedMetadata, payloadHash)) {
+        throw new Error(
+            'Updated share metadata does not match the current Short Link'
+        );
+    }
+
+    setCurrentManagedShareMetadata(updatedMetadata);
+    closeManagedShareManageModal();
+    return updatedMetadata;
+}
+
 async function saveManagedShareMetadata() {
     if (
         !currentManagedShareMetadata ||
@@ -4603,15 +4681,8 @@ async function saveManagedShareMetadata() {
         ? new Date(currentExpiresMs).toISOString()
         : null;
 
-    const requestId = createManagedShareRequestId();
-    if (!requestId) {
-        showToast(
-            'Unable to create managed-share request identity.',
-            'error',
-            3500
-        );
-        return;
-    }
+    const requestId = requireManagedShareRequestId();
+    if (!requestId) return;
 
     const packet = {
         id: requestId,
@@ -4638,63 +4709,13 @@ async function saveManagedShareMetadata() {
     if (saveButton) saveButton.disabled = true;
 
     try {
-        const response = await sendManagedShareRequest(packet);
+        const updatedMetadata = await sendManagedShareMutation(
+            packet,
+            currentManagedShareMetadata.payloadHash,
+            'Short Link update submitted for review.'
+        );
+        if (!updatedMetadata) return;
 
-        if (!response.ok) {
-            let detail = '';
-            let errorBody = null;
-            try {
-                errorBody = await response.json();
-                detail = errorBody && errorBody.error
-                    ? `: ${errorBody.error}`
-                    : '';
-            } catch {
-                // Preserve a useful status-only error for non-JSON responses.
-            }
-
-            if (
-                response.status === 409 &&
-                errorBody &&
-                errorBody.status === 'review-required'
-            ) {
-                const reviewShare = errorBody.share;
-                if (
-                    reviewShare &&
-                    typeof reviewShare.payloadHash === 'string' &&
-                    reviewShare.payloadHash.toLowerCase() ===
-                        currentManagedShareMetadata.payloadHash
-                ) {
-                    setCurrentManagedShareMetadata(reviewShare);
-                }
-
-                closeManagedShareManageModal();
-                showToast(
-                    'Short Link update submitted for review.',
-                    'info',
-                    4500
-                );
-                return;
-            }
-
-            throw new Error(
-                `Share server responded with ${response.status}${detail}`
-            );
-        }
-
-        const updatedMetadata = await response.json();
-        if (
-            !updatedMetadata ||
-            typeof updatedMetadata.payloadHash !== 'string' ||
-            updatedMetadata.payloadHash.toLowerCase() !==
-                currentManagedShareMetadata.payloadHash
-        ) {
-            throw new Error(
-                'Updated share metadata does not match the current Short Link'
-            );
-        }
-
-        setCurrentManagedShareMetadata(updatedMetadata);
-        closeManagedShareManageModal();
         showToast('Short Link metadata updated.', 'success', 3500);
     } catch (e) {
         showToast(
@@ -4735,15 +4756,8 @@ async function requestManagedShareDeletion() {
     const saveButton = document.getElementById('managedShareManageSaveBtn');
     const payloadHash = currentManagedShareMetadata.payloadHash;
 
-    const requestId = createManagedShareRequestId();
-    if (!requestId) {
-        showToast(
-            'Unable to create managed-share request identity.',
-            'error',
-            3500
-        );
-        return;
-    }
+    const requestId = requireManagedShareRequestId();
+    if (!requestId) return;
 
     const packet = {
         id: requestId,
@@ -4759,61 +4773,12 @@ async function requestManagedShareDeletion() {
     if (saveButton) saveButton.disabled = true;
 
     try {
-        const response = await sendManagedShareRequest(packet);
-
-        if (!response.ok) {
-            let detail = '';
-            let errorBody = null;
-            try {
-                errorBody = await response.json();
-                detail = errorBody && errorBody.error
-                    ? `: ${errorBody.error}`
-                    : '';
-            } catch {
-                // Preserve a useful status-only error for non-JSON responses.
-            }
-
-            if (
-                response.status === 409 &&
-                errorBody &&
-                errorBody.status === 'review-required'
-            ) {
-                const reviewShare = errorBody.share;
-                if (
-                    reviewShare &&
-                    typeof reviewShare.payloadHash === 'string' &&
-                    reviewShare.payloadHash.toLowerCase() === payloadHash
-                ) {
-                    setCurrentManagedShareMetadata(reviewShare);
-                }
-
-                closeManagedShareManageModal();
-                showToast(
-                    'Short Link deletion request submitted for review.',
-                    'info',
-                    4500
-                );
-                return;
-            }
-
-            throw new Error(
-                `Share server responded with ${response.status}${detail}`
-            );
-        }
-
-        const updatedMetadata = await response.json();
-        if (
-            !updatedMetadata ||
-            typeof updatedMetadata.payloadHash !== 'string' ||
-            updatedMetadata.payloadHash.toLowerCase() !== payloadHash
-        ) {
-            throw new Error(
-                'Updated share metadata does not match the current Short Link'
-            );
-        }
-
-        setCurrentManagedShareMetadata(updatedMetadata);
-        closeManagedShareManageModal();
+        const updatedMetadata = await sendManagedShareMutation(
+            packet,
+            payloadHash,
+            'Short Link deletion request submitted for review.'
+        );
+        if (!updatedMetadata) return;
 
         if ((updatedMetadata.state || 'active') === 'tombstoned') {
             showToast(
@@ -4841,6 +4806,15 @@ async function requestManagedShareDeletion() {
     }
 }
 
+function managedShareFutureExpiration(metadata) {
+    const expiresAt = metadata && metadata.expiresAt;
+    const expiresMs = Date.parse(expiresAt);
+    if (!expiresAt || !Number.isFinite(expiresMs)) return null;
+
+    const remainingMs = expiresMs - Date.now();
+    return remainingMs > 0 ? { expiresMs, remainingMs } : null;
+}
+
 function updateManagedShareExpirationBadge(metadata) {
     const badge = document.getElementById('managedShareExpirationBadge');
     if (!badge) return;
@@ -4859,17 +4833,9 @@ function updateManagedShareExpirationBadge(metadata) {
         return;
     }
 
-    const expiresAt = metadata && metadata.expiresAt;
-    const expiresMs = Date.parse(expiresAt);
-
-    if (!expiresAt || !Number.isFinite(expiresMs)) {
-        return;
-    }
-
-    const remainingMs = expiresMs - Date.now();
-    if (remainingMs <= 0) {
-        return;
-    }
+    const expiration = managedShareFutureExpiration(metadata);
+    if (!expiration) return;
+    const { expiresMs, remainingMs } = expiration;
 
     const hourMs = 60 * 60 * 1000;
     const dayMs = 24 * hourMs;
@@ -4903,17 +4869,9 @@ function showManagedShareExpirationNotice(metadata) {
         return;
     }
 
-    const expiresAt = metadata && metadata.expiresAt;
-    const expiresMs = Date.parse(expiresAt);
-
-    if (!expiresAt || !Number.isFinite(expiresMs)) {
-        return;
-    }
-
-    const remainingMs = expiresMs - Date.now();
-    if (remainingMs <= 0) {
-        return;
-    }
+    const expiration = managedShareFutureExpiration(metadata);
+    if (!expiration) return;
+    const { expiresMs, remainingMs } = expiration;
 
     const minuteMs = 60 * 1000;
     const hourMs = 60 * minuteMs;
@@ -5342,6 +5300,39 @@ function closeTab(path) {
     }
 }
 
+function startNonEditableEditorView(iconText, titleText) {
+    editorTextarea.hidden = true;
+    editorPlaceholder.hidden = false;
+    editorPlaceholder.replaceChildren();
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'text-align:center; padding:20px;';
+
+    const icon = document.createElement('div');
+    icon.style.cssText = 'font-size:2em; margin-bottom:10px;';
+    icon.textContent = iconText;
+
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:1.1em; margin-bottom:5px;';
+    title.textContent = titleText;
+
+    wrapper.append(icon, title);
+    return wrapper;
+}
+
+function finishNonEditableEditorView(wrapper) {
+    const note = document.createElement('div');
+    note.style.cssText = 'margin-top:15px; font-size:0.85em; color:#949494;';
+    note.textContent = 'Use ⚙️ to edit file settings';
+    wrapper.appendChild(note);
+
+    editorPlaceholder.appendChild(wrapper);
+
+    saveFileBtn.hidden = true;
+    deleteFileBtn.hidden = false;
+    rerunBtn.hidden = true;
+}
+
 function openFileInEditor(path) {
     if (!path) return;
 
@@ -5377,26 +5368,14 @@ function openFileInEditor(path) {
     if (settingsPanel) settingsPanel.style.display = 'none';
 
     if (meta.excluded) {
-        editorTextarea.hidden = true;
-        editorPlaceholder.hidden = false;
-        editorPlaceholder.replaceChildren();
-
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'text-align:center; padding:20px;';
-
-        const icon = document.createElement('div');
-        icon.style.cssText = 'font-size:2em; margin-bottom:10px;';
-        icon.textContent = '🚫';
-
-        const title = document.createElement('div');
-        title.style.cssText = 'font-size:1.1em; margin-bottom:5px;';
-        title.textContent = 'Excluded File';
+        const wrapper =
+            startNonEditableEditorView('🚫', 'Excluded File');
 
         const desc = document.createElement('div');
         desc.style.cssText = 'font-size:0.9em; color:#949494;';
         desc.textContent = meta.description || 'No description available';
 
-        wrapper.append(icon, title, desc);
+        wrapper.appendChild(desc);
 
         if (meta.url) {
             const urlRow = document.createElement('div');
@@ -5436,36 +5415,14 @@ function openFileInEditor(path) {
             wrapper.appendChild(urlRow);
         }
 
-        const note = document.createElement('div');
-        note.style.cssText = 'margin-top:15px; font-size:0.85em; color:#949494;';
-        note.textContent = 'Use ⚙️ to edit file settings';
-        wrapper.appendChild(note);
-
-        editorPlaceholder.appendChild(wrapper);
-
-        saveFileBtn.hidden   = true;
-        deleteFileBtn.hidden = false;
-        rerunBtn.hidden      = true;
+        finishNonEditableEditorView(wrapper);
 
     } else if (meta.encoding === 'base64') {
-        editorTextarea.hidden = true;
-        editorPlaceholder.hidden = false;
-        editorPlaceholder.replaceChildren();
-
         const blobUrl  = vfs.getBlobUrl(path);
         const mimeType = vfs.getMimeType(path);
         const isImage  = mimeType.startsWith('image/');
-
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'text-align:center; padding:20px;';
-
-        const icon = document.createElement('div');
-        icon.style.cssText = 'font-size:2em; margin-bottom:10px;';
-        icon.textContent = '📦';
-
-        const title = document.createElement('div');
-        title.style.cssText = 'font-size:1.1em; margin-bottom:5px;';
-        title.textContent = 'Binary File';
+        const wrapper =
+            startNonEditableEditorView('📦', 'Binary File');
 
         const mime = document.createElement('div');
         mime.style.cssText = 'font-size:0.9em; color:#949494;';
@@ -5476,7 +5433,7 @@ function openFileInEditor(path) {
         size.textContent =
             `Size: ~${Math.round((contentToUse.length * 3) / 4 / 1024)} KB (base64)`;
 
-        wrapper.append(icon, title, mime, size);
+        wrapper.append(mime, size);
 
         if (isImage && blobUrl) {
             const image = document.createElement('img');
@@ -5486,16 +5443,7 @@ function openFileInEditor(path) {
             wrapper.appendChild(image);
         }
 
-        const note = document.createElement('div');
-        note.style.cssText = 'margin-top:15px; font-size:0.85em; color:#949494;';
-        note.textContent = 'Use ⚙️ to edit file settings';
-        wrapper.appendChild(note);
-
-        editorPlaceholder.appendChild(wrapper);
-
-        saveFileBtn.hidden   = true;
-        deleteFileBtn.hidden = false;
-        rerunBtn.hidden      = true;
+        finishNonEditableEditorView(wrapper);
 
     } else {
         editorPlaceholder.hidden = true;
@@ -5778,10 +5726,10 @@ function commitPreviewFrame(
 const PREVIEW_LOCAL_STORAGE_KEY = 'forgePreviewLocalStorageV1';
 const PREVIEW_SESSION_STORAGE_KEY = 'forgePreviewSessionStorageV1';
 
-function loadPreviewLocalStorage() {
+function loadPreviewStorage(storage, key, label) {
     const store = Object.create(null);
     try {
-        const raw = localStorage.getItem(PREVIEW_LOCAL_STORAGE_KEY);
+        const raw = storage.getItem(key);
         if (!raw) return store;
 
         const parsed = JSON.parse(raw);
@@ -5789,33 +5737,29 @@ function loadPreviewLocalStorage() {
             return store;
         }
 
-        for (const [key, value] of Object.entries(parsed)) {
-            store[String(key)] = String(value);
+        for (const [name, value] of Object.entries(parsed)) {
+            store[String(name)] = String(value);
         }
     } catch (e) {
-        console.warn('[FORGE] Could not load preview localStorage:', e);
+        console.warn(`[FORGE] Could not load preview ${label}:`, e);
     }
     return store;
 }
 
+function loadPreviewLocalStorage() {
+    return loadPreviewStorage(
+        localStorage,
+        PREVIEW_LOCAL_STORAGE_KEY,
+        'localStorage'
+    );
+}
+
 function loadPreviewSessionStorage() {
-    const store = Object.create(null);
-    try {
-        const raw = sessionStorage.getItem(PREVIEW_SESSION_STORAGE_KEY);
-        if (!raw) return store;
-
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            return store;
-        }
-
-        for (const [key, value] of Object.entries(parsed)) {
-            store[String(key)] = String(value);
-        }
-    } catch (e) {
-        console.warn('[FORGE] Could not load preview sessionStorage:', e);
-    }
-    return store;
+    return loadPreviewStorage(
+        sessionStorage,
+        PREVIEW_SESSION_STORAGE_KEY,
+        'sessionStorage'
+    );
 }
 
 let forgePreviewLocalStorage = loadPreviewLocalStorage();
@@ -8964,10 +8908,7 @@ async function populateExamplesDropdown() {
 // -- Fullscreen URL sharing ------------------------------------------------
 
 async function shareFullscreenUrl() {
-    if (vfs.getAllPaths().length === 0) {
-        showToast('No project to share', 'error');
-        return;
-    }
+    if (!requireShareableProject()) return;
     try {
         const json = JSON.stringify(vfs.toJSON());
         const compressed = await compress(json);

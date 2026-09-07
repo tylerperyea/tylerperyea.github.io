@@ -1,18 +1,219 @@
-// forge-gitlab-push.js
-// GitLab push / merge request feature for FORGE IDE.
-// Depends on: vfs, app.js globals (showToast, projectTitle,
-//             gitlabTokenInput, gitlabUrlInput, gitlabProjectInput)
-// Exposes:    window.ForgeGitLabPush
 
 (function () {
 
-    // -- Persistent import context -----------------------------------------
-    // Populated by recordGitLabImportContext() after a successful import,
-    // and by loadGitLabContextFromVfs() when a project with .forgeconfig
-    // gitlab metadata is loaded.
 
     function _gitlabOrigin() {
         return window.FORGE_GITLAB_ORIGIN || 'https://git.fda.gov';
+    }
+
+    async function _json(url, options) {
+        const response = await fetch(url, options);
+        const data = await response.json().catch(() => ({}));
+        return { response, data };
+    }
+
+    function _get(provider, url, token) {
+        return _json(url, { headers: provider.authHeaders(token) });
+    }
+
+    function _write(provider, url, token, method, body) {
+        return _json(url, {
+            method,
+            headers: {
+                ...provider.authHeaders(token),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+    }
+
+    function _need(x, label) {
+        if (!x.response.ok) throw new Error(
+            `${label}: ${x.response.status} ${x.data.message || x.response.statusText}`
+        );
+        return x.data;
+    }
+
+    const _providers = {
+        gitlab: {
+            authHeaders(t) { return { 'PRIVATE-TOKEN': t }; },
+
+            async resolveRepository(u, t, p) {
+                const id = isNaN(p) ? p.replace(/\//g, '%2F') : p;
+                return _need(
+                    await _get(this, `${u}/api/v4/projects/${id}`, t),
+                    'Project not found'
+                );
+            },
+
+            async fetchTree(u, t, p, ref) {
+                const x = await _get(
+                    this,
+                    `${u}/api/v4/projects/${p}/repository/tree` +
+                    `?ref=${encodeURIComponent(ref)}&recursive=true&per_page=1000`,
+                    t
+                );
+                return {
+                    ok: x.response.ok,
+                    status: x.response.status,
+                    paths: new Map(
+                        x.response.ok
+                            ? x.data.filter(v => v.type === 'blob')
+                                .map(v => ['/' + v.path, v.id])
+                            : []
+                    )
+                };
+            },
+
+            async createBranch(u, t, p, branch, ref) {
+                const x = await _write(
+                    this,
+                    `${u}/api/v4/projects/${p}/repository/branches`,
+                    t,
+                    'POST',
+                    { branch, ref }
+                );
+                if (x.response.ok) return;
+                if (x.response.status === 409) {
+                    throw new Error(`Branch '${branch}' already exists.`);
+                }
+                _need(x, 'Failed to create branch');
+            },
+
+            async commitChanges(u, t, p, branch, message, changes) {
+                const actions = changes.map(c => {
+                    const a = {
+                        action: c.action,
+                        file_path: c.path.slice(1)
+                    };
+                    if (c.action !== 'delete') {
+                        a.content = c.content;
+                        a.encoding = c.encoding;
+                    }
+                    return a;
+                });
+                const x = await _write(
+                    this,
+                    `${u}/api/v4/projects/${p}/repository/commits`,
+                    t,
+                    'POST',
+                    { branch, commit_message: message, actions }
+                );
+                if (x.response.ok) return x.data;
+                if (
+                    x.response.status === 400 &&
+                    (x.data.message || '').toLowerCase()
+                        .includes('nothing to commit')
+                ) {
+                    throw new Error(
+                        'No changes detected - remote is already up to date.'
+                    );
+                }
+                if (x.response.status === 403) {
+                    throw new Error("Permission denied - PAT needs 'write_repository'.");
+                }
+                _need(x, 'Commit failed');
+            },
+
+            async createReview(u, t, p, source, target, title, description) {
+                const x = await _write(
+                    this,
+                    `${u}/api/v4/projects/${p}/merge_requests`,
+                    t,
+                    'POST',
+                    {
+                        source_branch: source,
+                        target_branch: target,
+                        title,
+                        description,
+                        remove_source_branch: true
+                    }
+                );
+                if (x.response.ok) return { url: x.data.web_url };
+                if (x.response.status === 409) {
+                    return { warning: 'Review already exists.' };
+                }
+                if (x.response.status === 403) {
+                    return { warning: "Review needs PAT 'api' scope." };
+                }
+                return {
+                    warning:
+                        `Review failed: ${x.response.status} ` +
+                        `${x.data.message || x.response.statusText}`
+                };
+            }
+        },
+
+        github: {
+            authHeaders:t=>({Authorization:`Bearer ${t}`,Accept:'application/vnd.github+json'}),
+            async resolveRepository(u,t,p){
+                const d=_need(await _get(this,`${u}/repos/${p}`,t),'Repository');
+                return {...d,id:d.full_name,path_with_namespace:d.full_name};
+            },
+            async fetchTree(u,t,p,r){
+                const x=await _get(this,`${u}/repos/${p}/git/trees/${encodeURIComponent(r)}?recursive=1`,t);
+                if(x.data.truncated)throw new Error('Repository tree is truncated.');
+                return {ok:x.response.ok,status:x.response.status,paths:new Map(x.response.ok?x.data.tree.filter(v=>v.type==='blob').map(v=>['/'+v.path,v.sha]):[])};
+            },
+            async createBranch(u,t,p,b,r){
+                const a=`${u}/repos/${p}`,h=_need(await _get(this,`${a}/git/ref/heads/${encodeURIComponent(r)}`,t),'Source branch');
+                _need(await _write(this,`${a}/git/refs`,t,'POST',{ref:`refs/heads/${b}`,sha:h.object.sha}),'Create branch');
+            },
+            async commitChanges(u,t,p,b,m,changes){
+                if(!changes.length)throw new Error('No changes detected.');
+                const a=`${u}/repos/${p}`,r=encodeURIComponent(b);
+                const h=_need(await _get(this,`${a}/git/ref/heads/${r}`,t),'Branch');
+                const q=_need(await _get(this,`${a}/git/trees/${r}`,t),'Tree');
+                const tree=[];
+                for(const c of changes){
+                    const e={path:c.path.slice(1),mode:'100644',type:'blob'};
+                    if(c.action==='delete')e.sha=null;
+                    else e.sha=_need(await _write(this,`${a}/git/blobs`,t,'POST',{
+                        content:c.content,
+                        encoding:c.encoding==='base64'?'base64':'utf-8'
+                    }),'Blob').sha;
+                    tree.push(e);
+                }
+                const n=_need(await _write(this,`${a}/git/trees`,t,'POST',{base_tree:q.sha,tree}),'Tree');
+                const k=_need(await _write(this,`${a}/git/commits`,t,'POST',{
+                    message:m,tree:n.sha,parents:[h.object.sha]
+                }),'Commit');
+                _need(await _write(this,`${a}/git/refs/heads/${r}`,t,'PATCH',{sha:k.sha}),'Update branch');
+                return {short_id:k.sha.slice(0,8),title:m,sha:k.sha};
+            },
+            async createReview(u,t,p,s,b,title,body){
+                const x=await _write(this,`${u}/repos/${p}/pulls`,t,'POST',{head:s,base:b,title,body});
+                return x.response.ok?{url:x.data.html_url}:{warning:`Review failed: ${x.response.status} ${x.data.message||x.response.statusText}`};
+            }
+        }
+    };
+
+    let _provider=_providers.gitlab;
+    const _providerName=()=>_provider===_providers.github?'github':'gitlab';
+    const _origin=()=>_providerName()==='github'?(window.FORGE_GITHUB_ORIGIN||'https://api.github.com'):_gitlabOrigin();
+    const _tokenKey=()=>_providerName()+'Token';
+
+    function setProvider(name){
+        if(!_providers[name])throw new Error('Unknown Git provider');
+        const t=_el('pushGitlabToken'),s=_el('pushSaveToken');
+        if(t&&s){if(s.checked&&t.value.trim())localStorage.setItem(_tokenKey(),t.value.trim());else localStorage.removeItem(_tokenKey());}
+        _provider=_providers[name];
+        if(name==='gitlab')loadContextFromVfs();
+        else _ctx={
+            instanceUrl:_origin(),
+            projectId:null,
+            projectPath:'',
+            sourceBranch:'',
+            defaultBranch:'',
+            token:localStorage.getItem(_tokenKey())||''
+        };
+        _populateModal();
+        const n=_el('repositoryModeNew');
+        const b=_el('pushGitlabBrowseProjectsBtn');
+        if(n)n.disabled=name==='github';
+        if(b)b.disabled=0;_setProjectBrowserExpanded(false);
+        if(name==='github')_setRepositoryMode('existing');
+        return name;
     }
 
     let _ctx = {
@@ -25,26 +226,24 @@
     };
 
     function getContext() {
-        return Object.assign({}, _ctx, { instanceUrl: _gitlabOrigin() });
+        return Object.assign({}, _ctx, { instanceUrl: _origin() });
     }
 
-    // Seed push state after import; deployment-controlled GitLab origin wins.
-    function recordImportContext(instanceUrl, projectId, projectPath,
-                                 sourceBranch, defaultBranch, token) {
-        _ctx = {
-            instanceUrl: _gitlabOrigin(),
+
+    function recordImportContext(instanceUrl,projectId,projectPath,
+                                 sourceBranch,defaultBranch,token,provider='gitlab'){
+        _provider=_providers[provider]||_providers.gitlab;
+        _ctx={
+            instanceUrl:_origin(),
             projectId,
             projectPath,
             sourceBranch,
             defaultBranch,
             token
         };
-        _saveContextToForgeConfig();
+        if(provider==='gitlab')_saveContextToForgeConfig();
     }
 
-    // -- Persist context to .forgeconfig ----------------------------------
-    // Repository/branch context may travel with the project. Credential
-    // destination does not: GitLab origin is deployment-controlled.
 
     function _saveContextToForgeConfig() {
         if (typeof vfs === 'undefined') return;
@@ -68,10 +267,7 @@
         writeForgeConfigDocument(document);
     }
 
-    /**
-     * Read repository/branch context back out of .forgeconfig.
-     * Any legacy instance_url value is deliberately ignored.
-     */
+
     function loadContextFromVfs() {
         if (typeof vfs === 'undefined') return;
 
@@ -87,15 +283,15 @@
         _ctx.projectPath   = data.project_path   || '';
         _ctx.sourceBranch  = data.source_branch  || '';
         _ctx.defaultBranch = data.default_branch || '';
-        // Token is never stored in .forgeconfig — read from localStorage
+
         _ctx.token = localStorage.getItem('gitlabToken') || '';
     }
 
-    // -- Modal open / close ------------------------------------------------
 
     function openPushModal() {
-        loadContextFromVfs(); // pick up any saved context
+        if (_provider === _providers.gitlab) loadContextFromVfs();
         _populateModal();
+        _showTab('push');
 
         ForgeModal.open('gitlabPushModal', {
             initialFocus: '#pushGitlabToken',
@@ -109,7 +305,7 @@
     }
 
     function _populateModal() {
-        const savedToken = localStorage.getItem('gitlabToken') || '';
+        const savedToken = localStorage.getItem(_tokenKey()) || '';
         const token = _ctx.token || savedToken;
         const suggestedName =
             typeof projectTitle === 'string' &&
@@ -118,13 +314,12 @@
                 ? projectTitle.trim()
                 : '';
 
-        _setVal('pushGitlabUrl',      _gitlabOrigin());
+        _setVal('pushGitProvider',    _providerName());
+        _setVal('pushGitlabUrl',      _origin());
         _setVal('pushGitlabToken',    token);
 
-        // The checkbox describes the credential currently shown in the
-        // field. If that exact token came from localStorage, keep persistence
-        // enabled so a normal push does not accidentally delete it.
-        const saveToken = document.getElementById('pushSaveToken');
+
+        const saveToken = _el('pushSaveToken');
         if (saveToken) {
             saveToken.checked = !!savedToken && token === savedToken;
         }
@@ -141,14 +336,16 @@
         _setVal('pushNewDefaultBranch', 'main');
         _setVal('pushNewVisibility', 'private');
 
-        // Reset toggles
+
         _setBranchMode('new');
         _setRepositoryMode('existing');
         _resetPushProjectBrowser();
-        // _setBranchMode → _updateForceWarn handles MR checkbox state
+
 
         _updateMrTitlePlaceholder();
         _updateDeleteWarning();
+        _bindPreviewGuard();
+        _invalidatePreview();
     }
 
     function _defaultTargetName() {
@@ -156,23 +353,25 @@
         return `forge/changes-${ts}`;
     }
 
-    function _setVal(id, val) {
-        const el = document.getElementById(id);
-        if (el) el.value = val || '';
-    }
+    const _el=id=>document.getElementById(id);
+    const _val=id=>_el(id)?.value?.trim()||'';
+    const _checked=id=>!!_el(id)?.checked;
 
-    // -- Existing repository browser --------------------------------------
+    function _setVal(id,val){
+        const el=_el(id);
+        if(el)el.value=val||'';
+    }
 
     let _projectSearchQuery = '';
     let _projectSearchPage = 1;
 
     function _projectBrowserApi() {
-        return window.ForgeGitLabProjects || null;
+        return window.ForgeGitProjects || null;
     }
 
     function _setProjectBrowserExpanded(expanded) {
-        const browser = document.getElementById('pushGitlabProjectBrowser');
-        const button = document.getElementById('pushGitlabBrowseProjectsBtn');
+        const browser = _el('pushGitlabProjectBrowser');
+        const button = _el('pushGitlabBrowseProjectsBtn');
 
         if (browser) browser.hidden = !expanded;
         if (button) button.setAttribute(
@@ -187,10 +386,10 @@
 
         _setProjectBrowserExpanded(false);
 
-        const search = document.getElementById('pushGitlabProjectSearch');
-        const results = document.getElementById('pushGitlabProjectResults');
-        const status = document.getElementById('pushGitlabProjectBrowseStatus');
-        const pagination = document.getElementById('pushGitlabProjectPagination');
+        const search = _el('pushGitlabProjectSearch');
+        const results = _el('pushGitlabProjectResults');
+        const status = _el('pushGitlabProjectBrowseStatus');
+        const pagination = _el('pushGitlabProjectPagination');
 
         if (search) search.value = '';
         if (results) results.textContent = '';
@@ -217,14 +416,14 @@
             _setVal('pushSourceBranch', normalized.default_branch);
         }
 
-        if (api.remember) api.remember(normalized);
+        if (api.remember&&_providerName()==='gitlab') api.remember(normalized);
 
         _renderPushRecentProjects();
         _setProjectBrowserExpanded(false);
         _updateForceWarn();
         _updateMrTitlePlaceholder();
 
-        const input = document.getElementById('pushGitlabProject');
+        const input = _el('pushGitlabProject');
         if (input) input.focus();
     }
 
@@ -238,11 +437,10 @@
 
     function _renderPushRecentProjects() {
         const api = _projectBrowserApi();
-        const container = document.getElementById(
-            'pushGitlabRecentProjects'
-        );
+        const container = _el('pushGitlabRecentProjects');
 
         if (!container || !api || !api.getRecent) return;
+        if(_providerName()==='github'){container.hidden=true;return;}
 
         const recent = api.getRecent();
         container.textContent = '';
@@ -272,18 +470,12 @@
 
     function _renderPushProjectResults(projects, page) {
         const api = _projectBrowserApi();
-        const results = document.getElementById('pushGitlabProjectResults');
-        const pagination = document.getElementById(
-            'pushGitlabProjectPagination'
-        );
-        const prev = document.getElementById('pushGitlabProjectPrevBtn');
-        const next = document.getElementById('pushGitlabProjectNextBtn');
-        const pageLabel = document.getElementById(
-            'pushGitlabProjectPageLabel'
-        );
-        const status = document.getElementById(
-            'pushGitlabProjectBrowseStatus'
-        );
+        const results = _el('pushGitlabProjectResults');
+        const pagination = _el('pushGitlabProjectPagination');
+        const prev = _el('pushGitlabProjectPrevBtn');
+        const next = _el('pushGitlabProjectNextBtn');
+        const pageLabel = _el('pushGitlabProjectPageLabel');
+        const status = _el('pushGitlabProjectBrowseStatus');
 
         if (!results || !pagination || !prev || !next || !pageLabel || !status) {
             return;
@@ -323,20 +515,12 @@
 
     async function _loadPushGitLabProjects(query = '', page = 1) {
         const api = _projectBrowserApi();
-        const token = (
-            document.getElementById('pushGitlabToken') || {}
-        ).value?.trim();
+        const token = _val('pushGitlabToken');
 
-        const results = document.getElementById('pushGitlabProjectResults');
-        const pagination = document.getElementById(
-            'pushGitlabProjectPagination'
-        );
-        const status = document.getElementById(
-            'pushGitlabProjectBrowseStatus'
-        );
-        const searchButton = document.getElementById(
-            'pushGitlabProjectSearchBtn'
-        );
+        const results = _el('pushGitlabProjectResults');
+        const pagination = _el('pushGitlabProjectPagination');
+        const status = _el('pushGitlabProjectBrowseStatus');
+        const searchButton = _el('pushGitlabProjectSearchBtn');
 
         if (!results || !pagination || !status || !searchButton) return;
 
@@ -366,7 +550,8 @@
             const projects = await api.fetchProjects(
                 token,
                 _projectSearchQuery,
-                _projectSearchPage
+                _projectSearchPage,
+                _providerName()
             );
 
             _renderPushProjectResults(
@@ -384,7 +569,7 @@
     }
 
     function _toggleProjectBrowser() {
-        const browser = document.getElementById('pushGitlabProjectBrowser');
+        const browser = _el('pushGitlabProjectBrowser');
         if (!browser) return;
 
         const expanding = browser.hidden;
@@ -394,12 +579,12 @@
 
         _renderPushRecentProjects();
 
-        const search = document.getElementById('pushGitlabProjectSearch');
+        const search = _el('pushGitlabProjectSearch');
         _loadPushGitLabProjects(search ? search.value : '', 1);
     }
 
     function _searchProjects() {
-        const search = document.getElementById('pushGitlabProjectSearch');
+        const search = _el('pushGitlabProjectSearch');
         _loadPushGitLabProjects(search ? search.value : '', 1);
     }
 
@@ -423,11 +608,10 @@
         );
     }
 
-    // -- Repository mode toggle (existing / new) --------------------------
 
     function _setRepositoryMode(mode) {
-        const existingRadio = document.getElementById('repositoryModeExisting');
-        const newRadio = document.getElementById('repositoryModeNew');
+        const existingRadio = _el('repositoryModeExisting');
+        const newRadio = _el('repositoryModeNew');
 
         if (existingRadio) existingRadio.checked = (mode === 'existing');
         if (newRadio) newRadio.checked = (mode === 'new');
@@ -436,39 +620,35 @@
     }
 
     function _currentRepositoryMode() {
-        const el = document.getElementById('repositoryModeNew');
+        const el = _el('repositoryModeNew');
         return el && el.checked ? 'new' : 'existing';
     }
 
     function _updateRepositoryModeUi() {
         const isNew = _currentRepositoryMode() === 'new';
 
-        const newFields = document.getElementById('pushNewRepositoryFields');
+        const newFields = _el('pushNewRepositoryFields');
         if (newFields) newFields.hidden = !isNew;
 
         if (isNew) {
             _setProjectBrowserExpanded(false);
         }
 
-        const existingProject =
-            document.getElementById('pushGitlabProject')?.closest('.form-group');
+        const existingProject = _el('pushGitlabProject')?.closest('.form-group');
         if (existingProject) existingProject.style.display = isNew ? 'none' : '';
 
-        const branchRow =
-            document.getElementById('pushSourceBranch')?.closest('.push-row');
+        const branchRow = _el('pushSourceBranch')?.closest('.push-row');
         if (branchRow) branchRow.style.display = isNew ? 'none' : '';
 
-        const branchModeGroup =
-            document.getElementById('branchModeNew')?.closest('.form-group');
+        const branchModeGroup = _el('branchModeNew')?.closest('.form-group');
         if (branchModeGroup) branchModeGroup.style.display = isNew ? 'none' : '';
 
-        const deleteGroup =
-            document.getElementById('pushDeleteRemote')?.closest('.form-group');
+        const deleteGroup = _el('pushDeleteRemote')?.closest('.form-group');
         if (deleteGroup) deleteGroup.style.display = isNew ? 'none' : '';
 
-        const mrCheck = document.getElementById('pushOpenMr');
+        const mrCheck = _el('pushOpenMr');
         const mrGroup = mrCheck?.closest('.form-group');
-        const mrFields = document.getElementById('pushMrFields');
+        const mrFields = _el('pushMrFields');
         if (mrGroup) mrGroup.style.display = isNew ? 'none' : '';
 
         if (mrFields) {
@@ -476,7 +656,7 @@
                 isNew || !mrCheck || !mrCheck.checked ? 'none' : '';
         }
 
-        const forceWarn = document.getElementById('pushForceWarn');
+        const forceWarn = _el('pushForceWarn');
         if (isNew) {
             if (forceWarn) forceWarn.hidden = true;
         } else {
@@ -485,9 +665,8 @@
     }
 
     async function _loadNamespaces() {
-        const select = document.getElementById('pushNewNamespace');
-        const token =
-            document.getElementById('pushGitlabToken')?.value?.trim() || '';
+        const select = _el('pushNewNamespace');
+        const token = _val('pushGitlabToken');
 
         if (!select) return;
 
@@ -563,11 +742,10 @@
             : JSON.stringify(value);
     }
 
-    // -- Branch mode toggle (new / existing) ------------------------------
 
     function _setBranchMode(mode) {
-        const newRadio = document.getElementById('branchModeNew');
-        const exRadio  = document.getElementById('branchModeExisting');
+        const newRadio = _el('branchModeNew');
+        const exRadio  = _el('branchModeExisting');
         if (newRadio) newRadio.checked = (mode === 'new');
         if (exRadio)  exRadio.checked  = (mode === 'existing');
         _updateDeleteWarning();
@@ -575,37 +753,36 @@
     }
 
     function _currentBranchMode() {
-        const el = document.getElementById('branchModeExisting');
+        const el = _el('branchModeExisting');
         return el && el.checked ? 'existing' : 'new';
     }
 
     function _updateForceWarn() {
         const isExisting = _currentBranchMode() === 'existing';
 
-        // Force-push warning banner — show which branch will be committed to
-        const el = document.getElementById('pushForceWarn');
+
+        const el = _el('pushForceWarn');
         if (el) {
             if (isExisting) {
-                const srcBranch = document.getElementById('pushSourceBranch')?.value?.trim() || 'this branch';
+                const srcBranch = _val('pushSourceBranch') || 'this branch';
                 el.innerHTML = `⚠️ This will commit directly to <strong>${srcBranch}</strong>. Make sure you have permission to push to this branch.`;
             }
             el.hidden = !isExisting;
         }
 
-        // In existing mode, hide the target branch field entirely —
-        // the commit lands directly on the source branch.
-        const tgtGroup = document.getElementById('pushTargetBranch')?.closest('.form-group');
+
+        const tgtGroup = _el('pushTargetBranch')?.closest('.form-group');
         if (tgtGroup) tgtGroup.style.display = isExisting ? 'none' : '';
 
-        // Restore auto-generated name when switching back to new-branch mode
-        const tgtInput = document.getElementById('pushTargetBranch');
+
+        const tgtInput = _el('pushTargetBranch');
         if (tgtInput && !isExisting && !tgtInput.value) {
             tgtInput.value = _defaultTargetName();
         }
 
-        // MR checkbox: only makes sense when creating a new branch
-        const mrCheck  = document.getElementById('pushOpenMr');
-        const mrFields = document.getElementById('pushMrFields');
+
+        const mrCheck  = _el('pushOpenMr');
+        const mrFields = _el('pushMrFields');
         if (mrCheck) {
             if (isExisting) {
                 mrCheck.checked = false;
@@ -618,24 +795,23 @@
     }
 
     function _updateDeleteWarning() {
-        // shown only when user opts in to delete remote-only files
-        const chk = document.getElementById('pushDeleteRemote');
-        const warn = document.getElementById('pushDeleteWarn');
+
+        const chk = _el('pushDeleteRemote');
+        const warn = _el('pushDeleteWarn');
         if (warn) warn.hidden = !(chk && chk.checked);
     }
 
     function _updateMrTitlePlaceholder() {
-        const el = document.getElementById('pushMrTitle');
+        const el = _el('pushMrTitle');
         if (!el) return;
-        const target = (document.getElementById('pushTargetBranch') || {}).value || 'new-branch';
-        const source = (document.getElementById('pushSourceBranch') || {}).value || 'main';
+        const target = _el('pushTargetBranch')?.value || 'new-branch';
+        const source = _el('pushSourceBranch')?.value || 'main';
         el.placeholder = `${target} → ${source}`;
     }
 
-    // -- Progress log ------------------------------------------------------
 
     function _log(msg) {
-        const el = document.getElementById('pushProgress');
+        const el = _el('pushProgress');
         if (!el) return;
         el.style.display = 'block';
         el.textContent += msg + '\n';
@@ -643,11 +819,10 @@
     }
 
     function _clearProgress() {
-        const el = document.getElementById('pushProgress');
+        const el = _el('pushProgress');
         if (el) { el.textContent = ''; el.style.display = 'block'; }
     }
 
-    // -- Branch name validation --------------------------------------------
 
     function _validateBranchName(name) {
         if (!name || !name.trim()) return 'Branch name cannot be empty';
@@ -658,13 +833,11 @@
         return null;
     }
 
-    // -- Payload size estimate ---------------------------------------------
 
     function _estimatePayloadBytes(actions) {
         return actions.reduce((sum, a) => sum + (a.content ? a.content.length : 0), 0);
     }
 
-    // -- Preview / dry-run -------------------------------------------------
 
     const GITLAB_IDE_FILES = new Set([
         '/.forgeconfig',
@@ -672,8 +845,100 @@
     ]);
     const GITLAB_PLACEHOLDER = '.forgekeep';
 
-    function _buildGitLabChangePlan({
-        remotePaths = new Set(),
+    async function _gitBlobId(path){
+        const content=vfs.getFile(path)||'';
+        const bytes=vfs.getEncoding(path)==='base64'
+            ? Uint8Array.from(atob(content),c=>c.charCodeAt(0))
+            : new TextEncoder().encode(content);
+        const head=new TextEncoder().encode(`blob ${bytes.length}\0`);
+        const data=new Uint8Array(head.length+bytes.length);
+        data.set(head);data.set(bytes,head.length);
+        const digest=await crypto.subtle.digest('SHA-1',data);
+        return Array.from(new Uint8Array(digest))
+            .map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+
+    const PUSH_PREVIEW_FIELDS=[
+        'pushGitlabProject','pushNewRepositoryName','pushNewRepositoryDescription',
+        'pushNewNamespace','pushNewVisibility','pushNewDefaultBranch',
+        'pushSourceBranch','pushTargetBranch','pushCommitMessage','pushOpenMr',
+        'pushMrTitle','pushMrDescription','pushDeleteRemote','pushIncludeIde'
+    ];
+    let _previewState='',_previewPlan='',_previewTree='';
+    const _pushButton=()=>document.querySelector(
+        '#gitlabPushModal .modal-footer button.success'
+    );
+    const _treeSig=m=>JSON.stringify([...m].sort());
+    const _planSig=r=>JSON.stringify(
+        r.map(x=>[x.action,x.path,x.blob||''])
+    );
+    const _html=s=>String(s).replace(
+        /[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])
+    );
+
+    function _pushSettings(){
+        const repositoryMode=_currentRepositoryMode();
+        const newDefaultBranch=_val('pushNewDefaultBranch')||'main';
+        const sourceBranch=repositoryMode==='new'
+            ?newDefaultBranch:_val('pushSourceBranch');
+        const branchMode=repositoryMode==='new'
+            ?'existing':_currentBranchMode();
+
+        return {
+            instanceUrl:_origin(),
+            repositoryMode,
+            branchMode,
+            token:_val('pushGitlabToken'),
+            projectInput:_val('pushGitlabProject'),
+            newRepoName:_val('pushNewRepositoryName'),
+            newRepoDescription:_val('pushNewRepositoryDescription'),
+            newNamespaceId:_val('pushNewNamespace'),
+            newRepoVisibility:_val('pushNewVisibility')||'private',
+            newDefaultBranch,
+            sourceBranch,
+            targetBranch:branchMode==='existing'
+                ?sourceBranch:_val('pushTargetBranch'),
+            commitMessage:_val('pushCommitMessage'),
+            openMr:repositoryMode!=='new'&&_checked('pushOpenMr'),
+            mrTitle:_val('pushMrTitle'),
+            mrDescription:_val('pushMrDescription'),
+            deleteRemote:_checked('pushDeleteRemote'),
+            includeIdeFiles:_checked('pushIncludeIde'),
+            saveToken:_checked('pushSaveToken')
+        };
+    }
+
+    function _pushState(){
+        return JSON.stringify([
+            _providerName(),
+            _currentRepositoryMode(),
+            _currentBranchMode(),
+            ...PUSH_PREVIEW_FIELDS.map(id=>{
+                const e=_el(id);
+                return e&&e.type==='checkbox'?e.checked:e?.value||'';
+            })
+        ]);
+    }
+
+    function _invalidatePreview(){
+        _previewState=_previewPlan=_previewTree='';
+        const b=_pushButton();
+        if(b){
+            b.disabled=true;
+            b.textContent='Push =>';
+        }
+    }
+
+    function _bindPreviewGuard(){
+        const m=_el('gitlabPushModal');
+        if(!m||m.dataset.previewGuard)return;
+        m.dataset.previewGuard='1';
+        m.addEventListener('input',_invalidatePreview);
+        m.addEventListener('change',_invalidatePreview);
+    }
+
+    async function _buildGitLabChangePlan({
+        remotePaths = new Map(),
         includeIdeFiles = false,
         includeRemoteDeletes = false
     } = {}) {
@@ -695,20 +960,26 @@
             );
         });
 
-        const changes = eligiblePaths.map(path => ({
-            action: remotePaths.has(path) ? 'update' : 'create',
-            path,
-            content: vfs.getFile(path),
-            encoding:
-                vfs.getEncoding(path) === 'base64'
-                    ? 'base64'
-                    : 'text',
-            bytes: vfs.getFileSizeBytes(path)
-        }));
+        const changes=[];
+        for(const path of eligiblePaths){
+            const exists=remotePaths.has(path),blob=await _gitBlobId(path);
+            if(exists&&remotePaths.get(path)===blob)continue;
+            changes.push({
+                action:exists?'update':'create',
+                path,
+                blob,
+                content:vfs.getFile(path),
+                encoding:
+                    vfs.getEncoding(path)==='base64'
+                        ? 'base64'
+                        : 'text',
+                bytes:vfs.getFileSizeBytes(path)
+            });
+        }
 
         if (includeRemoteDeletes) {
             changes.push(
-                ...Array.from(remotePaths)
+                ...Array.from(remotePaths.keys())
                     .filter(path => !vfs.hasFile(path))
                     .map(path => ({
                         action: 'delete',
@@ -727,30 +998,25 @@
     }
 
     async function previewChanges() {
+        _invalidatePreview();
         _clearProgress();
         _showTab('preview');
 
-        const instanceUrl    = _gitlabOrigin();
-        const repositoryMode = _currentRepositoryMode();
-        const token          = (document.getElementById('pushGitlabToken')       || {}).value?.trim();
-        const projectInput   = (document.getElementById('pushGitlabProject')     || {}).value?.trim();
-        const newRepoName    = (document.getElementById('pushNewRepositoryName') || {}).value?.trim();
-        const newBranch      = (document.getElementById('pushNewDefaultBranch')  || {}).value?.trim() || 'main';
-        const sourceBranch   = repositoryMode === 'new'
-            ? newBranch
-            : (document.getElementById('pushSourceBranch') || {}).value?.trim();
-        const includeIde     = (document.getElementById('pushIncludeIde')        || {}).checked;
-        const deleteRemote   = (document.getElementById('pushDeleteRemote')      || {}).checked;
+        const {
+            instanceUrl,repositoryMode,token,projectInput,newRepoName,
+            sourceBranch,branchMode,targetBranch,deleteRemote,
+            includeIdeFiles:includeIde,openMr:openReview
+        }=_pushSettings();
 
         _setVal('pushGitlabUrl', instanceUrl);
 
         if (!token) {
-            _logPreview('⚠ Fill in the GitLab token first.');
+            _logPreview('⚠ Fill in the access token first.');
             return;
         }
 
         if (repositoryMode === 'existing' && !projectInput) {
-            _logPreview('⚠ Fill in the GitLab project first.');
+            _logPreview('⚠ Fill in the repository first.');
             return;
         }
 
@@ -759,7 +1025,9 @@
             return;
         }
 
-        const branchErr = _validateBranchName(sourceBranch);
+        const branchErr =
+            _validateBranchName(sourceBranch) ||
+            _validateBranchName(targetBranch);
         if (branchErr) {
             _logPreview(`⚠ ${branchErr}`);
             return;
@@ -777,56 +1045,54 @@
         );
 
         try {
-            const headers = { 'PRIVATE-TOKEN': token };
-            let remotePaths = new Set();
+            let remotePaths=new Map();
+            let repoLabel=repositoryMode==='new'?newRepoName:projectInput;
 
             if (repositoryMode === 'existing') {
-                const projectId = isNaN(projectInput)
-                    ? projectInput.replace(/\//g, '%2F')
-                    : projectInput;
-
-                const projResp = await fetch(
-                    `${instanceUrl}/api/v4/projects/${projectId}`, { headers });
-
-                if (!projResp.ok) {
-                    throw new Error(`Project not found (${projResp.status})`);
-                }
-
-                const projData = await projResp.json();
-                const numericId = projData.id;
-
-                const treeResp = await fetch(
-                    `${instanceUrl}/api/v4/projects/${numericId}/repository/tree` +
-                    `?ref=${encodeURIComponent(sourceBranch)}&recursive=true&per_page=1000`,
-                    { headers });
-
-                if (treeResp.ok) {
-                    const treeData = await treeResp.json();
-                    treeData
-                        .filter(i => i.type === 'blob')
-                        .forEach(i => remotePaths.add('/' + i.path));
-                }
+                const project = await _provider.resolveRepository(
+                    instanceUrl,
+                    token,
+                    projectInput
+                );
+                repoLabel=project.path_with_namespace||projectInput;
+                const tree = await _provider.fetchTree(
+                    instanceUrl,
+                    token,
+                    project.id,
+                    sourceBranch
+                );
+                remotePaths = tree.paths;
             }
 
-            const { changes: rows } = _buildGitLabChangePlan({
+            const { changes: rows } = await _buildGitLabChangePlan({
                 remotePaths,
                 includeIdeFiles: includeIde,
                 includeRemoteDeletes: deleteRemote
             });
 
-            // Render table
+
             const creates = rows.filter(r => r.action === 'create').length;
             const updates = rows.filter(r => r.action === 'update').length;
             const deletes = rows.filter(r => r.action === 'delete').length;
             const totalKb = (rows.reduce((s, r) => s + r.bytes, 0) / 1024).toFixed(1);
 
-            const previewEl = document.getElementById('pushPreviewContent');
+            const previewEl = _el('pushPreviewContent');
             if (!previewEl) return;
 
             const actionColor = { create: '#48bb78', update: '#4fc3f7', delete: '#fc8181' };
             const actionIcon  = { create: '＋', update: '✎', delete: '✕' };
+            const providerLabel=_providerName()==='github'?'GitHub':'GitLab';
+            const branchText=repositoryMode==='new'
+                ? `Branch: ${targetBranch} (new repository default; bootstrap replaced)`
+                : branchMode==='new'
+                    ? `Branch: ${sourceBranch} -> ${targetBranch} (create target)`
+                    : `Branch: ${sourceBranch} (commit directly)`;
+            const reviewText=openReview
+                ? `Review: open ${targetBranch} -> ${sourceBranch}`
+                : 'Review: none';
 
             previewEl.innerHTML =
+                `<div class="push-preview-destination"><strong>${_html(providerLabel)} - ${_html(repoLabel)}</strong><br>${_html(branchText)}<br>${_html(reviewText)}</div>` +
                 `<div class="push-preview-summary">` +
                 `<span class="push-preview-stat create">${creates} create</span>` +
                 `<span class="push-preview-stat update">${updates} update</span>` +
@@ -847,43 +1113,46 @@
                 ).join('') +
                 `</tbody></table></div>`;
 
+            _previewState=_pushState();
+            _previewPlan=_planSig(rows);
+            _previewTree=_treeSig(remotePaths);
+            const pushBtn=_pushButton();
+            if(pushBtn){
+                pushBtn.disabled=!rows.length;
+                pushBtn.textContent=rows.length?'Push =>':'No changes';
+            }
+
         } catch(e) {
             _logPreview(`❌ ${e.message}`);
         }
     }
 
     function _logPreview(msg) {
-        const el = document.getElementById('pushPreviewContent');
+        const el = _el('pushPreviewContent');
         if (el) el.textContent = msg;
     }
 
-    // -- Tab switcher ------------------------------------------------------
 
-    function _showTab(tab) {
-        const tabs    = ['push', 'preview', 'log'];
-        const btnPre  = 'pushTab';
-        const panePre = 'pushPane';
-
-        tabs.forEach(t => {
-            const selected = t === tab;
-            const suffix = t.charAt(0).toUpperCase() + t.slice(1);
-            const btn  = document.getElementById(btnPre + suffix);
-            const pane = document.getElementById(panePre + suffix);
-
-            if (btn) {
-                btn.classList.toggle('active', selected);
-                btn.setAttribute(
-                    'aria-selected',
-                    selected ? 'true' : 'false'
-                );
-                btn.tabIndex = selected ? 0 : -1;
+    function _showTab(tab){
+        for(const t of ['push','preview','log']){
+            const s=t===tab,n=t[0].toUpperCase()+t.slice(1);
+            const b=_el('pushTab'+n);
+            const p=_el('pushPane'+n);
+            if(b){
+                b.classList.toggle('active',s);
+                b.setAttribute('aria-selected',s?'true':'false');
+                b.tabIndex=s?0:-1;
             }
-
-            if (pane) {
-                pane.classList.toggle('active', selected);
-                pane.hidden = !selected;
+            if(p){
+                p.classList.toggle('active',s);
+                p.hidden=!s;
             }
-        });
+        }
+        const f=document.querySelector('#gitlabPushModal .modal-footer');
+        if(f){
+            f.querySelector('.info').hidden=tab!=='push';
+            f.querySelector('.success').hidden=tab!=='preview';
+        }
     }
 
     function _onTabKeydown(event) {
@@ -924,73 +1193,47 @@
         nextTab.click();
     }
 
-    // -- Core push function ------------------------------------------------
 
     async function pushToGitLab() {
 
-        // -- Read modal fields ------------------------------------------
-        const instanceUrl       = _gitlabOrigin();
-        const repositoryMode    = _currentRepositoryMode();
-        const token             = (document.getElementById('pushGitlabToken')              || {}).value?.trim();
-        const projectInput      = (document.getElementById('pushGitlabProject')           || {}).value?.trim();
-        const newRepoName       = (document.getElementById('pushNewRepositoryName')       || {}).value?.trim();
-        const newRepoDescription= (document.getElementById('pushNewRepositoryDescription')|| {}).value?.trim();
-        const newNamespaceId    = (document.getElementById('pushNewNamespace')            || {}).value?.trim();
-        const newRepoVisibility = (document.getElementById('pushNewVisibility')           || {}).value?.trim() || 'private';
-        const newDefaultBranch  = (document.getElementById('pushNewDefaultBranch')        || {}).value?.trim() || 'main';
+
+        const {
+            instanceUrl,repositoryMode,token,projectInput,newRepoName,
+            newRepoDescription,newNamespaceId,newRepoVisibility,
+            newDefaultBranch,sourceBranch,branchMode,targetBranch,
+            commitMessage,openMr,mrTitle,mrDescription,deleteRemote,
+            includeIdeFiles,saveToken
+        }=_pushSettings();
 
         _setVal('pushGitlabUrl', instanceUrl);
 
-        const sourceBranch = repositoryMode === 'new'
-            ? newDefaultBranch
-            : (document.getElementById('pushSourceBranch') || {}).value?.trim();
 
-        const branchMode = repositoryMode === 'new'
-            ? 'existing'
-            : _currentBranchMode();
-
-        // In existing mode, we commit directly onto the source branch — no separate target needed
-        const targetBranch = branchMode === 'existing'
-            ? sourceBranch
-            : (document.getElementById('pushTargetBranch') || {}).value?.trim();
-
-        const commitMessage   = (document.getElementById('pushCommitMessage') || {}).value?.trim();
-        const openMr          = repositoryMode === 'new'
-            ? false
-            : (document.getElementById('pushOpenMr') || {}).checked;
-        const mrTitle         = (document.getElementById('pushMrTitle') || {}).value?.trim();
-        const mrDescription   = (document.getElementById('pushMrDescription') || {}).value?.trim();
-        const deleteRemote    = (document.getElementById('pushDeleteRemote') || {}).checked;
-        const includeIdeFiles = (document.getElementById('pushIncludeIde') || {}).checked;
-        const saveToken       = (document.getElementById('pushSaveToken') || {}).checked;
-
-        // -- Validate BEFORE switching tabs so errors are visible -------
         if (!token) {
             if (typeof markInvalidFormField === 'function') {
                 markInvalidFormField(
-                    document.getElementById('pushGitlabToken')
+                    _el('pushGitlabToken')
                 );
             }
             if (typeof showToast === 'function')
-                showToast('GitLab token is required', 'error');
+                showToast('Access token is required', 'error');
             return;
         }
 
         if (repositoryMode === 'existing' && !projectInput) {
             if (typeof markInvalidFormField === 'function') {
                 markInvalidFormField(
-                    document.getElementById('pushGitlabProject')
+                    _el('pushGitlabProject')
                 );
             }
             if (typeof showToast === 'function')
-                showToast('GitLab project is required', 'error');
+                showToast('Repository is required', 'error');
             return;
         }
 
         if (repositoryMode === 'new' && !newRepoName) {
             if (typeof markInvalidFormField === 'function') {
                 markInvalidFormField(
-                    document.getElementById('pushNewRepositoryName')
+                    _el('pushNewRepositoryName')
                 );
             }
             if (typeof showToast === 'function')
@@ -1001,7 +1244,7 @@
         if (!['private', 'internal', 'public'].includes(newRepoVisibility)) {
             if (typeof markInvalidFormField === 'function') {
                 markInvalidFormField(
-                    document.getElementById('pushNewVisibility')
+                    _el('pushNewVisibility')
                 );
             }
             if (typeof showToast === 'function')
@@ -1012,7 +1255,7 @@
         if (!commitMessage) {
             if (typeof markInvalidFormField === 'function') {
                 markInvalidFormField(
-                    document.getElementById('pushCommitMessage')
+                    _el('pushCommitMessage')
                 );
             }
             if (typeof showToast === 'function')
@@ -1027,7 +1270,7 @@
         if (!targetBranch) {
             if (typeof markInvalidFormField === 'function') {
                 markInvalidFormField(
-                    document.getElementById(branchFieldId)
+                    _el(branchFieldId)
                 );
             }
             if (typeof showToast === 'function')
@@ -1039,21 +1282,43 @@
         if (branchErr) {
             if (typeof markInvalidFormField === 'function') {
                 markInvalidFormField(
-                    document.getElementById(branchFieldId)
+                    _el(branchFieldId)
                 );
             }
             if (typeof showToast === 'function') showToast(branchErr, 'error');
             return;
         }
 
-        // Re-enable push button for this run (in case modal was reused)
-        const pushBtnReset = document.querySelector('#gitlabPushModal .modal-footer button.success');
-        if (pushBtnReset) {
-            pushBtnReset.disabled = false;
-            pushBtnReset.textContent = 'Push →';
+        if(!_previewState||_previewState!==_pushState()){
+            _invalidatePreview();
+            _showTab('preview');
+            if(typeof showToast==='function')
+                showToast('Preview changes before pushing','error');
+            return;
         }
 
-        // All validation passed — now switch to log tab and start
+        if(repositoryMode==='new'){
+            const pre=await _buildGitLabChangePlan({
+                remotePaths:new Map(),
+                includeIdeFiles,
+                includeRemoteDeletes:true
+            });
+            if(_previewPlan!==_planSig(pre.changes)){
+                _invalidatePreview();
+                _showTab('preview');
+                if(typeof showToast==='function')
+                    showToast('Project changed since preview. Preview again.','error');
+                return;
+            }
+        }
+
+        const pushBtnReset = _pushButton();
+        if (pushBtnReset) {
+            pushBtnReset.disabled = false;
+            pushBtnReset.textContent = 'Push =>';
+        }
+
+
         _clearProgress();
         _showTab('log');
         if (typeof vfs === 'undefined' || vfs.getAllPaths().length === 0) {
@@ -1063,15 +1328,15 @@
         }
 
         if (saveToken) {
-            localStorage.setItem('gitlabToken', token);
+            localStorage.setItem(_tokenKey(), token);
         } else {
-            localStorage.removeItem('gitlabToken');
+            localStorage.removeItem(_tokenKey());
         }
 
-        const headers = { 'PRIVATE-TOKEN': token };
+        const headers = _provider.authHeaders(token);
 
         try {
-            // -- 1. Create or resolve project ---------------------------
+
             let projData;
 
             if (repositoryMode === 'new') {
@@ -1124,28 +1389,17 @@
 
             } else {
                 _log('Resolving project...');
-
-                let projectId = projectInput;
-                if (isNaN(projectInput)) {
-                    projectId = projectInput.replace(/\//g, '%2F');
-                }
-
-                const projResp = await fetch(
-                    `${instanceUrl}/api/v4/projects/${projectId}`, { headers });
-
-                if (!projResp.ok) {
-                    throw new Error(
-                        `Project not found: ${projResp.status} ${projResp.statusText}`
-                    );
-                }
-
-                projData = await projResp.json();
+                projData = await _provider.resolveRepository(
+                    instanceUrl,
+                    token,
+                    projectInput
+                );
                 _log(`✓ Project: ${projData.path_with_namespace}`);
             }
 
             const numericId = projData.id;
 
-            // Update context with resolved info
+
             _ctx.instanceUrl = instanceUrl;
             _ctx.projectId = numericId;
             _ctx.projectPath = projData.path_with_namespace;
@@ -1155,7 +1409,7 @@
                 _ctx.defaultBranch = newDefaultBranch;
                 _ctx.sourceBranch = newDefaultBranch;
 
-                // Preserve successful creation so a commit retry does not recreate.
+
                 _setVal('pushSourceBranch', newDefaultBranch);
                 _setRepositoryMode('existing');
                 _setBranchMode('existing');
@@ -1164,55 +1418,36 @@
                 _ctx.defaultBranch = projData.default_branch;
             }
 
-            // -- 2. Fetch remote tree for create-vs-update resolution ---
-            _log(`Fetching remote tree from '${sourceBranch}'...`);
-            const treeResp = await fetch(
-                `${instanceUrl}/api/v4/projects/${numericId}/repository/tree` +
-                `?ref=${encodeURIComponent(sourceBranch)}&recursive=true&per_page=1000`,
-                { headers });
 
-            let remotePaths = new Set();
-            if (treeResp.ok) {
-                const treeData = await treeResp.json();
-                treeData.filter(i => i.type === 'blob')
-                        .forEach(i => remotePaths.add('/' + i.path));
+            _log(`Fetching remote tree from '${sourceBranch}'...`);
+            const tree = await _provider.fetchTree(
+                instanceUrl,
+                token,
+                numericId,
+                sourceBranch
+            );
+            const remotePaths = tree.paths;
+
+            if (tree.ok) {
                 _log(`✓ Remote tree: ${remotePaths.size} files`);
             } else {
-                // Branch may not exist yet (first push) — treat all as create
-                _log(`⚠ Could not fetch remote tree (${treeResp.status}) — all files will be created`);
+                _log(`⚠ Could not fetch remote tree (${tree.status}) — all files will be created`);
             }
 
-            // -- 3. Create target branch (new branch mode only) ---------
-            if (branchMode === 'new') {
-                _log(`Creating branch '${targetBranch}' from '${sourceBranch}'...`);
-                const branchResp = await fetch(
-                    `${instanceUrl}/api/v4/projects/${numericId}/repository/branches`,
-                    {
-                        method: 'POST',
-                        headers: { ...headers, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            branch: targetBranch,
-                            ref:    sourceBranch,
-                        }),
-                    });
-                if (!branchResp.ok) {
-                    const err = await branchResp.json().catch(() => ({}));
-                    if (branchResp.status === 409) {
-                        throw new Error(
-                            `Branch '${targetBranch}' already exists. ` +
-                            `Switch to "Existing" mode or choose a different name.`);
-                    }
-                    throw new Error(
-                        `Failed to create branch: ${branchResp.status} ` +
-                        `${err.message || branchResp.statusText}`);
-                }
-                _log(`✓ Branch '${targetBranch}' created`);
+
+            if(
+                repositoryMode==='existing' &&
+                _previewTree!==_treeSig(remotePaths)
+            ){
+                _invalidatePreview();
+                throw new Error(
+                    'Remote branch changed since preview. Preview again.'
+                );
             }
 
-            // -- 4. Build actions array ---------------------------------
             _log('Building commit actions...');
 
-            const plan = _buildGitLabChangePlan({
+            const plan = await _buildGitLabChangePlan({
                 remotePaths,
                 includeIdeFiles,
                 includeRemoteDeletes:
@@ -1220,19 +1455,29 @@
             });
 
             const skipped = plan.skipped;
-            const actions = plan.changes.map(change => {
-                const action = {
-                    action: change.action,
-                    file_path: change.path.slice(1)
-                };
+            const actions = plan.changes;
 
-                if (change.action !== 'delete') {
-                    action.content = change.content;
-                    action.encoding = change.encoding;
-                }
+            if(
+                repositoryMode==='existing' &&
+                _previewPlan!==_planSig(actions)
+            ){
+                _invalidatePreview();
+                throw new Error(
+                    'Project changed since preview. Preview again.'
+                );
+            }
 
-                return action;
-            });
+            if (branchMode === 'new') {
+                _log(`Creating branch '${targetBranch}' from '${sourceBranch}'...`);
+                await _provider.createBranch(
+                    instanceUrl,
+                    token,
+                    numericId,
+                    targetBranch,
+                    sourceBranch
+                );
+                _log(`✓ Branch '${targetBranch}' created`);
+            }
 
             if (actions.length === 0) {
                 throw new Error(
@@ -1241,98 +1486,60 @@
 
             _log(`✓ ${actions.length} file action(s) (${skipped} skipped)`);
 
-            // -- 4b. Payload size warning -------------------------------
+
             const estBytes = _estimatePayloadBytes(actions);
             if (estBytes > 4 * 1024 * 1024) {
                 _log(`⚠ Large payload: ~${(estBytes / 1048576).toFixed(1)} MB. ` +
                      `Consider excluding binary files if the push fails.`);
             }
 
-            // -- 5. Submit commit ---------------------------------------
+
             _log(`Committing to '${targetBranch}'...`);
-            const commitResp = await fetch(
-                `${instanceUrl}/api/v4/projects/${numericId}/repository/commits`,
-                {
-                    method: 'POST',
-                    headers: { ...headers, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        branch:         targetBranch,
-                        commit_message: commitMessage,
-                        actions,
-                    }),
-                });
-
-            if (!commitResp.ok) {
-                const err = await commitResp.json().catch(() => ({}));
-                if (commitResp.status === 400 &&
-                    (err.message || '').toLowerCase().includes('nothing to commit')) {
-                    throw new Error('No changes detected — remote is already up to date.');
-                }
-                if (commitResp.status === 403) {
-                    throw new Error(
-                        'Permission denied (403). Your PAT needs ' +
-                        '\'write_repository\' scope to push commits.');
-                }
-                throw new Error(
-                    `Commit failed: ${commitResp.status} ` +
-                    `${err.message || commitResp.statusText}`);
-            }
-
-            const commitData = await commitResp.json();
+            const commitData = await _provider.commitChanges(
+                instanceUrl,
+                token,
+                numericId,
+                targetBranch,
+                commitMessage,
+                actions
+            );
             _log(`✓ Committed: ${commitData.short_id} — "${commitData.title}"`);
 
-            // -- 6. Open Merge Request ----------------------------------
-            let mrUrl = null;
+            let reviewUrl = null;
             if (openMr) {
-                _log('Opening Merge Request...');
-                const finalMrTitle = mrTitle ||
-                    `${targetBranch} → ${sourceBranch}`;
-                const mrResp = await fetch(
-                    `${instanceUrl}/api/v4/projects/${numericId}/merge_requests`,
-                    {
-                        method: 'POST',
-                        headers: { ...headers, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            source_branch:        targetBranch,
-                            target_branch:        sourceBranch,
-                            title:                finalMrTitle,
-                            description:          mrDescription || '',
-                            remove_source_branch: true,
-                        }),
-                    });
+                _log('Opening review...');
+                const review = await _provider.createReview(
+                    instanceUrl,
+                    token,
+                    numericId,
+                    targetBranch,
+                    sourceBranch,
+                    mrTitle || `${targetBranch} -> ${sourceBranch}`,
+                    mrDescription || ''
+                );
 
-                if (!mrResp.ok) {
-                    const err = await mrResp.json().catch(() => ({}));
-                    if (mrResp.status === 409) {
-                        _log('⚠ MR already exists between these branches — skipping MR creation');
-                    } else if (mrResp.status === 403) {
-                        _log('⚠ Could not create MR — PAT needs \'api\' scope for MR creation');
-                    } else {
-                        _log(`⚠ MR creation failed: ${mrResp.status} ` +
-                             `${err.message || mrResp.statusText}`);
-                    }
+                if (review.warning) {
+                    _log('! ' + review.warning);
                 } else {
-                    const mrData = await mrResp.json();
-                    mrUrl = mrData.web_url;
-                    _log(`✓ Merge Request opened: ${mrUrl}`);
+                    reviewUrl = review.url;
+                    _log(`Review opened: ${reviewUrl}`);
                 }
             }
 
-            // -- 7. Save context for future pushes ----------------------
+
             _ctx.sourceBranch = sourceBranch;
             _saveContextToForgeConfig();
 
-            // -- 8. Success ---------------------------------------------
+
             _log('\n✓ Push complete!');
-            if (mrUrl) {
-                _log(`\nOpen your MR: ${mrUrl}`);
-                // Render a clickable link in the progress area
-                const el = document.getElementById('pushProgress');
+            if (reviewUrl) {
+                _log(`\nOpen review: ${reviewUrl}`);
+                const el = _el('pushProgress');
                 if (el) {
                     const a = document.createElement('a');
-                    a.href = mrUrl;
+                    a.href = reviewUrl;
                     a.target = '_blank';
-                    a.textContent = '↗ Open Merge Request';
+                    a.textContent = 'Open review';
                     a.style.cssText =
                         'color:#4fc3f7;display:block;margin-top:8px;font-weight:600;';
                     el.appendChild(a);
@@ -1341,13 +1548,12 @@
 
             if (typeof showToast === 'function') {
                 showToast(
-                    mrUrl ? 'Pushed and MR opened!' : 'Push complete!',
+                    reviewUrl ? 'Pushed and review opened!' : 'Push complete!',
                     'success', 5000);
             }
 
-            // Disable push button so the user can't push again without
-            // closing and reopening the modal.
-            const pushBtn = document.querySelector('#gitlabPushModal .modal-footer button.success');
+
+            const pushBtn = _pushButton();
             if (pushBtn) {
                 pushBtn.disabled = true;
                 pushBtn.textContent = '✓ Pushed';
@@ -1361,9 +1567,8 @@
         }
     }
 
-    // -- Public API --------------------------------------------------------
 
-    window.ForgeGitLabPush = {
+    const publicApi = {
         openPushModal,
         closePushModal,
         pushToGitLab,
@@ -1373,7 +1578,8 @@
         recordImportContext,
         loadContextFromVfs,
         getContext,
-        // Exposed for event wiring in index.html
+        setProvider,
+
         toggleProjectBrowser: _toggleProjectBrowser,
         searchProjects: _searchProjects,
         onProjectSearchKeydown: _onProjectSearchKeydown,
@@ -1385,5 +1591,8 @@
         onTargetBranchChange: _updateMrTitlePlaceholder,
         onDeleteRemoteChange: _updateDeleteWarning,
     };
+
+    window.ForgeGitLabPush = publicApi;
+    window.ForgeGitPush = publicApi;
 
 })();

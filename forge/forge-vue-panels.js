@@ -3,6 +3,31 @@
 (function () {
     const { createApp, ref, computed, reactive } = Vue;
 
+    function focusForgeEditorSoon() {
+        setTimeout(() => {
+            if (typeof ForgeEditor !== 'undefined') ForgeEditor.focus();
+        }, 0);
+    }
+
+    function moveActionFocus(event, controls) {
+        const currentIndex = controls.indexOf(event.currentTarget);
+        if (currentIndex < 0) return false;
+
+        event.preventDefault();
+
+        if (event.key === 'ArrowLeft') {
+            controls[Math.max(0, currentIndex - 1)].focus();
+            return false;
+        }
+
+        if (currentIndex < controls.length - 1) {
+            controls[currentIndex + 1].focus();
+            return false;
+        }
+
+        return true;
+    }
+
     // -- File List Component ---------------------------------------------------
 
     const ForgeFileList = {
@@ -60,9 +85,7 @@
                     }
 
                     this.$emit('select', item.path);
-                    setTimeout(() => {
-                        if (typeof ForgeEditor !== 'undefined') ForgeEditor.focus();
-                    }, 0);
+                    focusForgeEditorSoon();
                     return;
                 }
 
@@ -106,25 +129,10 @@
                     ...row.querySelectorAll('.file-item-actions .file-item-btn')
                 ].filter(Boolean);
 
-                const currentIndex = controls.indexOf(event.currentTarget);
-                if (currentIndex < 0) return;
-
-                event.preventDefault();
-
-                if (event.key === 'ArrowLeft') {
-                    controls[Math.max(0, currentIndex - 1)].focus();
-                    return;
-                }
-
-                if (currentIndex < controls.length - 1) {
-                    controls[currentIndex + 1].focus();
-                    return;
-                }
+                if (!moveActionFocus(event, controls)) return;
 
                 this.$emit('select', item.path);
-                setTimeout(() => {
-                    if (typeof ForgeEditor !== 'undefined') ForgeEditor.focus();
-                }, 0);
+                focusForgeEditorSoon();
             }
         },
         template: `
@@ -485,9 +493,7 @@
                         firstAction.focus();
                     } else {
                         this.$emit('select', this.node.path);
-                        setTimeout(() => {
-                            if (typeof ForgeEditor !== 'undefined') ForgeEditor.focus();
-                        }, 0);
+                        focusForgeEditorSoon();
                     }
                     return;
                 }
@@ -560,27 +566,12 @@
                     ...row.querySelectorAll('.file-item-actions .file-item-btn')
                 ];
 
-                const currentIndex = controls.indexOf(event.currentTarget);
-                if (currentIndex < 0) return;
-
-                event.preventDefault();
-
-                if (event.key === 'ArrowLeft') {
-                    controls[Math.max(0, currentIndex - 1)].focus();
-                    return;
-                }
-
-                if (currentIndex < controls.length - 1) {
-                    controls[currentIndex + 1].focus();
-                    return;
-                }
+                if (!moveActionFocus(event, controls)) return;
 
                 if (this.isDir) return;
 
                 this.$emit('select', this.node.path);
-                setTimeout(() => {
-                    if (typeof ForgeEditor !== 'undefined') ForgeEditor.focus();
-                }, 0);
+                focusForgeEditorSoon();
             },
 
             // -- Drag & drop --------------------------------------------------
@@ -1343,17 +1334,26 @@
                 window.forgeNetworkEvents = [];
             }
 
+            async function copyText(text) {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return;
+                }
+
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.top = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+
             async function copyNetwork() {
                 try {
                     const json = JSON.stringify(networkLogs.value, null, 2);
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        await navigator.clipboard.writeText(json);
-                    } else {
-                        const ta = document.createElement('textarea');
-                        ta.value = json; ta.style.position = 'fixed'; ta.style.top = '-9999px';
-                        document.body.appendChild(ta); ta.select();
-                        document.execCommand('copy'); document.body.removeChild(ta);
-                    }
+                    await copyText(json);
                     if (typeof showToast === 'function') showToast('Network log copied to clipboard', 'success');
                 } catch(e) {
                     if (typeof showToast === 'function') showToast('Copy failed: ' + e.message, 'error');
@@ -1363,14 +1363,7 @@
             async function copyConsole() {
                 try {
                     const json = JSON.stringify(consoleLogs.value, null, 2);
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        await navigator.clipboard.writeText(json);
-                    } else {
-                        const ta = document.createElement('textarea');
-                        ta.value = json; ta.style.position = 'fixed'; ta.style.top = '-9999px';
-                        document.body.appendChild(ta); ta.select();
-                        document.execCommand('copy'); document.body.removeChild(ta);
-                    }
+                    await copyText(json);
                     if (typeof showToast === 'function') showToast('Console log copied to clipboard', 'success');
                 } catch(e) {
                     if (typeof showToast === 'function') showToast('Copy failed: ' + e.message, 'error');

@@ -228,6 +228,7 @@ class VirtualFileSystem {
     getMimeType(path) {
         const ext = path.split('.').pop().toLowerCase();
         const mimeTypes = {
+            'wasm': 'application/wasm',
             'html': 'text/html',
             'htm':  'text/html',
             'css':  'text/css',
