@@ -23,14 +23,6 @@
       "description": "Search FDA drug labels using the openFDA REST API.",
       "tags": ["intermediate", "api", "openfda"],
       "requiresForgeApi": false
-    },
-    {
-      "id": "forgeapi-chatroom",
-      "title": "Chatroom",
-      "icon": "💬",
-      "description": "Multi-user chat room using ForgeAPI client-server hosting.",
-      "tags": ["advanced", "forgeapi", "multi-user"],
-      "requiresForgeApi": true
     }
   ]
 }
