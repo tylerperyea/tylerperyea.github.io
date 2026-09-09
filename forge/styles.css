@@ -1783,14 +1783,17 @@ body.loading-fullscreen .loading-spinner {
 #importProgress {
     display: none;
     margin-top: 15px;
-    padding: 10px;
+    padding: 10px 12px;
     background: #1e1e1e;
     border: 1px solid #3e3e42;
     border-radius: 4px;
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 0.85em;
-    max-height: 200px;
+    line-height: 1.45;
+    max-height: 220px;
     overflow-y: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 /* Unsaved Changes Modal */
@@ -2840,12 +2843,13 @@ body.is-dragging-context iframe {
     padding: 10px 12px;
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 0.82em;
+    line-height: 1.45;
     color: #d4d4d4;
-    min-height: 200px;
-    max-height: 180px;
+    min-height: 180px;
+    max-height: 240px;
     overflow-y: auto;
     white-space: pre-wrap;
-    word-break: break-all;
+    overflow-wrap: anywhere;
     margin-top: 10px;
 }
 

@@ -1041,8 +1041,22 @@ function closeGitLabModal() {
     importProgress.textContent = '';
 }
 
-function logProgress(message) {
+function logProgress(message, replaceProgress = false) {
     importProgress.style.display = 'block';
+
+    if (replaceProgress) {
+        const existing = importProgress.textContent.trimEnd();
+        const lines = existing ? existing.split('\n') : [];
+        const last = lines[lines.length - 1] || '';
+
+        if (/^  (?:Fetched|Excluded) \d+/.test(last)) {
+            lines.pop();
+        }
+
+        importProgress.textContent =
+            lines.length ? lines.join('\n') + '\n' : '';
+    }
+
     importProgress.textContent += message + '\n';
     importProgress.scrollTop = importProgress.scrollHeight;
 }
@@ -1276,7 +1290,10 @@ async function importFromGitLab() {
                     });
                     ignoredCount++;
                     if (ignoredCount % 10 === 0) {
-                        logProgress(`  Excluded ${ignoredCount} files...`);
+                        logProgress(
+                            `  Excluded ${ignoredCount} files...`,
+                            true
+                        );
                     }
                 } else {
 
@@ -1301,7 +1318,10 @@ async function importFromGitLab() {
                     });
                     fetchedCount++;
                     if (fetchedCount % 5 === 0 || fetchedCount === files.length - ignoredCount) {
-                        logProgress(`  Fetched ${fetchedCount}/${files.length - ignoredCount} files...`);
+                        logProgress(
+                            `  Fetched ${fetchedCount}/${files.length - ignoredCount} files...`,
+                            true
+                        );
                     }
                 } else {
                     logProgress(`  ⚠ Failed to fetch: ${file.path}`);
@@ -3745,7 +3765,11 @@ function extractCarriedParams() {
     let carried = '';
     const carriedUrl = params.get('url');
     const carriedHash = params.get('previewHash');
-    if (carriedUrl)  carried += '&url='         + encodeURIComponent(carriedUrl);
+    const eventObjectUrl = /^\[object [A-Za-z]*Event\]$/;
+
+    if (carriedUrl && !eventObjectUrl.test(carriedUrl)) {
+        carried += '&url=' + encodeURIComponent(carriedUrl);
+    }
     if (carriedHash) carried += '&previewHash=' + encodeURIComponent(carriedHash);
     return carried;
 }
@@ -5496,10 +5520,8 @@ function closeEditor() {
 // Preview CSP: CDN resource loads are separate from restricted connect-src.
 // Inline/eval remain required inside the opaque sandbox for VFS/runtime code.
 function buildPreviewCspMeta() {
-    // CDN domains allowed for resource loading (scripts, styles, fonts, images).
-    // These are intentionally excluded from connect-src -- CDN loads happen via
-    // <script src> and <link href>, which go through script-src/style-src/font-src,
-    // not through fetch()/XHR which connect-src governs.
+    // Explicit CDN allowlist for browser resources and fetch-backed resources
+    // such as WebAssembly companions loaded by trusted external ESM modules.
     const cdnDomains = [
         'https://unpkg.com',
         'https://cdn.jsdelivr.net',
@@ -5507,8 +5529,7 @@ function buildPreviewCspMeta() {
         'https://esm.sh',
     ].join(' ');
 
-    // Domains allowed for fetch()/XHR (connect-src).
-    // Only .gov and localhost -- CDNs are deliberately excluded here.
+    // Additional domains allowed for fetch()/XHR (connect-src).
     const connectDomains = [
         'https://*.gov',
         'http://localhost:*',
@@ -5517,11 +5538,11 @@ function buildPreviewCspMeta() {
         'https://127.0.0.1:*',
     ].join(' ');
 
-    // All resource domains combined for non-connect directives.
+    // Keep the approved network/resource origins in one combined allowlist.
     const resourceDomains = `${connectDomains} ${cdnDomains}`;
 
     const directives = [
-        `connect-src 'self' blob: ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:* ${connectDomains}`,
+        `connect-src 'self' blob: ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:* ${resourceDomains}`,
         `img-src 'self' blob: data: ${resourceDomains}`,
         `form-action 'self' ${resourceDomains}`,
         `frame-src 'self' blob: data: ${resourceDomains}`,
@@ -7455,7 +7476,11 @@ function buildInterceptorScript(pageTitle, basePath) {
                 // Relative URLs (bare or ./-prefixed) are resolved against the
                 // current page's directory. Absolute http(s) URLs are left alone.
                 function __resolve_fetch_url(rawUrl, base) {
-                    if (typeof rawUrl !== 'string') return rawUrl;
+                    // postMessage cannot reliably structured-clone URL objects
+                    // across the opaque preview boundary. fetch() accepts URL
+                    // objects and other stringifiable RequestInfo values, so
+                    // normalize them before VFS resolution or bridge messaging.
+                    if (typeof rawUrl !== 'string') rawUrl = String(rawUrl);
                     if (/^https?:\\/\\/|\\/\\//.test(rawUrl)) return rawUrl;
                     if (rawUrl.startsWith('/')) return rawUrl;
                     const dir = base.substring(0, base.lastIndexOf('/') + 1);
@@ -7738,7 +7763,16 @@ function buildInterceptorScript(pageTitle, basePath) {
                 function reportHistory(url) {
                     if (url == null || url === '') return;
 
+                    // Event handlers receive the DOM event as their first argument.
+                    // Do not turn an accidentally forwarded event into a SPA route
+                    // such as "[object PointerEvent]".
+                    if (typeof Event !== 'undefined' && url instanceof Event) return;
+
                     let value = String(url);
+
+                    // Some frameworks stringify callback arguments before they
+                    // reach history. Reject those event-object strings too.
+                    if (/^\[object [A-Za-z]*Event\]$/.test(value)) return;
 
                     if (value.startsWith('#')) {
                         window.parent.postMessage({
@@ -8001,7 +8035,24 @@ function buildInterceptorScript(pageTitle, basePath) {
             const __vfs_module_cache = {};
             const __vfs_module_base  = ${JSON.stringify(basePath || '/')};
 
+            // Dynamic imports are rewritten to __vfs_module() so project-local
+            // modules can resolve through the VFS. Absolute HTTP(S) modules are
+            // already real browser resources, so keep those on the native ESM
+            // loader instead of normalizing them into fake VFS paths.
+            const __vfs_native_import =
+                new Function('url', 'return import(url);');
+
             function __vfs_module(path) {
+                if (
+                    typeof path === 'string' &&
+                    (
+                        path.startsWith('https://') ||
+                        path.startsWith('http://')
+                    )
+                ) {
+                    return __vfs_native_import(path);
+                }
+
                 // Resolve relative paths against the base path of the entry file
                 function resolvePath(p, base) {
                     if (p.startsWith('/')) return p;
