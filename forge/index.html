@@ -185,6 +185,13 @@
               <small>Paste or type forge JSON</small>
             </span>
           </div>
+          <div class="dropdown-item" onclick="selectSingleFileUpload(); toggleDropdown('dd-import')">
+            <span class="dropdown-icon">⬆</span>
+            <span>
+              <strong>Upload File</strong>
+              <small>Add one file to project root</small>
+            </span>
+          </div>
           <div class="dropdown-item" onclick="importFromZip(); toggleDropdown('dd-import')">
             <span class="dropdown-icon">📦</span>
             <span>
@@ -500,7 +507,11 @@
            role="tabpanel"
            aria-labelledby="mainTabPreview"
            :style="{ display: activeTab === 'preview' ? 'flex' : 'none' }">
-        <div class="preview-tab-wrapper">
+        <div class="preview-tab-wrapper" id="fullscreenContainer">
+        <div class="fullscreen-menu" id="fullscreenMenu">
+          <button id="exitFullscreenBtn" title="Exit fullscreen (Esc)">Exit</button>
+          <button onclick="copyFullscreenUrl()" title="Copy fullscreen share URL" style="margin-left:6px;">🔗 Share</button>
+        </div>
         <div class="preview-header">
           <span style="font-size:0.9em; color:#949494;">Preview:</span>
           <input type="text" id="urlBar" class="url-bar" value="No project loaded">
@@ -512,6 +523,8 @@
             onclick="openManagedShareManageModal()"
             hidden
           >⚙ Manage</button>
+          <button id="previewBackBtn" title="Back in preview" class="secondary preview-action-btn">←</button>
+          <button id="previewForwardBtn" title="Forward in preview" class="secondary preview-action-btn">→</button>
           <button id="refreshPreviewBtn" title="Refresh the current preview" class="secondary preview-action-btn">↻ Refresh</button>
           <button id="shareCommentBtn" title="Add a comment and copy a self-contained URL" class="secondary preview-action-btn">💬 Comment URL</button>
           <button id="shareLongUrlBtn"  title="Copy a self-contained long link (nothing stored server-side)" class="secondary preview-action-btn">🔗 Long Link</button>
@@ -657,6 +670,7 @@
               <div class="add-file-mode-toggle">
                 <button id="addFileModeFileBtn" class="add-mode-btn active" title="Create a new file">📄 File</button>
                 <button id="addFileModeDirBtn" class="add-mode-btn" title="Create a new folder">📁 Folder</button>
+                <button id="uploadFileBtn" class="add-mode-btn" title="Upload one file to project root">⬆ Upload</button>
               </div>
               <div class="add-file-input-row">
                 <input type="text" id="addFileInput" class="add-file-input" placeholder="/path/to/file.html">
@@ -707,6 +721,7 @@
               <div class="editor-actions">
                 <button id="deleteFileBtn" class="danger" hidden title="Delete this file">🗑️ Delete</button>
                 <button id="saveFileBtn" hidden title="Save file (Ctrl+S)">💾 Save</button>
+                <button id="downloadFileBtn" :hidden="!activeTabPath" title="Download this file">Download</button>
                 <button id="rerunBtn" hidden title="Save and re-run preview (Ctrl+R)">▶️ Re-run</button>
               </div>
             </div>
@@ -761,15 +776,6 @@
   </div>
 
 
-  <div class="fullscreen-container" id="fullscreenContainer">
-    <div class="fullscreen-menu" id="fullscreenMenu">
-      <button id="exitFullscreenBtn" title="Exit fullscreen (Esc)">Exit</button>
-      <button onclick="copyFullscreenUrl()" title="Copy fullscreen share URL" style="margin-left:6px;">🔗 Share</button>
-    </div>
-    <iframe id="fullscreenFrame" class="fullscreen-iframe"
-      title="FORGE fullscreen project preview"
-      sandbox="allow-scripts allow-forms allow-modals allow-popups-to-escape-sandbox allow-popups allow-downloads allow-pointer-lock allow-presentation"></iframe>
-  </div>
 
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
@@ -1050,13 +1056,14 @@
           <strong id="clipboardPasteTitle" style="color:#4fc3f7;"></strong>
         </p>
         <p id="clipboardPasteStats" style="margin-top:6px; font-size:0.85em; color:#949494;"></p>
-        <p style="margin-top:12px; color:#f48771;">
-          ⚠️ This will replace your current project. This cannot be undone.
+        <p style="margin-top:12px; color:#949494;">
+          Merge keeps existing files and overwrites matching paths. Replace clears the current project first.
         </p>
       </div>
       <div class="modal-footer">
         <button class="secondary" id="clipboardPasteCancelBtn">Cancel</button>
-        <button class="success" id="clipboardPasteConfirmBtn">Load Project</button>
+        <button class="secondary" id="clipboardPasteMergeBtn">Merge</button>
+        <button class="success" id="clipboardPasteConfirmBtn">Replace</button>
       </div>
     </div>
   </div>
@@ -1753,34 +1760,6 @@
 
 
 
-  <div class="modal-overlay" id="forgeBridgeWaitingModal" aria-hidden="true">
-    <div class="modal unsaved-modal">
-      <div class="modal-header">
-        <h2>🌉 Bridge Ready</h2>
-      </div>
-      <div class="modal-body">
-        <p style="margin-bottom:12px;">
-          Forge IDE is waiting for an external page to connect via the bridge.
-        </p>
-        <div style="background:#1e1e1e; border:1px solid #3e3e42; border-left:3px solid #4fc3f7; border-radius:4px; padding:10px 14px; margin-bottom:14px;">
-          <div style="font-size:0.78em; color:#949494; margin-bottom:4px;">Expected origin</div>
-          <code id="forgeBridgeWaitingOrigin" style="color:#4fc3f7; font-size:0.95em; word-break:break-all;">Any trusted origin</code>
-        </div>
-        <div id="forgeBridgeWaitingStatus" style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:#1e1e1e; border:1px solid #3e3e42; border-radius:4px; margin-bottom:12px;">
-          <span id="forgeBridgeWaitingSpinner" style="display:inline-block; width:14px; height:14px; border:2px solid #3e3e42; border-top-color:#4fc3f7; border-radius:50%; animation:spin 0.8s linear infinite; flex-shrink:0;"></span>
-          <span id="forgeBridgeWaitingStatusText" style="font-size:0.88em; color:#949494;">Waiting for connection...</span>
-        </div>
-        <p style="font-size:0.85em; color:#949494; line-height:1.6;">
-          When the connecting page sends a handshake, you may be asked to
-          confirm the connection. Close this dialog to cancel.
-        </p>
-      </div>
-      <div class="modal-footer">
-        <button class="secondary" id="forgeBridgeWaitingCancel">Cancel</button>
-        <button class="success" id="forgeBridgeWaitingDone" hidden>Done</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Forge Bridge Trust Modal -->
   <div class="modal-overlay" id="forgeBridgeTrustModal" aria-hidden="true">
@@ -1801,8 +1780,7 @@
           <code id="forgeBridgeTrustOrigin" style="color:#4fc3f7; font-size:0.95em; word-break:break-all;"></code>
         </div>
         <p style="font-size:0.85em; color:#949494; line-height:1.6;">
-          <strong style="color:#d4d4d4;">Allow Once</strong> — permits this session only. You'll be asked again next time.<br>
-          <strong style="color:#d4d4d4;">Always Allow</strong> — saves this origin to your browser. You won't be asked again.<br>
+          <strong style="color:#d4d4d4;">Allow</strong> — permits this connection for the current session only.<br>
           <strong style="color:#d4d4d4;">Deny</strong> — blocks this origin. The requesting page will be notified.
         </p>
       </div>

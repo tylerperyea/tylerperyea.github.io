@@ -122,6 +122,13 @@
     });
   }
 
+  function bridgeAttention(on) {
+    window.forgeBridgeAttention = Math.max(
+      0, (window.forgeBridgeAttention || 0) + (on ? 1 : -1)
+    );
+    window.updateBrowserTitle?.();
+  }
+
   function showTrustModal(origin, trusted, callback) {
     const modal      = $('#forgeBridgeTrustModal');
     const originEl   = $('#forgeBridgeTrustOrigin');
@@ -167,6 +174,7 @@
       } else {
         modal.classList.remove('active');
       }
+      bridgeAttention(false);
       callback(decision);
     }
 
@@ -180,6 +188,7 @@
 
     allowOnceBtn.addEventListener('click', onAllowOnce);
     denyBtn.addEventListener('click', onDeny);
+    bridgeAttention(true);
 
     if (typeof window.ForgeModal !== 'undefined') {
       window.ForgeModal.open('forgeBridgeTrustModal', {
@@ -241,12 +250,6 @@
 
 
   function replyRegistered(event, callerOrigin) {
-    // If the waiting modal is open, update it to show connected state.
-    if (isWaitingModalOpen()) {
-      setWaitingModalConnected(callerOrigin);
-    }
-
-    // Update the persistent bridge indicator in the toolbar.
     updateBridgeIndicator();
 
     if (event.source) {
@@ -829,6 +832,7 @@
         } else {
           modal.classList.remove('active');
         }
+        bridgeAttention(false);
         resolve(allowed);
       }
 
@@ -837,6 +841,7 @@
 
       allowBtn.addEventListener('click', onAllow);
       denyBtn.addEventListener('click', onDeny);
+      bridgeAttention(true);
 
       if (typeof window.ForgeModal !== 'undefined') {
         window.ForgeModal.open('forgeBridgePrivEvalModal', {
@@ -868,6 +873,7 @@
     }
 
     if (type && INTERNAL_MSG_TYPES.has(type)) return;
+    if (type && type.startsWith('forge-idb-')) return;
 
     // Log bridge-related messages for diagnostics.
     if (type && typeof type === 'string' && type.startsWith('forge-')) {
@@ -936,34 +942,6 @@
 
   // ── Waiting modal helpers ──────────────────────────────────────────────
 
-  function setWaitingModalConnected(origin) {
-    const statusText = $('#forgeBridgeWaitingStatusText');
-    const spinner    = $('#forgeBridgeWaitingSpinner');
-    const doneBtn    = $('#forgeBridgeWaitingDone');
-    const cancelBtn  = $('#forgeBridgeWaitingCancel');
-    const originEl   = $('#forgeBridgeWaitingOrigin');
-
-    if (statusText) {
-      statusText.textContent = '✅ Connected: ' + origin;
-      statusText.style.color = '#48bb78';
-    }
-    if (spinner) spinner.style.display = 'none';
-    if (originEl) originEl.textContent = origin;
-    if (doneBtn)  doneBtn.hidden = false;
-    if (cancelBtn) cancelBtn.hidden = true;
-
-    // Auto-close after 3 seconds
-    setTimeout(function () {
-      if (typeof window.ForgeModal !== 'undefined') {
-        window.ForgeModal.close('forgeBridgeWaitingModal');
-      }
-    }, 3000);
-  }
-
-  function isWaitingModalOpen() {
-    const modal = $('#forgeBridgeWaitingModal');
-    return modal && modal.classList.contains('active');
-  }
 
   // ── Init ───────────────────────────────────────────────────────────────
 
@@ -977,48 +955,6 @@
     console.log('[ForgeBridge] Ready. Trusted patterns: .gov, vertexaisearch.cloud.google, chatgpt.com');
   }
 
-  function openWaitingModal(expectedOrigin) {
-    const originEl  = $('#forgeBridgeWaitingOrigin');
-    const cancelBtn = $('#forgeBridgeWaitingCancel');
-    const doneBtn   = $('#forgeBridgeWaitingDone');
-    const statusText = $('#forgeBridgeWaitingStatusText');
-    const spinner   = $('#forgeBridgeWaitingSpinner');
-
-    // Reset state
-    if (originEl)   originEl.textContent  = expectedOrigin || 'Any trusted origin';
-    if (statusText) {
-      statusText.textContent = 'Waiting for connection...';
-      statusText.style.color = '';
-    }
-    if (spinner)  spinner.style.display = 'inline-block';
-    if (doneBtn)  doneBtn.hidden = true;
-    if (cancelBtn) cancelBtn.hidden = false;
-
-    if (cancelBtn) {
-      cancelBtn.onclick = function () {
-        if (typeof window.ForgeModal !== 'undefined') {
-          window.ForgeModal.close('forgeBridgeWaitingModal');
-        }
-      };
-    }
-    if (doneBtn) {
-      doneBtn.onclick = function () {
-        if (typeof window.ForgeModal !== 'undefined') {
-          window.ForgeModal.close('forgeBridgeWaitingModal');
-        }
-      };
-    }
-
-    if (typeof window.ForgeModal !== 'undefined') {
-      window.ForgeModal.open('forgeBridgeWaitingModal', {
-        initialFocus: '#forgeBridgeWaitingCancel',
-        closeOnBackdrop: false,
-        onRequestClose: function () {
-          window.ForgeModal.close('forgeBridgeWaitingModal');
-        }
-      });
-    }
-  }
 
   // ── Public API ─────────────────────────────────────────────────────────
 
@@ -1050,7 +986,6 @@
 
   window.ForgeBridge = {
     init,
-    openWaitingModal,
     isTrustedOrigin,
     isSafeProxyTarget,
     getSessionOrigins:      () => Array.from(sessionTrustedOrigins),

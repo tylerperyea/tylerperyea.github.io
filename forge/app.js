@@ -73,7 +73,53 @@ function getTimestamp() {
 
 let projectTitle = generateProjectName();
 let previewPageTitle = '';
-let fullscreenPageTitle = '';
+const forgeDefaultFavicon =
+    document.querySelector('link[rel*="icon"]')?.href || '/favicon.ico';
+
+function updateForgeAttentionFavicon() {
+    let link = document.getElementById('forgeContentAttentionFavicon');
+
+    if (!window.forgeContentAttention) {
+        if (link) link.href = forgeDefaultFavicon;
+        return;
+    }
+
+    if (!link) {
+        link = document.createElement('link');
+        link.id = 'forgeContentAttentionFavicon';
+        link.rel = 'icon';
+        document.head.appendChild(link);
+    }
+
+    link.href = 'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
+        '<circle cx="32" cy="32" r="30" fill="#ff8a00"/>' +
+        '<path d="M18 28h22l-7-7 5-5 16 16-16 16-5-5 7-7H18z" fill="white"/>' +
+        '</svg>'
+    );
+}
+
+function clearForgeContentAttention() {
+    if (!window.forgeContentAttention) return;
+    window.forgeContentAttention = false;
+    updateForgeAttentionFavicon();
+    updateBrowserTitle();
+}
+
+window.markForgeContentAttention = function () {
+    // Arm attention even if the IDE is focused while approving the bridge
+    // operation. It clears on the next focus/visibility return to this tab.
+    window.forgeContentAttention = true;
+    updateForgeAttentionFavicon();
+    updateBrowserTitle();
+};
+
+window.addEventListener('focus', clearForgeContentAttention);
+document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && document.hasFocus()) {
+        clearForgeContentAttention();
+    }
+});
 
 function updateBrowserTitle() {
     const fullscreenEl = document.getElementById('fullscreenContainer');
@@ -82,7 +128,7 @@ function updateBrowserTitle() {
     );
 
     const reportedTitle = $if(isFullscreen)
-        .use(fullscreenPageTitle)
+        .use(previewPageTitle)
         .otherwise(previewPageTitle);
 
     let fallbackTitle = 'FORGE IDE';
@@ -95,7 +141,14 @@ function updateBrowserTitle() {
         title = reportedTitle.trim();
     }
 
-    document.title = $if(isFullscreen)
+    const attention = window.forgeBridgeAttention
+        ? '⚠️ '
+        : window.forgeContentAttention
+            ? '🟠 '
+            : '';
+
+    document.title = attention +
+        $if(isFullscreen)
         .use(title)
         .otherwise(`[FORGE] ${title}`);
 }
@@ -153,6 +206,12 @@ document.addEventListener('click', (e) => {
     }
     if (e.target && e.target.id === 'saveFileBtn') {
         saveFile();
+    }
+    if (e.target && e.target.id === 'downloadFileBtn') {
+        downloadCurrentFile();
+    }
+    if (e.target && e.target.id === 'uploadFileBtn') {
+        selectSingleFileUpload();
     }
     if (e.target && e.target.id === 'rerunBtn') {
         rerunProject();
@@ -466,25 +525,29 @@ async function pasteProjectFromClipboard() {
  */
 function loadProjectFromParsed(
     parsed,
-    { preserveUrl = false, managedShareMetadata = null } = {}
+    { preserveUrl = false, managedShareMetadata = null, merge = false } = {}
 ) {
     try {
         // Clear stale URL params from any previously loaded project.
         // Skipped during initial page load (params are still being consumed)
         // and when the caller explicitly wants to preserve the URL (e.g.
         // example loading, which sets its own clean ?loadExample= URL first).
-        if (!preserveUrl && !document.documentElement.classList.contains('initializing')) {
+        if (!preserveUrl && !merge && !document.documentElement.classList.contains('initializing')) {
             window.history.replaceState({}, '', window.location.pathname);
         }
 
-        const { loadedCount, excludedCount, title } = vfs.loadFromJSON(parsed);
+        const { loadedCount, excludedCount, title } = vfs.loadFromJSON(parsed, merge);
+        previewHistory = [];
+        previewHistoryIndex = -1;
 
-        if (title) {
-            projectTitle = title;
-        } else if (!Array.isArray(parsed)) {
-            projectTitle = parsed.title || generateProjectName();
-        } else {
-            projectTitle = generateProjectName();
+        if (!merge) {
+            if (title) {
+                projectTitle = title;
+            } else if (!Array.isArray(parsed)) {
+                projectTitle = parsed.title || generateProjectName();
+            } else {
+                projectTitle = generateProjectName();
+            }
         }
 
         if (loadedCount === 0) {
@@ -524,39 +587,18 @@ function loadProjectFromParsed(
             // A project with a visual entry point should open on Preview.
             switchTab('preview');
 
-            // If we're in fullscreen mode (e.g. loaded via fullscreen share URL),
-            // also seed the fullscreen frame with the correct page after render
-            const autoFullscreen = getURLParam('fullscreen');
-            if (autoFullscreen) {
-                setTimeout(() => {
-                    const fullscreenEl = document.getElementById('fullscreenFrame');
-                    const previewEl    = document.getElementById('previewFrame');
-                    if (fullscreenEl && previewEl) {
-                        fullscreenEl.srcdoc = previewEl.srcdoc;
-                    }
-                    // Restore previewHash inside the opaque fullscreen frame.
-                    const previewHash = getURLParam('previewHash');
-                    if (previewHash) {
-                        setTimeout(() => {
-                            const el = document.getElementById('fullscreenFrame');
-                            if (el && el.contentWindow) {
-                                el.contentWindow.postMessage({
-                                    type: 'forge-set-hash',
-                                    hash: previewHash
-                                }, '*');
-                            }
-                        }, 350);
-                    }
-                }, 400);
+            if (getURLParam('fullscreen')) {
+                const fc = document.getElementById('fullscreenContainer');
+                if (fc) fc.classList.add('active');
+                updateBrowserTitle();
             }
         } else {
             // A project without HTML has nothing useful to preview.
             switchTab('files');
         }
 
-        const statusMsg = excludedCount > 0
-            ? `Loaded ${loadedCount} file(s) (${excludedCount} excluded)`
-            : `Loaded ${loadedCount} file(s)`;
+        const statusMsg = `${merge ? 'Merged' : 'Loaded'} ${loadedCount} file(s)` +
+            (excludedCount > 0 ? ` (${excludedCount} excluded)` : '');
         setStatus(statusMsg, 'success');
         showToast(statusMsg, 'success', 4000);
 
@@ -624,7 +666,7 @@ function ensureCliUrlFlag() {
 
     const url = new URL(window.location.href);
     url.hash = hash ? `${hash}&cli` : 'cli';
-    window.history.replaceState({}, '', url.toString());
+    window.history.replaceState(window.history.state, '', url.toString());
 }
 
 function openCliInstallModal() {
@@ -3005,6 +3047,91 @@ function applyFeatureVisibility() {
 const vfs = new VirtualFileSystem();
 const processor = new HTMLProcessor(vfs);
 let currentPath = null;
+let previewHistory = [];
+let previewHistoryIndex = -1;
+let previewHistoryRestoring = false;
+
+function recordPreviewHistory(value, replace = false) {
+    value = String(value || '');
+    if (!value || previewHistoryRestoring ||
+        previewHistory[previewHistoryIndex] === value) return;
+
+    const first = previewHistoryIndex < 0;
+    if (replace && !first) {
+        previewHistory[previewHistoryIndex] = value;
+    } else {
+        previewHistory = previewHistory.slice(0, previewHistoryIndex + 1);
+        previewHistory.push(value);
+        previewHistoryIndex++;
+    }
+
+    const state = {
+        ...(window.history.state || {}),
+        forgePreview: previewHistoryIndex
+    };
+    window.history[first || replace ? 'replaceState' : 'pushState'](
+        state,
+        ''
+    );
+}
+
+async function restorePreviewHistory(index) {
+    if (index < 0 || index >= previewHistory.length) return;
+
+    const value = previewHistory[index];
+    const location = splitPreviewLocation(value);
+    const path = vfs.resolveDirectoryIndex(location.path);
+    const current = splitPreviewLocation(urlBar.value || currentPath || '');
+    previewHistoryIndex = index;
+
+    if (!vfs.hasFile(path)) {
+        document.getElementById('previewFrame')?.contentWindow?.postMessage({
+            type: 'forge-history-location',
+            value
+        }, '*');
+        urlBar.value = value;
+        syncPreviewLocationToParent(
+            location.path,
+            location.query,
+            location.hash
+        );
+        return;
+    }
+
+    if (path === currentPath && location.query === current.query) {
+        document.getElementById('previewFrame')?.contentWindow?.postMessage({
+            type: 'forge-set-hash',
+            hash: location.hash
+        }, '*');
+        urlBar.value = value;
+        syncPreviewLocationToParent(path, location.query, location.hash);
+        return;
+    }
+
+    previewHistoryRestoring = true;
+    try {
+        await renderPage(value);
+    } finally {
+        previewHistoryRestoring = false;
+    }
+    syncPreviewLocationToParent(path, location.query, location.hash);
+}
+
+function goPreviewHistory(delta) {
+    const index = previewHistoryIndex + delta;
+    if (index >= 0 && index < previewHistory.length) {
+        window.history.go(delta);
+    }
+}
+
+window.addEventListener('popstate', async e => {
+    const index = e.state?.forgePreview;
+    if (!Number.isInteger(index)) return;
+
+    const fullscreen = fullscreenContainer.classList.contains('active');
+    await restorePreviewHistory(index);
+    if (fullscreen) setFullscreen(true);
+});
 let currentEditingFile = null;
 let currentViewMode = 'editor'; // 'editor' | 'settings'
 let hasUnsavedChanges = false;
@@ -3020,7 +3147,7 @@ const shareCommentBtn = document.getElementById('shareCommentBtn');
 const previewFrame      = _lazy('previewFrame');
 const urlBar            = _lazy('urlBar');
 const fullscreenContainer = _lazy('fullscreenContainer');
-const fullscreenFrame   = _lazy('fullscreenFrame');
+
 const fullscreenBtn     = _lazy('fullscreenBtn');
 const exitFullscreenBtn = _lazy('exitFullscreenBtn');
 
@@ -3052,6 +3179,7 @@ const unsavedCancelBtn = document.getElementById('unsavedCancelBtn');
 // Clipboard paste modal
 const clipboardPasteModal = document.getElementById('clipboardPasteModal');
 const clipboardPasteCancelBtn = document.getElementById('clipboardPasteCancelBtn');
+const clipboardPasteMergeBtn = document.getElementById('clipboardPasteMergeBtn');
 const clipboardPasteConfirmBtn = document.getElementById('clipboardPasteConfirmBtn');
 let pendingClipboardProject = null; // holds parsed project waiting for confirmation
 
@@ -3062,13 +3190,16 @@ function closeClipboardPasteModal() {
 
 clipboardPasteCancelBtn.addEventListener('click', closeClipboardPasteModal);
 
-clipboardPasteConfirmBtn.addEventListener('click', () => {
+function confirmClipboardPaste(merge) {
     ForgeModal.close('clipboardPasteModal');
     if (pendingClipboardProject) {
-        loadProjectFromParsed(pendingClipboardProject);
+        loadProjectFromParsed(pendingClipboardProject, { merge });
         pendingClipboardProject = null;
     }
-});
+}
+
+clipboardPasteMergeBtn.addEventListener('click', () => confirmClipboardPaste(true));
+clipboardPasteConfirmBtn.addEventListener('click', () => confirmClipboardPaste(false));
 
 // -- Per-tab state ----------------------------------------------------------
 // Stores the CM content + scroll position for each open-but-not-active tab
@@ -3200,7 +3331,7 @@ const BINARY_EXTENSIONS = new Set([
   'exe','dll','so','dylib','wasm','bin',
   'mp3','mp4','wav','ogg','flac','aac','m4a','avi','mov','mkv','webm',
   'ttf','woff','woff2','otf','eot',
-  'db','sqlite','sqlite3','pkl','npy','npz',
+  'db','sqlite','sqlite3','pkl','npy','npz','parquet',
 ]);
 
 async function readImportedFile(response,path){
@@ -3218,6 +3349,94 @@ async function readImportedFile(response,path){
         );
     }
     return {content:btoa(binary),encoding:'base64'};
+}
+
+async function addUploadedFile(file, dir=''){
+    if(!file)return;
+    const path=(dir ? dir.replace(/\/$/,'') : '')+'/'+file.name;
+    if(vfs.hasFile(path)&&!confirm(`Replace ${path}?`))return;
+    try{
+        const {content,encoding}=await readImportedFile(new Response(file),path);
+        ensureParentDirsHavePlaceholders(path);
+        vfs.addFile(path,content,encoding?{encoding}:{});
+        updateFileList();
+        updateFileBrowser();
+        openFileInEditor(path);
+        switchTab('files');
+        showToast(`Uploaded ${path}`,'success');
+    }catch(error){
+        showToast('Upload failed: '+error.message,'error');
+    }
+}
+
+function selectSingleFileUpload(){
+    const input=document.createElement('input');
+    input.type='file';
+    input.onchange=()=>addUploadedFile(input.files[0]);
+    input.click();
+}
+
+document.addEventListener('dragover',e=>{
+    if(!e.target.closest?.('#fileBrowserList,#previewWelcome')||
+       !Array.from(e.dataTransfer?.types||[]).includes('Files'))return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect='copy';
+});
+
+function addDroppedEntry(entry,dir){
+    if(entry.isFile){
+        entry.file(file=>addUploadedFile(file,dir));
+        return;
+    }
+    if(!entry.isDirectory)return;
+    const next=(dir?dir.replace(/\/$/,''):'')+'/'+entry.name;
+    const reader=entry.createReader();
+    const read=()=>reader.readEntries(entries=>{
+        if(!entries.length)return;
+        entries.forEach(child=>addDroppedEntry(child,next));
+        read();
+    });
+    read();
+}
+
+document.addEventListener('drop',e=>{
+    if(!e.target.closest?.('#fileBrowserList,#previewWelcome')||!e.dataTransfer)return;
+    const items=Array.from(e.dataTransfer.items||[]);
+    const entries=items.map(item=>item.webkitGetAsEntry?.()).filter(Boolean);
+    const files=Array.from(e.dataTransfer.files||[]);
+    if(!entries.length&&!files.length)return;
+    e.preventDefault();
+    e.stopPropagation();
+    const dir=e.target.closest('.tree-row-dir')?.dataset.path||'';
+    switchTab('files');
+    if(entries.length)entries.forEach(entry=>addDroppedEntry(entry,dir));
+    else files.forEach(file=>addUploadedFile(file,dir));
+});
+
+function downloadCurrentFile(){
+    if(!currentEditingFile)return;
+    let url=vfs.getBlobUrl(currentEditingFile);
+    let revoke=false;
+    const meta=vfs.getMeta(currentEditingFile);
+
+    if(meta.encoding!=='base64'&&hasUnsavedChanges&&ForgeEditor.isReady()){
+        url=URL.createObjectURL(new Blob(
+            [ForgeEditor.getValue()],
+            {type:vfs.getMimeType(currentEditingFile)}
+        ));
+        revoke=true;
+    }
+
+    if(!url){
+        showToast('File has no downloadable content','error');
+        return;
+    }
+
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=currentEditingFile.split('/').pop();
+    a.click();
+    if(revoke)setTimeout(()=>URL.revokeObjectURL(url),0);
 }
 
 async function importFromZip() {
@@ -3248,7 +3467,6 @@ async function importFromZip() {
             // Clear existing project
             vfs.clear();
             
-            // Binary ZIP entries use FileReader base64; text remains text.
             const filePromises = [];
             zipContent.forEach((relativePath, zipEntry) => {
                 if (zipEntry.dir) return;
@@ -3257,35 +3475,12 @@ async function importFromZip() {
                 const isBinary = BINARY_EXTENSIONS.has(ext);
 
                 filePromises.push(
-                    zipEntry.async(isBinary ? 'uint8array' : 'string').then(async content => {
-                        if (isBinary) {
-                            // FileReader.readAsDataURL converts raw bytes to a
-                            // base64 data URL entirely inside the browser.
-                            // We then strip the "data:...;base64," prefix to
-                            // get just the base64 string the VFS expects.
-                            return await new Promise((resolve) => {
-                                const blob = new Blob([content]);
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                    const dataUrl = reader.result;
-                                    const base64 = dataUrl.substring(dataUrl.indexOf(',') + 1);
-
-                                    if (content.length > 5 * 1024 * 1024) {
-                                        showToast(`Large file: ${relativePath} (${(content.length / 1048576).toFixed(1)} MB)`, 'info', 5000);
-                                    }
-
-                                    resolve({ path: '/' + relativePath, content: base64, encoding: 'base64' });
-                                };
-                                reader.onerror = () => {
-                                    // If FileReader fails, skip this file rather
-                                    // than failing the whole import.
-                                    showToast(`Skipped unreadable file: ${relativePath}`, 'warning', 5000);
-                                    resolve(null);
-                                };
-                                reader.readAsDataURL(blob);
-                            });
-                        }
-                        return { path: '/' + relativePath, content, encoding: null };
+                    zipEntry.async(isBinary ? 'base64' : 'string').then(content => {
+                        return {
+                            path: '/' + relativePath,
+                            content,
+                            encoding: isBinary ? 'base64' : null
+                        };
                     })
                 );
             });
@@ -3737,7 +3932,6 @@ function clearProject(){
     originalContent    = '';
     projectTitle       = generateProjectName();
     previewPageTitle   = '';
-    fullscreenPageTitle = '';
     updateProjectTitleDisplay();
     setCurrentManagedShareMetadata(null);
     previewFrame.srcdoc = '';
@@ -4089,7 +4283,7 @@ async function createShorterURL(fullscreen) {
                          '#payloadsha1=' + result.sha1 + append + carried;
 
         // Update the current URL to the shorter version
-        window.history.replaceState({}, '', shortURL);
+        window.history.replaceState(window.history.state, '', shortURL);
 
         // Also copy to clipboard
         await copyToClipboard(shortURL);
@@ -4169,7 +4363,7 @@ async function shareManagedUrl(fullscreen = false, expiresAt = null) {
                 window.location.origin + window.location.pathname +
                 '#share=' + payloadHash + fullscreenParam + carried;
 
-            window.history.replaceState({}, '', shareURL);
+            window.history.replaceState(window.history.state, '', shareURL);
             await copyToClipboard(shareURL);
 
             showToast(
@@ -4258,7 +4452,7 @@ async function shareManagedUrl(fullscreen = false, expiresAt = null) {
         const shareURL = window.location.origin + window.location.pathname +
                          '#share=' + payloadHash + fullscreenParam + carried;
 
-        window.history.replaceState({}, '', shareURL);
+        window.history.replaceState(window.history.state, '', shareURL);
         await copyToClipboard(shareURL);
 
         if (reusedExistingShare) {
@@ -5002,8 +5196,22 @@ function loadScript(src) {
     });
 }
 
-// Preview actions and fullscreen mode
+function setFullscreen(active) {
+    fullscreenContainer.classList.toggle('active', active);
+    updateBrowserTitle();
+
+    const url = new URL(window.location.href);
+    let hash = (url.hash || '#').replace(/&fullscreen=true/g, '');
+    if (active) hash += '&fullscreen=true';
+    url.hash = hash;
+    window.history.replaceState(window.history.state, '', url.toString());
+}
+
 document.addEventListener('click', (e) => {
+    if (e.target && (e.target.id === 'previewBackBtn' || e.target.id === 'previewForwardBtn')) {
+        goPreviewHistory(e.target.id === 'previewBackBtn' ? -1 : 1);
+        return;
+    }
     if (e.target && e.target.id === 'refreshPreviewBtn') {
         if (currentPath) {
             // Re-render through FORGE so the preview receives a fresh isolated
@@ -5029,35 +5237,13 @@ document.addEventListener('click', (e) => {
     }
     if (e.target && e.target.id === 'fullscreenBtn') {
         if (currentPath) {
-            // Re-render into the fullscreen frame so the interceptor is fresh
-            renderFullscreen(currentPath);
-            const fc = document.getElementById('fullscreenContainer');
-            if (fc) fc.classList.add('active');
-            updateBrowserTitle();
-            // Add &fullscreen=true to parent URL if not already present
-            const currentUrl = new URL(window.location.href);
-            const hash = currentUrl.hash || '#';
-            if (!hash.includes('fullscreen=true')) {
-                window.history.replaceState({}, '',
-                    currentUrl.href.replace(currentUrl.hash || '', '') +
-                    hash + '&fullscreen=true');
-            }
+            setFullscreen(true);
         } else {
             showToast('No preview to show in fullscreen', 'error');
         }
     }
     if (e.target && e.target.id === 'exitFullscreenBtn') {
-        const fc = document.getElementById('fullscreenContainer');
-        if (fc) fc.classList.remove('active');
-        updateBrowserTitle();
-        // Strip &fullscreen=true from the parent URL on exit
-        try {
-            const currentUrl = new URL(window.location.href);
-            const cleaned = (currentUrl.hash || '')
-                .replace(/&fullscreen=true/g, '');
-            window.history.replaceState({}, '',
-                currentUrl.href.replace(currentUrl.hash || '', '') + cleaned);
-        } catch(e) { /* non-critical */ }
+        setFullscreen(false);
     }
 });
 
@@ -5099,14 +5285,16 @@ function syncPreviewLocationToParent(path, query = '', hash = '') {
             .replace(/&url=[^&]*/g, '')
             .replace(/&previewHash=[^&]*/g, '');
 
-        parentHash += '&url=' + encodeURIComponent(path + query);
+        if (path || query) {
+            parentHash += '&url=' + encodeURIComponent(path + query);
+        }
 
         if (hash) {
             parentHash += '&previewHash=' + encodeURIComponent(hash);
         }
 
         window.history.replaceState(
-            {},
+            window.history.state,
             '',
             url.href.replace(url.hash || '', '') + parentHash
         );
@@ -5532,6 +5720,7 @@ function buildPreviewCspMeta() {
     // Additional domains allowed for fetch()/XHR (connect-src).
     const connectDomains = [
         'https://*.gov',
+        'https://tile.openstreetmap.org',
         'http://localhost:*',
         'https://localhost:*',
         'http://127.0.0.1:*',
@@ -5671,15 +5860,10 @@ function indexPreviewSources(html, sourcePath, sourceHtml) {
 function mapPreviewSourceLocations(msg, source) {
     if (typeof msg !== 'string') return msg;
 
-    const frameId = ['previewFrame', 'fullscreenFrame'].find(id =>
-        source === document.getElementById(id)?.contentWindow
-    );
-
-    const ranges =
-        previewSourceRanges[frameId] ||
-        (frameId === 'fullscreenFrame'
-            ? previewSourceRanges.previewFrame
-            : null);
+    const frame = document.getElementById('previewFrame');
+    const ranges = source === frame?.contentWindow
+        ? previewSourceRanges.previewFrame
+        : null;
 
     if (!ranges || !ranges.length) return msg;
 
@@ -5725,8 +5909,6 @@ function commitPreviewFrame(
     if (frameEl.id === 'previewFrame') {
         previewPageTitle = '';
         setPreviewWelcomeVisible(false);
-    } else if (frameEl.id === 'fullscreenFrame') {
-        fullscreenPageTitle = '';
     }
     updateBrowserTitle();
 
@@ -5851,6 +6033,8 @@ const PREVIEW_IDB_KEEPALIVE_STORE = '__forge_internal_keepalive_v1__';
 let forgePreviewIdbNextConnection = 1;
 const forgePreviewIdbConnections = new Map();
 const forgePreviewIdbSessions = new Map();
+
+
 
 function previewIdbError(error) {
     return {
@@ -6234,14 +6418,13 @@ function handlePreviewIndexedDbMessage(event) {
                 queue: [],
                 done: false,
                 abort: false,
-                expiresAt: Date.now() + 15000
+                expiresAt: Date.now() + 300000
             };
 
             forgePreviewIdbSessions.set(
                 transactionId,
                 session
             );
-
             tx.oncomplete = () => {
                 forgePreviewIdbSessions.delete(
                     transactionId
@@ -6472,8 +6655,7 @@ async function inlineVfsMisses(html) {
     return html;
 }
 
-// Shared by renderPage() and renderFullscreen() to ensure the
-// interceptor script is always injected regardless of which frame is used.
+// Ensure the preview interceptor is always injected.
 function injectPreviewHead(html, content) {
     const head = `<head>${content}</head>`;
     const headTag = /<head(\s[^>]*)?>/i;
@@ -6735,7 +6917,28 @@ function buildInterceptorScript(pageTitle, basePath) {
                 let __forge_idb_next_transaction = 1;
 
                 function __forge_idb_post(message) {
-                    window.parent.postMessage(message, '*');
+                    try {
+                        window.parent.postMessage(message, '*');
+                    } catch (error) {
+                        if (
+                            error.name !== 'DataCloneError' ||
+                            !('value' in message)
+                        ) throw error;
+
+                        let value =
+                            window.Vue && Vue.toRaw
+                                ? Vue.toRaw(message.value)
+                                : message.value;
+                        try {
+                            value = structuredClone(value);
+                        } catch (cloneError) {
+                            value = JSON.parse(JSON.stringify(value));
+                        }
+                        window.parent.postMessage(
+                            Object.assign({}, message, { value }),
+                            '*'
+                        );
+                    }
                 }
 
                 function __forge_idb_error(info) {
@@ -6986,7 +7189,7 @@ function buildInterceptorScript(pageTitle, basePath) {
                         }
                     }
 
-                    function scheduleDone() {
+                    function scheduleDone(delay = true) {
                         if (
                             inactive ||
                             pendingRequests > 0 ||
@@ -6995,7 +7198,7 @@ function buildInterceptorScript(pageTitle, basePath) {
                             return;
                         }
 
-                        doneTimer = setTimeout(function() {
+                        const finish = function() {
                             doneTimer = null;
                             if (inactive || pendingRequests > 0) return;
 
@@ -7005,7 +7208,10 @@ function buildInterceptorScript(pageTitle, basePath) {
                                 transactionId:
                                     transaction.__forgeId
                             });
-                        }, 0);
+                        };
+
+                        if (delay) doneTimer = setTimeout(finish, 0);
+                        else queueMicrotask(finish);
                     }
 
                     transaction.objectStore = function(name) {
@@ -7051,7 +7257,7 @@ function buildInterceptorScript(pageTitle, basePath) {
 
                     transaction.__requestFinished = function() {
                         if (pendingRequests > 0) pendingRequests--;
-                        scheduleDone();
+                        scheduleDone(false);
                     };
 
                     transaction.__finish = function() {
@@ -7074,7 +7280,7 @@ function buildInterceptorScript(pageTitle, basePath) {
 
                     // Match native auto-commit closely enough to allow
                     // synchronous requests and request callback chaining.
-                    scheduleDone();
+                    scheduleDone(false);
                     return transaction;
                 }
 
@@ -7564,6 +7770,39 @@ function buildInterceptorScript(pageTitle, basePath) {
                     });
                 });
 
+                // Opaque previews cannot send a useful Referer. Route approved
+                // OSM tile images through the authenticated parent fetch bridge.
+                const __img_src = Object.getOwnPropertyDescriptor(
+                    HTMLImageElement.prototype, 'src'
+                );
+                Object.defineProperty(HTMLImageElement.prototype, 'src', {
+                    configurable: true,
+                    get() { return __img_src.get.call(this); },
+                    set(value) {
+                        const url = String(value || '');
+                        const osm = url.startsWith('https://tile.openstreetmap.org/');
+                        if (
+                            !url ||
+                            ((url.includes(':') || url.startsWith('//')) && !osm)
+                        ) {
+                            __img_src.set.call(this, value);
+                            return;
+                        }
+
+                        window.fetch(url)
+                            .then(response => {
+                                if (!response.ok) throw new Error('HTTP ' + response.status);
+                                return response.blob();
+                            })
+                            .then(blob => {
+                                const localUrl = URL.createObjectURL(blob);
+                                __img_src.set.call(this, localUrl);
+                                setTimeout(() => URL.revokeObjectURL(localUrl), 60000);
+                            })
+                            .catch(() => __img_src.set.call(this, url));
+                    }
+                });
+
                 window.fetch = function(url, ...args) {
                     const fetchOptions = args[0] || {};
                     let requestMethod =
@@ -7693,12 +7932,12 @@ function buildInterceptorScript(pageTitle, basePath) {
                     return true;
                 };
 
-                const sendNav = (href) => {
-                    window.parent.postMessage({ type: 'vfs-navigate', href }, '*');
+                const sendNav = (href, replace = false) => {
+                    window.parent.postMessage({ type: 'vfs-navigate', href, replace }, '*');
                 };
 
-                const sendSpa = (path) => {
-                    window.parent.postMessage({ type: 'vfs-spa-navigate', path }, '*');
+                const sendSpa = (path, replace = false) => {
+                    window.parent.postMessage({ type: 'vfs-spa-navigate', path, replace }, '*');
                 };
 
                 const sendHash = () => {
@@ -7744,7 +7983,7 @@ function buildInterceptorScript(pageTitle, basePath) {
                     if (isInternal(href)) { sendNav(href); } else { _assign(href); }
                 };
                 window.location.replace = (href) => {
-                    if (isInternal(href)) { sendNav(href); } else { _replace(href); }
+                    if (isInternal(href)) { sendNav(href, true); } else { _replace(href); }
                 };
 
                 try {
@@ -7760,7 +7999,7 @@ function buildInterceptorScript(pageTitle, basePath) {
                 const _pushState    = history.pushState.bind(history);
                 const _replaceState = history.replaceState.bind(history);
 
-                function reportHistory(url) {
+                function reportHistory(url, replace = false) {
                     if (url == null || url === '') return;
 
                     // Event handlers receive the DOM event as their first argument.
@@ -7820,18 +8059,23 @@ function buildInterceptorScript(pageTitle, basePath) {
                         !last ||
                         !last.includes('.');
 
-                    (isSpa ? sendSpa : sendNav)(value);
+                    (isSpa ? sendSpa : sendNav)(value, replace);
                 }
 
+                const nativeHistoryUrl = url =>
+                    typeof url === 'string' && url.startsWith('#')
+                        ? location.href.split('#')[0] + url
+                        : url;
+
                 history.pushState = (state, title, url) => {
-                    try { _pushState(state, title, url); } catch(e) {}
+                    try { _replaceState(state, title, nativeHistoryUrl(url)); } catch(e) {}
                     if (url != null) reportHistory(url);
                     else setTimeout(sendHash, 50);
                 };
 
                 history.replaceState = (state, title, url) => {
-                    try { _replaceState(state, title, url); } catch(e) {}
-                    if (url != null) reportHistory(url);
+                    try { _replaceState(state, title, nativeHistoryUrl(url)); } catch(e) {}
+                    if (url != null) reportHistory(url, true);
                     else setTimeout(sendHash, 50);
                 };
 
@@ -7847,7 +8091,28 @@ function buildInterceptorScript(pageTitle, basePath) {
                     }
                 });
 
-                window.addEventListener('hashchange', sendHash);
+                let __forge_history_restoring = false;
+                window.addEventListener('hashchange', () => {
+                    if (!__forge_history_restoring) sendHash();
+                });
+                window.addEventListener('popstate', () => {
+                    if (!__forge_history_restoring) reportHistory(location.href);
+                });
+                window.addEventListener('message', e => {
+                    if (e.source !== window.parent) return;
+                    if (e.data?.type === 'forge-history') {
+                        history.go(e.data.delta);
+                    } else if (e.data?.type === 'forge-history-location') {
+                        __forge_history_restoring = true;
+                        try {
+                            _replaceState(history.state, '', e.data.value);
+                        } catch(e) {}
+                        window.dispatchEvent(new PopStateEvent('popstate', {
+                            state: history.state
+                        }));
+                        __forge_history_restoring = false;
+                    }
+                });
                 if (window.location.hash) sendHash();
 
                 // Keep the trusted parent tab title synchronized without giving
@@ -7895,6 +8160,16 @@ function buildInterceptorScript(pageTitle, basePath) {
                         const hash = typeof event.data.hash === 'string'
                             ? event.data.hash
                             : '';
+                        __forge_history_restoring = true;
+                        try {
+                            _replaceState(
+                                history.state,
+                                '',
+                                nativeHistoryUrl(hash || '#')
+                            );
+                        } catch (e) {}
+                        window.dispatchEvent(new Event('hashchange'));
+                        __forge_history_restoring = false;
 
                         if (!hash) {
                             window.scrollTo(0, 0);
@@ -7904,25 +8179,13 @@ function buildInterceptorScript(pageTitle, basePath) {
                         let id = hash.startsWith('#') ? hash.substring(1) : hash;
                         try {
                             id = decodeURIComponent(id);
-                        } catch (e) {
-                            // Keep the literal fragment when it is not URI encoded.
-                        }
+                        } catch (e) {}
 
                         const target =
                             document.getElementById(id) ||
                             document.getElementsByName(id)[0];
 
-                        if (target) {
-                            target.scrollIntoView();
-                        }
-
-                        // Keep the iframe's own same-document location coherent
-                        // when about:srcdoc permits the history update.
-                        try {
-                            history.replaceState(history.state, '', hash);
-                        } catch (e) {
-                            // Scrolling is the required behavior; history is best effort.
-                        }
+                        if (target) target.scrollIntoView();
                         return;
                     }
 
@@ -8139,10 +8402,7 @@ function buildInterceptorScript(pageTitle, basePath) {
     `;
 }
 
-// Render a page into the main preview frame.
-// During initial startup app.js can load a project before Vue has mounted the
-// preview panel. Defer that first render so srcdoc is written to the live
-// Vue-managed iframe rather than the pre-mount DOM node.
+// Render into the preview frame.
 let previewRenderWaitingForPanels = false;
 
 async function renderPage(path) {
@@ -8153,6 +8413,7 @@ async function renderPage(path) {
     
     // Update the URL bar to reflect the resolved path, keeping query/hash
     urlBar.value = filePath + previewLocation.query + previewLocation.hash;
+    recordPreviewHistory(urlBar.value);
 
     if (!window.forgePanels) {
         if (!previewRenderWaitingForPanels) {
@@ -8172,35 +8433,45 @@ async function renderPage(path) {
     }
 
     const sourceHtml = html;
+    const frame = document.getElementById('previewFrame');
+    const loading = document.querySelector('.loading-spinner');
+    const loadText = loading.children[1];
+    if (!document.body.classList.contains('loading-fullscreen')) {
+        frame.parentNode.append(loading);
+        loading.style.cssText =
+            'display:flex;position:absolute;inset:0;width:100%;height:100%';
+    }
+    loadText.textContent = 'Processing project…';
+    await new Promise(r=>requestAnimationFrame(()=>setTimeout(r)));
     html = processor.process(html, filePath);
-    
-    // Extract title from HTML for page title
-  const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
-  const pageTitle = titleMatch ? titleMatch[1] : null;
 
-    // Inline <script src> tags resolvable via VFS or IDE-origin lib fallback
-    // before committing — opaque srcdoc origin cannot carry session cookies.
+    const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+    const pageTitle = titleMatch ? titleMatch[1] : null;
+
+    loadText.textContent = 'Resolving files…';
     html = await inlineVfsMisses(html);
+    loadText.textContent = 'Starting app…';
 
-    // Apply the same preview connection policy used by fullscreen rendering.
-    // Any project-supplied CSP remains in place and is applied in addition.
     html = injectPreviewHead(
         html,
         buildPreviewCspMeta() +
             buildInterceptorScript(pageTitle, filePath)
     );
 
-    const frame = document.getElementById('previewFrame');
-    commitPreviewFrame(
+    const nextFrame = commitPreviewFrame(
         frame,
         html,
         filePath,
         sourceHtml
     );
+    nextFrame.onload = () => {
+        loading.removeAttribute('style');
+        document.body.prepend(loading);
+        document.body.classList.remove('loading-fullscreen');
+        document.documentElement.classList.remove('loading-fullscreen');
+    };
 
-    // A location supplied directly to renderPage wins; otherwise restore any
-    // previewHash embedded in the parent/shared URL. The preview is opaque
-    // origin, so ask it to perform its own same-document hash navigation.
+    // Restore preview hash navigation after render.
     const previewHash = previewLocation.hash || getURLParam('previewHash');
     if (previewHash) {
         setTimeout(() => {
@@ -8215,12 +8486,6 @@ async function renderPage(path) {
     }
 }
 
-// Render a page into the fullscreen frame (mirrors renderPage but targets fullscreenFrame)
-async function renderFullscreen(path) {
-    const frameEl = document.getElementById('fullscreenFrame');
-    if (!frameEl) return;
-    await renderHtmlIntoFrame(path, frameEl, path);
-}
 
 // Handle messages from the preview iframes.
 // Preview applications sometimes expect a deployment-provided whoami endpoint.
@@ -8293,10 +8558,8 @@ function getPreviewWhoamiPerson() {
 // Source validation remains useful even if previews later become opaque-origin.
 window.addEventListener('message', (event) => {
     const previewEl = document.getElementById('previewFrame');
-    const fullscreenEl = document.getElementById('fullscreenFrame');
     const isPreviewSource =
-        (previewEl && event.source === previewEl.contentWindow) ||
-        (fullscreenEl && event.source === fullscreenEl.contentWindow);
+        previewEl && event.source === previewEl.contentWindow;
 
     if (!isPreviewSource || !event.data || typeof event.data !== 'object') {
         return;
@@ -8345,6 +8608,41 @@ window.addEventListener('message', (event) => {
                     ...payload
                 }, '*');
             }
+
+            return;
+        }
+
+        // Broker approved OSM tiles through the trusted parent so browser
+        // requests carry the IDE's normal Referer instead of opaque "null".
+        if (
+            (method === 'GET' || method === 'HEAD') &&
+            /^https:\/\/tile\.openstreetmap\.org\//.test(url) &&
+            event.ports && event.ports[0]
+        ) {
+            const port = event.ports[0];
+
+            fetch(url, {
+                method,
+                referrerPolicy: 'strict-origin-when-cross-origin'
+            }).then(async response => {
+                const content = method === 'HEAD'
+                    ? ''
+                    : new Uint8Array(await response.arrayBuffer());
+
+                port.postMessage({
+                    found: true,
+                    content,
+                    mimeType: response.headers.get('Content-Type') || 'image/png',
+                    status: response.status,
+                    route: 'network-broker'
+                });
+            }).catch(() => {
+                port.postMessage({
+                    found: false,
+                    content: null,
+                    mimeType: null
+                });
+            });
 
             return;
         }
@@ -8443,8 +8741,14 @@ window.addEventListener('message', (event) => {
 
     } else if (event.data.type === 'vfs-navigate') {
         const href = event.data.href;
-        const resolved = processor.resolvePath(href, currentPath || '/index.html');
-        const previewLocation = splitPreviewLocation(resolved);
+        const requested = splitPreviewLocation(href);
+        const resolved = processor.resolvePath(
+            requested.path,
+            currentPath || '/index.html'
+        );
+        const previewLocation = splitPreviewLocation(
+            resolved + requested.query + requested.hash
+        );
         let cleanPath = previewLocation.path;
         const query = previewLocation.query;
         const hash = previewLocation.hash;
@@ -8452,17 +8756,7 @@ window.addEventListener('message', (event) => {
         cleanPath = vfs.resolveDirectoryIndex(cleanPath);
 
         if (vfs.hasFile(cleanPath)) {
-            const fullscreenEl = document.getElementById('fullscreenFrame');
-            const isFullscreen = fullscreenEl &&
-                document.getElementById('fullscreenContainer') &&
-                document.getElementById('fullscreenContainer').classList.contains('active') &&
-                event.source === fullscreenEl.contentWindow;
-
-            if (isFullscreen) {
-                renderFullscreen(cleanPath);
-            } else {
-                renderPage(cleanPath);
-            }
+            renderPage(previewLocation.display);
 
             currentPath = cleanPath;
             urlBar.value = previewLocation.display;
@@ -8470,9 +8764,7 @@ window.addEventListener('message', (event) => {
 
             if (hash) {
                 setTimeout(() => {
-                    const target = isFullscreen
-                        ? document.getElementById('fullscreenFrame')
-                        : document.getElementById('previewFrame');
+                    const target = document.getElementById('previewFrame');
                     if (target && target.contentWindow) {
                         target.contentWindow.postMessage({
                             type: 'forge-set-hash',
@@ -8490,28 +8782,17 @@ window.addEventListener('message', (event) => {
         // FORGE url bar and browser hash &url= param without touching the VFS.
         const spaPath = event.data.path || '';
         urlBar.value = spaPath;
+        recordPreviewHistory(spaPath, event.data.replace);
 
-        try {
-            const url      = new URL(window.location.href);
-            let parentHash = url.hash || '#';
-            parentHash = parentHash
-                .replace(/&url=[^&]*/g, '')
-                .replace(/&previewHash=[^&]*/g, '');
-            if (spaPath) {
-                parentHash = parentHash + '&url=' + encodeURIComponent(spaPath);
-            }
-            window.history.replaceState(
-                {},
-                '',
-                url.href.replace(url.hash || '', '') + parentHash
-            );
-        } catch(e) { /* non-critical */ }
+        const spaLocation = splitPreviewLocation(spaPath);
+        syncPreviewLocationToParent(
+            spaLocation.path,
+            spaLocation.query,
+            spaLocation.hash
+        );
 
     } else if (event.data.type === 'vfs-shortcut') {
-        const source = event.source;
-        if (['previewFrame', 'fullscreenFrame'].some(id =>
-            source === document.getElementById(id)?.contentWindow
-        )) {
+        if (event.source === previewEl?.contentWindow) {
             projectClipboardShortcut(event.data.key);
         }
 
@@ -8519,28 +8800,14 @@ window.addEventListener('message', (event) => {
         // SPA hash changed inside the iframe — sync to IDE url bar and parent URL
         const hash = event.data.hash || '';
         const currentLocation = splitPreviewLocation(urlBar.value || currentPath || '');
-        urlBar.value = (currentPath || currentLocation.path || '') +
-                       currentLocation.query + hash;
-
-        // Update the parent page URL so sharing preserves the SPA route
-        try {
-            const url      = new URL(window.location.href);
-            let parentHash = url.hash || '#';
-            // Remove any existing previewHash param
-            parentHash = parentHash.replace(/&previewHash=[^&]*/g, '');
-            if (hash) {
-                parentHash = parentHash + '&previewHash=' + encodeURIComponent(hash);
-            }
-            window.history.replaceState(
-                {},
-                '',
-                url.href.replace(url.hash || '', '') + parentHash
-            );
-        } catch(e) { /* non-critical */ }
+        const path = currentLocation.path || currentPath || '';
+        urlBar.value = path + currentLocation.query + hash;
+        recordPreviewHistory(urlBar.value);
+        syncPreviewLocationToParent(path, currentLocation.query, hash);
 
     } else if (event.data.type === 'forge-network') {
-        // First-stage Network tab plumbing: retain lightweight request
-        // telemetry in memory without changing or blocking request behavior.
+        const loadingText=document.querySelector('.loading-text');
+        if(loadingText)loadingText.textContent='Loaded '+String(event.data.requested).split('/').pop().split('?')[0]+'…';
         window.forgeNetworkEvents = window.forgeNetworkEvents || [];
         window.forgeNetworkEvents.push({
             time: new Date().toISOString(),
@@ -8598,12 +8865,7 @@ window.addEventListener('message', (event) => {
                 ? event.data.title.trim()
                 : '';
 
-        if (fullscreenEl && event.source === fullscreenEl.contentWindow) {
-            fullscreenPageTitle = title;
-        } else if (previewEl && event.source === previewEl.contentWindow) {
-            previewPageTitle = title;
-        }
-
+        previewPageTitle = title;
         updateBrowserTitle();
     }
 });
@@ -8734,27 +8996,21 @@ window.addEventListener('load', async () => {
     openCliInstallModal();
   }
 
-  // bridge is an additive UI flag. Opens the "waiting for bridge connection"
-  // modal so the user knows a connection is expected and can see when it lands.
-  if (startupHashParams.has('bridge')) {
-    const expectedOrigin = startupHashParams.get('bridgeOrigin') || '';
-    // Give the Vue panels a moment to mount before opening the modal.
-    setTimeout(function () {
-      if (typeof window.ForgeBridge !== 'undefined') {
-        window.ForgeBridge.openWaitingModal(expectedOrigin);
-      }
-    }, 500);
-  }
 
   // URL-driven GitLab imports are intentionally unsupported. GitLab project
   // selection happens through the IDE and the credential destination is fixed
   // by deployment configuration.
 
+  const clearStartupLoading = () => {
+    document.body.classList.remove('preload-check', 'loading-fullscreen');
+    document.documentElement.classList.remove('loading-fullscreen');
+  };
+
   // Check for example to load
   const exampleName = getURLParam('loadExample');
   if (exampleName) {
     await loadExampleProject(exampleName);
-    // Reveal UI now that example is loaded
+    clearStartupLoading();
     document.documentElement.classList.remove('initializing');
     return;
   }
@@ -8777,13 +9033,9 @@ window.addEventListener('load', async () => {
         }
     }
     
-    // If fullscreen mode detected, transition from preload to loading state
+    document.body.classList.remove('preload-check');
     if (autoFullscreen && (payload || payloadsha1 || shareHash)) {
-        document.body.classList.remove('preload-check');
         document.body.classList.add('loading-fullscreen');
-    } else {
-        // Not fullscreen mode - show the UI
-        document.body.classList.remove('preload-check');
     }
     
     let parsed;
@@ -8798,10 +9050,7 @@ window.addEventListener('load', async () => {
             managedShareMetadata = managedShare.metadata;
             showManagedShareExpirationNotice(managedShare.metadata);
         } catch (e) {
-            document.body.classList.remove(
-                'preload-check',
-                'loading-fullscreen'
-            );
+            clearStartupLoading();
             showManagedShareUnavailableState(e, shareHash);
             showToast(
                 'Error loading managed share: ' + e.message,
@@ -8823,8 +9072,7 @@ window.addEventListener('load', async () => {
             const b64Data = await response.text();
             parsed= await parsePayload(b64Data);
         } catch (e) {
-            // Remove loading state on error
-            document.body.classList.remove('preload-check', 'loading-fullscreen');
+            clearStartupLoading();
             showToast('Error loading project from short URL: ' + e.message, 'error');
             console.error('SHA1 lookup error:', e);
         }
@@ -8843,6 +9091,9 @@ window.addEventListener('load', async () => {
                 preserveUrl: true,
                 managedShareMetadata
             });
+            if (getURLParam('bridge') === '1') {
+                window.markForgeContentAttention?.();
+            }
             
             // Only show toast if not in fullscreen mode
             if (!autoFullscreen) {
@@ -8857,29 +9108,16 @@ window.addEventListener('load', async () => {
             }
 
             // Auto-fullscreen if requested
-            if (autoFullscreen) {
-                setTimeout(() => {
-                    const btn = document.getElementById('fullscreenBtn');
-                    if (btn) btn.click();
-                    setTimeout(() => {
-                        document.body.classList.remove('loading-fullscreen');
-                        document.documentElement.classList.remove('loading-fullscreen');
-                    }, 100);
-                }, 300);
-            }
+            if (autoFullscreen) setFullscreen(true);
         }catch(e){
-            // Remove loading state on error
-            document.body.classList.remove('preload-check', 'loading-fullscreen');
+            clearStartupLoading();
             showToast('Error loading project from URL: ' + e.message, 'error');
             console.error(e);
         }
     } else if (autoFullscreen) {
-        // No valid payload but fullscreen was requested - remove loading state
-        document.body.classList.remove('preload-check', 'loading-fullscreen');
-        document.documentElement.classList.remove('initializing', 'loading-fullscreen');
+        clearStartupLoading();
     }
 
-    // Always reveal the UI when done initializing
     document.documentElement.classList.remove('initializing');
 });
 
@@ -8898,8 +9136,8 @@ function loadExampleProject(name) {
             // (loadProjectFromParsed may overwrite the URL with a
             // payload hash, so set it first as a clean base)
             const url = new URL(window.location.href);
-            // Clear any existing payload params so the example param is clean
-            url.hash = '';
+            // Keep fullscreen presentation state while clearing project payload state.
+            url.hash = getURLParam('fullscreen') ? 'fullscreen=true' : '';
             url.searchParams.set('loadExample', name);
             window.history.replaceState({}, '', url.toString());
 
@@ -9002,9 +9240,8 @@ const IMPORT_PARAMS = [
     'htmlsha1'
 ];
 
-window.addEventListener('hashchange', async () => {
-    const hash = location.hash.substring(1);
-    const params = new URLSearchParams(hash);
+window.addEventListener('hashchange', async event => {
+    const params = new URLSearchParams(location.hash.substring(1));
 
     // cli is an additive UI flag. Open its modal without preventing any
     // project/import parameters in the same hash from being processed.
@@ -9012,7 +9249,13 @@ window.addEventListener('hashchange', async () => {
         openCliInstallModal();
     }
 
-    // Ignore hash changes that don't contain any import-related param
+    // Preview navigation also lives in the parent hash. Only reload a project
+    // when its import identity actually changed, not for &url=/&previewHash=.
+    const oldParams = new URLSearchParams(
+        new URL(event.oldURL).hash.substring(1)
+    );
+    if (!IMPORT_PARAMS.some(p => oldParams.get(p) !== params.get(p))) return;
+
     const hasImportParam = IMPORT_PARAMS.some(p => params.has(p));
     if (!hasImportParam) return;
 
@@ -9042,6 +9285,9 @@ window.addEventListener('hashchange', async () => {
                     preserveUrl: true,
                     managedShareMetadata: managedShare.metadata
                 });
+                if (params.get('bridge') === '1') {
+                    window.markForgeContentAttention?.();
+                }
             }
         } catch (e) {
             showManagedShareUnavailableState(e, shareHash);
@@ -9065,6 +9311,9 @@ window.addEventListener('hashchange', async () => {
             const parsed  = await parsePayload(b64Data);
             if (parsed && Array.isArray(parsed.files)) {
                 loadProjectFromParsed(parsed, { preserveUrl: true });
+                if (params.get('bridge') === '1') {
+                    window.markForgeContentAttention?.();
+                }
             }
         } catch(e) {
             showToast('Error loading project from short URL: ' + e.message, 'error');
@@ -9078,6 +9327,9 @@ window.addEventListener('hashchange', async () => {
             const parsed = await parsePayload(payload.replace(/ /g, '+'));
             if (parsed && Array.isArray(parsed.files)) {
                 loadProjectFromParsed(parsed, { preserveUrl: true });
+                if (params.get('bridge') === '1') {
+                    window.markForgeContentAttention?.();
+                }
             }
         } catch(e) {
             showToast('Error loading project from URL: ' + e.message, 'error');

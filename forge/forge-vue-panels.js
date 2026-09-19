@@ -598,11 +598,11 @@
                 e.currentTarget.classList.remove('tree-row-drag-over');
             },
             onDrop(e) {
+                if (!_draggedNode) return;
                 e.preventDefault();
                 e.stopPropagation();
                 e.currentTarget.classList.remove('tree-row-drag-over');
 
-                if (!_draggedNode) return;
                 const { path: sourcePath, type: sourceType } = _draggedNode;
                 _draggedNode = null;
 
@@ -667,6 +667,7 @@
                     class="tree-row"
                     :class="{ selected: isSelected, 'tree-row-dir': isDir, 'file-item-ignored': isExcluded }"
                     :style="{ paddingLeft: (depth * 16 + 8) + 'px' }"
+                    :data-path="node.path"
                     :title="node.path"
                     :aria-label="(isDir ? 'Folder ' : 'File ') + node.name"
                     :aria-expanded="isDir ? String(!isCollapsed) : undefined"

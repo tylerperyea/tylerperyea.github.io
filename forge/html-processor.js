@@ -8,14 +8,20 @@ class HTMLProcessor {
   process(html, basePath = '/', depth = 0) {
     if (depth > 5) return html; // Prevent infinite iframe recursion
 
-    html = this.rewriteModuleScripts(html, basePath);
-    html = this.rewriteScriptTags(html, basePath);
+    const scripts = [];
+    html = html.replace(/<script\b[\s\S]*?<\/script>/gi,
+      m => `<!--forge-script-${scripts.push(m) - 1}-->`);
+
     html = this.rewriteLinkTags(html, basePath);
     html = this.rewriteStyleTags(html, basePath);
     html = this.rewriteImgTags(html, basePath);
     html = this.rewriteUseTags(html, basePath);
     html = this.rewriteSourceTags(html, basePath);
     html = this.rewriteIframeTags(html, basePath, depth);
+
+    html = html.replace(/<!--forge-script-(\d+)-->/g, (_, i) => scripts[i]);
+    html = this.rewriteModuleScripts(html, basePath);
+    html = this.rewriteScriptTags(html, basePath);
 
     return html;
   }

@@ -144,8 +144,46 @@ class VirtualFileSystem {
         const mimeType = this.getMimeType(path);
         if (meta.encoding === 'base64') {
             return `data:${mimeType};base64,${contents}`;
-        } else {
-            return `data:${mimeType},${encodeURIComponent(contents)}`;
+        }
+
+        const text = String(contents);
+
+        try {
+            return `data:${mimeType},${encodeURIComponent(text)}`;
+        } catch (error) {
+            if (!(error instanceof URIError)) throw error;
+
+            // encodeURIComponent throws on lone UTF-16 surrogate code units.
+            // Replace only malformed surrogates while preserving valid pairs.
+            let safeText = '';
+
+            for (let i = 0; i < text.length; i++) {
+                const code = text.charCodeAt(i);
+
+                if (code >= 0xD800 && code <= 0xDBFF) {
+                    const next = i + 1 < text.length
+                        ? text.charCodeAt(i + 1)
+                        : -1;
+
+                    if (next >= 0xDC00 && next <= 0xDFFF) {
+                        safeText += text[i] + text[i + 1];
+                        i++;
+                    } else {
+                        safeText += '\uFFFD';
+                    }
+                } else if (code >= 0xDC00 && code <= 0xDFFF) {
+                    safeText += '\uFFFD';
+                } else {
+                    safeText += text[i];
+                }
+            }
+
+            console.warn(
+                '[VFS] Repaired malformed UTF-16 while creating data URL:',
+                path
+            );
+
+            return `data:${mimeType},${encodeURIComponent(safeText)}`;
         }
     }
 
@@ -340,8 +378,8 @@ class VirtualFileSystem {
      * Load from a parsed forge JSON object.
      * Handles spec v1.1.0 and legacy formats.
      */
-    loadFromJSON(parsed) {
-        this.clear();
+    loadFromJSON(parsed, merge = false) {
+        if (!merge) this.clear();
         let files = [];
         let title = null;
 

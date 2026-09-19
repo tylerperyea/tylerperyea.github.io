@@ -1401,22 +1401,23 @@ body.loading-fullscreen .loading-spinner {
 }
 
 /* Fullscreen Mode */
-.fullscreen-container {
+body .preview-tab-wrapper.active {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
     z-index: 9999;
     background: white;
+}
+
+.preview-tab-wrapper.active .preview-header {
     display: none;
 }
 
-.fullscreen-container.active {
+.preview-tab-wrapper.active .fullscreen-menu {
     display: block;
 }
 
 .fullscreen-menu {
+    display: none;
     position: fixed;
     bottom: 20px;
     left: 20px;
@@ -1451,11 +1452,6 @@ body.loading-fullscreen .loading-spinner {
     background: transparent;
 }
 
-.fullscreen-iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-}
 
 /* Toast notifications — bottom right */
 .toast-container {
