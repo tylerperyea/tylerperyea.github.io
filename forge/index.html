@@ -521,18 +521,18 @@
           <button id="publishNamedShareBtn" title="Publish edits to this Named Share"
                   class="secondary preview-action-btn" hidden
                   onclick="this.disabled=true;document.getElementById('managedShareNamedInput').value=getURLParam('namedShare');saveNamedShare().finally(()=>this.disabled=false)">Publish Version</button>
-          <div class="forge-dropdown preview-share-dropdown" :class="{ open: isOpen('dd-preview-share') }">
+          <div class="forge-dropdown preview-share-dropdown">
             <button class="secondary preview-action-btn dropdown-trigger"
-                    @click.stop="toggleDropdown('dd-preview-share')">Share ▾</button>
+                    onclick="event.stopPropagation();this.parentElement.classList.toggle('open')">Share ▾</button>
             <div class="dropdown-menu">
               <div class="dropdown-item" id="manageManagedShareBtn" hidden
-                   onclick="openManagedShareManageModal(); toggleDropdown('dd-preview-share')">⚙ Manage Short Link</div>
+                   onclick="openManagedShareManageModal();this.closest('.forge-dropdown').classList.remove('open')">⚙ Manage Short Link</div>
               <div class="dropdown-item" id="shareCommentBtn"
-                   onclick="toggleDropdown('dd-preview-share')">💬 Comment URL</div>
+                   onclick="this.closest('.forge-dropdown').classList.remove('open')">💬 Comment URL</div>
               <div class="dropdown-item" id="shareLongUrlBtn"
-                   onclick="toggleDropdown('dd-preview-share')">🔗 Long Link</div>
+                   onclick="this.closest('.forge-dropdown').classList.remove('open')">🔗 Long Link</div>
               <div class="dropdown-item" id="shareShortUrlBtn" hidden
-                   onclick="toggleDropdown('dd-preview-share')">⚡ Short Link</div>
+                   onclick="this.closest('.forge-dropdown').classList.remove('open')">⚡ Short Link</div>
             </div>
           </div>
           <button id="fullscreenBtn" title="Fullscreen preview (Esc to exit)">⛶ Fullscreen</button>
