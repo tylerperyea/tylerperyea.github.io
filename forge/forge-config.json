@@ -3,6 +3,9 @@
   "serverFeatures": {
     "urlShortening": true
   },
+  "sharePolicy": {
+    "defaultTtlMs": 604800000
+  },
   "fetchMode": "browser",
   "deploymentMode": "static",
   "managedSharing": {
