@@ -1269,7 +1269,7 @@ dist/
             GitLab repository
           </a>
           for known issues, or email
-          <a href="mailto:forge@fda.hhs.gov">forge@fda.hhs.gov</a> directly.
+          <a href="#" data-forge-contact-link>email FORGE</a> directly.
         </div>
       </div>
 
@@ -1419,6 +1419,19 @@ dist/
   loadBookmarklet();
   loadCliInstall();
   loadFooterVersion();
+</script>
+<script>
+fetch('forge-config.json',{cache:'no-cache'})
+  .then(response=>response.ok?response.json():null)
+  .then(config=>{
+    const email=config?.contactEmail?.trim();
+    const link=document.querySelector('[data-forge-contact-link]');
+    if(email&&link){
+      link.href=`mailto:${email}`;
+      link.textContent=email;
+    }
+  })
+  .catch(()=>{});
 </script>
 </body>
 </html>

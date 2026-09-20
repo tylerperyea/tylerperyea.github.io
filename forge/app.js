@@ -1,3 +1,13 @@
+const byId=id=>document.getElementById(id);
+const findOne=s=>document.querySelector(s);
+const findAll=s=>document.querySelectorAll(s);
+const makeEl=t=>document.createElement(t);
+const toast={
+    error:(m,d)=>showToast(m,'error',d),
+    success:(m,d)=>showToast(m,'success',d),
+    warning:(m,d)=>showToast(m,'warning',d),
+    info:(m,d)=>showToast(m,'info',d)
+};
 var tt = location.pathname.split("/");
 tt.pop();
 var pref = tt.join("/") + "/";
@@ -8,13 +18,13 @@ const _noopProxy = new Proxy(() => _noopProxy, {
 });
 const _lazy = (id) => new Proxy({}, {
     get(_, prop) {
-        const el = document.getElementById(id);
+        const el = byId(id);
         if (!el) return _noopProxy;
         const val = el[prop];
         return typeof val === 'function' ? val.bind(el) : val;
     },
     set(_, prop, value) {
-        const el = document.getElementById(id);
+        const el = byId(id);
         if (el) el[prop] = value;
         return true;
     }
@@ -58,15 +68,15 @@ function getTimestamp() {
 let projectTitle = generateProjectName();
 let previewPageTitle = '';
 const forgeDefaultFavicon =
-    document.querySelector('link[rel*="icon"]')?.href || '/favicon.ico';
+    findOne('link[rel*="icon"]')?.href || '/favicon.ico';
 function updateForgeAttentionFavicon() {
-    let link = document.getElementById('forgeContentAttentionFavicon');
+    let link = byId('forgeContentAttentionFavicon');
     if (!window.forgeContentAttention) {
         if (link) link.href = forgeDefaultFavicon;
         return;
     }
     if (!link) {
-        link = document.createElement('link');
+        link = makeEl('link');
         link.id = 'forgeContentAttentionFavicon';
         link.rel = 'icon';
         document.head.appendChild(link);
@@ -96,7 +106,7 @@ document.addEventListener('visibilitychange', function () {
     }
 });
 function updateBrowserTitle() {
-    const fullscreenEl = document.getElementById('fullscreenContainer');
+    const fullscreenEl = byId('fullscreenContainer');
     const isFullscreen = Boolean(
         fullscreenEl && fullscreenEl.classList.contains('active')
     );
@@ -122,7 +132,7 @@ function updateBrowserTitle() {
         .otherwise(`[FORGE] ${title}`);
 }
 function updateProjectTitleDisplay() {
-    const el = document.getElementById('projectTitle');
+    const el = byId('projectTitle');
     if (el) el.value = projectTitle;
     updateBrowserTitle();
 }
@@ -153,7 +163,7 @@ document.addEventListener('click', (e) => {
     if (e.target && e.target.id === 'regenerateTitleBtn') {
         projectTitle = generateProjectName();
         updateProjectTitleDisplay();
-        showToast('Project name regenerated', 'success');
+        toast.success('Project name regenerated');
     }
     if (e.target && e.target.id === 'shortcutsBtn') {
         openShortcutsModal();
@@ -189,12 +199,12 @@ document.addEventListener('click', (e) => {
         window.location.href = 'about.html';
     }
     if (e.target && e.target.id === 'welcomeCreateFileBtn') {
-        const filesTab = document.querySelector('.tab[data-tab="files"]');
+        const filesTab = findOne('.tab[data-tab="files"]');
         if (filesTab) filesTab.click();
         addFile();
         setCreateMode('file');
         setTimeout(() => {
-            const input = document.getElementById('addFileInput');
+            const input = byId('addFileInput');
             if (input) input.focus();
         }, 0);
     }
@@ -220,7 +230,7 @@ document.addEventListener('keydown', (e) => {
             const entryPoint = vfs.findEntryPoint();
             if (entryPoint) {
                 renderPage(entryPoint);
-                showToast('Preview refreshed', 'success');
+                toast.success('Preview refreshed');
             }
         }
         return;
@@ -250,7 +260,7 @@ document.addEventListener('keydown', (e) => {
         return;
     }
     if (e.key === 'Escape') {
-        const searchBar = document.getElementById('editorSearchBar');
+        const searchBar = byId('editorSearchBar');
         if (searchBar && searchBar.classList.contains('active')) {
             closeEditorSearch();
             return;
@@ -263,8 +273,8 @@ document.addEventListener('keydown', (e) => {
     }
 });
 function openEditorSearch(showReplace) {
-    const bar   = document.getElementById('editorSearchBar');
-    const input = document.getElementById('editorSearchInput');
+    const bar   = byId('editorSearchBar');
+    const input = byId('editorSearchInput');
     if (!bar || !input) return;
     if (window.forgePanels && window.forgePanels.activeTab !== 'files') {
         switchTab('files');
@@ -276,19 +286,19 @@ function openEditorSearch(showReplace) {
     _runSearch();
 }
 function setEditorReplaceVisible(visible) {
-    const row = document.getElementById('editorReplaceRow');
-    const toggle = document.getElementById('editorSearchToggleReplace');
+    const row = byId('editorReplaceRow');
+    const toggle = byId('editorSearchToggleReplace');
     if (row) row.classList.toggle('active', visible);
     if (toggle) toggle.textContent = visible ? '▾' : '▸';
 }
 function toggleEditorReplace() {
-    const row = document.getElementById('editorReplaceRow');
+    const row = byId('editorReplaceRow');
     const isVisible = row && row.classList.contains('active');
     setEditorReplaceVisible(!isVisible);
 }
 function closeEditorSearch() {
-    const bar   = document.getElementById('editorSearchBar');
-    const input = document.getElementById('editorSearchInput');
+    const bar   = byId('editorSearchBar');
+    const input = byId('editorSearchInput');
     if (bar)   bar.classList.remove('active');
     if (input) input.classList.remove('no-match');
     setEditorReplaceVisible(false);
@@ -297,8 +307,8 @@ function closeEditorSearch() {
     ForgeEditor.focus();
 }
 function _runSearch() {
-    const query = document.getElementById('editorSearchInput')?.value ?? '';
-    const input = document.getElementById('editorSearchInput');
+    const query = byId('editorSearchInput')?.value ?? '';
+    const input = byId('editorSearchInput');
     if (!ForgeEditor.isReady()) return;
     const { total, current } = ForgeEditor.searchFind(query);
     if (input) input.classList.toggle('no-match', query.length > 0 && total === 0);
@@ -310,37 +320,37 @@ function _searchStep(direction) {
     _updateSearchCount(current, total);
 }
 function _updateSearchCount(current, total) {
-    const el = document.getElementById('editorSearchCount');
+    const el = byId('editorSearchCount');
     if (!el) return;
-    const query = document.getElementById('editorSearchInput')?.value ?? '';
+    const query = byId('editorSearchInput')?.value ?? '';
     el.textContent = total === 0
         ? (query ? 'No results' : '')
         : `${current} / ${total}`;
 }
 window.addEventListener('load', () => {
-    document.getElementById('editorSearchInput')?.addEventListener('input', _runSearch);
-    document.getElementById('editorSearchInput')?.addEventListener('keydown', (e) => {
+    byId('editorSearchInput')?.addEventListener('input', _runSearch);
+    byId('editorSearchInput')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); _searchStep(e.shiftKey ? -1 : 1); }
         if (e.key === 'Escape') { closeEditorSearch(); }
     });
-    document.getElementById('editorSearchPrev')?.addEventListener('click', () => _searchStep(-1));
-    document.getElementById('editorSearchNext')?.addEventListener('click', () => _searchStep(1));
-    document.getElementById('editorSearchClose')?.addEventListener('click', closeEditorSearch);
-    document.getElementById('editorSearchToggleReplace')?.addEventListener('click', toggleEditorReplace);
-    document.getElementById('editorReplaceOne')?.addEventListener('click', () => {
+    byId('editorSearchPrev')?.addEventListener('click', () => _searchStep(-1));
+    byId('editorSearchNext')?.addEventListener('click', () => _searchStep(1));
+    byId('editorSearchClose')?.addEventListener('click', closeEditorSearch);
+    byId('editorSearchToggleReplace')?.addEventListener('click', toggleEditorReplace);
+    byId('editorReplaceOne')?.addEventListener('click', () => {
         if (!ForgeEditor.isReady()) return;
-        const replacement = document.getElementById('editorReplaceInput')?.value ?? '';
+        const replacement = byId('editorReplaceInput')?.value ?? '';
         const { total, current } = ForgeEditor.searchReplaceOne(replacement);
         _updateSearchCount(current, total);
         hasUnsavedChanges = true;
     });
-    document.getElementById('editorReplaceAll')?.addEventListener('click', () => {
+    byId('editorReplaceAll')?.addEventListener('click', () => {
         if (!ForgeEditor.isReady()) return;
-        const query       = document.getElementById('editorSearchInput')?.value ?? '';
-        const replacement = document.getElementById('editorReplaceInput')?.value ?? '';
+        const query       = byId('editorSearchInput')?.value ?? '';
+        const replacement = byId('editorReplaceInput')?.value ?? '';
         if (!query) return;
         const count = ForgeEditor.searchReplaceAll(replacement);
-        showToast(`Replaced ${count} occurrence${count !== 1 ? 's' : ''}`, 'success');
+        toast.success(`Replaced ${count} occurrence${count !== 1 ? 's' : ''}`);
         _updateSearchCount(0, 0);
         hasUnsavedChanges = true;
     });
@@ -353,48 +363,45 @@ function projectClipboardShortcut(key) {
 }
 async function copyProjectToClipboard() {
     if (vfs.getAllPaths().length === 0) {
-        showToast('No project to copy', 'error');
+        toast.error('No project to copy');
         return;
     }
     try {
         const json = JSON.stringify(vfs.toJSON(), null, 2);
         await copyToClipboard(json);
         const fileCount = vfs.getAllPaths().length;
-        showToast(`Project JSON copied to clipboard (${fileCount} files)`, 'success', 3000);
+        toast.success(`Project JSON copied to clipboard (${fileCount} files)`, 3000);
     } catch (e) {
-        showToast('Failed to copy: ' + e.message, 'error');
+        toast.error('Failed to copy: ' + e.message);
         console.error('copyProjectToClipboard error:', e);
     }
 }
 async function pasteProjectFromClipboard() {
     try {
         if (!navigator.clipboard || !navigator.clipboard.readText) {
-            showToast(
-                'Clipboard read not available over HTTP. Use Import ▾ → Load JSON to paste manually.',
-                'error', 6000
-            );
+            toast.error('Clipboard read not available over HTTP. Use Import ▾ → Load JSON to paste manually.', 6000);
             openLoadJsonModal();
             return;
         }
         const text = await navigator.clipboard.readText();
         if (!text || !text.trim()) {
-            showToast('Clipboard is empty', 'error');
+            toast.error('Clipboard is empty');
             return;
         }
         let parsed;
         try {
             parsed = JSON.parse(text.trim());
         } catch (e) {
-            showToast('Clipboard does not contain valid JSON', 'error');
+            toast.error('Clipboard does not contain valid JSON');
             return;
         }
         const files = Array.isArray(parsed) ? parsed : parsed.files;
         if (!Array.isArray(files) || files.length === 0) {
-            showToast('Clipboard JSON does not appear to be a forge project (no files array)', 'error');
+            toast.error('Clipboard JSON does not appear to be a forge project (no files array)');
             return;
         }
         if (!files.some(f => f.path)) {
-            showToast('Clipboard JSON does not appear to be a forge project (no file paths found)', 'error');
+            toast.error('Clipboard JSON does not appear to be a forge project (no file paths found)');
             return;
         }
         pendingClipboardProject = parsed;
@@ -402,9 +409,9 @@ async function pasteProjectFromClipboard() {
         const fileCount = files.length;
         const excludedCount = files.filter(f => f.excluded || f.ignored).length;
         const specVersion = parsed.specVersion ? ` — spec v${parsed.specVersion}` : '';
-        document.getElementById('clipboardPasteTitle').textContent =
+        byId('clipboardPasteTitle').textContent =
             `"${title}"${specVersion}`;
-        document.getElementById('clipboardPasteStats').textContent =
+        byId('clipboardPasteStats').textContent =
             excludedCount > 0
                 ? `${fileCount} files (${excludedCount} excluded)`
                 : `${fileCount} files`;
@@ -414,7 +421,7 @@ async function pasteProjectFromClipboard() {
             onRequestClose: closeClipboardPasteModal
         });
     } catch (e) {
-        showToast('Could not read clipboard: ' + e.message, 'error');
+        toast.error('Could not read clipboard: ' + e.message);
         console.error('pasteProjectFromClipboard error:', e);
     }
 }
@@ -439,7 +446,7 @@ function loadProjectFromParsed(
             }
         }
         if (loadedCount === 0) {
-            showToast('No valid files found in project JSON', 'error');
+            toast.error('No valid files found in project JSON');
             return;
         }
         setCurrentManagedShareMetadata(managedShareMetadata);
@@ -459,7 +466,7 @@ function loadProjectFromParsed(
             renderPage(entryPoint);
             switchTab('preview');
             if (getURLParam('fullscreen')) {
-                const fc = document.getElementById('fullscreenContainer');
+                const fc = byId('fullscreenContainer');
                 if (fc) fc.classList.add('active');
                 updateBrowserTitle();
             }
@@ -469,30 +476,30 @@ function loadProjectFromParsed(
         const statusMsg = `${merge ? 'Merged' : 'Loaded'} ${loadedCount} file(s)` +
             (excludedCount > 0 ? ` (${excludedCount} excluded)` : '');
         setStatus(statusMsg, 'success');
-        showToast(statusMsg, 'success', 4000);
+        toast.success(statusMsg, 4000);
     } catch (e) {
-        showToast('Error loading project: ' + e.message, 'error');
+        toast.error('Error loading project: ' + e.message);
         console.error('loadProjectFromParsed error:', e);
     }
 }
-const gitlabModal = document.getElementById('gitlabModal');
-const gitlabUrlInput = document.getElementById('gitlabUrl');
-const gitlabTokenInput = document.getElementById('gitlabToken');
-const gitlabProjectInput = document.getElementById('gitlabProject');
-const gitlabBranchInput = document.getElementById('gitlabBranch');
-const saveTokenCheckbox = document.getElementById('saveToken');
-const importProgress = document.getElementById('importProgress');
-const gitlabBrowseProjectsBtn = document.getElementById('gitlabBrowseProjectsBtn');
-const gitlabProjectBrowser = document.getElementById('gitlabProjectBrowser');
-const gitlabRecentProjects = document.getElementById('gitlabRecentProjects');
-const gitlabProjectSearchInput = document.getElementById('gitlabProjectSearch');
-const gitlabProjectSearchBtn = document.getElementById('gitlabProjectSearchBtn');
-const gitlabProjectResults = document.getElementById('gitlabProjectResults');
-const gitlabProjectPagination = document.getElementById('gitlabProjectPagination');
-const gitlabProjectPrevBtn = document.getElementById('gitlabProjectPrevBtn');
-const gitlabProjectNextBtn = document.getElementById('gitlabProjectNextBtn');
-const gitlabProjectPageLabel = document.getElementById('gitlabProjectPageLabel');
-const gitlabProjectBrowseStatus = document.getElementById('gitlabProjectBrowseStatus');
+const gitlabModal = byId('gitlabModal');
+const gitlabUrlInput = byId('gitlabUrl');
+const gitlabTokenInput = byId('gitlabToken');
+const gitlabProjectInput = byId('gitlabProject');
+const gitlabBranchInput = byId('gitlabBranch');
+const saveTokenCheckbox = byId('saveToken');
+const importProgress = byId('importProgress');
+const gitlabBrowseProjectsBtn = byId('gitlabBrowseProjectsBtn');
+const gitlabProjectBrowser = byId('gitlabProjectBrowser');
+const gitlabRecentProjects = byId('gitlabRecentProjects');
+const gitlabProjectSearchInput = byId('gitlabProjectSearch');
+const gitlabProjectSearchBtn = byId('gitlabProjectSearchBtn');
+const gitlabProjectResults = byId('gitlabProjectResults');
+const gitlabProjectPagination = byId('gitlabProjectPagination');
+const gitlabProjectPrevBtn = byId('gitlabProjectPrevBtn');
+const gitlabProjectNextBtn = byId('gitlabProjectNextBtn');
+const gitlabProjectPageLabel = byId('gitlabProjectPageLabel');
+const gitlabProjectBrowseStatus = byId('gitlabProjectBrowseStatus');
 const GITLAB_PROJECT_PAGE_SIZE = 8;
 const GITLAB_RECENT_PROJECTS_KEY = 'forge-gitlab-recent-projects';
 const GITLAB_RECENT_PROJECTS_LIMIT = 3;
@@ -506,7 +513,7 @@ function setGitImportProvider(n){
     gitlabUrlInput.value=gitImportOrigin();gitlabTokenInput.value=s;saveTokenCheckbox.checked=!!s;
     gitlabProjectInput.value=gitlabBranchInput.value='';
     renderRecentGitLabProjects();setGitLabProjectBrowserExpanded(false);
-    document.getElementById('gitImportBtn').disabled=0;
+    byId('gitImportBtn').disabled=0;
 }
 let gitlabProjectSearchQuery = '';
 let gitlabProjectSearchPage = 1;
@@ -529,7 +536,7 @@ function openCliInstallModal() {
         closeOnBackdrop: true,
         onRequestClose: closeCliInstallModal
     });
-    const container = document.getElementById('cliInstallContainer');
+    const container = byId('cliInstallContainer');
     ForgeCliInstall.renderInstallUI(container, { compact: false });
 }
 function closeCliInstallModal() {
@@ -624,17 +631,17 @@ function createGitLabProjectOption(
     recent = false,
     onSelect = selectGitLabProject
 ) {
-    const button = document.createElement('button');
+    const button = makeEl('button');
     button.type = 'button';
     button.className = 'gitlab-project-option';
     button.setAttribute('role', 'option');
-    const name = document.createElement('span');
+    const name = makeEl('span');
     name.className = 'gitlab-project-option-name';
     name.textContent =
         project.path_with_namespace ||
         project.name ||
         String(project.id || 'GitLab project');
-    const meta = document.createElement('span');
+    const meta = makeEl('span');
     meta.className = 'gitlab-project-option-meta';
     if (recent) {
         meta.textContent = project.default_branch
@@ -665,10 +672,10 @@ function renderRecentGitLabProjects() {
         return;
     }
     gitlabRecentProjects.hidden = false;
-    const heading = document.createElement('div');
+    const heading = makeEl('div');
     heading.className = 'gitlab-recent-projects-heading';
     heading.textContent = 'Recently used';
-    const list = document.createElement('div');
+    const list = makeEl('div');
     list.className = 'gitlab-recent-project-list';
     recent.forEach(project => {
         list.appendChild(createGitLabProjectOption(project, true));
@@ -686,7 +693,7 @@ function setGitLabProjectBrowserExpanded(expanded) {
 }
 function setGitLabProjectBrowseLoading() {
     gitlabProjectResults.textContent = '';
-    const loading = document.createElement('div');
+    const loading = makeEl('div');
     loading.className = 'gitlab-project-loading';
     loading.textContent = 'Loading repositories…';
     gitlabProjectResults.appendChild(loading);
@@ -696,7 +703,7 @@ function setGitLabProjectBrowseLoading() {
 function renderGitLabProjectResults(projects, page) {
     gitlabProjectResults.textContent = '';
     if (projects.length === 0) {
-        const empty = document.createElement('div');
+        const empty = makeEl('div');
         empty.className = 'gitlab-project-empty';
         empty.textContent = gitlabProjectSearchQuery
             ? `No repositories found for "${gitlabProjectSearchQuery}".`
@@ -824,7 +831,7 @@ gitlabProjectNextBtn.addEventListener('click', () => {
 });
 function openGitLabModal() {
     gitlabUrlInput.value=gitImportOrigin();
-    const p=document.getElementById('gitImportProvider');if(p)p.value=gitImportProviderName;
+    const p=byId('gitImportProvider');if(p)p.value=gitImportProviderName;
     const persistedToken=localStorage.getItem(gitImportProviderName+'Token')||'';
     if (persistedToken) {
         gitlabTokenInput.value = persistedToken;
@@ -969,7 +976,7 @@ async function importFromGitLab() {
         } else if (!projectInput) {
             markInvalidFormField(gitlabProjectInput);
         }
-        showToast('Please fill in all required fields', 'error');
+        toast.error('Please fill in all required fields');
         return;
     }
     if (saveTokenCheckbox.checked) {
@@ -1115,7 +1122,7 @@ async function importFromGitLab() {
         if (typeof applyForgeConfigToVFS === 'function') applyForgeConfigToVFS();
         refreshAndOpenProject();
         logProgress('\n✓ Import complete!');
-        showToast(`Imported ${fetchedCount} files from ${providerLabel} (${ignoredCount} excluded)`,'success',4000);
+        toast.success(`Imported ${fetchedCount} files from ${providerLabel} (${ignoredCount} excluded)`, 4000);
         if (typeof ForgeGitPush !== 'undefined') {
             ForgeGitPush.recordImportContext(
                 gitlabUrl,
@@ -1132,7 +1139,7 @@ async function importFromGitLab() {
         }, 2000);
     } catch (error) {
         logProgress(`\n❌ Error: ${error.message}`);
-        showToast('Import failed: ' + error.message, 'error', 5000);
+        toast.error('Import failed: ' + error.message, 5000);
         console.error('Git import error:',error);
     }
 }
@@ -1177,7 +1184,7 @@ async function copyToClipboard(text) {
         await navigator.clipboard.writeText(text);
         return;
     }
-    const textarea = document.createElement('textarea');
+    const textarea = makeEl('textarea');
     textarea.value = text;
     textarea.style.position = 'fixed';
     textarea.style.top = '-9999px';
@@ -1196,7 +1203,7 @@ const accessibleModalOptions = new WeakMap();
 let activeAccessibleModal = null;
 function getModalOverlay(target) {
     if (!target) return null;
-    if (typeof target === 'string') return document.getElementById(target);
+    if (typeof target === 'string') return byId(target);
     return target.classList?.contains('modal-overlay') ? target : null;
 }
 function getModalInitialFocus(overlay) {
@@ -1303,7 +1310,7 @@ function updateAccessibleModalState(overlay) {
     overlay.setAttribute('aria-hidden', 'true');
 }
 function initializeAccessibleModals() {
-    document.querySelectorAll('.modal-overlay').forEach((overlay, index) => {
+    findAll('.modal-overlay').forEach((overlay, index) => {
         const dialog = overlay.querySelector('.modal');
         if (!dialog) return;
         dialog.setAttribute('role', 'dialog');
@@ -1359,8 +1366,8 @@ document.addEventListener('keydown', event => {
     ForgeModal.requestClose(activeAccessibleModal);
 }, true);
 function showToast(message, type = 'info', duration = 3000) {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
+    const container = byId('toastContainer');
+    const toast = makeEl('div');
     toast.className = `toast toast-${type}`;
     toast.setAttribute(
         'role',
@@ -1381,7 +1388,7 @@ let serverFeatures = {
 let serverSharePolicy = {
   defaultTtlMs: null
 };
-let forgeContactEmail = 'forge@fda.hhs.gov';
+let forgeContactEmail = '';
 let serverAuth = {
   mode: 'none',
   assertedIdentity: false,
@@ -1433,18 +1440,13 @@ function removePendingManagedShare(payloadHash) {
     } catch {}
 }
 function normalizeForgeContactEmail(value) {
-    if (typeof value !== 'string') {
-        return 'forge@fda.hhs.gov';
-    }
+    if (typeof value !== 'string') return '';
     const email = value.trim();
-    if (
-        email.length === 0 ||
-        email.length > 320 ||
-        !/^[^\s@]+@[^\s@]+$/.test(email)
-    ) {
-        return 'forge@fda.hhs.gov';
-    }
-    return email;
+    return (
+        email.length > 0 &&
+        email.length <= 320 &&
+        /^[^\s@]+@[^\s@]+$/.test(email)
+    ) ? email : '';
 }
 function currentForgePayloadHash() {
     const params = new URLSearchParams(location.hash.substring(1));
@@ -1456,6 +1458,10 @@ function currentForgePayloadHash() {
     return /^[a-f0-9]{40}$/i.test(value) ? value.toLowerCase() : '';
 }
 function openForgeMailto(subjectSuffix, bodyLines = []) {
+    if (!forgeContactEmail) {
+        toast.error('Contact email is not configured.', 3500);
+        return;
+    }
     const payloadHash = currentForgePayloadHash();
     const subject = [
         '[FORGE IDE]',
@@ -1482,10 +1488,10 @@ function emailForge() {
     ]);
 }
 function openForgeReportModal(preferredReason = '') {
-    const modal = document.getElementById('forgeReportModal');
+    const modal = byId('forgeReportModal');
     if (!modal) return;
     const reasons = Array.from(
-        document.querySelectorAll('input[name="forgeReportReason"]')
+        findAll('input[name="forgeReportReason"]')
     );
     const preferred =
         reasons.find(input => input.value === preferredReason) ||
@@ -1494,7 +1500,7 @@ function openForgeReportModal(preferredReason = '') {
     reasons.forEach(input => {
         input.checked = input === preferred;
     });
-    const details = document.getElementById('forgeReportDetails');
+    const details = byId('forgeReportDetails');
     if (details) details.value = '';
     ForgeModal.open('forgeReportModal', {
         initialFocus: preferred,
@@ -1505,10 +1511,10 @@ function closeForgeReportModal() {
     ForgeModal.close('forgeReportModal');
 }
 function sendForgeReportEmail() {
-    const selectedReason = document.querySelector(
+    const selectedReason = findOne(
         'input[name="forgeReportReason"]:checked'
     );
-    const details = document.getElementById('forgeReportDetails');
+    const details = byId('forgeReportDetails');
     const reason = selectedReason
         ? selectedReason.value
         : 'Other';
@@ -1524,15 +1530,15 @@ function sendForgeReportEmail() {
     ]);
 }
 function hidePreviewUnavailableState() {
-    const unavailable = document.getElementById('previewUnavailable');
+    const unavailable = byId('previewUnavailable');
     if (!unavailable) return;
     unavailable.hidden = true;
 }
 function showManagedShareUnavailableState(error, payloadHash) {
-    const unavailable = document.getElementById('previewUnavailable');
-    const title = document.getElementById('previewUnavailableTitle');
-    const message = document.getElementById('previewUnavailableMessage');
-    const hint = document.getElementById('previewUnavailableHint');
+    const unavailable = byId('previewUnavailable');
+    const title = byId('previewUnavailableTitle');
+    const message = byId('previewUnavailableMessage');
+    const hint = byId('previewUnavailableHint');
     if (!unavailable || !title || !message || !hint) return;
     const reason = error && error.message
         ? error.message
@@ -1644,8 +1650,8 @@ function closeManagedShareGitCredentialModal() {
 }
 function managedShareGitCredentialInputs() {
   return {
-    tokenInput: document.getElementById('managedShareGitCredential'),
-    rememberInput: document.getElementById('managedShareGitRemember')
+    tokenInput: byId('managedShareGitCredential'),
+    rememberInput: byId('managedShareGitRemember')
   };
 }
 function resetManagedShareGitCredentialInputs() {
@@ -1697,7 +1703,7 @@ function saveManagedShareGitCredential() {
     ? tokenInput.value.trim()
     : '';
   if (!token) {
-    showToast('Enter a GitHub inbox credential.', 'warning', 3000);
+    toast.warning('Enter a GitHub inbox credential.', 3000);
     if (tokenInput) tokenInput.focus();
     return;
   }
@@ -1708,7 +1714,7 @@ function saveManagedShareGitCredential() {
     );
     finishManagedShareGitCredentialPrompt(true);
   } catch (error) {
-    showToast(error.message, 'error', 4000);
+    toast.error(error.message, 4000);
   }
 }
 function forgetManagedShareGitCredential() {
@@ -1720,11 +1726,7 @@ function forgetManagedShareGitCredential() {
     git.clearCredential();
   }
   resetManagedShareGitCredentialInputs();
-  showToast(
-    'GitHub sharing credential forgotten from this browser.',
-    'success',
-    3000
-  );
+  toast.success('GitHub sharing credential forgotten from this browser.', 3000);
   if (tokenInput) tokenInput.focus();
 }
 function managedShareAdminAllowed() {
@@ -1738,20 +1740,20 @@ function managedShareAdminAllowed() {
   );
 }
 function managedShareAdminLog(message) {
-  const log = document.getElementById('managedShareAdminLog');
+  const log = byId('managedShareAdminLog');
   if (!log) return;
   const time = new Date().toLocaleTimeString();
   log.textContent += `[${time}] ${message}\n`;
   log.scrollTop = log.scrollHeight;
 }
 function setManagedShareAdminStatus(message) {
-  const status = document.getElementById('managedShareAdminStatus');
+  const status = byId('managedShareAdminStatus');
   if (status) status.textContent = message;
 }
 function useManagedShareAdminCredential() {
   const git = window.ForgeManagedShareGit;
-  const input = document.getElementById('managedShareAdminCredential');
-  const remember = document.getElementById('managedShareAdminRemember');
+  const input = byId('managedShareAdminCredential');
+  const remember = byId('managedShareAdminRemember');
   const token = input ? input.value.trim() : '';
   if (token) {
     git.setProcessorCredential(token, !!(remember && remember.checked));
@@ -1836,7 +1838,7 @@ function forgetManagedShareAdminCredential() {
   if (git && typeof git.clearProcessorCredential === 'function') {
     git.clearProcessorCredential();
   }
-  const input = document.getElementById('managedShareAdminCredential');
+  const input = byId('managedShareAdminCredential');
   if (input) input.value = '';
   stopManagedShareAdminPolling();
   setManagedShareAdminStatus('Trusted processor credential cleared');
@@ -1888,15 +1890,16 @@ async function sendManagedShareRequest(packet) {
     throw new Error('Invalid managed-share packet');
   }
   const nativePacket =
-    !aliasRequest && forgeEndpointAdvertised('shareRequest');
-  const endpoint = aliasRequest
-    ? null
-    : nativePacket
-      ? 'shareRequest'
+    forgeEndpointAdvertised('shareRequest') &&
+    (!aliasRequest || serverFeatures.namedSharing === true);
+  const endpoint = nativePacket
+    ? 'shareRequest'
+    : aliasRequest
+      ? null
       : packet.type === 'share.make'
         ? 'shareCreate'
         : 'shareUpdate';
-  if (aliasRequest || !forgeEndpointAdvertised(endpoint)) {
+  if (!endpoint || !forgeEndpointAdvertised(endpoint)) {
     const git = window.ForgeManagedShareGit;
     if (
       git &&
@@ -1947,7 +1950,7 @@ function gsrsIdentitySeedEligible() {
 }
 function bootstrapGsrsSso() {
   return new Promise(resolve => {
-    const frame = document.createElement('iframe');
+    const frame = makeEl('iframe');
     frame.hidden = true;
     frame.setAttribute('aria-hidden', 'true');
     let finished = false;
@@ -2031,27 +2034,27 @@ async function loadCurrentUser() {
   return currentUser;
 }
 function closeCurrentUserMenu() {
-  const dropdown = document.getElementById('currentUserDropdown');
-  const button = document.getElementById('currentUserBtn');
+  const dropdown = byId('currentUserDropdown');
+  const button = byId('currentUserBtn');
   if (dropdown) dropdown.classList.remove('open');
   if (button) button.setAttribute('aria-expanded', 'false');
 }
 function refreshCurrentUserMenuUi() {
-  const email = document.getElementById('currentUserMenuEmail');
-  const kind = document.getElementById('currentUserMenuKind');
-  const changeButton = document.getElementById(
+  const email = byId('currentUserMenuEmail');
+  const kind = byId('currentUserMenuKind');
+  const changeButton = byId(
     'currentUserChangeIdentityBtn'
   );
-  const changeLabel = document.getElementById(
+  const changeLabel = byId(
     'currentUserChangeIdentityLabel'
   );
-  const refreshSsoButton = document.getElementById(
+  const refreshSsoButton = byId(
     'currentUserRefreshSsoBtn'
   );
-  const logoutButton = document.getElementById(
+  const logoutButton = byId(
     'currentUserLogoutBtn'
   );
-  const managedNote = document.getElementById(
+  const managedNote = byId(
     'currentUserManagedIdentityNote'
   );
   if (email) {
@@ -2087,7 +2090,7 @@ function refreshCurrentUserMenuUi() {
   }
 }
 function refreshCurrentUserUi() {
-  const button = document.getElementById('currentUserBtn');
+  const button = byId('currentUserBtn');
   if (!button) return;
   if (serverAuth.mode === 'none' && !currentUser) {
     closeCurrentUserMenu();
@@ -2131,8 +2134,8 @@ function currentUserAction(event) {
     event.preventDefault();
     event.stopPropagation();
   }
-  const dropdown = document.getElementById('currentUserDropdown');
-  const button = document.getElementById('currentUserBtn');
+  const dropdown = byId('currentUserDropdown');
+  const button = byId('currentUserBtn');
   if (!dropdown || !button) return;
   refreshCurrentUserMenuUi();
   const opening = !dropdown.classList.contains('open');
@@ -2155,11 +2158,7 @@ async function logoutCurrentUser() {
   }
   currentUser = null;
   refreshCurrentUserUi();
-  showToast(
-    'Logged out of FORGE identity. Reload or use Refresh from SSO to sign in again.',
-    'info',
-    4000
-  );
+  toast.info('Logged out of FORGE identity. Reload or use Refresh from SSO to sign in again.', 4000);
 }
 async function refreshAssertedIdentityFromSso() {
   if (!serverAuth.assertedIdentity) return;
@@ -2172,17 +2171,9 @@ async function refreshAssertedIdentityFromSso() {
   await loadCurrentUser();
   refreshCurrentUserUi();
   if (currentUser) {
-    showToast(
-      `Refreshed SSO identity: ${currentUser.email}`,
-      'info',
-      3000
-    );
+    toast.info(`Refreshed SSO identity: ${currentUser.email}`, 3000);
   } else {
-    showToast(
-      'No SSO identity was available',
-      'info',
-      3000
-    );
+    toast.info('No SSO identity was available', 3000);
   }
 }
 async function setAssertedIdentity() {
@@ -2205,25 +2196,17 @@ async function setAssertedIdentity() {
   }
   const email = normalizeAssertedEmail(trimmed);
   if (!email) {
-    showToast(
-      'Please enter a valid email address',
-      'error',
-      3500
-    );
+    toast.error('Please enter a valid email address', 3500);
     return;
   }
   suppressGsrsIdentitySeed = false;
   localStorage.setItem(ASSERTED_EMAIL_STORAGE_KEY, email);
   await loadCurrentUser();
   refreshCurrentUserUi();
-  showToast(
-    `Using asserted email: ${email}`,
-    'info',
-    3000
-  );
+  toast.info(`Using asserted email: ${email}`, 3000);
 }
 document.addEventListener('click', event => {
-  const dropdown = document.getElementById('currentUserDropdown');
+  const dropdown = byId('currentUserDropdown');
   if (
     dropdown &&
     dropdown.classList.contains('open') &&
@@ -2245,6 +2228,8 @@ window.FORGE_ENDPOINTS = {
   shareCreate: pref + 'share',
   shareUpdate: pref + 'share/update',
   shareRequest: pref + 'share/request',
+  shareRequestGet: pref + 'share/request/{id}',
+  shareAliasGet: pref + 'share/alias/{alias}',
   shareGet: pref + 'share/{hash}'
 };
 let advertisedForgeEndpoints = new Set();
@@ -2282,9 +2267,15 @@ function managedShareUpdatesAvailable() {
 }
 function namedSharingAvailable() {
   const git = window.ForgeManagedShareGit;
+  const native =
+    serverFeatures.namedSharing === true &&
+    forgeEndpointAdvertised('shareRequest') &&
+    forgeEndpointAdvertised('shareAliasGet') &&
+    forgeEndpointAdvertised('shareGet') &&
+    forgeEndpointAdvertised('payloadGet');
   return !!(
-    git?.isConfigured?.() &&
-    typeof git.signAliasRequest === 'function'
+    typeof git?.signAliasRequest === 'function' &&
+    (native || git?.isConfigured?.())
   );
 }
 function validNamedShareAlias(alias) {
@@ -2311,6 +2302,8 @@ function applyForgeEndpointConfig(config) {
     'shareCreate',
     'shareUpdate',
     'shareRequest',
+    'shareRequestGet',
+    'shareAliasGet',
     'shareGet'
   ]) {
     const configured = config.endpoints[name];
@@ -2406,27 +2399,27 @@ function applyFeatureVisibility() {
     refreshManagedShareManagementUi();
     const hasManagedSharing = managedSharingAvailable();
     const hasLegacyShortening = serverFeatures.urlShortening === true;
-    const managedShareItem = document.getElementById('managedShareDropdownItem');
+    const managedShareItem = byId('managedShareDropdownItem');
     if (managedShareItem) {
         managedShareItem.hidden = !hasManagedSharing;
     }
-    const shortUrlDropdownItem = document.getElementById('shortUrlDropdownItem');
+    const shortUrlDropdownItem = byId('shortUrlDropdownItem');
     if (shortUrlDropdownItem) {
         shortUrlDropdownItem.hidden =
             !hasLegacyShortening || hasManagedSharing;
     }
-    const shareShortUrlBtn = document.getElementById('shareShortUrlBtn');
+    const shareShortUrlBtn = byId('shareShortUrlBtn');
     if (shareShortUrlBtn) {
         shareShortUrlBtn.hidden =
             !hasManagedSharing && !hasLegacyShortening;
     }
     const managedFullscreenShareItem =
-        document.getElementById('managedFullscreenShareDropdownItem');
+        byId('managedFullscreenShareDropdownItem');
     if (managedFullscreenShareItem) {
         managedFullscreenShareItem.hidden = !hasManagedSharing;
     }
     const shortFullscreenUrlItem =
-        document.getElementById('shortFullscreenUrlItem');
+        byId('shortFullscreenUrlItem');
     if (shortFullscreenUrlItem) {
         shortFullscreenUrlItem.hidden =
             !hasLegacyShortening || hasManagedSharing;
@@ -2468,7 +2461,7 @@ async function restorePreviewHistory(index) {
     const current = splitPreviewLocation(urlBar.value || currentPath || '');
     previewHistoryIndex = index;
     if (!vfs.hasFile(path)) {
-        document.getElementById('previewFrame')?.contentWindow?.postMessage({
+        byId('previewFrame')?.contentWindow?.postMessage({
             type: 'forge-history-location',
             value
         }, '*');
@@ -2481,7 +2474,7 @@ async function restorePreviewHistory(index) {
         return;
     }
     if (path === currentPath && location.query === current.query) {
-        document.getElementById('previewFrame')?.contentWindow?.postMessage({
+        byId('previewFrame')?.contentWindow?.postMessage({
             type: 'forge-set-hash',
             hash: location.hash
         }, '*');
@@ -2516,19 +2509,19 @@ let hasUnsavedChanges = false;
 let originalContent = '';
 let pendingNavigation = null;
 // UI Elements
-const jsonInput = document.getElementById('jsonInput');
-const loadBtn = document.getElementById('loadBtn');
-const clearBtn = document.getElementById('clearBtn');
-const shareCommentBtn = document.getElementById('shareCommentBtn');
+const jsonInput = byId('jsonInput');
+const loadBtn = byId('loadBtn');
+const clearBtn = byId('clearBtn');
+const shareCommentBtn = byId('shareCommentBtn');
 // Preview/fullscreen elements — inside Vue-controlled DOM, use _lazy
 const previewFrame      = _lazy('previewFrame');
 const urlBar            = _lazy('urlBar');
 const fullscreenContainer = _lazy('fullscreenContainer');
 const fullscreenBtn     = _lazy('fullscreenBtn');
 const exitFullscreenBtn = _lazy('exitFullscreenBtn');
-const status          = document.getElementById('status');
-const fileList        = document.getElementById('fileList');
-const fileListContent = document.getElementById('fileListContent');
+const status          = byId('status');
+const fileList        = byId('fileList');
+const fileListContent = byId('fileListContent');
 const fileBrowserList = _lazy('fileBrowserList');
 // These elements are rendered by Vue (forge-vue-panels.js) and don't
 const editorTextarea  = _lazy('editorTextarea');
@@ -2540,16 +2533,16 @@ const rerunBtn        = _lazy('rerunBtn');
 const addFileInput    = _lazy('addFileInput');
 const addFileBtn      = _lazy('addFileBtn');
 // Unsaved changes modal
-const unsavedModal = document.getElementById('unsavedModal');
-const unsavedFileName = document.getElementById('unsavedFileName');
-const unsavedSaveBtn = document.getElementById('unsavedSaveBtn');
-const unsavedDiscardBtn = document.getElementById('unsavedDiscardBtn');
-const unsavedCancelBtn = document.getElementById('unsavedCancelBtn');
+const unsavedModal = byId('unsavedModal');
+const unsavedFileName = byId('unsavedFileName');
+const unsavedSaveBtn = byId('unsavedSaveBtn');
+const unsavedDiscardBtn = byId('unsavedDiscardBtn');
+const unsavedCancelBtn = byId('unsavedCancelBtn');
 // Clipboard paste modal
-const clipboardPasteModal = document.getElementById('clipboardPasteModal');
-const clipboardPasteCancelBtn = document.getElementById('clipboardPasteCancelBtn');
-const clipboardPasteMergeBtn = document.getElementById('clipboardPasteMergeBtn');
-const clipboardPasteConfirmBtn = document.getElementById('clipboardPasteConfirmBtn');
+const clipboardPasteModal = byId('clipboardPasteModal');
+const clipboardPasteCancelBtn = byId('clipboardPasteCancelBtn');
+const clipboardPasteMergeBtn = byId('clipboardPasteMergeBtn');
+const clipboardPasteConfirmBtn = byId('clipboardPasteConfirmBtn');
 let pendingClipboardProject = null; // holds parsed project waiting for confirmation
 function closeClipboardPasteModal() {
     ForgeModal.close('clipboardPasteModal');
@@ -2586,7 +2579,7 @@ function saveCmStateToCache(path) {
     if (!path) return;
     const content    = ForgeEditor.isReady()
         ? ForgeEditor.getValue()
-        : (document.getElementById('editorTextarea')?.value || '');
+        : (byId('editorTextarea')?.value || '');
     const scrollTop  = ForgeEditor.isReady() ? ForgeEditor.getScrollTop() : 0;
     tabContentCache.set(path, { content, scrollTop });
 }
@@ -2640,7 +2633,7 @@ unsavedSaveBtn.addEventListener('click', () => {
         hasUnsavedChanges = false;
         originalContent = newContent;
         updateFileList();
-        showToast('File saved', 'success');
+        toast.success('File saved');
     }
     ForgeModal.close('unsavedModal');
     if (pendingNavigation) {
@@ -2705,13 +2698,13 @@ async function addUploadedFile(file, dir=''){
         updateFileBrowser();
         openFileInEditor(path);
         switchTab('files');
-        showToast(`Uploaded ${path}`,'success');
+        toast.success(`Uploaded ${path}`);
     }catch(error){
-        showToast('Upload failed: '+error.message,'error');
+        toast.error('Upload failed: '+error.message);
     }
 }
 function selectSingleFileUpload(){
-    const input=document.createElement('input');
+    const input=makeEl('input');
     input.type='file';
     input.onchange=()=>addUploadedFile(input.files[0]);
     input.click();
@@ -2763,24 +2756,24 @@ function downloadCurrentFile(){
         revoke=true;
     }
     if(!url){
-        showToast('File has no downloadable content','error');
+        toast.error('File has no downloadable content');
         return;
     }
-    const a=document.createElement('a');
+    const a=makeEl('a');
     a.href=url;
     a.download=currentEditingFile.split('/').pop();
     a.click();
     if(revoke)setTimeout(()=>URL.revokeObjectURL(url),0);
 }
 async function importFromZip() {
-    const input = document.createElement('input');
+    const input = makeEl('input');
     input.type = 'file';
     input.accept = '.zip';
     input.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         try {
-            showToast('Loading ZIP file...', 'info');
+            toast.info('Loading ZIP file...');
             // Load JSZip library if not already loaded
             if (typeof JSZip === 'undefined') {
                 await loadScript('lib/jszip.min.js');
@@ -2833,9 +2826,9 @@ async function importFromZip() {
             // Apply any .forgeconfig metadata to VFS
             if (typeof applyForgeConfigToVFS === 'function') applyForgeConfigToVFS();
             refreshAndOpenProject();
-            showToast(`Imported ${files.length} files from ZIP`, 'success', 4000);
+            toast.success(`Imported ${files.length} files from ZIP`, 4000);
         } catch (error) {
-            showToast('Error importing ZIP: ' + error.message, 'error', 5000);
+            toast.error('Error importing ZIP: ' + error.message, 5000);
             console.error('ZIP import error:', error);
         }
     };
@@ -2843,7 +2836,7 @@ async function importFromZip() {
 }
 // Folder import functionality
 async function importFromFolder() {
-    const input = document.createElement('input');
+    const input = makeEl('input');
     input.type = 'file';
     input.webkitdirectory = true;
     input.multiple = true;
@@ -2851,7 +2844,7 @@ async function importFromFolder() {
         const selectedFiles = Array.from(e.target.files);
         if (selectedFiles.length === 0) return;
         try {
-            showToast('Loading folder...', 'info');
+            toast.info('Loading folder...');
             // Get selected folder name
             const firstRelativePath = selectedFiles[0].webkitRelativePath;
             const folderName = firstRelativePath.split('/')[0];
@@ -2873,10 +2866,10 @@ async function importFromFolder() {
                 applyForgeConfigToVFS();
             }
             refreshAndOpenProject();
-            showToast(`Imported ${selectedFiles.length} files from folder`, 'success', 4000);
+            toast.success(`Imported ${selectedFiles.length} files from folder`, 4000);
         }
         catch (error) {
-            showToast('Error importing folder: ' + error.message, 'error', 5000);
+            toast.error('Error importing folder: ' + error.message, 5000);
             console.error('Folder import error:', error);
         }
     };
@@ -2924,23 +2917,23 @@ function refreshAndOpenProject() {
 // Download JSON file
 function downloadProjectJson() {
     if (vfs.getAllPaths().length === 0) {
-        showToast('No project to download', 'error');
+        toast.error('No project to download');
         return;
     }
     try {
         const json = JSON.stringify(vfs.toJSON(), null, 2);
         const blob = new Blob([json], {type: 'application/json'});
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = makeEl('a');
         a.href = url;
         a.download = `${projectTitle}_${getTimestamp()}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast('Project JSON downloaded', 'success');
+        toast.success('Project JSON downloaded');
     } catch (e) {
-        showToast('Error downloading JSON: ' + e.message, 'error');
+        toast.error('Error downloading JSON: ' + e.message);
         console.error(e);
     }
 }
@@ -2978,7 +2971,7 @@ loadBtn.addEventListener('click', () => {
                 ? `Loaded ${loadedCount} file(s) successfully (${excludedCount} excluded)`
                 : `Loaded ${loadedCount} file(s) successfully`;
             setStatus(statusMsg, 'success');
-            showToast(statusMsg, 'success');
+            toast.success(statusMsg);
         } else {
             setStatus(
                 `Loaded ${loadedCount} file(s); no HTML preview found`,
@@ -2989,7 +2982,7 @@ loadBtn.addEventListener('click', () => {
         closeLoadJsonModal();
     } catch (e) {
         setStatus(`Error: ${e.message}`, 'error');
-        showToast(`Error: ${e.message}`, 'error');
+        toast.error(`Error: ${e.message}`);
         console.error(e);
     }
 });
@@ -3001,14 +2994,14 @@ const FORGE_DIR_PLACEHOLDER = '.forgekeep';
 let createMode = 'file'; // 'file' | 'dir' — controls what the add-file input creates
 function setCreateMode(mode) {
     createMode = mode;
-    const fileBtn = document.getElementById('addFileModeFileBtn');
-    const dirBtn  = document.getElementById('addFileModeDirBtn');
+    const fileBtn = byId('addFileModeFileBtn');
+    const dirBtn  = byId('addFileModeDirBtn');
     if (fileBtn) fileBtn.classList.toggle('active', mode === 'file');
     if (dirBtn)  dirBtn.classList.toggle('active', mode === 'dir');
     if (addFileInput) {
         addFileInput.placeholder = mode === 'dir' ? '/path/to/folder' : '/path/to/file.html';
     }
-    const addBtn = document.getElementById('addFileBtn');
+    const addBtn = byId('addFileBtn');
     addBtn.textContent = '+';
 }
 // Seed .forgekeep for newly created parents before vfs.addFile().
@@ -3039,15 +3032,15 @@ function addFile(){
     }
     let path = addFileInput.value.trim();
     if (!path) {
-        showToast('Please enter a file path', 'error');
+        toast.error('Please enter a file path');
         return;
     }
     if (!path.startsWith('/')) {
         path="/"+path;
-        showToast('Added as file \'' + path +'\'', 'warning');
+        toast.warning('Added as file \'' + path +'\'');
     }
     if (vfs.hasFile(path)) {
-        showToast('File already exists', 'error');
+        toast.error('File already exists');
         return;
     }
     //Seed .forgekeep into any parent directoreis being created for the first time, so they persist in tree
@@ -3061,13 +3054,13 @@ function addFile(){
     // Open in editor
     openFileInEditor(path);
     // Switch to Files tab
-    document.querySelector('.tab[data-tab="files"]').click();
-    showToast(`File created: ${path}`, 'success');
+    findOne('.tab[data-tab="files"]').click();
+    toast.success(`File created: ${path}`);
 }
 function createDirectory(){
     let path = addFileInput.value.trim();
     if (!path) {
-        showToast('Please enter a folder path', 'error');
+        toast.error('Please enter a folder path');
         return;
     }
     if (!path.startsWith('/')) {
@@ -3076,19 +3069,19 @@ function createDirectory(){
     // Strip any trailing slash(es) the user might type
     path = path.replace(/\/+$/, '');
     if (!path || path === '') {
-        showToast('Please enter a folder path', 'error');
+        toast.error('Please enter a folder path');
         return;
     }
     const placeholderPath = path + '/' + FORGE_DIR_PLACEHOLDER;
     if (vfs.hasFile(placeholderPath)) {
-        showToast('Folder already exists', 'error');
+        toast.error('Folder already exists');
         return;
     }
     // If real files already live under this path, the folder effectively
     // already exists in the tree — no need for a placeholder.
     const alreadyHasContents = vfs.getAllPaths().some(p => p.startsWith(path + '/'));
     if (alreadyHasContents) {
-        showToast('Folder already exists', 'error');
+        toast.error('Folder already exists');
         addFileInput.value = '';
         return;
     }
@@ -3098,8 +3091,8 @@ function createDirectory(){
     updateFileList();
     updateFileBrowser();
     addFileInput.value = '';
-    document.querySelector('.tab[data-tab="files"]').click();
-    showToast(`Folder created: ${path}`, 'success');
+    findOne('.tab[data-tab="files"]').click();
+    toast.success(`Folder created: ${path}`);
 }
 function deleteFile(){
     if (currentEditingFile) {
@@ -3118,7 +3111,7 @@ function deleteFile(){
             }
             updateFileList();
             updateFileBrowser();
-            showToast('File deleted', 'success');
+            toast.success('File deleted');
         }
     }
 }
@@ -3139,7 +3132,7 @@ function rerunProject(){
         const entryPoint = vfs.findEntryPoint();
         if (entryPoint) {
             renderPage(entryPoint);
-            showToast('Simulation re-run', 'success');
+            toast.success('Simulation re-run');
             switchTab('preview');
         }
     }
@@ -3147,7 +3140,7 @@ function rerunProject(){
 function saveFile(){
     if (currentEditingFile) {
         commitCurrentEditorContent();
-        showToast('File saved', 'success');
+        toast.success('File saved');
         updateFileList();
     }
 }
@@ -3199,13 +3192,13 @@ function extractCarriedParams() {
 }
 function requireShareableProject() {
     if (vfs.getAllPaths().length) return true;
-    showToast('No project to share', 'error');
+    toast.error('No project to share');
     return false;
 }
 // Share Comment Modal
 function openShareCommentModal() {
     if (!requireShareableProject()) return;
-    const nameInput = document.getElementById('shareCommentName');
+    const nameInput = byId('shareCommentName');
     if (nameInput && !nameInput.value.trim() && currentUser) {
         const seedName =
             currentUser.fullName ||
@@ -3243,34 +3236,22 @@ function checkShareUrlLength(url) {
         ? ' Use Short Link instead.'
         : '';
     if (length > FORGE_LONG_URL_MAX_LENGTH) {
-        showToast(
-            `Long Link is ${sizeMiB} MiB and exceeds FORGE's 2 MiB limit.${shortHint}`,
-            'error',
-            7000
-        );
+        toast.error(`Long Link is ${sizeMiB} MiB and exceeds FORGE's 2 MiB limit.${shortHint}`, 7000);
         return false;
     }
     const userAgent = navigator.userAgent || '';
     if (/Firefox\//.test(userAgent)) {
-        showToast(
-            `Long Link is ${sizeMiB} MiB. Firefox supports standard URLs only up to about 1 MiB, so FORGE will not create this link.${shortHint}`,
-            'error',
-            7000
-        );
+        toast.error(`Long Link is ${sizeMiB} MiB. Firefox supports standard URLs only up to about 1 MiB, so FORGE will not create this link.${shortHint}`, 7000);
         return false;
     }
-    showToast(
-        `Long Link is ${sizeMiB} MiB. Links over 1 MiB may not work in every browser or sharing tool.${shortHint}`,
-        'warning',
-        7000
-    );
+    toast.warning(`Long Link is ${sizeMiB} MiB. Links over 1 MiB may not work in every browser or sharing tool.${shortHint}`, 7000);
     return true;
 }
 async function generateShareCommentUrl() {
-    const nameInput = document.getElementById('shareCommentName').value.trim();
-    const msgInput  = document.getElementById('shareCommentMessage').value.trim();
+    const nameInput = byId('shareCommentName').value.trim();
+    const msgInput  = byId('shareCommentMessage').value.trim();
     if (!msgInput) {
-        showToast('Please enter a message', 'error');
+        toast.error('Please enter a message');
         return;
     }
     try {
@@ -3302,12 +3283,12 @@ async function generateShareCommentUrl() {
         if (!checkShareUrlLength(finalUrl)) return;
         // 4. Copy and close
         await copyToClipboard(finalUrl);
-        showToast('URL with comment copied to clipboard!', 'success', 4000);
+        toast.success('URL with comment copied to clipboard!', 4000);
         closeShareCommentModal();
         // Clear message for next time
-        document.getElementById('shareCommentMessage').value = '';
+        byId('shareCommentMessage').value = '';
     } catch (e) {
-        showToast('Error creating share URL: ' + e.message, 'error');
+        toast.error('Error creating share URL: ' + e.message);
         console.error(e);
     }
 }
@@ -3324,10 +3305,10 @@ async function shareLongUrl() {
                     '#payload=' + encodeURIComponent(compressed) + carried;
         if (!checkShareUrlLength(url)) return;
         await copyToClipboard(url);
-        showToast('Long URL copied to clipboard!', 'success', 4000);
+        toast.success('Long URL copied to clipboard!', 4000);
         window.history.replaceState({}, '', url);
     } catch (e) {
-        showToast('Error creating share URL: ' + e.message, 'error');
+        toast.error('Error creating share URL: ' + e.message);
         console.error(e);
     }
 }
@@ -3344,9 +3325,9 @@ function toLocalDateTimeInputValue(date) {
     return localDate.toISOString().slice(0, 16);
 }
 function prepareShortLinkExpirationPicker() {
-    const group = document.getElementById('shortUrlExpirationGroup');
-    const input = document.getElementById('shortUrlExpirationInput');
-    const never = document.getElementById('shortUrlNeverExpires');
+    const group = byId('shortUrlExpirationGroup');
+    const input = byId('shortUrlExpirationInput');
+    const never = byId('shortUrlNeverExpires');
     if (!group || !input || !never) return;
     never.checked = false;
     input.disabled = false;
@@ -3372,17 +3353,13 @@ function requestShortLink(fullscreen = false) {
         !managedSharingAvailable() &&
         serverFeatures.urlShortening !== true
     ) {
-        showToast(
-            'Short Link requires a FORGE server. Use Long Link instead.',
-            'error',
-            4000
-        );
+        toast.error('Short Link requires a FORGE server. Use Long Link instead.', 4000);
         return;
     }
     _pendingShortUrlFullscreen = fullscreen === true;
     prepareShortLinkExpirationPicker();
-    const namedGroup = document.getElementById('shortUrlNamedGroup');
-    const namedInput = document.getElementById('shortUrlNamedInput');
+    const namedGroup = byId('shortUrlNamedGroup');
+    const namedInput = byId('shortUrlNamedInput');
     if (namedGroup) namedGroup.hidden = !namedSharingAvailable();
     if (namedInput) namedInput.value = '';
     ForgeModal.open('shortUrlWarningModal', {
@@ -3397,14 +3374,14 @@ function closeShortUrlWarningModal() {
     _pendingShortUrlFullscreen = false;
 }
 
-document.getElementById('shortUrlWarningCancelBtn')
+byId('shortUrlWarningCancelBtn')
     .addEventListener('click', closeShortUrlWarningModal);
-document.getElementById('shortUrlWarningConfirmBtn').addEventListener('click', async () => {
+byId('shortUrlWarningConfirmBtn').addEventListener('click', async () => {
     let expiresAt;
     if (managedShareExpirationPickerAvailable()) {
         const expirationInput =
-            document.getElementById('shortUrlExpirationInput');
-        const never = document.getElementById('shortUrlNeverExpires');
+            byId('shortUrlExpirationInput');
+        const never = byId('shortUrlNeverExpires');
         if (never && never.checked) {
             expiresAt = null;
         } else {
@@ -3415,22 +3392,18 @@ document.getElementById('shortUrlWarningConfirmBtn').addEventListener('click', a
                 !Number.isFinite(selectedExpiresAtMs) ||
                 selectedExpiresAtMs <= Date.now()
             ) {
-                showToast(
-                    'Choose a future expiration date and time.',
-                    'error',
-                    4000
-                );
+                toast.error('Choose a future expiration date and time.', 4000);
                 return;
             }
             expiresAt = new Date(selectedExpiresAtMs).toISOString();
         }
     }
-    const namedInput = document.getElementById('shortUrlNamedInput');
+    const namedInput = byId('shortUrlNamedInput');
     const alias = namedSharingAvailable()
         ? (namedInput?.value || '').trim().toLowerCase()
         : '';
     if (alias && !validNamedShareAlias(alias)) {
-        showToast('Use 3-64 lowercase letters, numbers, _ or -.', 'error', 4000);
+        toast.error('Use 3-64 lowercase letters, numbers, _ or -.', 4000);
         namedInput?.focus();
         return;
     }
@@ -3445,7 +3418,7 @@ document.getElementById('shortUrlWarningConfirmBtn').addEventListener('click', a
 });
 async function createShorterURL(fullscreen) {
     if (vfs.getAllPaths().length === 0) {
-        showToast('No project to shorten', 'error');
+        toast.error('No project to shorten');
         return;
     }
     try {
@@ -3469,17 +3442,18 @@ async function createShorterURL(fullscreen) {
                          '#payloadsha1=' + result.sha1 + append + carried;
         window.history.replaceState(window.history.state, '', shortURL);
         await copyToClipboard(shortURL);
-        showToast('Shorter URL created! The current page URL has been updated and copied to clipboard.', 'success', 4000);
+        toast.success('Shorter URL created! The current page URL has been updated and copied to clipboard.', 4000);
     } catch (e) {
-        showToast('Error creating shorter URL: ' + e.message, 'error', 5000);
+        toast.error('Error creating shorter URL: ' + e.message, 5000);
         console.error('createShorterURL error:', e);
     }
 }
 async function finishInitialNamedShare(alias, fullscreen) {
     if (!alias) return false;
-    const input = document.getElementById('managedShareNamedInput');
+    const input = byId('managedShareNamedInput');
     if (!input) return false;
     input.value = alias;
+    toast.info('Short Link published. Publishing named link...', 6000);
     if (!await saveNamedShare()) return false;
     const url = `${location.origin}${location.pathname}#namedShare=${alias}` +
         (fullscreen ? '&fullscreen=true' : '') + extractCarriedParams();
@@ -3490,7 +3464,7 @@ async function finishInitialNamedShare(alias, fullscreen) {
 async function shareManagedUrl(fullscreen = false, expiresAt, alias = '') {
     if (!requireShareableProject()) return;
     if (!managedSharingAvailable()) {
-        showToast('Managed sharing is not available on this deployment.', 'error', 4000);
+        toast.error('Managed sharing is not available on this deployment.', 4000);
         return;
     }
     try {
@@ -3546,14 +3520,12 @@ async function shareManagedUrl(fullscreen = false, expiresAt, alias = '') {
             window.history.replaceState(window.history.state, '', shareURL);
             if (!alias) {
                 await copyToClipboard(shareURL);
-                showToast(
-                    cached
+                toast.warning(cached
                         ? 'Short Link pending publication - URL copied.'
                         : 'Short Link pending publication - URL copied, but ' +
-                          'this browser could not save the local pending copy.',
-                    'warning',
-                    5000
-                );
+                          'this browser could not save the local pending copy.', 5000);
+            } else {
+                toast.info('Publishing Short Link, then named link...', 6000);
             }
             const git = window.ForgeManagedShareGit;
             if (
@@ -3562,8 +3534,7 @@ async function shareManagedUrl(fullscreen = false, expiresAt, alias = '') {
                 typeof git.readPublicTrusted === 'function'
             ) {
                 const published =
-                    await waitForGitManagedSharePublication(
-                        git,
+                    await waitForManagedSharePublication(
                         pendingMetadata.requestId,
                         payloadHash
                     );
@@ -3572,17 +3543,9 @@ async function shareManagedUrl(fullscreen = false, expiresAt, alias = '') {
                         alias &&
                         await finishInitialNamedShare(alias, fullscreen)
                     ) return;
-                    showToast(
-                        'Short Link published and ready.',
-                        'success',
-                        3500
-                    );
+                    toast.success('Short Link published and ready.', 3500);
                 } else {
-                    showToast(
-                        'Short Link is still awaiting publication.',
-                        'warning',
-                        5000
-                    );
+                    toast.warning('Short Link is still awaiting publication.', 5000);
                 }
             }
             return;
@@ -3600,12 +3563,8 @@ async function shareManagedUrl(fullscreen = false, expiresAt, alias = '') {
                 conflictBody &&
                 conflictBody.status === 'review-required'
             ) {
-                showToast(
-                    'Short Link request submitted for review. ' +
-                    'No Short Link has been created yet.',
-                    'info',
-                    5000
-                );
+                toast.info('Short Link request submitted for review. ' +
+                    'No Short Link has been created yet.', 5000);
                 return;
             }
             const existingShare = conflictBody && conflictBody.share;
@@ -3658,27 +3617,19 @@ async function shareManagedUrl(fullscreen = false, expiresAt, alias = '') {
         ) return;
         await copyToClipboard(shareURL);
         if (reusedExistingShare) {
-            showToast(
-                fullscreen
+            toast.warning(fullscreen
                     ? 'Short Fullscreen Link already exists — copied existing link.'
-                    : 'Short Link already exists — copied existing link.',
-                'warning',
-                4500
-            );
+                    : 'Short Link already exists — copied existing link.', 4500);
         } else {
-            showToast(
-                fullscreen
+            toast.success(fullscreen
                     ? 'Short Fullscreen Link created! URL updated and copied to clipboard.'
-                    : 'Short Link created! URL updated and copied to clipboard.',
-                'success',
-                4000
-            );
+                    : 'Short Link created! URL updated and copied to clipboard.', 4000);
         }
     } catch (e) {
         if (e && e.code === 'FORGE_CANCELLED') {
             return;
         }
-        showToast('Error creating managed share: ' + e.message, 'error', 5000);
+        toast.error('Error creating managed share: ' + e.message, 5000);
         console.error('shareManagedUrl error:', e);
     }
 }
@@ -3702,16 +3653,9 @@ async function loadNamedShare(value) {
     if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(name)) {
         throw new Error('Invalid named share');
     }
-    const git = window.ForgeManagedShareGit;
-    if (!git?.isConfigured?.() || !git.readPublicTrusted) {
-        throw new Error('Named shares are not available');
-    }
-    const file = await git.readPublicTrusted(`aliases/${name}.json`);
-    if (!file) throw new Error('Named share was not found');
-    let alias;
-    try { alias = JSON.parse(file.text); }
-    catch (e) { throw new Error('Invalid named share metadata'); }
-    if (!alias || alias.alias !== name ||
+    const alias = await readManagedTrusted('aliases', name);
+    if (!alias) throw new Error('Named share was not found');
+    if (alias.alias !== name ||
         !/^[a-f0-9]{40}$/i.test(alias.payloadHash || '') ||
         !Number.isInteger(alias.version) || alias.version < 1) {
         throw new Error('Invalid named share metadata');
@@ -3726,9 +3670,12 @@ async function loadManagedShare(payloadHash) {
     }
     const git = window.ForgeManagedShareGit;
     if (
-        git &&
-        typeof git.isConfigured === 'function' &&
-        git.isConfigured() &&
+        !(
+            serverFeatures.sharing === true &&
+            forgeEndpointAdvertised('shareGet') &&
+            forgeEndpointAdvertised('payloadGet')
+        ) &&
+        git?.isConfigured?.() &&
         typeof git.readPublicTrusted === 'function'
     ) {
         const hash = payloadHash.toLowerCase();
@@ -3837,7 +3784,7 @@ async function loadManagedShare(payloadHash) {
     };
 }
 function refreshManagedShareManagementUi() {
-    const manageButton = document.getElementById('manageManagedShareBtn');
+    const manageButton = byId('manageManagedShareBtn');
     if (!manageButton) return;
     manageButton.hidden = !(
         currentManagedShareMetadata &&
@@ -3845,7 +3792,7 @@ function refreshManagedShareManagementUi() {
         managedShareUpdatesAvailable() &&
         (currentManagedShareMetadata.state || 'active') === 'active'
     );
-    const publish = document.getElementById('publishNamedShareBtn');
+    const publish = byId('publishNamedShareBtn');
     if (publish) publish.hidden = manageButton.hidden || !currentNamedShareMetadata;
 }
 function setCurrentManagedShareMetadata(metadata) {
@@ -3888,26 +3835,22 @@ function createManagedShareRequestId() {
 }
 function openManagedShareManageModal() {
     if (!currentManagedShareMetadata) {
-        showToast('No managed Short Link is currently loaded.', 'error', 3500);
+        toast.error('No managed Short Link is currently loaded.', 3500);
         return;
     }
     if (!managedShareUpdatesAvailable()) {
-        showToast(
-            'This deployment does not advertise Short Link editing.',
-            'error',
-            4000
-        );
+        toast.error('This deployment does not advertise Short Link editing.', 4000);
         return;
     }
-    const modal = document.getElementById('managedShareManageModal');
-    const titleInput = document.getElementById('managedShareManageTitle');
+    const modal = byId('managedShareManageModal');
+    const titleInput = byId('managedShareManageTitle');
     const expirationInput =
-        document.getElementById('managedShareManageExpiration');
+        byId('managedShareManageExpiration');
     const never =
-        document.getElementById('managedShareManageNeverExpires');
-    const identity = document.getElementById('managedShareManageIdentity');
+        byId('managedShareManageNeverExpires');
+    const identity = byId('managedShareManageIdentity');
     const deletionButton =
-        document.getElementById('managedShareManageDeleteBtn');
+        byId('managedShareManageDeleteBtn');
     if (
         !modal ||
         !titleInput ||
@@ -3916,17 +3859,17 @@ function openManagedShareManageModal() {
         !identity ||
         !deletionButton
     ) {
-        showToast('Short Link management UI is unavailable.', 'error', 3500);
+        toast.error('Short Link management UI is unavailable.', 3500);
         return;
     }
     titleInput.value = currentManagedShareMetadata.title || '';
     deletionButton.hidden =
         (currentManagedShareMetadata.state || 'active') !== 'active';
     deletionButton.disabled = false;
-    const namedButton = document.getElementById('managedShareNamedBtn');
-    const namedGroup = document.getElementById('managedShareNamedGroup');
-    const namedInput = document.getElementById('managedShareNamedInput');
-    const namedStatus = document.getElementById('managedShareNamedStatus');
+    const namedButton = byId('managedShareNamedBtn');
+    const namedGroup = byId('managedShareNamedGroup');
+    const namedInput = byId('managedShareNamedInput');
+    const namedStatus = byId('managedShareNamedStatus');
     const namedAvailable = namedSharingAvailable();
     if (namedButton) namedButton.hidden = !namedAvailable;
     if (namedGroup) namedGroup.hidden = !namedAvailable;
@@ -3957,9 +3900,9 @@ function openManagedShareManageModal() {
     });
 }
 function updateNamedSharePreview() {
-    const input = document.getElementById('managedShareNamedInput');
-    const output = document.getElementById('managedShareNamedUrl');
-    const button = document.getElementById('managedShareNamedBtn');
+    const input = byId('managedShareNamedInput');
+    const output = byId('managedShareNamedUrl');
+    const button = byId('managedShareNamedBtn');
     const alias = (input?.value || '').trim().toLowerCase();
     const valid = validNamedShareAlias(alias);
     if (output) output.value = valid
@@ -3974,41 +3917,84 @@ function updateNamedSharePreview() {
             : 'Publish Named Share';
     }
 }
-async function waitForGitManagedRequest(
-    git,
+function nativeManagedPath(kind) {
+    return serverFeatures[
+        kind === 'aliases' ? 'namedSharing' : 'sharing'
+    ] === true && forgeEndpointAdvertised(
+        kind === 'aliases' ? 'shareAliasGet' : 'shareGet'
+    );
+}
+async function readManagedTrusted(kind, id) {
+    if (nativeManagedPath(kind)) {
+        const endpoint = kind === 'aliases' ? 'shareAliasGet' : 'shareGet';
+        const key = kind === 'aliases' ? 'alias' : 'hash';
+        const response = await forgeServerFetch(
+            endpoint, {cache: 'no-store'}, {[key]: id}
+        );
+        if (response.status === 404) return null;
+        if (response.status === 410) {
+            await throwUnavailableManagedShare(response);
+        }
+        if (!response.ok) {
+            throw new Error(
+                `Managed share server responded with ${response.status}`
+            );
+        }
+        return response.json();
+    }
+    const git = window.ForgeManagedShareGit;
+    if (!git?.isConfigured?.() || !git.readPublicTrusted) return null;
+    const file = await git.readPublicTrusted(`${kind}/${id}.json`);
+    return file ? JSON.parse(file.text) : null;
+}
+async function readManagedRequestOutcome(kind, requestId) {
+    if (
+        nativeManagedPath(kind) &&
+        forgeEndpointAdvertised('shareRequestGet')
+    ) {
+        const response = await forgeServerFetch(
+            'shareRequestGet',
+            {cache: 'no-store'},
+            {id: requestId}
+        );
+        if (response.status === 404) return null;
+        if (!response.ok) {
+            throw new Error(
+                `Managed request server responded with ${response.status}`
+            );
+        }
+        return response.json();
+    }
+    const git = window.ForgeManagedShareGit;
+    if (!git?.isConfigured?.() || !git.readPublicTrusted) return null;
+    const file = await git.readPublicTrusted(
+        `requests/${requestId}.json`
+    );
+    return file ? JSON.parse(file.text) : null;
+}
+async function waitForManagedRequest(
     requestId,
-    trustedPath,
+    kind,
+    id,
     accept
 ) {
     for (let i = 0; i < 30; i++) {
-        const trustedFile = await git.readPublicTrusted(trustedPath);
-        if (trustedFile) {
-            const value = JSON.parse(trustedFile.text);
-            if (!accept || accept(value)) return value;
-        }
-        const resultFile = await git.readPublicTrusted(
-            `requests/${requestId}.json`
-        );
-        if (resultFile) {
-            const result = JSON.parse(resultFile.text);
-            if (['rejected', 'denied'].includes(result.status)) {
-                throw new Error(result.error || 'request rejected');
-            }
+        const value = await readManagedTrusted(kind, id);
+        if (value && (!accept || accept(value))) return value;
+        const result = await readManagedRequestOutcome(kind, requestId);
+        if (result && ['rejected', 'denied'].includes(result.status)) {
+            throw new Error(result.error || 'request rejected');
         }
         await new Promise(resolve => setTimeout(resolve, 500));
     }
     return null;
 }
-async function waitForGitManagedSharePublication(
-    git,
-    requestId,
-    payloadHash
-) {
+async function waitForManagedSharePublication(requestId, payloadHash) {
     try {
-        const metadata = await waitForGitManagedRequest(
-            git,
+        const metadata = await waitForManagedRequest(
             requestId,
-            `shares/${payloadHash}.json`
+            'shares',
+            payloadHash
         );
         if (metadata) {
             removePendingManagedShare(payloadHash);
@@ -4029,15 +4015,13 @@ async function waitForGitManagedSharePublication(
         throw error;
     }
 }
-async function publishCurrentNamedShareTarget(git, status) {
+async function publishCurrentNamedShareTarget(status) {
     const data = (await compress(JSON.stringify(vfs.toJSON())))
         .replace(/ /g, '+');
     const payloadHash = await managedSharePayloadHash(data);
-    let shareFile = await git.readPublicTrusted(
-        `shares/${payloadHash}.json`
-    );
-    if (shareFile) {
-        setCurrentManagedShareMetadata(JSON.parse(shareFile.text));
+    const metadata = await readManagedTrusted('shares', payloadHash);
+    if (metadata) {
+        setCurrentManagedShareMetadata(metadata);
         return payloadHash;
     }
     if (status) status.textContent = 'Publishing current version...';
@@ -4072,8 +4056,7 @@ async function publishCurrentNamedShareTarget(git, status) {
             requestId: submitted?.requestId || id
         }
     });
-    const published = await waitForGitManagedSharePublication(
-        git,
+    const published = await waitForManagedSharePublication(
         submitted?.requestId || id,
         payloadHash
     );
@@ -4086,11 +4069,11 @@ async function publishCurrentNamedShareTarget(git, status) {
 async function saveNamedShare() {
     const git = window.ForgeManagedShareGit;
     if (!currentManagedShareMetadata || !namedSharingAvailable()) {
-        showToast('Named Shares are not available.', 'error', 3500);
+        toast.error('Named Shares are not available.', 3500);
         return;
     }
-    const input = document.getElementById('managedShareNamedInput');
-    const status = document.getElementById('managedShareNamedStatus');
+    const input = byId('managedShareNamedInput');
+    const status = byId('managedShareNamedStatus');
     const alias = (input?.value || '').trim().toLowerCase();
     if (!validNamedShareAlias(alias)) {
         if (status) status.textContent =
@@ -4101,17 +4084,16 @@ async function saveNamedShare() {
     if (status) status.textContent = 'Preparing current version...';
     try {
         const targetHash =
-            await publishCurrentNamedShareTarget(git, status);
+            await publishCurrentNamedShareTarget(status);
         if (status) status.textContent = 'Checking named link...';
-        const file = await git.readPublicTrusted(`aliases/${alias}.json`);
-        const record = file ? JSON.parse(file.text) : null;
+        const record = await readManagedTrusted('aliases', alias);
         if (record && (!Number.isInteger(record.version) || record.version < 1)) {
             throw new Error('Invalid named share metadata');
         }
         if (record && record.payloadHash === targetHash) {
             if (status) status.textContent =
                 'Named Share already points to the current version.';
-            return;
+            return true;
         }
         const id = requireManagedShareRequestId();
         if (!id) return;
@@ -4131,37 +4113,36 @@ async function saveNamedShare() {
             const {detail} = await readManagedShareError(response);
             throw new Error(`request failed${detail}`);
         }
+        let publishedAlias;
         if (response.status === 202) {
             let submitted = null;
             try { submitted = await response.json(); } catch {}
             if (status) status.textContent = 'Publishing named link...';
-            const publishedAlias = await waitForGitManagedRequest(
-                git,
+            publishedAlias = await waitForManagedRequest(
                 submitted?.requestId || id,
-                `aliases/${alias}.json`,
+                'aliases',
+                alias,
                 value => value.payloadHash === targetHash
             );
-            if (!publishedAlias) {
-                if (status) status.textContent =
-                    'Named link is still awaiting publication.';
-                showToast(
-                    'Named Share is still awaiting publication.',
-                    'warning',
-                    5000
-                );
-                return false;
-            }
-            currentNamedShareMetadata = publishedAlias;
-            refreshManagedShareManagementUi();
-            updateNamedSharePreview();
+        } else {
+            publishedAlias = await readManagedTrusted('aliases', alias);
         }
+        if (!publishedAlias) {
+            if (status) status.textContent =
+                'Named link is still awaiting publication.';
+            toast.warning('Named Share is still awaiting publication.', 5000);
+            return false;
+        }
+        currentNamedShareMetadata = publishedAlias;
+        refreshManagedShareManagementUi();
+        updateNamedSharePreview();
         if (status) status.textContent =
             'Named Share now points to the current version.';
-        showToast('Named Share published and ready.', 'success', 4000);
+        toast.success('Named Share published and ready.', 4000);
         return true;
     } catch (e) {
         if (status) status.textContent = 'Error: ' + e.message;
-        showToast('Named Share error: ' + e.message, 'error', 5000);
+        toast.error('Named Share error: ' + e.message, 5000);
         return false;
     }
 }
@@ -4191,11 +4172,7 @@ async function readManagedShareError(response) {
 function requireManagedShareRequestId() {
     const requestId = createManagedShareRequestId();
     if (requestId) return requestId;
-    showToast(
-        'Unable to create managed-share request identity.',
-        'error',
-        3500
-    );
+    toast.error('Unable to create managed-share request identity.', 3500);
     return null;
 }
 function handleManagedShareReviewRequired(
@@ -4216,7 +4193,7 @@ function handleManagedShareReviewRequired(
         setCurrentManagedShareMetadata(reviewShare);
     }
     closeManagedShareManageModal();
-    showToast(message, 'info', 4500);
+    toast.info(message, 4500);
     return true;
 }
 async function sendManagedShareMutation(
@@ -4253,17 +4230,17 @@ async function saveManagedShareMetadata() {
         !currentManagedShareMetadata ||
         !managedShareUpdatesAvailable()
     ) {
-        showToast('Short Link editing is not available.', 'error', 3500);
+        toast.error('Short Link editing is not available.', 3500);
         return;
     }
-    const titleInput = document.getElementById('managedShareManageTitle');
+    const titleInput = byId('managedShareManageTitle');
     const expirationInput =
-        document.getElementById('managedShareManageExpiration');
+        byId('managedShareManageExpiration');
     const never =
-        document.getElementById('managedShareManageNeverExpires');
-    const saveButton = document.getElementById('managedShareManageSaveBtn');
+        byId('managedShareManageNeverExpires');
+    const saveButton = byId('managedShareManageSaveBtn');
     if (!titleInput || !expirationInput || !never) {
-        showToast('Short Link management UI is unavailable.', 'error', 3500);
+        toast.error('Short Link management UI is unavailable.', 3500);
         return;
     }
     const proposedTitle = titleInput.value.trim() || null;
@@ -4275,11 +4252,7 @@ async function saveManagedShareMetadata() {
         (!Number.isFinite(proposedExpiresMs) ||
         proposedExpiresMs <= Date.now())
     ) {
-        showToast(
-            'Choose a future expiration date and time.',
-            'error',
-            4000
-        );
+        toast.error('Choose a future expiration date and time.', 4000);
         return;
     }
     const proposedExpiresAt = proposedExpiresMs === null
@@ -4311,7 +4284,7 @@ async function saveManagedShareMetadata() {
     }
     if (Object.keys(packet.changes).length === 0) {
         closeManagedShareManageModal();
-        showToast('No Short Link metadata changes to save.', 'info', 3000);
+        toast.info('No Short Link metadata changes to save.', 3000);
         return;
     }
     if (saveButton) saveButton.disabled = true;
@@ -4322,13 +4295,9 @@ async function saveManagedShareMetadata() {
             'Short Link update submitted for review.'
         );
         if (!updatedMetadata) return;
-        showToast('Short Link metadata updated.', 'success', 3500);
+        toast.success('Short Link metadata updated.', 3500);
     } catch (e) {
-        showToast(
-            'Error updating Short Link metadata: ' + e.message,
-            'error',
-            5000
-        );
+        toast.error('Error updating Short Link metadata: ' + e.message, 5000);
         console.error('saveManagedShareMetadata error:', e);
     } finally {
         if (saveButton) saveButton.disabled = false;
@@ -4339,11 +4308,11 @@ async function requestManagedShareDeletion() {
         !currentManagedShareMetadata ||
         !managedShareUpdatesAvailable()
     ) {
-        showToast('Short Link deletion is not available.', 'error', 3500);
+        toast.error('Short Link deletion is not available.', 3500);
         return;
     }
     if ((currentManagedShareMetadata.state || 'active') !== 'active') {
-        showToast('This Short Link is already unavailable.', 'info', 3500);
+        toast.info('This Short Link is already unavailable.', 3500);
         return;
     }
     const confirmed = confirm(
@@ -4353,8 +4322,8 @@ async function requestManagedShareDeletion() {
     );
     if (!confirmed) return;
     const deletionButton =
-        document.getElementById('managedShareManageDeleteBtn');
-    const saveButton = document.getElementById('managedShareManageSaveBtn');
+        byId('managedShareManageDeleteBtn');
+    const saveButton = byId('managedShareManageSaveBtn');
     const payloadHash = currentManagedShareMetadata.payloadHash;
     const requestId = requireManagedShareRequestId();
     if (!requestId) return;
@@ -4377,24 +4346,12 @@ async function requestManagedShareDeletion() {
         );
         if (!updatedMetadata) return;
         if ((updatedMetadata.state || 'active') === 'tombstoned') {
-            showToast(
-                'Short Link deletion applied. The link is now unavailable.',
-                'success',
-                4500
-            );
+            toast.success('Short Link deletion applied. The link is now unavailable.', 4500);
         } else {
-            showToast(
-                'Short Link deletion request submitted.',
-                'success',
-                4000
-            );
+            toast.success('Short Link deletion request submitted.', 4000);
         }
     } catch (e) {
-        showToast(
-            'Error requesting Short Link deletion: ' + e.message,
-            'error',
-            5000
-        );
+        toast.error('Error requesting Short Link deletion: ' + e.message, 5000);
         console.error('requestManagedShareDeletion error:', e);
     } finally {
         if (deletionButton) deletionButton.disabled = false;
@@ -4409,7 +4366,7 @@ function managedShareFutureExpiration(metadata) {
     return remainingMs > 0 ? { expiresMs, remainingMs } : null;
 }
 function updateManagedShareExpirationBadge(metadata) {
-    const badge = document.getElementById('managedShareExpirationBadge');
+    const badge = byId('managedShareExpirationBadge');
     if (!badge) return;
     badge.hidden = true;
     badge.textContent = '';
@@ -4457,11 +4414,7 @@ function updateManagedShareExpirationBadge(metadata) {
 }
 function showManagedShareExpirationNotice(metadata) {
     if (metadata && metadata.pending === true) {
-        showToast(
-            'This Short Link is pending publication and is visible only in this browser so far.',
-            'warning',
-            8000
-        );
+        toast.warning('This Short Link is pending publication and is visible only in this browser so far.', 8000);
         return;
     }
     const expiration = managedShareFutureExpiration(metadata);
@@ -4503,7 +4456,7 @@ function showManagedShareExpirationNotice(metadata) {
 // Download ZIP functionality
 async function downloadProjectZip() {
     if (vfs.getAllPaths().length === 0) {
-        showToast('No project to download', 'error');
+        toast.error('No project to download');
         return;
     }
     try {
@@ -4537,23 +4490,23 @@ async function downloadProjectZip() {
         const blob = await zip.generateAsync({type: 'blob'});
         // Download it
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = makeEl('a');
         a.href = url;
         a.download = `${projectTitle}_${getTimestamp()}.zip`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast('Project downloaded as ZIP', 'success');
+        toast.success('Project downloaded as ZIP');
     } catch (e) {
-        showToast('Error creating ZIP: ' + e.message, 'error');
+        toast.error('Error creating ZIP: ' + e.message);
         console.error(e);
     }
 }
 // Helper function to load external scripts
 function loadScript(src) {
     return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
+        const script = makeEl('script');
         script.src = src;
         script.onload = resolve;
         script.onerror = reject;
@@ -4581,7 +4534,7 @@ document.addEventListener('click', (e) => {
             // any query/hash navigation state shown in the URL bar.
             renderPage(urlBar.value || currentPath);
         } else {
-            showToast('No preview to refresh', 'error', 2500);
+            toast.error('No preview to refresh', 2500);
         }
         return;
     }
@@ -4601,7 +4554,7 @@ document.addEventListener('click', (e) => {
         if (currentPath) {
             setFullscreen(true);
         } else {
-            showToast('No preview to show in fullscreen', 'error');
+            toast.error('No preview to show in fullscreen');
         }
     }
     if (e.target && e.target.id === 'exitFullscreenBtn') {
@@ -4664,14 +4617,14 @@ document.addEventListener('keypress', (e) => {
     }
     // Resolve directory indexes before checking existence
     path = vfs.resolveDirectoryIndex(path);
-    if (!vfs.hasFile(path))    { showToast('File not found: ' + path, 'error'); return; }
+    if (!vfs.hasFile(path))    { toast.error('File not found: ' + path); return; }
     if (!path.endsWith('.html') && !path.endsWith('.htm')) {
-      showToast('Can only preview HTML files', 'error'); return;
+      toast.error('Can only preview HTML files'); return;
     }
     const display = path + query + hash;
     renderPage(display);
     syncPreviewLocationToParent(path, query, hash);
-    showToast('Preview updated', 'success');
+    toast.success('Preview updated');
   }
   if (e.target && e.target.id === 'addFileInput' && e.key === 'Enter') {
     addFile();
@@ -4706,9 +4659,9 @@ function getFileMoveDestinations() {
 }
 function openFileMoveModal(sourcePath, sourceType = 'file') {
     if (!sourcePath || !window.ForgeFileMove) return;
-    const source = document.getElementById('fileMoveSource');
-    const select = document.getElementById('fileMoveDestination');
-    const confirmButton = document.getElementById('fileMoveConfirmBtn');
+    const source = byId('fileMoveSource');
+    const select = byId('fileMoveDestination');
+    const confirmButton = byId('fileMoveConfirmBtn');
     if (!source || !select || !confirmButton) return;
     pendingFileMove = {
         sourcePath,
@@ -4731,7 +4684,7 @@ function openFileMoveModal(sourcePath, sourceType = 'file') {
         return true;
     });
     if (destinations.length === 0) {
-        const option = document.createElement('option');
+        const option = makeEl('option');
         option.textContent = 'No other folders available';
         option.disabled = true;
         option.selected = true;
@@ -4740,7 +4693,7 @@ function openFileMoveModal(sourcePath, sourceType = 'file') {
         confirmButton.disabled = true;
     } else {
         destinations.forEach(directory => {
-            const option = document.createElement('option');
+            const option = makeEl('option');
             if (directory === '') {
                 option.value = '__forge_project_root__';
                 option.textContent = 'Project root (/)';
@@ -4767,7 +4720,7 @@ function closeFileMoveModal() {
 }
 function confirmFileMoveModal() {
     if (!pendingFileMove || !window.ForgeFileMove) return;
-    const select = document.getElementById('fileMoveDestination');
+    const select = byId('fileMoveDestination');
     if (!select || select.disabled) return;
     const targetDirectory =
         select.value === '__forge_project_root__'
@@ -4791,7 +4744,7 @@ function getFileStatusTitle(p) {
 function previewFile(path) {
   renderPage(path);
   switchTab('preview');
-  showToast('Preview loaded', 'success');
+  toast.success('Preview loaded');
 }
 function closeTab(path) {
     if (!path) return;
@@ -4824,19 +4777,19 @@ function startNonEditableEditorView(iconText, titleText) {
     editorTextarea.hidden = true;
     editorPlaceholder.hidden = false;
     editorPlaceholder.replaceChildren();
-    const wrapper = document.createElement('div');
+    const wrapper = makeEl('div');
     wrapper.style.cssText = 'text-align:center; padding:20px;';
-    const icon = document.createElement('div');
+    const icon = makeEl('div');
     icon.style.cssText = 'font-size:2em; margin-bottom:10px;';
     icon.textContent = iconText;
-    const title = document.createElement('div');
+    const title = makeEl('div');
     title.style.cssText = 'font-size:1.1em; margin-bottom:5px;';
     title.textContent = titleText;
     wrapper.append(icon, title);
     return wrapper;
 }
 function finishNonEditableEditorView(wrapper) {
-    const note = document.createElement('div');
+    const note = makeEl('div');
     note.style.cssText = 'margin-top:15px; font-size:0.85em; color:#949494;';
     note.textContent = 'Use ⚙️ to edit file settings';
     wrapper.appendChild(note);
@@ -4868,17 +4821,17 @@ function openFileInEditor(path) {
     const contentToUse = cached ? cached.content : (vfsContent || '');
     originalContent    = vfsContent || '';
     editorFilename.textContent = path;
-    const settingsPanel = document.getElementById('fileSettingsPanel');
+    const settingsPanel = byId('fileSettingsPanel');
     if (settingsPanel) settingsPanel.style.display = 'none';
     if (meta.excluded) {
         const wrapper =
             startNonEditableEditorView('🚫', 'Excluded File');
-        const desc = document.createElement('div');
+        const desc = makeEl('div');
         desc.style.cssText = 'font-size:0.9em; color:#949494;';
         desc.textContent = meta.description || 'No description available';
         wrapper.appendChild(desc);
         if (meta.url) {
-            const urlRow = document.createElement('div');
+            const urlRow = makeEl('div');
             urlRow.style.marginTop = '10px';
             let safeUrl = null;
             try {
@@ -4888,13 +4841,13 @@ function openFileInEditor(path) {
                 }
             } catch (e) {}
             if (safeUrl) {
-                const link = document.createElement('a');
+                const link = makeEl('a');
                 link.href = safeUrl;
                 link.target = '_blank';
                 link.rel = 'noopener noreferrer';
                 link.style.color = '#4fc3f7';
                 link.textContent = meta.url;
-                const fetchButton = document.createElement('button');
+                const fetchButton = makeEl('button');
                 fetchButton.type = 'button';
                 fetchButton.style.marginLeft = '10px';
                 fetchButton.className = 'info';
@@ -4902,7 +4855,7 @@ function openFileInEditor(path) {
                 fetchButton.addEventListener('click', () => fetchRefFile(path));
                 urlRow.append(link, fetchButton);
             } else {
-                const invalidUrl = document.createElement('span');
+                const invalidUrl = makeEl('span');
                 invalidUrl.style.color = '#949494';
                 invalidUrl.textContent = `Reference: ${meta.url}`;
                 urlRow.appendChild(invalidUrl);
@@ -4916,16 +4869,16 @@ function openFileInEditor(path) {
         const isImage  = mimeType.startsWith('image/');
         const wrapper =
             startNonEditableEditorView('📦', 'Binary File');
-        const mime = document.createElement('div');
+        const mime = makeEl('div');
         mime.style.cssText = 'font-size:0.9em; color:#949494;';
         mime.textContent = `MIME: ${mimeType}`;
-        const size = document.createElement('div');
+        const size = makeEl('div');
         size.style.cssText = 'font-size:0.85em; color:#949494; margin-top:5px;';
         size.textContent =
             `Size: ~${Math.round((contentToUse.length * 3) / 4 / 1024)} KB (base64)`;
         wrapper.append(mime, size);
         if (isImage && blobUrl) {
-            const image = document.createElement('img');
+            const image = makeEl('img');
             image.src = blobUrl;
             image.style.cssText =
                 'max-width:200px;max-height:150px;margin-top:10px;border-radius:4px;';
@@ -4968,7 +4921,7 @@ function closeEditor() {
     saveFileBtn.hidden   = true;
     deleteFileBtn.hidden = true;
     rerunBtn.hidden      = true;
-    const settingsPanel = document.getElementById('fileSettingsPanel');
+    const settingsPanel = byId('fileSettingsPanel');
     if (settingsPanel) settingsPanel.style.display = 'none';
     if (window.forgePanels) window.forgePanels.selectPath(null);
 }
@@ -5009,7 +4962,7 @@ function buildPreviewCspMeta() {
 }
 // Replace the sandboxed iframe per render to avoid Chromium stale-srcdoc blanks.
 function setPreviewWelcomeVisible(visible) {
-    const welcome = document.getElementById('previewWelcome');
+    const welcome = byId('previewWelcome');
     if (!welcome) return;
     // Any ordinary Preview-state transition clears a stale managed-share
     // failure overlay. showManagedShareUnavailableState() deliberately calls
@@ -5099,7 +5052,7 @@ function indexPreviewSources(html, sourcePath, sourceHtml) {
 }
 function mapPreviewSourceLocations(msg, source) {
     if (typeof msg !== 'string') return msg;
-    const frame = document.getElementById('previewFrame');
+    const frame = byId('previewFrame');
     const ranges = source === frame?.contentWindow
         ? previewSourceRanges.previewFrame
         : null;
@@ -6902,7 +6855,7 @@ function buildInterceptorScript(pageTitle, basePath) {
                     if (href.startsWith('#')) {
                         e.preventDefault();
                         // Scroll manually since we're preventing default
-                        const target = document.getElementById(href.substring(1));
+                        const target = byId(href.substring(1));
                         if (target) {
                             const reduceMotion = window.matchMedia(
                                 '(prefers-reduced-motion: reduce)'
@@ -7099,7 +7052,7 @@ function buildInterceptorScript(pageTitle, basePath) {
                             id = decodeURIComponent(id);
                         } catch (e) {}
                         const target =
-                            document.getElementById(id) ||
+                            byId(id) ||
                             document.getElementsByName(id)[0];
                         if (target) target.scrollIntoView();
                         return;
@@ -7197,7 +7150,7 @@ function buildInterceptorScript(pageTitle, basePath) {
                 // Surface interceptor errors visibly so they're not silently swallowed
                 console.error('[FORGE interceptor error]', e);
                 document.addEventListener('DOMContentLoaded', function() {
-                  var d = document.createElement('div');
+                  var d = makeEl('div');
                   d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;padding:8px 12px;font:12px monospace;z-index:99999;';
                   d.textContent = '[FORGE] Interceptor failed: ' + e.message;
                   document.body.appendChild(d);
@@ -7326,8 +7279,8 @@ async function renderPage(path) {
         return;
     }
     const sourceHtml = html;
-    const frame = document.getElementById('previewFrame');
-    const loading = document.querySelector('.loading-spinner');
+    const frame = byId('previewFrame');
+    const loading = findOne('.loading-spinner');
     const loadText = loading.children[1];
     if (!document.body.classList.contains('loading-fullscreen')) {
         frame.parentNode.append(loading);
@@ -7363,7 +7316,7 @@ async function renderPage(path) {
     const previewHash = previewLocation.hash || getURLParam('previewHash');
     if (previewHash) {
         setTimeout(() => {
-            const frame = document.getElementById('previewFrame');
+            const frame = byId('previewFrame');
             if (frame && frame.contentWindow) {
                 frame.contentWindow.postMessage({
                     type: 'forge-set-hash',
@@ -7431,7 +7384,7 @@ function getPreviewWhoamiPerson() {
 }
 // Source validation remains useful even if previews later become opaque-origin.
 window.addEventListener('message', (event) => {
-    const previewEl = document.getElementById('previewFrame');
+    const previewEl = byId('previewFrame');
     const isPreviewSource =
         previewEl && event.source === previewEl.contentWindow;
     if (!isPreviewSource || !event.data || typeof event.data !== 'object') {
@@ -7617,7 +7570,7 @@ window.addEventListener('message', (event) => {
             syncPreviewLocationToParent(cleanPath, query, hash);
             if (hash) {
                 setTimeout(() => {
-                    const target = document.getElementById('previewFrame');
+                    const target = byId('previewFrame');
                     if (target && target.contentWindow) {
                         target.contentWindow.postMessage({
                             type: 'forge-set-hash',
@@ -7627,7 +7580,7 @@ window.addEventListener('message', (event) => {
                 }, 300);
             }
         } else {
-            showToast(`Page not found in VFS: ${cleanPath}`, 'error');
+            toast.error(`Page not found in VFS: ${cleanPath}`);
         }
     } else if (event.data.type === 'vfs-spa-navigate') {
         // SPA framework (e.g. Vue Router) navigated internally — update the
@@ -7654,7 +7607,7 @@ window.addEventListener('message', (event) => {
         recordPreviewHistory(urlBar.value);
         syncPreviewLocationToParent(path, currentLocation.query, hash);
     } else if (event.data.type === 'forge-network') {
-        const loadingText=document.querySelector('.loading-text');
+        const loadingText=findOne('.loading-text');
         if(loadingText)loadingText.textContent='Loaded '+String(event.data.requested).split('/').pop().split('?')[0]+'…';
         window.forgeNetworkEvents = window.forgeNetworkEvents || [];
         window.forgeNetworkEvents.push({
@@ -7718,9 +7671,9 @@ function updateFileList() {
         fileListContent.textContent = '';
         const fragment = document.createDocumentFragment();
         paths.forEach(p => {
-            const item = document.createElement('div');
+            const item = makeEl('div');
             item.className = 'file-item';
-            const name = document.createElement('span');
+            const name = makeEl('span');
             name.className = 'file-item-name';
             name.textContent = p;
             item.appendChild(name);
@@ -7765,7 +7718,7 @@ window.addEventListener('load', async () => {
   // Initialize CodeMirror editor
   // We wait a tick for Vue to mount and render the textarea
   setTimeout(() => {
-    const ta = document.getElementById('editorTextarea');
+    const ta = byId('editorTextarea');
     if (ta && typeof ForgeEditor !== 'undefined') {
       ForgeEditor.init(ta);
       ForgeEditor.onChange((newValue) => {
@@ -7863,7 +7816,7 @@ window.addEventListener('load', async () => {
         } catch (e) {
             clearStartupLoading();
             if (shareHash) showManagedShareUnavailableState(e, shareHash);
-            showToast('Error loading share: ' + e.message, 'error', 5000);
+            toast.error('Error loading share: ' + e.message, 5000);
             console.error('Share lookup error:', e);
         }
     }
@@ -7880,7 +7833,7 @@ window.addEventListener('load', async () => {
             parsed= await parsePayload(b64Data);
         } catch (e) {
             clearStartupLoading();
-            showToast('Error loading project from short URL: ' + e.message, 'error');
+            toast.error('Error loading project from short URL: ' + e.message);
             console.error('SHA1 lookup error:', e);
         }
     }else if (payload) {
@@ -7897,7 +7850,7 @@ window.addEventListener('load', async () => {
                 window.markForgeContentAttention?.();
             }
             if (!autoFullscreen) {
-                showToast('Project loaded from URL', 'success');
+                toast.success('Project loaded from URL');
             }
             if (payload && shorten) {
                 setTimeout(() => {
@@ -7907,7 +7860,7 @@ window.addEventListener('load', async () => {
             if (autoFullscreen) setFullscreen(true);
         }catch(e){
             clearStartupLoading();
-            showToast('Error loading project from URL: ' + e.message, 'error');
+            toast.error('Error loading project from URL: ' + e.message);
             console.error(e);
         }
     } else if (autoFullscreen) {
@@ -7918,7 +7871,7 @@ window.addEventListener('load', async () => {
 function loadExampleProject(name) {
     checkUnsavedChanges(async () => {
         try {
-            showToast(`Loading example...`, 'info', 2000);
+            toast.info(`Loading example...`, 2000);
             const response = await fetch(`examples/${name}.json`);
             if (!response.ok) throw new Error(`Example not found: ${name}`);
             const parsed = await response.json();
@@ -7932,13 +7885,13 @@ function loadExampleProject(name) {
             window.history.replaceState({}, '', url.toString());
             loadProjectFromParsed(parsed, { preserveUrl: true });
         } catch (e) {
-            showToast(`Could not load example: ${e.message}`, 'error', 5000);
+            toast.error(`Could not load example: ${e.message}`, 5000);
             console.error('loadExampleProject error:', e);
         }
     });
 }
 async function populateExamplesDropdown() {
-    const menu = document.getElementById('examplesDropdownMenu');
+    const menu = byId('examplesDropdownMenu');
     if (!menu) return;
     try {
         const res = await fetch('examples/manifest.json');
@@ -7985,10 +7938,10 @@ async function shareFullscreenUrl() {
                     '&fullscreen=true' + carried;
         if (!checkShareUrlLength(url)) return;
         await copyToClipboard(url);
-        showToast('Fullscreen URL copied to clipboard!', 'success', 4000);
+        toast.success('Fullscreen URL copied to clipboard!', 4000);
         window.history.replaceState({}, '', url);
     } catch (e) {
-        showToast('Error creating fullscreen URL: ' + e.message, 'error');
+        toast.error('Error creating fullscreen URL: ' + e.message);
         console.error(e);
     }
 }
@@ -8032,7 +7985,7 @@ window.addEventListener('hashchange', async event => {
     const namedShare  = params.get('namedShare');
     if (namedShare || shareHash) {
         try {
-            showToast('Loading managed share…', 'info', 3000);
+            toast.info('Loading managed share…', 3000);
             currentNamedShareMetadata = null;
             const managedShare = namedShare
                 ? await loadNamedShare(namedShare)
@@ -8050,17 +8003,13 @@ window.addEventListener('hashchange', async event => {
             }
         } catch (e) {
             if (shareHash) showManagedShareUnavailableState(e, shareHash);
-            showToast(
-                'Error loading share: ' + e.message,
-                'error',
-                5000
-            );
+            toast.error('Error loading share: ' + e.message, 5000);
         }
         return;
     }
     if (payloadsha1) {
         try {
-            showToast('Loading project from URL…', 'info', 3000);
+            toast.info('Loading project from URL…', 3000);
             const response = await fetch(
                 forgeEndpoint('payloadGet', { id: payloadsha1 })
             );
@@ -8074,13 +8023,13 @@ window.addEventListener('hashchange', async event => {
                 }
             }
         } catch(e) {
-            showToast('Error loading project from short URL: ' + e.message, 'error');
+            toast.error('Error loading project from short URL: ' + e.message);
         }
         return;
     }
     if (payload) {
         try {
-            showToast('Loading project from URL…', 'info', 3000);
+            toast.info('Loading project from URL…', 3000);
             const parsed = await parsePayload(payload.replace(/ /g, '+'));
             if (parsed && Array.isArray(parsed.files)) {
                 loadProjectFromParsed(parsed, { preserveUrl: true });
@@ -8089,7 +8038,7 @@ window.addEventListener('hashchange', async event => {
                 }
             }
         } catch(e) {
-            showToast('Error loading project from URL: ' + e.message, 'error');
+            toast.error('Error loading project from URL: ' + e.message);
         }
         return;
     }

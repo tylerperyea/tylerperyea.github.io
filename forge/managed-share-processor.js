@@ -245,6 +245,82 @@ function normalizeManagedShareAliasRequestPacket(packet) {
   };
 }
 
+function buildManagedShareAliasPlan({
+  packet,
+  record = null,
+  targetExists = false,
+  proofValid = false,
+  nowIso
+}) {
+  const p = normalizeManagedShareAliasRequestPacket(packet);
+  const reject = error => ({
+    status: 'rejected',
+    error,
+    recordVersion: record?.version
+  });
+
+  if (['admin', 'api', 'forge'].includes(p.alias)) {
+    return reject('Reserved alias');
+  }
+  if (!targetExists) {
+    return reject('Managed share metadata not found');
+  }
+  if (record?.requestId === p.id) {
+    return {
+      status: 'applied',
+      operation: 'noop',
+      record,
+      recordVersion: record.version
+    };
+  }
+
+  const make = p.type === 'share.alias.make';
+
+  if (make && record) return reject('Alias already claimed');
+  if (!make && !record) return reject('Alias not found');
+  if (!make && record.version !== p.expectedVersion) {
+    return reject('Alias version conflict');
+  }
+  if (
+    (make && !p.controllerKey) ||
+    (!make && p.controllerKey && p.controllerKey !== record.controllerKey) ||
+    !p.signature ||
+    !proofValid
+  ) return reject('Invalid alias controller proof');
+
+  if (typeof nowIso !== 'string' || !nowIso) {
+    throw new Error('Invalid alias-plan timestamp');
+  }
+
+  const next = make
+    ? {
+        schemaVersion: 1,
+        version: 1,
+        alias: p.alias,
+        payloadHash: p.payloadHash,
+        projectId: p.projectId,
+        controllerKey: p.controllerKey,
+        requestId: p.id,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      }
+    : {
+        ...record,
+        version: record.version + 1,
+        payloadHash: p.payloadHash,
+        projectId: p.projectId,
+        requestId: p.id,
+        updatedAt: nowIso
+      };
+
+  return {
+    status: 'applied',
+    operation: make ? 'create' : 'update',
+    record: next,
+    recordVersion: next.version
+  };
+}
+
 function managedShareRequestedChanges(packet) {
   const result = [];
 
@@ -522,6 +598,7 @@ const ForgeManagedShareProcessor = {
   classifyManagedShareRequestLifecycle,
   normalizeManagedShareRequestPacket,
   normalizeManagedShareAliasRequestPacket,
+  buildManagedShareAliasPlan,
   managedShareRequestedChanges,
   buildManagedShareMakePlan,
   buildManagedShareUpdatePlan,

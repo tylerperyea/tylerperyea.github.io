@@ -6,6 +6,7 @@
   "sharePolicy": {
     "defaultTtlMs": 604800000
   },
+  "contactEmail": "tyler.peryea@gmail.com",
   "fetchMode": "browser",
   "deploymentMode": "static",
   "managedSharing": {

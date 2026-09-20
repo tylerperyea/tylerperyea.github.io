@@ -801,65 +801,60 @@
     }
     const existingShareFile = await readTrusted(sharePath);
     if (isAlias) {
-      if (['admin', 'api', 'forge'].includes(packet.alias)) {
-        return outcome('rejected', {error: 'Reserved alias'});
-      }
-      if (!existingShareFile) {
-        return outcome('rejected', {error: 'Managed share metadata not found'});
-      }
       const aliasFile = await readTrusted(aliasPath);
-      let record = aliasFile ? parseJson(aliasFile.text, 'alias record') : null;
-      if (record && record.requestId === packet.id) {
-        return outcome('applied', {recordVersion: record.version});
+      const record = aliasFile
+        ? parseJson(aliasFile.text, 'alias record')
+        : null;
+      const proofKey = packet.type === 'share.alias.make'
+        ? packet.controllerKey
+        : record?.controllerKey;
+      const proofValid = !!(
+        packet.signature &&
+        proofKey &&
+        await verifyAliasProof(packet, proofKey)
+      );
+      const plan = core.buildManagedShareAliasPlan({
+        packet,
+        record,
+        targetExists: !!existingShareFile,
+        proofValid,
+        nowIso: new Date().toISOString()
+      });
+
+      if (plan.status === 'rejected') {
+        const details = {error: plan.error};
+        if (plan.recordVersion) {
+          details.recordVersion = plan.recordVersion;
+        }
+        return outcome('rejected', details);
       }
-      if (packet.type === 'share.alias.make') {
-        if (record) {
-          return outcome('rejected', {
-            error: 'Alias already claimed', recordVersion: record.version
-          });
-        }
-        if (!packet.controllerKey || !packet.signature ||
-            !await verifyAliasProof(packet, packet.controllerKey)) {
-          return outcome('rejected', {error: 'Invalid alias controller proof'});
-        }
-        const nowIso = new Date().toISOString();
-        record = {
-          schemaVersion: 1, version: 1, alias: packet.alias, payloadHash,
-          projectId: packet.projectId, controllerKey: packet.controllerKey,
-          requestId: packet.id, createdAt: nowIso, updatedAt: nowIso
-        };
-        const created = await createTrusted(aliasPath, JSON.stringify(record));
+      if (plan.operation === 'noop') {
+        return outcome('applied', {recordVersion: plan.recordVersion});
+      }
+      if (plan.operation === 'create') {
+        const created = await createTrusted(
+          aliasPath,
+          JSON.stringify(plan.record)
+        );
         if (created.conflict) {
           return outcome('rejected', {error: 'Alias already claimed'});
         }
-        return outcome('applied', {date: nowIso, recordVersion: 1});
-      }
-      if (!record) return outcome('rejected', {error: 'Alias not found'});
-      if (record.version !== packet.expectedVersion) {
-        return outcome('rejected', {
-          error: 'Alias version conflict', recordVersion: record.version
+        return outcome('applied', {
+          date: plan.record.createdAt,
+          recordVersion: plan.recordVersion
         });
       }
-      if ((packet.controllerKey && packet.controllerKey !== record.controllerKey) ||
-          !packet.signature ||
-          !await verifyAliasProof(packet, record.controllerKey)) {
-        return outcome('rejected', {
-          error: 'Invalid alias controller proof', recordVersion: record.version
-        });
-      }
-      const nowIso = new Date().toISOString();
-      Object.assign(record, {
-        version: record.version + 1,
-        payloadHash,
-        projectId: packet.projectId,
-        requestId: packet.id,
-        updatedAt: nowIso
-      });
+
       const updated = await updateTrusted(
-        aliasPath, JSON.stringify(record), aliasFile.sha
+        aliasPath,
+        JSON.stringify(plan.record),
+        aliasFile.sha
       );
       if (updated.conflict) throw new Error('Alias changed during update');
-      return outcome('applied', {date: nowIso, recordVersion: record.version});
+      return outcome('applied', {
+        date: plan.record.updatedAt,
+        recordVersion: plan.recordVersion
+      });
     }
     if (packet.type === 'share.update') {
       if (!existingShareFile) {
