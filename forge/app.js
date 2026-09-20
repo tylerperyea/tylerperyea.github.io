@@ -3781,6 +3781,8 @@ function refreshManagedShareManagementUi() {
         managedShareUpdatesAvailable() &&
         (currentManagedShareMetadata.state || 'active') === 'active'
     );
+    const publish = document.getElementById('publishNamedShareBtn');
+    if (publish) publish.hidden = manageButton.hidden || !currentNamedShareMetadata;
 }
 function setCurrentManagedShareMetadata(metadata) {
     const validMetadata =

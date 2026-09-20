@@ -523,6 +523,9 @@
             onclick="openManagedShareManageModal()"
             hidden
           >⚙ Manage</button>
+          <button id="publishNamedShareBtn" title="Publish edits to this Named Share"
+                  class="secondary preview-action-btn" hidden
+                  onclick="this.disabled=true;document.getElementById('managedShareNamedInput').value=getURLParam('namedShare');saveNamedShare().finally(()=>this.disabled=false)">Publish Current Version</button>
           <button id="previewBackBtn" title="Back in preview" class="secondary preview-action-btn">←</button>
           <button id="previewForwardBtn" title="Forward in preview" class="secondary preview-action-btn">→</button>
           <button id="refreshPreviewBtn" title="Refresh the current preview" class="secondary preview-action-btn">↻ Refresh</button>
