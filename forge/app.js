@@ -4300,6 +4300,7 @@ function updateManagedShareExpirationBadge(metadata) {
     badge.onclick = metadata && metadata.pending !== true
         ? openManagedShareManageModal
         : null;
+    badge.style.cursor = badge.onclick ? 'pointer' : '';
     badge.classList.remove('warning', 'urgent');
     if (metadata && metadata.pending === true) {
         badge.textContent = '⏳ Short Link · pending publication';
