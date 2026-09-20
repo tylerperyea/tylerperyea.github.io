@@ -1,7 +1,6 @@
 'use strict';
 
-// Git provider I/O. Shared semantics live in managed-share-processor.js.
-// Inbox and trusted-publication credentials remain separate capabilities.
+
 (function () {
   let settings = null;
   let trustedSettings = null;
@@ -142,6 +141,86 @@
     return Array.from(new Uint8Array(digest))
       .map(byte => byte.toString(16).padStart(2, '0'))
       .join('');
+  }
+
+  function base64UrlBytes(value) {
+    const text = value.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(text + '='.repeat((4 - text.length % 4) % 4));
+    return Uint8Array.from(binary, char => char.charCodeAt(0));
+  }
+
+  async function verifyAliasProof(packet, key) {
+    try {
+      const publicKey = await crypto.subtle.importKey(
+        'raw', base64UrlBytes(key),
+        {name: 'ECDSA', namedCurve: 'P-256'}, false, ['verify']
+      );
+      return crypto.subtle.verify(
+        {name: 'ECDSA', hash: 'SHA-256'}, publicKey,
+        base64UrlBytes(packet.signature),
+        new TextEncoder().encode(
+          window.ForgeManagedShareProcessor.canonicalManagedShareAliasIntent(packet)
+        )
+      );
+    } catch (error) { return false; }
+  }
+
+  function aliasBase64Url(buffer) {
+    return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  }
+
+  function openAliasKeyDb() {
+    return new Promise((ok, fail) => {
+      const r = indexedDB.open('forgeAliasControllerV1', 1);
+      r.onupgradeneeded = () =>
+        r.result.objectStoreNames.contains('keys') ||
+        r.result.createObjectStore('keys');
+      r.onsuccess = () => ok(r.result);
+      r.onerror = () => fail(r.error);
+    });
+  }
+
+  async function aliasController() {
+    const db = await openAliasKeyDb();
+    const store = mode => db.transaction('keys', mode).objectStore('keys');
+    let record = await new Promise((ok, fail) => {
+      const r = store().get('default');
+      r.onsuccess = () => ok(r.result);
+      r.onerror = () => fail(r.error);
+    });
+    if (!record) {
+      const keys = await crypto.subtle.generateKey(
+        {name: 'ECDSA', namedCurve: 'P-256'}, false, ['sign', 'verify']
+      );
+      record = {
+        privateKey: keys.privateKey,
+        publicKey: aliasBase64Url(await crypto.subtle.exportKey('raw', keys.publicKey))
+      };
+      await new Promise((ok, fail) => {
+        const r = store('readwrite').put(record, 'default');
+        r.onsuccess = ok;
+        r.onerror = () => fail(r.error);
+      });
+    }
+    db.close();
+    return record;
+  }
+
+  async function signAliasRequest(packet) {
+    const controller = await aliasController();
+    const request = {...packet};
+    if (request.type === 'share.alias.make') {
+      request.controllerKey = controller.publicKey;
+    }
+    request.signature = aliasBase64Url(await crypto.subtle.sign(
+      {name: 'ECDSA', hash: 'SHA-256'}, controller.privateKey,
+      new TextEncoder().encode(
+        window.ForgeManagedShareProcessor.canonicalManagedShareAliasIntent(request)
+      )
+    ));
+    return window.ForgeManagedShareProcessor
+      .normalizeManagedShareAliasRequestPacket(request);
   }
 
   function parseJson(text, label) {
@@ -302,9 +381,10 @@
   }
 
   function canSubmit(type) {
-    return !!settings &&
-      !!credential &&
-      ['share.make', 'share.update'].includes(type);
+    return !!settings && !!credential && [
+      'share.make', 'share.update',
+      'share.alias.make', 'share.alias.update'
+    ].includes(type);
   }
 
   async function listInbox(limit = 100) {
@@ -529,10 +609,11 @@
       date: details.date || new Date().toISOString(),
       requestId: base.requestId,
       requestHash: base.requestHash,
-      requestHashVersion: 2,
+      requestHashVersion: base.requestHashVersion || 2,
       type: base.type,
       status,
       payloadHash: base.payloadHash,
+      alias: base.alias || null,
       admission: base.admission,
       actor: {email: null, source: 'anonymous', verified: false},
       ip: null,
@@ -647,15 +728,19 @@
     }
 
     const core = window.ForgeManagedShareProcessor;
-    const packet = core.normalizeManagedShareRequestPacket(
-      parseJson(inboxFile.text, 'managed-share request')
-    );
+    const rawPacket = parseJson(inboxFile.text, 'managed-share request');
+    const isAlias =
+      typeof rawPacket.type === 'string' &&
+      rawPacket.type.toLowerCase().startsWith('share.alias.');
+    const packet = isAlias
+      ? core.normalizeManagedShareAliasRequestPacket(rawPacket)
+      : core.normalizeManagedShareRequestPacket(rawPacket);
     if (item.path !== `${settings.path}/${packet.id}.json`) {
       throw new Error('Inbox filename does not match request id');
     }
 
     let payloadHash = packet.payloadHash;
-    if (packet.data !== null) {
+    if (!isAlias && packet.data !== null) {
       const calculatedHash = await digestHex('SHA-1', packet.data);
       if (payloadHash && payloadHash !== calculatedHash) {
         throw new Error('payloadHash does not match data');
@@ -666,20 +751,26 @@
     const requestPath = `requests/${packet.id}.json`;
     const payloadPath = `payloads/${payloadHash}`;
     const sharePath = `shares/${payloadHash}.json`;
+    const aliasPath = isAlias ? `aliases/${packet.alias}.json` : null;
     let projectionFile = await readTrusted(requestPath);
     let projection = projectionFile
       ? parseJson(projectionFile.text, 'request outcome')
       : null;
 
-    const requestedChanges = core.managedShareRequestedChanges(packet);
+    const requestedChanges = isAlias
+      ? null
+      : core.managedShareRequestedChanges(packet);
+    const requestHashVersion = isAlias ? 1 : 2;
     const requestHash = await digestHex(
       'SHA-256',
-      core.canonicalManagedShareRequestIntent({
-        type: packet.type,
-        payloadHash,
-        reason: packet.reason,
-        requestedChanges
-      })
+      isAlias
+        ? core.canonicalManagedShareAliasIntent(packet)
+        : core.canonicalManagedShareRequestIntent({
+            type: packet.type,
+            payloadHash,
+            reason: packet.reason,
+            requestedChanges
+          })
     );
 
     const sameRequest = candidate =>
@@ -726,10 +817,11 @@
         requestId: packet.id,
         requestEventId: crypto.randomUUID().toLowerCase(),
         outcomeEventId: crypto.randomUUID().toLowerCase(),
-        requestHashVersion: 2,
+        requestHashVersion,
         requestHash,
         type: packet.type,
         payloadHash,
+        alias: isAlias ? packet.alias : null,
         status: 'requested',
         admission,
         requestedAt,
@@ -795,7 +887,9 @@
       requestEventId: projection.requestEventId,
       outcomeEventId: projection.outcomeEventId,
       requestHash,
+      requestHashVersion,
       payloadHash,
+      alias: isAlias ? packet.alias : null,
       admission: projection.admission || admission,
       reason: packet.reason,
       requestedChanges
@@ -829,6 +923,73 @@
     }
 
     const existingShareFile = await readTrusted(sharePath);
+
+    if (isAlias) {
+      if (['admin', 'api', 'forge'].includes(packet.alias)) {
+        return outcome('rejected', {error: 'Reserved alias'});
+      }
+      if (!existingShareFile) {
+        return outcome('rejected', {error: 'Managed share metadata not found'});
+      }
+
+      const aliasFile = await readTrusted(aliasPath);
+      let record = aliasFile ? parseJson(aliasFile.text, 'alias record') : null;
+      if (record && record.requestId === packet.id) {
+        return outcome('applied', {recordVersion: record.version});
+      }
+
+      if (packet.type === 'share.alias.make') {
+        if (record) {
+          return outcome('rejected', {
+            error: 'Alias already claimed', recordVersion: record.version
+          });
+        }
+        if (!packet.controllerKey || !packet.signature ||
+            !await verifyAliasProof(packet, packet.controllerKey)) {
+          return outcome('rejected', {error: 'Invalid alias controller proof'});
+        }
+
+        const nowIso = new Date().toISOString();
+        record = {
+          schemaVersion: 1, version: 1, alias: packet.alias, payloadHash,
+          projectId: packet.projectId, controllerKey: packet.controllerKey,
+          requestId: packet.id, createdAt: nowIso, updatedAt: nowIso
+        };
+        const created = await createTrusted(aliasPath, JSON.stringify(record));
+        if (created.conflict) {
+          return outcome('rejected', {error: 'Alias already claimed'});
+        }
+        return outcome('applied', {date: nowIso, recordVersion: 1});
+      }
+
+      if (!record) return outcome('rejected', {error: 'Alias not found'});
+      if (record.version !== packet.expectedVersion) {
+        return outcome('rejected', {
+          error: 'Alias version conflict', recordVersion: record.version
+        });
+      }
+      if ((packet.controllerKey && packet.controllerKey !== record.controllerKey) ||
+          !packet.signature ||
+          !await verifyAliasProof(packet, record.controllerKey)) {
+        return outcome('rejected', {
+          error: 'Invalid alias controller proof', recordVersion: record.version
+        });
+      }
+
+      const nowIso = new Date().toISOString();
+      Object.assign(record, {
+        version: record.version + 1,
+        payloadHash,
+        projectId: packet.projectId,
+        requestId: packet.id,
+        updatedAt: nowIso
+      });
+      const updated = await updateTrusted(
+        aliasPath, JSON.stringify(record), aliasFile.sha
+      );
+      if (updated.conflict) throw new Error('Alias changed during update');
+      return outcome('applied', {date: nowIso, recordVersion: record.version});
+    }
 
     if (packet.type === 'share.update') {
       if (!existingShareFile) {
@@ -946,9 +1107,9 @@
           'expiresAt'
         )
       ) {
-        recoveredExpiresAt = new Date(
-          Date.parse(packet.changes.expiresAt)
-        ).toISOString();
+        recoveredExpiresAt = packet.changes.expiresAt === null
+          ? null
+          : new Date(Date.parse(packet.changes.expiresAt)).toISOString();
       }
 
       const recoveredPlan = core.buildManagedShareMakePlan({
@@ -976,15 +1137,19 @@
     if (
       Object.prototype.hasOwnProperty.call(packet.changes, 'expiresAt')
     ) {
-      expiresAtMs = Date.parse(packet.changes.expiresAt);
-      if (
-        !Number.isFinite(expiresAtMs) ||
-        expiresAtMs <= now.getTime()
-      ) {
-        const error = !Number.isFinite(expiresAtMs)
-          ? 'Invalid expiresAt'
-          : 'expiresAt must be in the future';
-        return outcome('rejected', {error});
+      if (packet.changes.expiresAt === null) {
+        expiresAtMs = null;
+      } else {
+        expiresAtMs = Date.parse(packet.changes.expiresAt);
+        if (
+          !Number.isFinite(expiresAtMs) ||
+          expiresAtMs <= now.getTime()
+        ) {
+          const error = !Number.isFinite(expiresAtMs)
+            ? 'Invalid expiresAt'
+            : 'expiresAt must be in the future';
+          return outcome('rejected', {error});
+        }
       }
     }
 
@@ -1006,7 +1171,9 @@
     }
 
     const nowIso = now.toISOString();
-    const expiresAt = new Date(expiresAtMs).toISOString();
+    const expiresAt = expiresAtMs === null
+      ? null
+      : new Date(expiresAtMs).toISOString();
     const makePlan = core.buildManagedShareMakePlan({
       payloadHash,
       title: packet.changes.title || null,
@@ -1069,7 +1236,10 @@
       throw new Error('Managed-share semantic core is unavailable');
     }
 
-    const normalized = core.normalizeManagedShareRequestPacket(packet);
+    const normalized =
+      String(packet.type || '').startsWith('share.alias.')
+        ? core.normalizeManagedShareAliasRequestPacket(packet)
+        : core.normalizeManagedShareRequestPacket(packet);
     const inboxPath = `${settings.path}/${normalized.id}.json`;
     const response = await fetch(
       githubContentsUrl(settings, inboxPath),
@@ -1138,6 +1308,7 @@
     updateTrusted,
     processInboxRequest,
     processInboxMake: processInboxRequest,
+    signAliasRequest,
     canSubmit,
     submit
   };

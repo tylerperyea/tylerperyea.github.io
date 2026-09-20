@@ -1,10 +1,6 @@
 'use strict';
 
-// Portable managed-share lifecycle classification.
-//
-// Storage, transport, authorization, mutation, and recovery remain runtime
-// concerns. This module owns only the stable lifecycle interpretation shared
-// by synchronous and asynchronous processor implementations.
+
 let ForgeValueHelpers = null;
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -44,8 +40,7 @@ function classifyManagedShareRequestLifecycle(lifecycle, requestHash) {
   return { disposition, lifecycle };
 }
 
-// Canonical mutation packet: requester intent only.
-// The processor supplies actor, time, event identity, observations, and outcome.
+
 function normalizeManagedShareRequestPacket(packet) {
   if (!packet || typeof packet !== 'object' || Array.isArray(packet)) {
     throw new Error('Invalid managed-share request packet');
@@ -132,10 +127,12 @@ function normalizeManagedShareRequestPacket(packet) {
   }
 
   if (hasOwn(changes, 'expiresAt')) {
-    if (typeof changes.expiresAt !== 'string') {
+    const expiresAt = changes.expiresAt;
+    if (expiresAt !== null && typeof expiresAt !== 'string') {
       throw new Error('Invalid expiresAt');
     }
-    normalizedChanges.expiresAt = changes.expiresAt.trim();
+    normalizedChanges.expiresAt =
+      expiresAt === null ? null : expiresAt.trim();
   }
 
   if (hasOwn(changes, 'state')) {
@@ -174,6 +171,80 @@ const MANAGED_SHARE_CHANGE_FIELDS = [
   'state'
 ];
 
+function normalizeManagedShareAliasRequestPacket(packet) {
+  if (!packet || typeof packet !== 'object' || Array.isArray(packet)) {
+    throw new Error('Invalid alias request');
+  }
+
+  const allowed = [
+    'id', 'type', 'payloadHash', 'alias', 'projectId',
+    'controllerKey', 'signature', 'expectedVersion', 'reason'
+  ];
+  const extra = Object.keys(packet).filter(field => !allowed.includes(field));
+  if (extra.length) throw new Error(`Unsupported alias field: ${extra.join(', ')}`);
+
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  const id = typeof packet.id === 'string' ? packet.id.trim().toLowerCase() : '';
+  const type = typeof packet.type === 'string'
+    ? packet.type.trim().toLowerCase()
+    : '';
+  const payloadHash = typeof packet.payloadHash === 'string'
+    ? packet.payloadHash.trim().toLowerCase()
+    : '';
+  const alias = typeof packet.alias === 'string'
+    ? packet.alias.trim().toLowerCase()
+    : '';
+
+  if (!uuid.test(id)) throw new Error('Invalid request id');
+  if (!['share.alias.make', 'share.alias.update'].includes(type)) {
+    throw new Error('Invalid alias request type');
+  }
+  if (!/^[0-9a-f]{40}$/.test(payloadHash)) throw new Error('Invalid payload hash');
+  if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(alias)) throw new Error('Invalid alias');
+
+  const projectId = packet.projectId == null
+    ? null
+    : String(packet.projectId).trim().toLowerCase();
+  const controllerKey = packet.controllerKey == null
+    ? null
+    : String(packet.controllerKey).trim();
+  const signature = packet.signature == null
+    ? null
+    : String(packet.signature).trim();
+  const expectedVersion = packet.expectedVersion == null
+    ? null
+    : packet.expectedVersion;
+
+  if (projectId !== null && !uuid.test(projectId)) {
+    throw new Error('Invalid project id');
+  }
+  if (controllerKey !== null && !/^[A-Za-z0-9_-]{40,1024}$/.test(controllerKey)) {
+    throw new Error('Invalid controller key');
+  }
+  if (signature !== null && !/^[A-Za-z0-9_-]{40,512}$/.test(signature)) {
+    throw new Error('Invalid signature');
+  }
+  if (
+    type === 'share.alias.make'
+      ? expectedVersion !== null
+      : !Number.isInteger(expectedVersion) || expectedVersion < 1
+  ) throw new Error('Invalid expected alias version');
+
+  let reason = null;
+  if (packet.reason != null) {
+    if (typeof packet.reason !== 'string') throw new Error('Invalid request reason');
+    reason = packet.reason.trim() || null;
+    if (reason && reason.length > 2000) {
+      throw new Error('Request reason must be 2000 characters or fewer');
+    }
+  }
+
+  return {
+    id, type, payloadHash, alias, projectId, controllerKey,
+    signature, expectedVersion, reason
+  };
+}
+
 function managedShareRequestedChanges(packet) {
   const result = [];
 
@@ -207,7 +278,7 @@ function buildManagedShareMakePlan({
   }
   if (
     typeof nowIso !== 'string' || !nowIso ||
-    typeof expiresAt !== 'string' || !expiresAt
+    (expiresAt !== null && (typeof expiresAt !== 'string' || !expiresAt))
   ) throw new Error('Invalid make-plan timestamps');
 
   const origin = $if(payloadExistedWhenAdmitted)
@@ -281,19 +352,20 @@ function buildManagedShareUpdatePlan({record, changes}) {
   }
 
   if (hasOwn(changes, 'expiresAt')) {
-    if (typeof changes.expiresAt !== 'string') {
+    const expiresAt = changes.expiresAt;
+    if (expiresAt !== null && typeof expiresAt !== 'string') {
       throw new Error('Invalid expiresAt');
     }
 
-    const expiresAtMs = Date.parse(changes.expiresAt);
-    if (!Number.isFinite(expiresAtMs)) {
+    const expiresAtMs = expiresAt === null ? null : Date.parse(expiresAt);
+    if (expiresAtMs !== null && !Number.isFinite(expiresAtMs)) {
       throw new Error('Invalid expiresAt');
     }
 
     replace(
       'expiresAt',
       record.expiresAt || null,
-      new Date(expiresAtMs).toISOString()
+      expiresAtMs === null ? null : new Date(expiresAtMs).toISOString()
     );
   }
 
@@ -368,6 +440,22 @@ function managedShareIntentValue(present, value) {
   return `string:${managedShareBase64Url(value)}`;
 }
 
+function canonicalManagedShareAliasIntent(packet) {
+  const p = normalizeManagedShareAliasRequestPacket(packet);
+  const value = v => managedShareIntentValue(true, v);
+  return [
+    'forge-share-alias-intent-v1',
+    `id=${p.id}`,
+    `type=${p.type}`,
+    `alias=${p.alias}`,
+    `payloadHash=${p.payloadHash}`,
+    `projectId=${value(p.projectId)}`,
+    `expectedVersion=${p.expectedVersion === null ? 'null' : p.expectedVersion}`,
+    `controllerKey=${value(p.controllerKey)}`,
+    `reason=${value(p.reason)}`
+  ].join('\n');
+}
+
 function canonicalManagedShareRequestIntent({
   type,
   payloadHash = null,
@@ -433,15 +521,15 @@ function canonicalManagedShareRequestIntent({
 const ForgeManagedShareProcessor = {
   classifyManagedShareRequestLifecycle,
   normalizeManagedShareRequestPacket,
+  normalizeManagedShareAliasRequestPacket,
   managedShareRequestedChanges,
   buildManagedShareMakePlan,
   buildManagedShareUpdatePlan,
-  canonicalManagedShareRequestIntent
+  canonicalManagedShareRequestIntent,
+  canonicalManagedShareAliasIntent
 };
 
-// The semantic core is intentionally usable without a runtime adapter.
-// Node and browser processors consume this exact implementation; Python,
-// ColdFusion, and other runtimes implement the same documented contract.
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = ForgeManagedShareProcessor;
 }

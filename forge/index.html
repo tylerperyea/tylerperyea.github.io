@@ -957,13 +957,16 @@
             type="datetime-local"
             id="shortUrlExpirationInput"
           >
-          <div
-            class="info-text"
-            id="shortUrlExpirationHelp"
-            style="margin-top: 6px;"
-          >
-            Managed Short Links expire automatically. The server default is
-            preselected; choose another future date and time if needed.
+          <label style="margin-top:8px;">
+            <input
+              type="checkbox"
+              id="shortUrlNeverExpires"
+              style="width:auto;"
+              onchange="document.getElementById('shortUrlExpirationInput').disabled=this.checked"
+            > Never expires (not recommended)
+          </label>
+          <div class="info-text" style="margin-top:6px;">
+            The default expiration is preselected.
           </div>
         </div>
 
@@ -975,7 +978,7 @@
     </div>
   </div>
 
-  <!-- Managed Short Link Metadata Modal -->
+
   <div class="modal-overlay" id="managedShareManageModal">
     <div class="modal unsaved-modal">
       <div class="modal-header">
@@ -1002,9 +1005,16 @@
             type="datetime-local"
             id="managedShareManageExpiration"
           >
+          <label style="margin-top:8px;">
+            <input
+              type="checkbox"
+              id="managedShareManageNeverExpires"
+              style="width:auto;"
+              onchange="document.getElementById('managedShareManageExpiration').disabled=this.checked"
+            > Never expires (not recommended)
+          </label>
           <div class="info-text" style="margin-top:6px;">
-            Choose a future date and time. Updating expiration does not
-            re-upload or alter the shared project payload.
+            Expiration changes metadata only.
           </div>
         </div>
 
@@ -1035,6 +1045,8 @@
       </div>
       <div class="modal-footer">
         <button class="secondary" onclick="closeManagedShareManageModal()">Cancel</button>
+        <button class="secondary" id="managedShareNamedBtn"
+                onclick="saveNamedShare()">Named Share</button>
         <button
           class="success"
           id="managedShareManageSaveBtn"

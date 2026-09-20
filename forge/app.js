@@ -1,12 +1,9 @@
-// Get path prefix for API calls
+
 var tt = location.pathname.split("/");
 tt.pop();
 var pref = tt.join("/") + "/";
 
-// -- Lazy DOM element helper -----------------------------------------------
-// Used for elements rendered by Vue that don't exist at parse time.
-// _noopProxy absorbs any chained reads/writes/calls silently.
-// _lazy(id) returns a proxy that always looks up the live DOM element.
+
 const _noopProxy = new Proxy(() => _noopProxy, {
     get:   ()  => _noopProxy,
     set:   ()  => true,
@@ -26,9 +23,7 @@ const _lazy = (id) => new Proxy({}, {
         return true;
     }
 });
-// -------------------------------------------------------------------------
 
-// Project name generation
 const adjectives = [
     'swift', 'bright', 'calm', 'bold', 'clever', 'gentle', 'happy', 'kind',
     'lively', 'merry', 'nice', 'proud', 'quiet', 'rapid', 'smart', 'warm',
@@ -55,7 +50,7 @@ function generateProjectName() {
     const adj3 = adjectives[Math.floor(Math.random() * adjectives.length)];
     const noun = nouns[Math.floor(Math.random() * nouns.length)];
     
-    // Convert to camelCase
+
     return adj1 + adj2.charAt(0).toUpperCase() + adj2.slice(1) + 
            adj3.charAt(0).toUpperCase() + adj3.slice(1) + 
            noun.charAt(0).toUpperCase() + noun.slice(1);
@@ -107,8 +102,7 @@ function clearForgeContentAttention() {
 }
 
 window.markForgeContentAttention = function () {
-    // Arm attention even if the IDE is focused while approving the bridge
-    // operation. It clears on the next focus/visibility return to this tab.
+
     window.forgeContentAttention = true;
     updateForgeAttentionFavicon();
     updateBrowserTitle();
@@ -153,14 +147,14 @@ function updateBrowserTitle() {
         .otherwise(`[FORGE] ${title}`);
 }
 
-// Update project title display
+
 function updateProjectTitleDisplay() {
     const el = document.getElementById('projectTitle');
     if (el) el.value = projectTitle;
     updateBrowserTitle();
 }
 
-// Keyboard shortcuts help modal
+
 function openShortcutsModal() {
     ForgeModal.open('shortcutsModal', {
         closeOnBackdrop: true,
@@ -172,10 +166,7 @@ function closeShortcutsModal() {
     ForgeModal.close('shortcutsModal');
 }
 
-// Use event delegation for elements rendered by Vue (projectTitle,
-// regenerateTitleBtn, shortcutsBtn) — they don't exist in the DOM
-// until forge-vue-panels.js mounts, so we can't addEventListener on
-// them directly at parse time.
+
 document.addEventListener('input', (e) => {
     if (e.target && e.target.id === 'projectTitle') {
         projectTitle = e.target.value;
@@ -244,9 +235,9 @@ document.addEventListener('click', (e) => {
 });
 
 
-// Global keyboard shortcuts
+
 document.addEventListener('keydown', (e) => {
-    // Ctrl+S or Cmd+S - Save file
+
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         if (currentEditingFile && !saveFileBtn.hidden) {
@@ -262,13 +253,13 @@ document.addEventListener('keydown', (e) => {
     }
 
 
-    // Ctrl+R or Cmd+R - Re-run preview
+
     if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
         e.preventDefault();
         if (!rerunBtn.hidden) {
            rerunProject();
         } else {
-            // If no file is being edited, just refresh the preview
+
             const entryPoint = vfs.findEntryPoint();
             if (entryPoint) {
                 renderPage(entryPoint);
@@ -278,21 +269,21 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
-  // Ctrl+1 - Switch to Preview tab
+
   if ((e.ctrlKey || e.metaKey) && e.key === '1') {
     e.preventDefault();
     switchTab('preview');
     return;
   }
 
-  // Ctrl+2 - Switch to Files tab
+
   if ((e.ctrlKey || e.metaKey) && e.key === '2') {
     e.preventDefault();
     switchTab('files');
     return;
   }
 
-    // Ctrl+F or Cmd+F — open in-file search (Files tab only, text files only)
+
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'f') {
         if (currentEditingFile && ForgeEditor.isReady()) {
             e.preventDefault();
@@ -301,7 +292,7 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
-    // Ctrl+H or Cmd+H — open in-file search with replace visible
+
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'h') {
         if (currentEditingFile && ForgeEditor.isReady()) {
             e.preventDefault();
@@ -310,7 +301,7 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
-    // Escape - Exit fullscreen or close search bar
+
     if (e.key === 'Escape') {
         const searchBar = document.getElementById('editorSearchBar');
         if (searchBar && searchBar.classList.contains('active')) {
@@ -325,14 +316,14 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// -- In-file Search --------------------------------------------------------
+
 
 function openEditorSearch(showReplace) {
     const bar   = document.getElementById('editorSearchBar');
     const input = document.getElementById('editorSearchInput');
     if (!bar || !input) return;
 
-    // Switch to Files tab if not already active
+
     if (window.forgePanels && window.forgePanels.activeTab !== 'files') {
         switchTab('files');
     }
@@ -392,7 +383,7 @@ function _updateSearchCount(current, total) {
         : `${current} / ${total}`;
 }
 
-// Wire up search bar buttons — deferred so Vue has time to render the DOM
+
 window.addEventListener('load', () => {
     document.getElementById('editorSearchInput')?.addEventListener('input', _runSearch);
 
@@ -426,9 +417,7 @@ window.addEventListener('load', () => {
     });
 });
 
-// -- End In-file Search ----------------------------------------------------
 
-// --- Clipboard project copy/paste ---
 
 function projectClipboardShortcut(key) {
     if (key === 'C') copyProjectToClipboard();
@@ -477,23 +466,23 @@ async function pasteProjectFromClipboard() {
             return;
         }
 
-        // Validate it looks like a forge project
+
         const files = Array.isArray(parsed) ? parsed : parsed.files;
         if (!Array.isArray(files) || files.length === 0) {
             showToast('Clipboard JSON does not appear to be a forge project (no files array)', 'error');
             return;
         }
 
-        // Check at least one entry has a path field
+
         if (!files.some(f => f.path)) {
             showToast('Clipboard JSON does not appear to be a forge project (no file paths found)', 'error');
             return;
         }
 
-        // Store for confirmation
+
         pendingClipboardProject = parsed;
 
-        // Populate modal info
+
         const title = parsed.title || '(untitled)';
         const fileCount = files.length;
         const excludedCount = files.filter(f => f.excluded || f.ignored).length;
@@ -513,25 +502,19 @@ async function pasteProjectFromClipboard() {
         });
 
     } catch (e) {
-        // Clipboard read can fail if permission denied
+
         showToast('Could not read clipboard: ' + e.message, 'error');
         console.error('pasteProjectFromClipboard error:', e);
     }
 }
 
-/**
- * Load a parsed forge project object into the VFS and refresh the IDE.
- * Shared by the clipboard paste flow and could be reused elsewhere.
- */
+
 function loadProjectFromParsed(
     parsed,
     { preserveUrl = false, managedShareMetadata = null, merge = false } = {}
 ) {
     try {
-        // Clear stale URL params from any previously loaded project.
-        // Skipped during initial page load (params are still being consumed)
-        // and when the caller explicitly wants to preserve the URL (e.g.
-        // example loading, which sets its own clean ?loadExample= URL first).
+
         if (!preserveUrl && !merge && !document.documentElement.classList.contains('initializing')) {
             window.history.replaceState({}, '', window.location.pathname);
         }
@@ -555,26 +538,24 @@ function loadProjectFromParsed(
             return;
         }
 
-        // A successful non-managed load clears any stale Short Link lifecycle
-        // state. Managed-share callers explicitly pass their public metadata.
-        setCurrentManagedShareMetadata(managedShareMetadata);
 
-        // Reset the editor session
+        setCurrentManagedShareMetadata(managedShareMetadata);
+        if (!getURLParam('namedShare')) currentNamedShareMetadata = null;
+
         resetEditorSession();
 
         updateProjectTitleDisplay();
 
-        // Apply .forgeconfig metadata if present
+
         if (typeof applyForgeConfigToVFS === 'function') applyForgeConfigToVFS();
 
-        // Restore any saved GitLab context from .forgeconfig
+
         if (typeof ForgeGitPush !== 'undefined') ForgeGitPush.loadContextFromVfs();
 
         refreshProjectViews();
         closeEditor();
 
-        // Check if a specific page was embedded in the shared URL. Query/hash
-        // state is navigation metadata, not part of the VFS filename.
+
         const sharedPage = getURLParam('url');
         const sharedLocation = splitPreviewLocation(sharedPage || '');
         const entryPoint = (sharedLocation.path && vfs.hasFile(sharedLocation.path))
@@ -584,7 +565,7 @@ function loadProjectFromParsed(
         if (entryPoint) {
             renderPage(entryPoint);
 
-            // A project with a visual entry point should open on Preview.
+
             switchTab('preview');
 
             if (getURLParam('fullscreen')) {
@@ -593,7 +574,7 @@ function loadProjectFromParsed(
                 updateBrowserTitle();
             }
         } else {
-            // A project without HTML has nothing useful to preview.
+
             switchTab('files');
         }
 
@@ -610,7 +591,7 @@ function loadProjectFromParsed(
 
 
 
-// GitLab import functionality
+
 const gitlabModal = document.getElementById('gitlabModal');
 const gitlabUrlInput = document.getElementById('gitlabUrl');
 const gitlabTokenInput = document.getElementById('gitlabToken');
@@ -650,14 +631,14 @@ function setGitImportProvider(n){
 let gitlabProjectSearchQuery = '';
 let gitlabProjectSearchPage = 1;
 
-// Load saved token if exists
+
 const savedToken = localStorage.getItem('gitlabToken');
 if (savedToken) {
     gitlabTokenInput.value = savedToken;
     saveTokenCheckbox.checked = true;
 }
 
-// CLI Install modal
+
 function ensureCliUrlFlag() {
     const hash = location.hash.substring(1);
     const params = new URLSearchParams(hash);
@@ -677,7 +658,7 @@ function openCliInstallModal() {
         onRequestClose: closeCliInstallModal
     });
 
-    // Render install UI into the container
+
     const container = document.getElementById('cliInstallContainer');
     ForgeCliInstall.renderInstallUI(container, { compact: false });
 }
@@ -685,8 +666,7 @@ function openCliInstallModal() {
 function closeCliInstallModal() {
     ForgeModal.close('cliInstallModal');
 
-    // Remove only the CLI UI flag while preserving every other hash component
-    // exactly as it appeared.
+
     const hashParts = location.hash.substring(1)
         .split('&')
         .filter(Boolean)
@@ -698,7 +678,7 @@ function closeCliInstallModal() {
 }
 
 
-// Load JSON modal
+
 function openLoadJsonModal() {
     ForgeModal.open('loadJsonModal', {
         initialFocus: '#jsonInput',
@@ -773,7 +753,7 @@ function rememberGitLabProject(project) {
             JSON.stringify(recent.slice(0, GITLAB_RECENT_PROJECTS_LIMIT))
         );
     } catch {
-        // Recent-project convenience should never block GitLab import.
+
     }
 }
 
@@ -1103,26 +1083,26 @@ function logProgress(message, replaceProgress = false) {
     importProgress.scrollTop = importProgress.scrollHeight;
 }
 
-// Helper function to parse .forgeignore patterns
+
 function parseForgeIgnore(content) {
     return content
         .split('\n')
         .map(line => line.trim())
-        .filter(line => line && !line.startsWith('#')) // Remove empty lines and comments
-        .map(pattern => pattern.replace(/\r/g, '')); // Clean up line endings
+        .filter(line => line && !line.startsWith('#'))
+        .map(pattern => pattern.replace(/\r/g, ''));
 }
 
-// Helper function to check if a file path matches an ignore pattern
+
 function matchesIgnorePattern(filePath, pattern) {
-    // Remove leading slash for comparison
+
     const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
     
-    // Handle directory patterns (ending with /)
+
     if (pattern.endsWith('/')) {
         return cleanPath.startsWith(pattern) || cleanPath.startsWith(pattern.slice(0, -1) + '/');
     }
     
-    // Handle wildcards
+
     if (pattern.includes('*')) {
         const regexPattern = '^' + pattern
             .replace(/\./g, '\\.')
@@ -1132,11 +1112,11 @@ function matchesIgnorePattern(filePath, pattern) {
         return regex.test(cleanPath);
     }
     
-    // Exact match or directory match
+
     return cleanPath === pattern || cleanPath.startsWith(pattern + '/');
 }
 
-// Helper function to check if file should be ignored
+
 function shouldIgnoreFile(filePath, ignorePatterns) {
     for (const pattern of ignorePatterns) {
         if (matchesIgnorePattern(filePath, pattern)) {
@@ -1427,7 +1407,7 @@ async function importFromGitLab() {
         console.error('Git import error:',error);
     }
 }
-// Compression/Decompression utilities
+
 async function compress(text) {
     const stream = new CompressionStream('gzip');
     const writer = stream.writable.getWriter();
@@ -1435,9 +1415,9 @@ async function compress(text) {
     writer.close();
     const buf = await new Response(stream.readable).arrayBuffer();
     
-    // Convert to base64 in chunks to avoid stack overflow on large payloads
+
     const bytes = new Uint8Array(buf);
-    const CHUNK_SIZE = 8192; // 8KB chunks
+    const CHUNK_SIZE = 8192;
     let binary = '';
     for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
       const chunk = bytes.slice(i, i + CHUNK_SIZE);
@@ -1455,18 +1435,17 @@ async function decompress(b64) {
 }
 
 function getURLParam(name) {
-    // First check the hash/anchor
+
     const hash = location.hash.substring(1);
     if (hash) {
         const hashParams = new URLSearchParams(hash);
         const hashValue = hashParams.get(name);
         if (hashValue) return hashValue;
     }
-    // Fall back to query parameters
+
     return new URLSearchParams(location.search).get(name);
 }
 
-// -- Clipboard helper ------------------------------------------------------
 
 /**
  * Copy text to clipboard.
@@ -1474,13 +1453,13 @@ function getURLParam(name) {
  * execCommand for HTTP environments.
  */
 async function copyToClipboard(text) {
-    // Modern API — requires HTTPS or localhost
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
         return;
     }
 
-    // Fallback: create a temporary textarea and use execCommand
+
     const textarea = document.createElement('textarea');
     textarea.value = text;
     textarea.style.position = 'fixed';
@@ -1498,9 +1477,7 @@ async function copyToClipboard(text) {
     }
 }
 
-// Shared accessibility behavior for modal overlays. Individual features keep
-// their existing open/close functions; this layer supplies dialog semantics,
-// initial focus, focus containment, and focus restoration.
+
 const accessibleModalOrigins = new WeakMap();
 const accessibleModalOptions = new WeakMap();
 let activeAccessibleModal = null;
@@ -1700,8 +1677,7 @@ document.addEventListener('keydown', event => {
     }
 });
 
-// Escape requests closure through the active modal's feature-owned close
-// callback. Capture phase prevents page-level Escape behavior behind dialogs.
+
 document.addEventListener('keydown', event => {
     if (event.key !== 'Escape' || !activeAccessibleModal) return;
 
@@ -1710,7 +1686,7 @@ document.addEventListener('keydown', event => {
     ForgeModal.requestClose(activeAccessibleModal);
 }, true);
 
-// Toast notification system
+
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
@@ -1730,7 +1706,7 @@ function showToast(message, type = 'info', duration = 3000) {
     }, duration);
 }
 
-// Server Feature Detection
+
 let serverFeatures = {
   urlShortening: false,
   sharing: false
@@ -1754,9 +1730,9 @@ let managedShareAdminEnabled = false;
 let managedShareAdminTimer = null;
 let managedShareAdminBusy = false;
 
-// Public metadata for the managed Short Link currently represented by the IDE.
-// Project payload data remains in the VFS; this state is metadata only.
+
 let currentManagedShareMetadata = null;
+let currentNamedShareMetadata = null;
 
 const ASSERTED_EMAIL_STORAGE_KEY = 'forgeAssertedEmail';
 const PENDING_MANAGED_SHARE_PREFIX = 'forgePendingManagedShare:';
@@ -2001,9 +1977,7 @@ function forgeRequestHeaders(headers = {}) {
   return result;
 }
 
-// Explicit wrapper for requests to FORGE's own server contract. This is not a
-// global fetch interceptor, so preview, GitLab, and arbitrary network traffic
-// never inherit FORGE identity headers accidentally.
+
 function forgeServerFetch(endpointName, options = {}, params = {}) {
   return fetch(forgeEndpoint(endpointName, params), {
     ...options,
@@ -2347,24 +2321,29 @@ function openManagedShareAdminIfRequested() {
 }
 
 async function sendManagedShareRequest(packet) {
+  const aliasRequest = packet && [
+    'share.alias.make', 'share.alias.update'
+  ].includes(packet.type);
   if (
     !packet ||
-    (
+    (!aliasRequest &&
       packet.type !== 'share.make' &&
-      packet.type !== 'share.update'
-    )
+      packet.type !== 'share.update')
   ) {
     throw new Error('Invalid managed-share packet');
   }
 
-  const nativePacket = forgeEndpointAdvertised('shareRequest');
-  const endpoint = nativePacket
-    ? 'shareRequest'
-    : packet.type === 'share.make'
-      ? 'shareCreate'
-      : 'shareUpdate';
+  const nativePacket =
+    !aliasRequest && forgeEndpointAdvertised('shareRequest');
+  const endpoint = aliasRequest
+    ? null
+    : nativePacket
+      ? 'shareRequest'
+      : packet.type === 'share.make'
+        ? 'shareCreate'
+        : 'shareUpdate';
 
-  if (!forgeEndpointAdvertised(endpoint)) {
+  if (aliasRequest || !forgeEndpointAdvertised(endpoint)) {
     const git = window.ForgeManagedShareGit;
 
     if (
@@ -2414,15 +2393,10 @@ async function sendManagedShareRequest(packet) {
   });
 }
 
-// Some GSRS-hosted FORGE deployments sit beneath a parent application that
-// already knows the signed-in FDA user even when the FORGE server itself does
-// not implement /whoami. Bootstrap that SSO flow in an iframe, then adapt only
-// the nested user.email field into FORGE's existing asserted-email mechanism.
+
 const GSRS_WHOAMI_URL = '/ginas/app/api/v1/whoami';
 
-// A FORGE logout should be able to clear a GSRS-derived asserted identity
-// without the next identity refresh immediately discovering it again.
-// This is intentionally page-local: a full reload may discover SSO again.
+
 let suppressGsrsIdentitySeed = false;
 
 function gsrsIdentitySeedEligible() {
@@ -2493,7 +2467,7 @@ async function loadGsrsAssertedEmailSeed() {
 async function loadCurrentUser() {
   currentUser = null;
 
-  // Prefer the deployment's native FORGE identity contract whenever it exists.
+
   if (serverAuth.mode !== 'none') {
     try {
       const response = await forgeServerFetch('whoami', {
@@ -2514,21 +2488,17 @@ async function loadCurrentUser() {
         return currentUser;
       }
     } catch (error) {
-      // Asserted-identity deployments have an optional GSRS seed below.
-      // For other auth modes, a failed native identity lookup is noteworthy.
+
       if (!serverAuth.assertedIdentity) {
         console.warn('Unable to determine current FORGE user:', error);
       }
     }
   }
 
-  // Identity discovery is separate from server trust. A GSRS-hosted frontend
-  // may know the signed-in user even when the FORGE server has no auth mode.
-  // forgeRequestHeaders() remains the sole gate for whether an asserted email
-  // may be transmitted back to the FORGE server.
+
   let email = getAssertedEmail();
 
-  // A manually supplied asserted email always wins. Only seed an empty store.
+
   if (!email) {
     email = await loadGsrsAssertedEmailSeed();
 
@@ -2536,7 +2506,7 @@ async function loadCurrentUser() {
       try {
         localStorage.setItem(ASSERTED_EMAIL_STORAGE_KEY, email);
       } catch {
-        // Storage failure should not turn optional identity discovery fatal.
+
       }
     }
   }
@@ -2617,8 +2587,7 @@ function refreshCurrentUserUi() {
   const button = document.getElementById('currentUserBtn');
   if (!button) return;
 
-  // A deployment with no FORGE server auth can still have a user discovered
-  // from its surrounding SSO environment (for example GSRS).
+
   if (serverAuth.mode === 'none' && !currentUser) {
     closeCurrentUserMenu();
     button.hidden = true;
@@ -2695,7 +2664,7 @@ async function logoutCurrentUser() {
   try {
     localStorage.removeItem(ASSERTED_EMAIL_STORAGE_KEY);
   } catch {
-    // Storage failure should not prevent the in-page identity from clearing.
+
   }
 
   currentUser = null;
@@ -2717,7 +2686,7 @@ async function refreshAssertedIdentityFromSso() {
   try {
     localStorage.removeItem(ASSERTED_EMAIL_STORAGE_KEY);
   } catch {
-    // Continue: identity discovery can still run without persistent storage.
+
   }
 
   await loadCurrentUser();
@@ -2803,12 +2772,10 @@ document.addEventListener('keydown', event => {
   }
 });
 
-// GitLab API requests are pinned to one deployment-controlled origin.
-// The server config may override this default; project/URL content may not.
+
 window.FORGE_GITLAB_ORIGIN = 'https://git.fda.gov';
 
-// Portable server capabilities. Deployments may override these in
-// forge-config.json without changing frontend code.
+
 window.FORGE_ENDPOINTS = {
   whoami: pref + 'whoami',
   payloadCreate: pref + 'post',
@@ -2819,8 +2786,7 @@ window.FORGE_ENDPOINTS = {
   shareGet: pref + 'share/{hash}'
 };
 
-// Defaults tell the frontend how a conventional endpoint would be addressed;
-// they do not prove that the current deployment implements it.
+
 let advertisedForgeEndpoints = new Set();
 
 function forgeEndpointAdvertised(name) {
@@ -2865,12 +2831,12 @@ function normalizeForgeEndpoint(value, fallback) {
 
   const endpoint = value.trim();
 
-  // Absolute URLs and root-relative paths are already fully specified.
+
   if (/^[a-z][a-z0-9+.-]*:/i.test(endpoint) || endpoint.startsWith('/')) {
     return endpoint;
   }
 
-  // Otherwise resolve relative endpoint names beneath the deployment prefix.
+
   return pref + endpoint.replace(/^\.\//, '');
 }
 
@@ -2979,7 +2945,7 @@ async function detectServerFeatures() {
 
       applyForgeEndpointConfig(config);
 
-      // Apply fetch config
+
       if (typeof applyForgeFetchConfig === 'function') {
         applyForgeFetchConfig(config);
       }
@@ -2990,7 +2956,7 @@ async function detectServerFeatures() {
     console.log('No server config found, running in static-only mode');
   }
   
-  // Default: static-only mode
+
   return {
     urlShortening: false,
     sharing: false
@@ -3009,8 +2975,7 @@ function applyFeatureVisibility() {
         managedShareItem.hidden = !hasManagedSharing;
     }
 
-    // Ordinary legacy Short URL is superseded by Managed Share when the
-    // deployment supports it. Keep it available on older deployments.
+
     const shortUrlDropdownItem = document.getElementById('shortUrlDropdownItem');
     if (shortUrlDropdownItem) {
         shortUrlDropdownItem.hidden =
@@ -3019,8 +2984,7 @@ function applyFeatureVisibility() {
 
     const shareShortUrlBtn = document.getElementById('shareShortUrlBtn');
     if (shareShortUrlBtn) {
-        // "Short Link" is the user-facing capability. Managed deployments use
-        // /share; older deployments continue to use legacy /post shortening.
+
         shareShortUrlBtn.hidden =
             !hasManagedSharing && !hasLegacyShortening;
     }
@@ -3031,8 +2995,7 @@ function applyFeatureVisibility() {
         managedFullscreenShareItem.hidden = !hasManagedSharing;
     }
 
-    // Managed Fullscreen now supersedes the legacy server-stored fullscreen
-    // short-link flow wherever managed sharing is available.
+
     const shortFullscreenUrlItem =
         document.getElementById('shortFullscreenUrlItem');
     if (shortFullscreenUrlItem) {
@@ -3043,7 +3006,7 @@ function applyFeatureVisibility() {
     console.log('Feature visibility applied:', serverFeatures);
 }
 
-// Main Application
+
 const vfs = new VirtualFileSystem();
 const processor = new HTMLProcessor(vfs);
 let currentPath = null;
@@ -4131,9 +4094,7 @@ async function shareLongUrl() {
     }
 }
 
-// Server-backed Short Links always show the privacy warning before upload.
-// The implementation is selected only after confirmation: managed /share on
-// capable deployments, otherwise the legacy /post short-link flow.
+
 function managedShareExpirationPickerAvailable() {
     const ttlMs = Number(serverSharePolicy.defaultTtlMs);
     return managedSharingAvailable() &&
@@ -4151,8 +4112,12 @@ function toLocalDateTimeInputValue(date) {
 function prepareShortLinkExpirationPicker() {
     const group = document.getElementById('shortUrlExpirationGroup');
     const input = document.getElementById('shortUrlExpirationInput');
+    const never = document.getElementById('shortUrlNeverExpires');
 
-    if (!group || !input) return;
+    if (!group || !input || !never) return;
+
+    never.checked = false;
+    input.disabled = false;
 
     if (!managedShareExpirationPickerAvailable()) {
         group.hidden = true;
@@ -4216,28 +4181,34 @@ document.getElementById('shortUrlWarningCancelBtn')
     .addEventListener('click', closeShortUrlWarningModal);
 
 document.getElementById('shortUrlWarningConfirmBtn').addEventListener('click', async () => {
-    let expiresAt = null;
+    let expiresAt;
 
     if (managedShareExpirationPickerAvailable()) {
         const expirationInput =
             document.getElementById('shortUrlExpirationInput');
-        const selectedExpiresAtMs = expirationInput
-            ? new Date(expirationInput.value).getTime()
-            : NaN;
+        const never = document.getElementById('shortUrlNeverExpires');
 
-        if (
-            !Number.isFinite(selectedExpiresAtMs) ||
-            selectedExpiresAtMs <= Date.now()
-        ) {
-            showToast(
-                'Choose a future expiration date and time.',
-                'error',
-                4000
-            );
-            return;
+        if (never && never.checked) {
+            expiresAt = null;
+        } else {
+            const selectedExpiresAtMs = expirationInput
+                ? new Date(expirationInput.value).getTime()
+                : NaN;
+
+            if (
+                !Number.isFinite(selectedExpiresAtMs) ||
+                selectedExpiresAtMs <= Date.now()
+            ) {
+                showToast(
+                    'Choose a future expiration date and time.',
+                    'error',
+                    4000
+                );
+                return;
+            }
+
+            expiresAt = new Date(selectedExpiresAtMs).toISOString();
         }
-
-        expiresAt = new Date(selectedExpiresAtMs).toISOString();
     }
 
     ForgeModal.close('shortUrlWarningModal');
@@ -4282,10 +4253,8 @@ async function createShorterURL(fullscreen) {
         const shortURL = window.location.origin + window.location.pathname +
                          '#payloadsha1=' + result.sha1 + append + carried;
 
-        // Update the current URL to the shorter version
         window.history.replaceState(window.history.state, '', shortURL);
 
-        // Also copy to clipboard
         await copyToClipboard(shortURL);
         showToast('Shorter URL created! The current page URL has been updated and copied to clipboard.', 'success', 4000);
     } catch (e) {
@@ -4294,7 +4263,7 @@ async function createShorterURL(fullscreen) {
     }
 }
 
-async function shareManagedUrl(fullscreen = false, expiresAt = null) {
+async function shareManagedUrl(fullscreen = false, expiresAt) {
     if (!requireShareableProject()) return;
 
     if (!managedSharingAvailable()) {
@@ -4321,7 +4290,7 @@ async function shareManagedUrl(fullscreen = false, expiresAt = null) {
             reason: 'Managed Short Link created in FORGE IDE'
         };
 
-        if (expiresAt) {
+        if (expiresAt !== undefined) {
             packet.changes.expiresAt = expiresAt;
         }
 
@@ -4331,9 +4300,7 @@ async function shareManagedUrl(fullscreen = false, expiresAt = null) {
             let submitted = null;
             try {
                 submitted = await shareResponse.json();
-            } catch (error) {
-                // A 202 still means the request was accepted for processing.
-            }
+            } catch (error) {}
 
             const payloadHash = await managedSharePayloadHash(packet.data);
             const pendingMetadata = {
@@ -4488,7 +4455,7 @@ async function throwUnavailableManagedShare(response) {
         const errorBody = await response.json();
         reason = errorBody && errorBody.error;
     } catch (e) {
-        // Fall through to the generic unavailable message.
+
     }
 
     if (reason === 'Share tombstoned') {
@@ -4498,6 +4465,32 @@ async function throwUnavailableManagedShare(response) {
         throw new Error('Share has expired');
     }
     throw new Error('Share is no longer available');
+}
+
+async function loadNamedShare(value) {
+    const name = String(value || '').trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(name)) {
+        throw new Error('Invalid named share');
+    }
+    const git = window.ForgeManagedShareGit;
+    if (!git?.isConfigured?.() || !git.readPublicTrusted) {
+        throw new Error('Named shares are not available');
+    }
+    const file = await git.readPublicTrusted(`aliases/${name}.json`);
+    if (!file) throw new Error('Named share was not found');
+
+    let alias;
+    try { alias = JSON.parse(file.text); }
+    catch (e) { throw new Error('Invalid named share metadata'); }
+
+    if (!alias || alias.alias !== name ||
+        !/^[a-f0-9]{40}$/i.test(alias.payloadHash || '') ||
+        !Number.isInteger(alias.version) || alias.version < 1) {
+        throw new Error('Invalid named share metadata');
+    }
+    const share = await loadManagedShare(alias.payloadHash);
+    currentNamedShareMetadata = alias;
+    return share;
 }
 
 async function loadManagedShare(payloadHash) {
@@ -4714,6 +4707,8 @@ function openManagedShareManageModal() {
     const titleInput = document.getElementById('managedShareManageTitle');
     const expirationInput =
         document.getElementById('managedShareManageExpiration');
+    const never =
+        document.getElementById('managedShareManageNeverExpires');
     const identity = document.getElementById('managedShareManageIdentity');
     const deletionButton =
         document.getElementById('managedShareManageDeleteBtn');
@@ -4722,6 +4717,7 @@ function openManagedShareManageModal() {
         !modal ||
         !titleInput ||
         !expirationInput ||
+        !never ||
         !identity ||
         !deletionButton
     ) {
@@ -4734,7 +4730,18 @@ function openManagedShareManageModal() {
         (currentManagedShareMetadata.state || 'active') !== 'active';
     deletionButton.disabled = false;
 
+    const namedButton = document.getElementById('managedShareNamedBtn');
+    const git = window.ForgeManagedShareGit;
+    if (namedButton) {
+        namedButton.hidden = !(
+            git && git.isConfigured && git.isConfigured() &&
+            typeof git.signAliasRequest === 'function'
+        );
+    }
+
     const expiresMs = Date.parse(currentManagedShareMetadata.expiresAt);
+    never.checked = !Number.isFinite(expiresMs);
+    expirationInput.disabled = never.checked;
     expirationInput.min = toLocalDateTimeInputValue(
         new Date(Date.now() + 60 * 1000)
     );
@@ -4755,6 +4762,64 @@ function openManagedShareManageModal() {
     });
 }
 
+async function saveNamedShare() {
+    const git = window.ForgeManagedShareGit;
+    if (!currentManagedShareMetadata ||
+        !git?.isConfigured?.() || !git.signAliasRequest) {
+        showToast('Named Shares are not available.', 'error', 3500);
+        return;
+    }
+
+    const raw = prompt('Named Share name', currentNamedShareMetadata?.alias || '');
+    if (raw === null) return;
+    const alias = raw.trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(alias) ||
+        ['admin', 'api', 'forge'].includes(alias)) {
+        showToast('Use 3-64 lowercase letters, numbers, _ or -.', 'error', 4000);
+        return;
+    }
+
+    try {
+        const file = await git.readPublicTrusted(`aliases/${alias}.json`);
+        const record = file ? JSON.parse(file.text) : null;
+        if (record && (!Number.isInteger(record.version) || record.version < 1)) {
+            throw new Error('Invalid named share metadata');
+        }
+        const id = requireManagedShareRequestId();
+        if (!id) return;
+
+        const packet = {
+            id,
+            type: record ? 'share.alias.update' : 'share.alias.make',
+            payloadHash: currentManagedShareMetadata.payloadHash,
+            alias,
+            projectId: vfs.projectId,
+            reason: 'Named Share set in FORGE IDE'
+        };
+        if (record) packet.expectedVersion = record.version;
+
+        const response = await sendManagedShareRequest(
+            await git.signAliasRequest(packet)
+        );
+        if (!response.ok) {
+            const {detail} = await readManagedShareError(response);
+            throw new Error(`request failed${detail}`);
+        }
+
+        const url = `${location.origin}${location.pathname}#namedShare=${alias}` +
+            (getURLParam('fullscreen') ? '&fullscreen=true' : '') +
+            extractCarriedParams();
+        await copyToClipboard(url);
+        showToast(
+            `Named Share ${response.status === 202 ? 'request submitted' : 'saved'}. URL copied.`,
+            response.status === 202 ? 'warning' : 'success',
+            5000
+        );
+    } catch (e) {
+        showToast('Named Share error: ' + e.message, 'error', 5000);
+    }
+}
+
 function closeManagedShareManageModal() {
     ForgeModal.close('managedShareManageModal');
 }
@@ -4772,7 +4837,7 @@ async function readManagedShareError(response) {
     try {
         errorBody = await response.json();
     } catch {
-        // Preserve a useful status-only error for non-JSON responses.
+
     }
 
     return {
@@ -4866,19 +4931,24 @@ async function saveManagedShareMetadata() {
     const titleInput = document.getElementById('managedShareManageTitle');
     const expirationInput =
         document.getElementById('managedShareManageExpiration');
+    const never =
+        document.getElementById('managedShareManageNeverExpires');
     const saveButton = document.getElementById('managedShareManageSaveBtn');
 
-    if (!titleInput || !expirationInput) {
+    if (!titleInput || !expirationInput || !never) {
         showToast('Short Link management UI is unavailable.', 'error', 3500);
         return;
     }
 
     const proposedTitle = titleInput.value.trim() || null;
-    const proposedExpiresMs = new Date(expirationInput.value).getTime();
+    const proposedExpiresMs = never.checked
+        ? null
+        : new Date(expirationInput.value).getTime();
 
     if (
-        !Number.isFinite(proposedExpiresMs) ||
-        proposedExpiresMs <= Date.now()
+        proposedExpiresMs !== null &&
+        (!Number.isFinite(proposedExpiresMs) ||
+        proposedExpiresMs <= Date.now())
     ) {
         showToast(
             'Choose a future expiration date and time.',
@@ -4888,7 +4958,9 @@ async function saveManagedShareMetadata() {
         return;
     }
 
-    const proposedExpiresAt = new Date(proposedExpiresMs).toISOString();
+    const proposedExpiresAt = proposedExpiresMs === null
+        ? null
+        : new Date(proposedExpiresMs).toISOString();
     const currentTitle = currentManagedShareMetadata.title == null
         ? null
         : String(currentManagedShareMetadata.title).trim() || null;
@@ -8977,36 +9049,29 @@ window.addEventListener('load', async () => {
   applyFeatureVisibility();
   openManagedShareAdminIfRequested();
 
-  // Populate examples dropdown now that we know server features
   populateExamplesDropdown();
 
-  // Reveal UI immediately if no fullscreen load is happening
-  // (fullscreen loads reveal after content is ready, below)
   if (!getURLParam('fullscreen') && !getURLParam('html') &&
       !getURLParam('htmlsha1') && !getURLParam('payload') &&
       !getURLParam('payloadsha1') && !getURLParam('share') &&
-      !getURLParam('loadExample')) {
+      !getURLParam('namedShare') && !getURLParam('loadExample')) {
     document.documentElement.classList.remove('initializing');
   }
 
-  // cli is an additive UI flag. It may appear by itself or alongside project,
-  // preview-navigation, and other hash parameters without replacing them.
+
   const startupHashParams = new URLSearchParams(location.hash.substring(1));
   if (startupHashParams.has('cli')) {
     openCliInstallModal();
   }
 
 
-  // URL-driven GitLab imports are intentionally unsupported. GitLab project
-  // selection happens through the IDE and the credential destination is fixed
-  // by deployment configuration.
 
   const clearStartupLoading = () => {
     document.body.classList.remove('preload-check', 'loading-fullscreen');
     document.documentElement.classList.remove('loading-fullscreen');
   };
 
-  // Check for example to load
+
   const exampleName = getURLParam('loadExample');
   if (exampleName) {
     await loadExampleProject(exampleName);
@@ -9018,10 +9083,11 @@ window.addEventListener('load', async () => {
   let payload = getURLParam('payload');
   let payloadsha1 = getURLParam('payloadsha1');
   const shareHash = getURLParam('share');
+  const namedShare = getURLParam('namedShare');
   const shorten = getURLParam('shorten');
   let autoFullscreen = getURLParam('fullscreen');
     
-    if(!payload && !payloadsha1 && !shareHash){
+    if(!payload && !payloadsha1 && !shareHash && !namedShare){
         let html=getURLParam('html');
         let htmlsha1=getURLParam('htmlsha1');
         if(html){
@@ -9034,30 +9100,27 @@ window.addEventListener('load', async () => {
     }
     
     document.body.classList.remove('preload-check');
-    if (autoFullscreen && (payload || payloadsha1 || shareHash)) {
+    if (autoFullscreen && (payload || payloadsha1 || shareHash || namedShare)) {
         document.body.classList.add('loading-fullscreen');
     }
     
     let parsed;
     let managedShareMetadata = null;
 
-    // Managed shares resolve metadata first, then retrieve the same
-    // content-addressed payload used by legacy Short URLs.
-    if (shareHash) {
+    if (namedShare || shareHash) {
         try {
-            const managedShare = await loadManagedShare(shareHash);
+            currentNamedShareMetadata = null;
+            const managedShare = namedShare
+                ? await loadNamedShare(namedShare)
+                : await loadManagedShare(shareHash);
             parsed = managedShare.parsed;
             managedShareMetadata = managedShare.metadata;
             showManagedShareExpirationNotice(managedShare.metadata);
         } catch (e) {
             clearStartupLoading();
-            showManagedShareUnavailableState(e, shareHash);
-            showToast(
-                'Error loading managed share: ' + e.message,
-                'error',
-                5000
-            );
-            console.error('Managed share lookup error:', e);
+            if (shareHash) showManagedShareUnavailableState(e, shareHash);
+            showToast('Error loading share: ' + e.message, 'error', 5000);
+            console.error('Share lookup error:', e);
         }
     }
     // Handle legacy SHA1 lookup
@@ -9083,10 +9146,7 @@ window.addEventListener('load', async () => {
         try{
             jsonInput.value = JSON.stringify(parsed, null, 2);
 
-            // URL-driven project loads must preserve their share/payload identity
-            // and navigation metadata. Use the canonical project loader directly
-            // instead of simulating a Load JSON button click; the loader restores
-            // &url= and &previewHash= after the VFS is populated.
+
             loadProjectFromParsed(parsed, {
                 preserveUrl: true,
                 managedShareMetadata
@@ -9095,19 +9155,19 @@ window.addEventListener('load', async () => {
                 window.markForgeContentAttention?.();
             }
             
-            // Only show toast if not in fullscreen mode
+
             if (!autoFullscreen) {
                 showToast('Project loaded from URL', 'success');
             }
 
-            // Auto-shorten if requested
+
             if (payload && shorten) {
                 setTimeout(() => {
                     createShorterURL(autoFullscreen);
                 }, 500);
             }
 
-            // Auto-fullscreen if requested
+
             if (autoFullscreen) setFullscreen(true);
         }catch(e){
             clearStartupLoading();
@@ -9121,7 +9181,7 @@ window.addEventListener('load', async () => {
     document.documentElement.classList.remove('initializing');
 });
 
-// -- Load example project --------------------------------------------------
+
 
 function loadExampleProject(name) {
     checkUnsavedChanges(async () => {
@@ -9136,7 +9196,7 @@ function loadExampleProject(name) {
             // (loadProjectFromParsed may overwrite the URL with a
             // payload hash, so set it first as a clean base)
             const url = new URL(window.location.href);
-            // Keep fullscreen presentation state while clearing project payload state.
+
             url.hash = getURLParam('fullscreen') ? 'fullscreen=true' : '';
             url.searchParams.set('loadExample', name);
             window.history.replaceState({}, '', url.toString());
@@ -9150,7 +9210,7 @@ function loadExampleProject(name) {
     });
 }
 
-// -- Populate examples dropdown --------------------------------------------
+
 
 async function populateExamplesDropdown() {
     const menu = document.getElementById('examplesDropdownMenu');
@@ -9236,6 +9296,7 @@ const IMPORT_PARAMS = [
     'payload',
     'payloadsha1',
     'share',
+    'namedShare',
     'html',
     'htmlsha1'
 ];
@@ -9243,14 +9304,12 @@ const IMPORT_PARAMS = [
 window.addEventListener('hashchange', async event => {
     const params = new URLSearchParams(location.hash.substring(1));
 
-    // cli is an additive UI flag. Open its modal without preventing any
-    // project/import parameters in the same hash from being processed.
+
     if (params.has('cli')) {
         openCliInstallModal();
     }
 
-    // Preview navigation also lives in the parent hash. Only reload a project
-    // when its import identity actually changed, not for &url=/&previewHash=.
+
     const oldParams = new URLSearchParams(
         new URL(event.oldURL).hash.substring(1)
     );
@@ -9259,28 +9318,30 @@ window.addEventListener('hashchange', async event => {
     const hasImportParam = IMPORT_PARAMS.some(p => params.has(p));
     if (!hasImportParam) return;
 
-    // -- Example load ------------------------------------------------------
+
     const exampleName = params.get('loadExample');
     if (exampleName) {
         await loadExampleProject(exampleName);
         return;
     }
 
-    // -- Payload load ------------------------------------------------------
+
     const payload     = params.get('payload') || params.get('html');
     const payloadsha1 = params.get('payloadsha1') || params.get('htmlsha1');
     const shareHash   = params.get('share');
+    const namedShare  = params.get('namedShare');
 
-    if (shareHash) {
+    if (namedShare || shareHash) {
         try {
             showToast('Loading managed share…', 'info', 3000);
-            const managedShare = await loadManagedShare(shareHash);
+            currentNamedShareMetadata = null;
+            const managedShare = namedShare
+                ? await loadNamedShare(namedShare)
+                : await loadManagedShare(shareHash);
             const parsed = managedShare.parsed;
             showManagedShareExpirationNotice(managedShare.metadata);
             if (parsed && Array.isArray(parsed.files)) {
-                // The hash is the managed-share identity and may also carry
-                // &url=/&previewHash= navigation state. Do not erase it while
-                // loading the project it describes.
+
                 loadProjectFromParsed(parsed, {
                     preserveUrl: true,
                     managedShareMetadata: managedShare.metadata
@@ -9290,9 +9351,9 @@ window.addEventListener('hashchange', async event => {
                 }
             }
         } catch (e) {
-            showManagedShareUnavailableState(e, shareHash);
+            if (shareHash) showManagedShareUnavailableState(e, shareHash);
             showToast(
-                'Error loading managed share: ' + e.message,
+                'Error loading share: ' + e.message,
                 'error',
                 5000
             );

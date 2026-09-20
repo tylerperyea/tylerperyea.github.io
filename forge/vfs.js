@@ -1,14 +1,23 @@
-// Virtual File System - Forge Spec v1.0.0 compliant
 const FORGE_SPEC_VERSION = "1.0.0";
+
+function newProjectId() {
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    b[6] = b[6] & 15 | 64;
+    b[8] = b[8] & 63 | 128;
+    const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+}
 
 class VirtualFileSystem {
     constructor() {
-        this.files = new Map();      // path -> contents (string or base64 string)
-        this.blobUrls = new Map();   // path -> blob URL
-        this.fileMeta = new Map();   // path -> { encoding, excluded, url, description }
+        this.projectId = newProjectId();
+        this.files = new Map();
+        this.blobUrls = new Map();
+        this.fileMeta = new Map();
     }
 
     clear() {
+        this.projectId = newProjectId();
         for (let url of this.blobUrls.values()) {
             URL.revokeObjectURL(url);
         }
@@ -17,14 +26,13 @@ class VirtualFileSystem {
         this.fileMeta.clear();
     }
 
-    // Normalize path to always start with /
+
     _normPath(path) {
         if (!path) return '/';
         return path.startsWith('/') ? path : '/' + path;
     }
 
-    // Reject paths that are ambiguous or unsafe for VFS path semantics.
-    // Punctuation, spaces, and Unicode are intentionally allowed.
+
     _validatePath(path) {
         if (typeof path !== 'string' || path.length === 0) {
             throw new Error('Invalid file path: path must be a non-empty string');
@@ -46,24 +54,18 @@ class VirtualFileSystem {
         }
     }
 
-    /**
-     * Add or update a file in the VFS.
-     * @param {string} path
-     * @param {string} contents - text content, or base64 string if encoding='base64'
-     * @param {object} meta - { encoding, excluded, url, description }
-     */
     addFile(path, contents, meta = {}) {
         this._validatePath(path);
         path = this._normPath(path);
 
-        // Revoke old blob URL if exists
+
         const oldBlob = this.blobUrls.get(path);
         if (oldBlob) URL.revokeObjectURL(oldBlob);
 
-        // Store contents (may be null/undefined for excluded files)
+
         this.files.set(path, contents !== undefined ? contents : '');
 
-        // Store metadata - normalize fields
+
         const normalizedMeta = {
             encoding:    meta.encoding    || null,
             excluded:    meta.excluded    || false,
@@ -72,7 +74,7 @@ class VirtualFileSystem {
         };
         this.fileMeta.set(path, normalizedMeta);
 
-        // Create blob URL (skip for excluded files with no real content)
+
         if (!normalizedMeta.excluded || contents) {
             this._createBlobUrl(path, contents, normalizedMeta.encoding);
         }
@@ -342,25 +344,23 @@ class VirtualFileSystem {
         return htmlFiles.length > 0 ? htmlFiles[0].path : null;
     }
 
-    // --- Serialization ---
-
     toJSON() {
         const files = [];
         for (let [path, contents] of this.files.entries()) {
             const meta = this.getMeta(path);
             const fileObj = { path };
 
-            // Optional fields - only emit when present
+
             if (meta.encoding)    fileObj.encoding    = meta.encoding;
             if (meta.excluded)    fileObj.excluded    = true;
             if (meta.url)         fileObj.url         = meta.url;
             if (meta.description) fileObj.description = meta.description;
 
-            // Contents omitted for excluded files with no real content
+
             if (!meta.excluded) {
                 fileObj.contents = contents;
             } else if (contents && !contents.startsWith('[EXCLUDED')) {
-                // Has real content even though marked excluded - include it
+
                 fileObj.contents = contents;
             }
 
@@ -369,26 +369,27 @@ class VirtualFileSystem {
 
         return {
             specVersion: FORGE_SPEC_VERSION,
+            projectId: this.projectId,
             title: typeof projectTitle !== 'undefined' ? projectTitle : 'untitled',
             files
         };
     }
 
-    /**
-     * Load from a parsed forge JSON object.
-     * Handles spec v1.1.0 and legacy formats.
-     */
     loadFromJSON(parsed, merge = false) {
         if (!merge) this.clear();
         let files = [];
         let title = null;
 
         if (Array.isArray(parsed)) {
-            // Legacy: bare array of files
             files = parsed;
         } else {
             files = parsed.files || [];
             title = parsed.title || null;
+            if (
+                !merge &&
+                typeof parsed.projectId === 'string' &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parsed.projectId)
+            ) this.projectId = parsed.projectId.toLowerCase();
         }
 
         let loadedCount = 0;
