@@ -482,7 +482,7 @@
   function requireTrustedPath(path) {
     const value = clean(path);
     const parts = value ? value.split('/') : [];
-    const roots = new Set(['payloads', 'shares', 'events', 'requests']);
+    const roots=new Set(['payloads','shares','events','requests','aliases']);
 
     if (
       parts.length !== 2 ||
