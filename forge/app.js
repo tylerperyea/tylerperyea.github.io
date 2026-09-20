@@ -3871,8 +3871,8 @@ function openManagedShareManageModal() {
     if (namedAvailable && namedInput) {
         namedInput.value = currentNamedShareMetadata?.alias || '';
         if (namedStatus) namedStatus.textContent = currentNamedShareMetadata
-            ? `This browser controls "${currentNamedShareMetadata.alias}".`
-            : 'Choose a stable name for this published Short Link.';
+            ? `Edits are local until published. Publish to move "${currentNamedShareMetadata.alias}" to the current version.`
+            : 'Choose a stable name and publish the current project to it.';
         updateNamedSharePreview();
     }
     const expiresMs = Date.parse(currentManagedShareMetadata.expiresAt);
@@ -3909,9 +3909,79 @@ function updateNamedSharePreview() {
     if (button) {
         button.disabled = !valid;
         button.textContent = currentNamedShareMetadata?.alias === alias
-            ? 'Update Named Share'
-            : 'Request Named Share';
+            ? 'Publish Current Version'
+            : 'Publish Named Share';
     }
+}
+async function publishCurrentNamedShareTarget(git, status) {
+    const data = (await compress(JSON.stringify(vfs.toJSON())))
+        .replace(/ /g, '+');
+    const payloadHash = await managedSharePayloadHash(data);
+    let shareFile = await git.readPublicTrusted(
+        `shares/${payloadHash}.json`
+    );
+    if (shareFile) {
+        setCurrentManagedShareMetadata(JSON.parse(shareFile.text));
+        return payloadHash;
+    }
+    if (status) status.textContent = 'Publishing current version...';
+    const id = requireManagedShareRequestId();
+    if (!id) throw new Error('Unable to create publication request');
+    const packet = {
+        id,
+        type: 'share.make',
+        data,
+        changes: {title: projectTitle || null},
+        reason: 'Current version published for Named Share'
+    };
+    const response = await sendManagedShareRequest(packet);
+    if (!response.ok) {
+        const {detail} = await readManagedShareError(response);
+        throw new Error(`version publication failed${detail}`);
+    }
+    if (response.status !== 202) return payloadHash;
+    let submitted = null;
+    try { submitted = await response.json(); } catch {}
+    savePendingManagedShare(payloadHash, {
+        data,
+        metadata: {
+            schemaVersion: 1,
+            version: 0,
+            payloadHash,
+            title: packet.changes.title,
+            origin: 'managed',
+            expiresAt: null,
+            state: 'active',
+            pending: true,
+            requestId: submitted?.requestId || id
+        }
+    });
+    for (let i = 0; i < 30; i++) {
+        shareFile = await git.readPublicTrusted(
+            `shares/${payloadHash}.json`
+        );
+        if (shareFile) {
+            removePendingManagedShare(payloadHash);
+            setCurrentManagedShareMetadata(JSON.parse(shareFile.text));
+            return payloadHash;
+        }
+        const resultFile = await git.readPublicTrusted(
+            `requests/${id}.json`
+        );
+        if (resultFile) {
+            const result = JSON.parse(resultFile.text);
+            if (['rejected', 'denied'].includes(result.status)) {
+                throw new Error(
+                    result.error || 'version publication rejected'
+                );
+            }
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    throw new Error(
+        'Current version is still awaiting publication. ' +
+        'The named link has not moved yet.'
+    );
 }
 async function saveNamedShare() {
     const git = window.ForgeManagedShareGit;
@@ -3930,19 +4000,27 @@ async function saveNamedShare() {
         input?.focus();
         return;
     }
-    if (status) status.textContent = 'Checking named link...';
+    if (status) status.textContent = 'Preparing current version...';
     try {
+        const targetHash =
+            await publishCurrentNamedShareTarget(git, status);
+        if (status) status.textContent = 'Checking named link...';
         const file = await git.readPublicTrusted(`aliases/${alias}.json`);
         const record = file ? JSON.parse(file.text) : null;
         if (record && (!Number.isInteger(record.version) || record.version < 1)) {
             throw new Error('Invalid named share metadata');
+        }
+        if (record && record.payloadHash === targetHash) {
+            if (status) status.textContent =
+                'Named Share already points to the current version.';
+            return;
         }
         const id = requireManagedShareRequestId();
         if (!id) return;
         const packet = {
             id,
             type: record ? 'share.alias.update' : 'share.alias.make',
-            payloadHash: currentManagedShareMetadata.payloadHash,
+            payloadHash: targetHash,
             alias,
             projectId: vfs.projectId,
             reason: 'Named Share set in FORGE IDE'
@@ -3956,8 +4034,8 @@ async function saveNamedShare() {
             throw new Error(`request failed${detail}`);
         }
         if (status) status.textContent = response.status === 202
-            ? 'Request submitted. This link becomes public after processing.'
-            : 'Named Share saved.';
+            ? 'Current version published. Named link update submitted.'
+            : 'Named Share now points to the current version.';
         showToast(
             `Named Share ${response.status === 202 ? 'request submitted' : 'saved'}.`,
             response.status === 202 ? 'warning' : 'success',
