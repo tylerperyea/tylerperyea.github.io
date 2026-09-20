@@ -602,12 +602,16 @@ textarea {
     background: #1e1e1e;
 }
 .preview-header {
-    padding: 10px 15px;
+    padding: 6px 10px;
     background: #2d2d30;
     border-bottom: 1px solid #3e3e42;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
+}
+.preview-share-dropdown .dropdown-menu {
+    left: auto;
+    right: 0;
 }
 .managed-share-expiration-badge {
     flex: 0 0 auto;
@@ -632,6 +636,7 @@ textarea {
 }
 .url-bar {
     flex: 1;
+    min-width: 0;
     background: #3c3c3c;
     color: #d4d4d4;
     border: 1px solid #3e3e42;

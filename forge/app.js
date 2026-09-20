@@ -4297,6 +4297,9 @@ function updateManagedShareExpirationBadge(metadata) {
     badge.hidden = true;
     badge.textContent = '';
     badge.title = '';
+    badge.onclick = metadata && metadata.pending !== true
+        ? openManagedShareManageModal
+        : null;
     badge.classList.remove('warning', 'urgent');
     if (metadata && metadata.pending === true) {
         badge.textContent = '⏳ Short Link · pending publication';
@@ -4307,7 +4310,14 @@ function updateManagedShareExpirationBadge(metadata) {
         return;
     }
     const expiration = managedShareFutureExpiration(metadata);
-    if (!expiration) return;
+    if (!expiration) {
+        if (metadata) {
+            badge.textContent = 'Short Link';
+            badge.title = 'Manage this Short Link';
+            badge.hidden = false;
+        }
+        return;
+    }
     const { expiresMs, remainingMs } = expiration;
     const hourMs = 60 * 60 * 1000;
     const dayMs = 24 * hourMs;
@@ -4319,7 +4329,7 @@ function updateManagedShareExpirationBadge(metadata) {
         minute: '2-digit'
     });
     badge.textContent = `⏱ Short Link · expires ${shortDeadline}`;
-    badge.title = `This managed Short Link expires ${deadline.toLocaleString()}.`;
+    badge.title = `Expires ${deadline.toLocaleString()}. Click to manage.`;
     if (remainingMs <= hourMs) {
         badge.classList.add('urgent');
     } else if (remainingMs <= dayMs) {

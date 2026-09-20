@@ -513,25 +513,28 @@
           <button onclick="copyFullscreenUrl()" title="Copy fullscreen share URL" style="margin-left:6px;">🔗 Share</button>
         </div>
         <div class="preview-header">
-          <span style="font-size:0.9em; color:#949494;">Preview:</span>
-          <input type="text" id="urlBar" class="url-bar" value="No project loaded">
-          <span id="managedShareExpirationBadge" class="managed-share-expiration-badge" hidden></span>
-          <button
-            id="manageManagedShareBtn"
-            title="Edit this managed Short Link's title and expiration"
-            class="secondary preview-action-btn"
-            onclick="openManagedShareManageModal()"
-            hidden
-          >⚙ Manage</button>
-          <button id="publishNamedShareBtn" title="Publish edits to this Named Share"
-                  class="secondary preview-action-btn" hidden
-                  onclick="this.disabled=true;document.getElementById('managedShareNamedInput').value=getURLParam('namedShare');saveNamedShare().finally(()=>this.disabled=false)">Publish Current Version</button>
           <button id="previewBackBtn" title="Back in preview" class="secondary preview-action-btn">←</button>
           <button id="previewForwardBtn" title="Forward in preview" class="secondary preview-action-btn">→</button>
-          <button id="refreshPreviewBtn" title="Refresh the current preview" class="secondary preview-action-btn">↻ Refresh</button>
-          <button id="shareCommentBtn" title="Add a comment and copy a self-contained URL" class="secondary preview-action-btn">💬 Comment URL</button>
-          <button id="shareLongUrlBtn"  title="Copy a self-contained long link (nothing stored server-side)" class="secondary preview-action-btn">🔗 Long Link</button>
-          <button id="shareShortUrlBtn" title="Copy a short link stored by FORGE" class="secondary preview-action-btn" hidden>⚡ Short Link</button>
+          <button id="refreshPreviewBtn" title="Refresh the current preview" class="secondary preview-action-btn">↻</button>
+          <input type="text" id="urlBar" class="url-bar" value="No project loaded">
+          <span id="managedShareExpirationBadge" class="managed-share-expiration-badge" hidden></span>
+          <button id="publishNamedShareBtn" title="Publish edits to this Named Share"
+                  class="secondary preview-action-btn" hidden
+                  onclick="this.disabled=true;document.getElementById('managedShareNamedInput').value=getURLParam('namedShare');saveNamedShare().finally(()=>this.disabled=false)">Publish Version</button>
+          <div class="forge-dropdown preview-share-dropdown" :class="{ open: isOpen('dd-preview-share') }">
+            <button class="secondary preview-action-btn dropdown-trigger"
+                    @click.stop="toggleDropdown('dd-preview-share')">Share ▾</button>
+            <div class="dropdown-menu">
+              <div class="dropdown-item" id="manageManagedShareBtn" hidden
+                   onclick="openManagedShareManageModal(); toggleDropdown('dd-preview-share')">⚙ Manage Short Link</div>
+              <div class="dropdown-item" id="shareCommentBtn"
+                   onclick="toggleDropdown('dd-preview-share')">💬 Comment URL</div>
+              <div class="dropdown-item" id="shareLongUrlBtn"
+                   onclick="toggleDropdown('dd-preview-share')">🔗 Long Link</div>
+              <div class="dropdown-item" id="shareShortUrlBtn" hidden
+                   onclick="toggleDropdown('dd-preview-share')">⚡ Short Link</div>
+            </div>
+          </div>
           <button id="fullscreenBtn" title="Fullscreen preview (Esc to exit)">⛶ Fullscreen</button>
         </div>
         <div class="preview-surface">
