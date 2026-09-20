@@ -2280,6 +2280,17 @@ function managedShareUpdatesAvailable() {
     )
   ) || gitManagedShareCreateAvailable();
 }
+function namedSharingAvailable() {
+  const git = window.ForgeManagedShareGit;
+  return !!(
+    git?.isConfigured?.() &&
+    typeof git.signAliasRequest === 'function'
+  );
+}
+function validNamedShareAlias(alias) {
+  return /^[a-z0-9][a-z0-9_-]{2,63}$/.test(alias) &&
+    !['admin', 'api', 'forge'].includes(alias);
+}
 function normalizeForgeEndpoint(value, fallback) {
   if (typeof value !== 'string' || !value.trim()) return fallback;
   const endpoint = value.trim();
@@ -3370,23 +3381,22 @@ function requestShortLink(fullscreen = false) {
     }
     _pendingShortUrlFullscreen = fullscreen === true;
     prepareShortLinkExpirationPicker();
+    const namedGroup = document.getElementById('shortUrlNamedGroup');
+    const namedInput = document.getElementById('shortUrlNamedInput');
+    if (namedGroup) namedGroup.hidden = !namedSharingAvailable();
+    if (namedInput) namedInput.value = '';
     ForgeModal.open('shortUrlWarningModal', {
         initialFocus: '#shortUrlWarningConfirmBtn',
         closeOnBackdrop: true,
         onRequestClose: closeShortUrlWarningModal
     });
 }
-async function shareShortUrl() {
-    requestShortLink(false);
-}
-function showShortUrlWarning() {
-    requestShortLink(false);
-}
+
 function closeShortUrlWarningModal() {
     ForgeModal.close('shortUrlWarningModal');
     _pendingShortUrlFullscreen = false;
 }
-// Wire up short URL warning modal buttons
+
 document.getElementById('shortUrlWarningCancelBtn')
     .addEventListener('click', closeShortUrlWarningModal);
 document.getElementById('shortUrlWarningConfirmBtn').addEventListener('click', async () => {
@@ -3415,11 +3425,20 @@ document.getElementById('shortUrlWarningConfirmBtn').addEventListener('click', a
             expiresAt = new Date(selectedExpiresAtMs).toISOString();
         }
     }
+    const namedInput = document.getElementById('shortUrlNamedInput');
+    const alias = namedSharingAvailable()
+        ? (namedInput?.value || '').trim().toLowerCase()
+        : '';
+    if (alias && !validNamedShareAlias(alias)) {
+        showToast('Use 3-64 lowercase letters, numbers, _ or -.', 'error', 4000);
+        namedInput?.focus();
+        return;
+    }
     ForgeModal.close('shortUrlWarningModal');
     const fullscreen = _pendingShortUrlFullscreen;
     _pendingShortUrlFullscreen = false;
     if (managedSharingAvailable()) {
-        await shareManagedUrl(fullscreen, expiresAt);
+        await shareManagedUrl(fullscreen, expiresAt, alias);
     } else {
         await createShorterURL(fullscreen);
     }
@@ -3456,7 +3475,19 @@ async function createShorterURL(fullscreen) {
         console.error('createShorterURL error:', e);
     }
 }
-async function shareManagedUrl(fullscreen = false, expiresAt) {
+async function finishInitialNamedShare(alias, fullscreen) {
+    if (!alias) return false;
+    const input = document.getElementById('managedShareNamedInput');
+    if (!input) return false;
+    input.value = alias;
+    if (!await saveNamedShare()) return false;
+    const url = `${location.origin}${location.pathname}#namedShare=${alias}` +
+        (fullscreen ? '&fullscreen=true' : '') + extractCarriedParams();
+    history.replaceState(history.state, '', url);
+    await copyToClipboard(url);
+    return true;
+}
+async function shareManagedUrl(fullscreen = false, expiresAt, alias = '') {
     if (!requireShareableProject()) return;
     if (!managedSharingAvailable()) {
         showToast('Managed sharing is not available on this deployment.', 'error', 4000);
@@ -3513,16 +3544,47 @@ async function shareManagedUrl(fullscreen = false, expiresAt) {
                 window.location.origin + window.location.pathname +
                 '#share=' + payloadHash + fullscreenParam + carried;
             window.history.replaceState(window.history.state, '', shareURL);
-            await copyToClipboard(shareURL);
-            showToast(
-                cached
-                    ? 'Short Link pending publication — URL copied. ' +
-                      'Until published, it is visible only in this browser.'
-                    : 'Short Link pending publication — URL copied, but ' +
-                      'this browser could not save the local pending copy.',
-                'warning',
-                7000
-            );
+            if (!alias) {
+                await copyToClipboard(shareURL);
+                showToast(
+                    cached
+                        ? 'Short Link pending publication - URL copied.'
+                        : 'Short Link pending publication - URL copied, but ' +
+                          'this browser could not save the local pending copy.',
+                    'warning',
+                    5000
+                );
+            }
+            const git = window.ForgeManagedShareGit;
+            if (
+                cached &&
+                git?.isConfigured?.() &&
+                typeof git.readPublicTrusted === 'function'
+            ) {
+                const published =
+                    await waitForGitManagedSharePublication(
+                        git,
+                        pendingMetadata.requestId,
+                        payloadHash
+                    );
+                if (published) {
+                    if (
+                        alias &&
+                        await finishInitialNamedShare(alias, fullscreen)
+                    ) return;
+                    showToast(
+                        'Short Link published and ready.',
+                        'success',
+                        3500
+                    );
+                } else {
+                    showToast(
+                        'Short Link is still awaiting publication.',
+                        'warning',
+                        5000
+                    );
+                }
+            }
             return;
         }
         let shareResult;
@@ -3583,15 +3645,17 @@ async function shareManagedUrl(fullscreen = false, expiresAt) {
             shareResult = await shareResponse.json();
         }
         const payloadHash = shareResult.payloadHash;
-        // POST /share and the safe 409-reuse path both return the canonical
-        // public share record. Retain it now so metadata can be managed
-        // immediately without reloading the project or issuing another GET.
+
         setCurrentManagedShareMetadata(shareResult);
         const fullscreenParam = fullscreen ? '&fullscreen=true' : '';
         const carried = extractCarriedParams();
         const shareURL = window.location.origin + window.location.pathname +
                          '#share=' + payloadHash + fullscreenParam + carried;
         window.history.replaceState(window.history.state, '', shareURL);
+        if (
+            alias &&
+            await finishInitialNamedShare(alias, fullscreen)
+        ) return;
         await copyToClipboard(shareURL);
         if (reusedExistingShare) {
             showToast(
@@ -3863,11 +3927,7 @@ function openManagedShareManageModal() {
     const namedGroup = document.getElementById('managedShareNamedGroup');
     const namedInput = document.getElementById('managedShareNamedInput');
     const namedStatus = document.getElementById('managedShareNamedStatus');
-    const git = window.ForgeManagedShareGit;
-    const namedAvailable = !!(
-        git && git.isConfigured && git.isConfigured() &&
-        typeof git.signAliasRequest === 'function'
-    );
+    const namedAvailable = namedSharingAvailable();
     if (namedButton) namedButton.hidden = !namedAvailable;
     if (namedGroup) namedGroup.hidden = !namedAvailable;
     if (namedAvailable && namedInput) {
@@ -3901,8 +3961,7 @@ function updateNamedSharePreview() {
     const output = document.getElementById('managedShareNamedUrl');
     const button = document.getElementById('managedShareNamedBtn');
     const alias = (input?.value || '').trim().toLowerCase();
-    const valid = /^[a-z0-9][a-z0-9_-]{2,63}$/.test(alias) &&
-        !['admin', 'api', 'forge'].includes(alias);
+    const valid = validNamedShareAlias(alias);
     if (output) output.value = valid
         ? `${location.origin}${location.pathname}#namedShare=${alias}` +
           (getURLParam('fullscreen') ? '&fullscreen=true' : '') +
@@ -3913,6 +3972,61 @@ function updateNamedSharePreview() {
         button.textContent = currentNamedShareMetadata?.alias === alias
             ? 'Publish Current Version'
             : 'Publish Named Share';
+    }
+}
+async function waitForGitManagedRequest(
+    git,
+    requestId,
+    trustedPath,
+    accept
+) {
+    for (let i = 0; i < 30; i++) {
+        const trustedFile = await git.readPublicTrusted(trustedPath);
+        if (trustedFile) {
+            const value = JSON.parse(trustedFile.text);
+            if (!accept || accept(value)) return value;
+        }
+        const resultFile = await git.readPublicTrusted(
+            `requests/${requestId}.json`
+        );
+        if (resultFile) {
+            const result = JSON.parse(resultFile.text);
+            if (['rejected', 'denied'].includes(result.status)) {
+                throw new Error(result.error || 'request rejected');
+            }
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    return null;
+}
+async function waitForGitManagedSharePublication(
+    git,
+    requestId,
+    payloadHash
+) {
+    try {
+        const metadata = await waitForGitManagedRequest(
+            git,
+            requestId,
+            `shares/${payloadHash}.json`
+        );
+        if (metadata) {
+            removePendingManagedShare(payloadHash);
+            setCurrentManagedShareMetadata(metadata);
+        }
+        return metadata;
+    } catch (error) {
+        removePendingManagedShare(payloadHash);
+        if (
+            currentManagedShareMetadata?.pending === true &&
+            managedShareMatchesPayload(
+                currentManagedShareMetadata,
+                payloadHash
+            )
+        ) {
+            setCurrentManagedShareMetadata(null);
+        }
+        throw error;
     }
 }
 async function publishCurrentNamedShareTarget(git, status) {
@@ -3958,28 +4072,12 @@ async function publishCurrentNamedShareTarget(git, status) {
             requestId: submitted?.requestId || id
         }
     });
-    for (let i = 0; i < 30; i++) {
-        shareFile = await git.readPublicTrusted(
-            `shares/${payloadHash}.json`
-        );
-        if (shareFile) {
-            removePendingManagedShare(payloadHash);
-            setCurrentManagedShareMetadata(JSON.parse(shareFile.text));
-            return payloadHash;
-        }
-        const resultFile = await git.readPublicTrusted(
-            `requests/${id}.json`
-        );
-        if (resultFile) {
-            const result = JSON.parse(resultFile.text);
-            if (['rejected', 'denied'].includes(result.status)) {
-                throw new Error(
-                    result.error || 'version publication rejected'
-                );
-            }
-        }
-        await new Promise(resolve => setTimeout(resolve, 500));
-    }
+    const published = await waitForGitManagedSharePublication(
+        git,
+        submitted?.requestId || id,
+        payloadHash
+    );
+    if (published) return payloadHash;
     throw new Error(
         'Current version is still awaiting publication. ' +
         'The named link has not moved yet.'
@@ -3987,16 +4085,14 @@ async function publishCurrentNamedShareTarget(git, status) {
 }
 async function saveNamedShare() {
     const git = window.ForgeManagedShareGit;
-    if (!currentManagedShareMetadata ||
-        !git?.isConfigured?.() || !git.signAliasRequest) {
+    if (!currentManagedShareMetadata || !namedSharingAvailable()) {
         showToast('Named Shares are not available.', 'error', 3500);
         return;
     }
     const input = document.getElementById('managedShareNamedInput');
     const status = document.getElementById('managedShareNamedStatus');
     const alias = (input?.value || '').trim().toLowerCase();
-    if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(alias) ||
-        ['admin', 'api', 'forge'].includes(alias)) {
+    if (!validNamedShareAlias(alias)) {
         if (status) status.textContent =
             'Use 3-64 lowercase letters, numbers, _ or -.';
         input?.focus();
@@ -4035,17 +4131,38 @@ async function saveNamedShare() {
             const {detail} = await readManagedShareError(response);
             throw new Error(`request failed${detail}`);
         }
-        if (status) status.textContent = response.status === 202
-            ? 'Current version published. Named link update submitted.'
-            : 'Named Share now points to the current version.';
-        showToast(
-            `Named Share ${response.status === 202 ? 'request submitted' : 'saved'}.`,
-            response.status === 202 ? 'warning' : 'success',
-            5000
-        );
+        if (response.status === 202) {
+            let submitted = null;
+            try { submitted = await response.json(); } catch {}
+            if (status) status.textContent = 'Publishing named link...';
+            const publishedAlias = await waitForGitManagedRequest(
+                git,
+                submitted?.requestId || id,
+                `aliases/${alias}.json`,
+                value => value.payloadHash === targetHash
+            );
+            if (!publishedAlias) {
+                if (status) status.textContent =
+                    'Named link is still awaiting publication.';
+                showToast(
+                    'Named Share is still awaiting publication.',
+                    'warning',
+                    5000
+                );
+                return false;
+            }
+            currentNamedShareMetadata = publishedAlias;
+            refreshManagedShareManagementUi();
+            updateNamedSharePreview();
+        }
+        if (status) status.textContent =
+            'Named Share now points to the current version.';
+        showToast('Named Share published and ready.', 'success', 4000);
+        return true;
     } catch (e) {
         if (status) status.textContent = 'Error: ' + e.message;
         showToast('Named Share error: ' + e.message, 'error', 5000);
+        return false;
     }
 }
 function closeManagedShareManageModal() {

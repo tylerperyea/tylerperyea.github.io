@@ -26,6 +26,7 @@
         );
         return x.data;
     }
+
     const _providers = {
         gitlab: {
             authHeaders(t) { return { 'PRIVATE-TOKEN': t }; },
@@ -139,7 +140,20 @@
             async fetchTree(u,t,p,r){
                 const x=await _get(this,`${u}/repos/${p}/git/trees/${encodeURIComponent(r)}?recursive=1`,t);
                 if(x.data.truncated)throw new Error('Repository tree is truncated.');
-                return {ok:x.response.ok,status:x.response.status,paths:new Map(x.response.ok?x.data.tree.filter(v=>v.type==='blob').map(v=>['/'+v.path,v.sha]):[])};
+                return {ok:x.response.ok,status:x.response.status,empty:x.response.status===409&&/empty/i.test(x.data.message||''),paths:new Map(x.response.ok?x.data.tree.filter(v=>v.type==='blob').map(v=>['/'+v.path,v.sha]):[])};
+            },
+            async bootstrapEmpty(u,t,p,m,changes){
+                const c=changes.shift();
+                let content=c.content;
+                if(c.encoding!=='base64'){
+                    let binary='';
+                    for(const b of new TextEncoder().encode(content))
+                        binary+=String.fromCharCode(b);
+                    content=btoa(binary);
+                }
+                const file=c.path.slice(1).split('/').map(encodeURIComponent).join('/');
+                const d=_need(await _write(this,`${u}/repos/${p}/contents/${file}`,t,'PUT',{message:m,content}),'Initialize repository');
+                return {short_id:d.commit.sha.slice(0,8),title:m,sha:d.commit.sha};
             },
             async createBranch(u,t,p,b,r){
                 const a=`${u}/repos/${p}`,h=_need(await _get(this,`${a}/git/ref/heads/${encodeURIComponent(r)}`,t),'Source branch');
@@ -207,9 +221,7 @@
         defaultBranch: '',
         token:         '',
     };
-    function getContext() {
-        return Object.assign({}, _ctx, { instanceUrl: _origin() });
-    }
+
     function recordImportContext(instanceUrl,projectId,projectPath,
                                  sourceBranch,defaultBranch,token,provider='gitlab'){
         _provider=_providers[provider]||_providers.gitlab;
@@ -1223,6 +1235,21 @@
                     'Project changed since preview. Preview again.'
                 );
             }
+            if (actions.length === 0) {
+                throw new Error(
+                    'No files to push. All VFS files were excluded or skipped.');
+            }
+            let commitData=null;
+            if(tree.empty&&_provider.bootstrapEmpty){
+                commitData=await _provider.bootstrapEmpty(
+                    instanceUrl,token,numericId,commitMessage,actions
+                );
+                const base=projData.default_branch||'main';
+                if(sourceBranch!==base)await _provider.createBranch(
+                    instanceUrl,token,numericId,sourceBranch,base
+                );
+                _log('Initialized empty repository.');
+            }
             if (branchMode === 'new') {
                 _log(`Creating branch '${targetBranch}' from '${sourceBranch}'...`);
                 await _provider.createBranch(
@@ -1234,25 +1261,23 @@
                 );
                 _log(`✓ Branch '${targetBranch}' created`);
             }
-            if (actions.length === 0) {
-                throw new Error(
-                    'No files to push. All VFS files were excluded or skipped.');
-            }
             _log(`✓ ${actions.length} file action(s) (${skipped} skipped)`);
             const estBytes = _estimatePayloadBytes(actions);
             if (estBytes > 4 * 1024 * 1024) {
                 _log(`⚠ Large payload: ~${(estBytes / 1048576).toFixed(1)} MB. ` +
                      `Consider excluding binary files if the push fails.`);
             }
-            _log(`Committing to '${targetBranch}'...`);
-            const commitData = await _provider.commitChanges(
-                instanceUrl,
-                token,
-                numericId,
-                targetBranch,
-                commitMessage,
-                actions
-            );
+            if(actions.length){
+                _log(`Committing to '${targetBranch}'...`);
+                commitData=await _provider.commitChanges(
+                    instanceUrl,
+                    token,
+                    numericId,
+                    targetBranch,
+                    commitMessage,
+                    actions
+                );
+            }
             _log(`✓ Committed: ${commitData.short_id} — "${commitData.title}"`);
             let reviewUrl = null;
             if (openMr) {
@@ -1315,7 +1340,6 @@
         onTabKeydown: _onTabKeydown,
         recordImportContext,
         loadContextFromVfs,
-        getContext,
         setProvider,
         toggleProjectBrowser: _toggleProjectBrowser,
         searchProjects: _searchProjects,
@@ -1328,6 +1352,5 @@
         onTargetBranchChange: _updateMrTitlePlaceholder,
         onDeleteRemoteChange: _updateDeleteWarning,
     };
-    window.ForgeGitLabPush = publicApi;
     window.ForgeGitPush = publicApi;
 })();

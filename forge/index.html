@@ -268,7 +268,7 @@
               <small>Self-contained — nothing uploaded</small>
             </span>
           </div>
-          <div class="dropdown-item" id="shortUrlDropdownItem" hidden onclick="shareShortUrl(); toggleDropdown('dd-share')">
+          <div class="dropdown-item" id="shortUrlDropdownItem" hidden onclick="requestShortLink(false); toggleDropdown('dd-share')">
             <span class="dropdown-icon">⚡</span>
             <span>
               <strong>Short Link</strong>
@@ -976,6 +976,12 @@
           </div>
         </div>
 
+        <div class="form-group" id="shortUrlNamedGroup" hidden>
+          <label for="shortUrlNamedInput">Stable name (optional)</label>
+          <input id="shortUrlNamedInput" maxlength="64"
+                 placeholder="my_cool_app">
+        </div>
+
       </div>
       <div class="modal-footer">
         <button class="secondary" id="shortUrlWarningCancelBtn">Cancel</button>
@@ -1064,13 +1070,10 @@
       </div>
       <div class="modal-footer">
         <button class="secondary" onclick="closeManagedShareManageModal()">Cancel</button>
-        <button class="secondary" id="managedShareNamedBtn"
-                onclick="saveNamedShare()">Named Share</button>
-        <button
-          class="success"
-          id="managedShareManageSaveBtn"
-          onclick="saveManagedShareMetadata()"
-        >Save Changes</button>
+        <button class="secondary" id="managedShareManageSaveBtn"
+                onclick="saveManagedShareMetadata()">Save Metadata</button>
+        <button class="success" id="managedShareNamedBtn"
+                onclick="saveNamedShare()">Publish Named Share</button>
       </div>
     </div>
   </div>
