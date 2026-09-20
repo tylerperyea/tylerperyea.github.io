@@ -1024,6 +1024,19 @@
           style="margin-top:16px; overflow-wrap:anywhere;"
         ></div>
 
+        <div id="managedShareNamedGroup" class="form-group" style="margin-top:16px;" hidden>
+          <label for="managedShareNamedInput">Stable named link</label>
+          <input id="managedShareNamedInput" maxlength="64"
+                 placeholder="my_cool_app" oninput="updateNamedSharePreview()">
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <input id="managedShareNamedUrl" readonly
+                   style="flex:1;" onclick="this.select()">
+            <button class="secondary" type="button"
+                    onclick="copyToClipboard(document.getElementById('managedShareNamedUrl').value)">Copy</button>
+          </div>
+          <div id="managedShareNamedStatus" class="info-text" style="margin-top:6px;"></div>
+        </div>
+
         <div
           style="margin-top:20px; padding-top:16px; border-top:1px solid #444;"
         >

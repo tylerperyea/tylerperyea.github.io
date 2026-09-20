@@ -1,9 +1,6 @@
-
 (function () {
   'use strict';
-
   // ── Constants ──────────────────────────────────────────────────────────
-
   // Origin patterns that are trusted without a modal prompt.
   // String entries are exact origins; objects with {suffix} match
   // any origin whose hostname ends with that suffix.
@@ -15,28 +12,21 @@
     { exact: 'https://localhost:3000' },
     { exact: 'http://127.0.0.1:3000' }
   ];
-
   const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
-
   // ── Trusted origin store ───────────────────────────────────────────────
   // Trust is session-only. There is no persistent "always allow" --
   // the user must confirm each new browser session. This is intentional:
   // localStorage trust would persist silently across restarts and could
   // be inherited by anyone with access to the browser profile.
-
   const $=s=>document.querySelector(s);
-
   // Origins approved by the user for this session.
   const sessionTrustedOrigins = new Set();
-
   // Origins that have already completed registration this session.
   // Prevents modal spam from handshake retries.
   const registeredThisSession = new Set();
-
   // Origins currently awaiting a trust decision (modal is open).
   // Prevents a second modal queuing up while the first is still open.
   const pendingTrustOrigins = new Set();
-
   // Check if an origin matches the built-in trusted patterns.
   function matchesBuiltinPattern(origin) {
     let hostname;
@@ -45,7 +35,6 @@
     } catch (e) {
       return false;
     }
-
     for (const pattern of BUILTIN_TRUSTED_PATTERNS) {
       if (pattern.exact && pattern.exact === origin) return true;
       if (pattern.suffix) {
@@ -57,7 +46,6 @@
     }
     return false;
   }
-
   // Full trust check: builtin patterns OR session-approved.
   function isTrustedOrigin(origin) {
     if (!origin || origin === 'null') return false;
@@ -65,22 +53,18 @@
     if (sessionTrustedOrigins.has(origin)) return true;
     return false;
   }
-
   // ── Proxy target validation ────────────────────────────────────────────
-
   function getGitLabOrigin() {
     if (typeof window.FORGE_GITLAB_ORIGIN === 'string') {
       return window.FORGE_GITLAB_ORIGIN.trim();
     }
     return 'https://git.fda.gov';
   }
-
   function isGovHostname(hostname) {
     if (!hostname) return false;
     const lower = hostname.toLowerCase();
     return lower === 'gov' || lower.endsWith('.gov');
   }
-
   function isSafeProxyTarget(url) {
     let parsed;
     try {
@@ -94,21 +78,15 @@
     if (gitlabOrigin && parsed.origin === gitlabOrigin) return true;
     return false;
   }
-
   // ── Modal / confirmation system ────────────────────────────────────────
-
-
   const pendingTrustRequests = [];
   let modalActive = false;
-
-
   function requestTrustDecision(origin, trusted) {
     return new Promise(function (resolve) {
       pendingTrustRequests.push({ origin, trusted, resolve });
       if (!modalActive) drainTrustQueue();
     });
   }
-
   function drainTrustQueue() {
     if (pendingTrustRequests.length === 0) {
       modalActive = false;
@@ -121,14 +99,12 @@
       drainTrustQueue();
     });
   }
-
   function bridgeAttention(on) {
     window.forgeBridgeAttention = Math.max(
       0, (window.forgeBridgeAttention || 0) + (on ? 1 : -1)
     );
     window.updateBrowserTitle?.();
   }
-
   function showTrustModal(origin, trusted, callback) {
     const modal      = $('#forgeBridgeTrustModal');
     const originEl   = $('#forgeBridgeTrustOrigin');
@@ -136,15 +112,12 @@
     const denyBtn    = $('#forgeBridgeDeny');
     const warningEl  = $('#forgeBridgeTrustWarning');
     const headingEl  = $('#forgeBridgeTrustHeading');
-
     if (!modal || !originEl || !allowOnceBtn || !denyBtn) {
       console.warn('[ForgeBridge] Trust modal not found in DOM. Denying:', origin);
       callback('deny');
       return;
     }
-
     originEl.textContent = origin;
-
     // Adjust tone based on whether the origin is a known trusted pattern.
     if (headingEl) {
       headingEl.textContent = trusted
@@ -166,7 +139,6 @@
         warningEl.style.fontWeight = '600';
       }
     }
-
     function finish(decision) {
       cleanup();
       if (typeof window.ForgeModal !== 'undefined') {
@@ -177,19 +149,15 @@
       bridgeAttention(false);
       callback(decision);
     }
-
   function cleanup() {
       allowOnceBtn.removeEventListener('click', onAllowOnce);
       denyBtn.removeEventListener('click', onDeny);
     }
-
   function onAllowOnce() { finish('allow-once'); }
     function onDeny()      { finish('deny'); }
-
     allowOnceBtn.addEventListener('click', onAllowOnce);
     denyBtn.addEventListener('click', onDeny);
     bridgeAttention(true);
-
     if (typeof window.ForgeModal !== 'undefined') {
       window.ForgeModal.open('forgeBridgeTrustModal', {
         initialFocus: '#forgeBridgeDeny',
@@ -201,35 +169,25 @@
       denyBtn.focus();
     }
   }
-
   // ── Handshake handler ──────────────────────────────────────────────────
-
   async function handleRegister(event) {
     const callerOrigin = event.origin;
-
     if (!callerOrigin || callerOrigin === 'null') return;
-
     // Deduplicate: if this origin already registered this session,
     // just re-send the registered reply silently (handshake retry).
     if (registeredThisSession.has(callerOrigin)) {
       replyRegistered(event, callerOrigin);
       return;
     }
-
-
     const knownOrigin = matchesBuiltinPattern(callerOrigin);
     console.log('[ForgeBridge] Bridge connection request from:', callerOrigin, knownOrigin ? '(known)' : '(unknown)');
-
-
     if (pendingTrustOrigins.has(callerOrigin)) {
       console.log('[ForgeBridge] Trust decision already pending for:', callerOrigin, '-- ignoring duplicate');
       return;
     }
-
     pendingTrustOrigins.add(callerOrigin);
     const decision = await requestTrustDecision(callerOrigin, knownOrigin);
     pendingTrustOrigins.delete(callerOrigin);
-
   if (decision === 'deny') {
       console.log('[ForgeBridge] User denied bridge access for:', callerOrigin);
       if (event.source) {
@@ -240,43 +198,34 @@
       }
       return;
     }
-
     // Allow for this session only.
     sessionTrustedOrigins.add(callerOrigin);
     console.log('[ForgeBridge] Session trust granted for:', callerOrigin);
     registeredThisSession.add(callerOrigin);
     replyRegistered(event, callerOrigin);
   }
-
-
   function replyRegistered(event, callerOrigin) {
     updateBridgeIndicator();
-
     if (event.source) {
       event.source.postMessage({
         type: 'forge-bridge-registered',
         gitlabOrigin: getGitLabOrigin()
       }, callerOrigin);
-
   // Note: we do not send forge-bridge-focus-opener here because
       // event.source is null under COOP headers. The caller refocuses
       // itself after receiving forge-bridge-registered instead.
     }
   }
-
   // ── Bridge indicator ───────────────────────────────────────────────────
-
   function updateBridgeIndicator() {
     const banner  = $('#forgeBridgeBanner');
     const textEl  = $('#forgeBridgeBannerText');
     if (!banner) return;
-
     const origins = Array.from(registeredThisSession);
     if (origins.length === 0) {
       banner.hidden = true;
       return;
     }
-
     banner.hidden = false;
     if (textEl) {
       textEl.textContent = origins.length === 1
@@ -284,19 +233,16 @@
         : '🌉 ' + origins.length + ' bridges active';
     }
   }
-
   function initBridgeIndicator() {
     const bannerBtn = $('#forgeBridgeBannerBtn');
     const popover   = $('#forgeBridgePopover');
     const closeBtn  = $('#forgeBridgePopoverClose');
     if (!bannerBtn || !popover) return;
-
     bannerBtn.addEventListener('click', function (e) {
       e.stopPropagation();
       const isHidden = popover.hidden;
       popover.hidden = !isHidden;
       if (!isHidden) return;
-
       // Populate list
       const list = $('#forgeBridgePopoverList');
       if (!list) return;
@@ -306,7 +252,6 @@
         const span     = document.createElement('span');
         span.className = 'forge-bridge-popover-origin';
         span.textContent = origin;
-
         const btn      = document.createElement('button');
         btn.className  = 'forge-bridge-popover-disconnect';
         btn.textContent = 'Disconnect';
@@ -320,19 +265,16 @@
             popover.hidden = true;
           }
         });
-
         li.appendChild(span);
         li.appendChild(btn);
         list.appendChild(li);
       });
     });
-
     if (closeBtn) {
       closeBtn.addEventListener('click', function () {
         popover.hidden = true;
       });
     }
-
   // Close popover on outside click
     document.addEventListener('click', function (e) {
       if (!popover.hidden &&
@@ -342,13 +284,10 @@
       }
     });
   }
-
   // ── Proxy fetch handler ────────────────────────────────────────────────
-
   async function performProxyFetch(url, options) {
     const response = await fetch(url, options);
     const buffer = await response.arrayBuffer();
-
     if (buffer.byteLength > MAX_RESPONSE_BYTES) {
       return {
         ok: false, status: 0,
@@ -357,15 +296,12 @@
         error: 'Response body exceeds bridge relay limit'
       };
     }
-
     const bytes = new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
     const bodyB64 = btoa(binary);
-
     const headers = {};
     response.headers.forEach((value, key) => { headers[key] = value; });
-
     return {
       ok: response.ok,
       status: response.status,
@@ -373,7 +309,6 @@
       headers, bodyB64, error: null
     };
   }
-
   function makeReply(event) {
     return function (payload) {
       if (event.ports && event.ports[0]) {
@@ -383,13 +318,10 @@
       }
     };
   }
-
   async function handleProxyFetch(event) {
     const msg = event.data;
     const nonce = msg.nonce || null;
-
     const reply = makeReply(event);
-
     if (!isSafeProxyTarget(msg.url)) {
       reply({
         type: 'forge-proxy-fetch-response', nonce,
@@ -399,10 +331,8 @@
       });
       return;
     }
-
     const fetchOptions = { method: msg.method || 'GET', headers: msg.headers || {} };
     if (msg.body != null) fetchOptions.body = msg.body;
-
     try {
       const result = await performProxyFetch(msg.url, fetchOptions);
       reply({ type: 'forge-proxy-fetch-response', nonce, ...result });
@@ -415,24 +345,18 @@
       });
     }
   }
-
-
   const evalQueue = [];
   let evalBusy = false;
-
   async function handleBridgeEval(event) {
     const msg   = event.data;
     const nonce = msg.nonce || null;
-
     const reply = makeReply(event);
-
     // Queue this eval and drain sequentially.
     return new Promise(function (resolve) {
       evalQueue.push({ msg, reply, resolve });
       drainEvalQueue();
     });
   }
-
   function drainEvalQueue() {
     if (evalBusy || evalQueue.length === 0) return;
     evalBusy = true;
@@ -443,8 +367,6 @@
       drainEvalQueue();
     });
   }
-
-
   const BRIDGE_SANDBOX_SRCDOC = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' +
     '<script>' +
     'window.addEventListener("message", function(e) {' +
@@ -478,27 +400,19 @@
     'window.parent.postMessage({ type: "forge-bridge-sandbox-ready" }, "*");' +
     '</scr' + 'ipt>' +
     '</body></html>';
-
-
   let bridgeSandboxReady = false;
-
   function ensureBridgeSandbox() {
     return new Promise(function (resolve) {
       const previewFrame = $('#previewFrame');
       if (!previewFrame) { resolve(null); return; }
-
-
       if (bridgeSandboxReady && previewFrame.srcdoc === BRIDGE_SANDBOX_SRCDOC) {
         resolve(previewFrame);
         return;
       }
-
-
       const timer = setTimeout(function () {
         window.removeEventListener('message', onReady);
         resolve(null); // timed out
       }, 5000);
-
       function onReady(ev) {
         if (ev.source !== previewFrame.contentWindow) return;
         if (!ev.data || ev.data.type !== 'forge-bridge-sandbox-ready') return;
@@ -507,18 +421,13 @@
         bridgeSandboxReady = true;
         resolve(previewFrame);
       }
-
       window.addEventListener('message', onReady);
-
-
       const currentSrc = previewFrame.srcdoc || '';
       const isEmpty = !currentSrc || currentSrc.trim() === '';
-
       if (isEmpty) {
         // Frame is blank -- safe to inject.
         previewFrame.srcdoc = BRIDGE_SANDBOX_SRCDOC;
       } else {
-
         let sandboxEl = $('#forgeBridgeSandboxFrame');
         if (!sandboxEl) {
           sandboxEl = document.createElement('iframe');
@@ -527,10 +436,8 @@
           sandboxEl.setAttribute('sandbox', 'allow-scripts');
           document.body.appendChild(sandboxEl);
         }
-
         // Re-wire the ready listener to the hidden frame.
         window.removeEventListener('message', onReady);
-
         function onReadyHidden(ev) {
           if (ev.source !== sandboxEl.contentWindow) return;
           if (!ev.data || ev.data.type !== 'forge-bridge-sandbox-ready') return;
@@ -539,21 +446,16 @@
           bridgeSandboxReady = true;
           resolve(sandboxEl);
         }
-
         window.addEventListener('message', onReadyHidden);
         sandboxEl.srcdoc = BRIDGE_SANDBOX_SRCDOC;
       }
     });
   }
-
-
   window.addEventListener('forge-panels-mounted', function () {
     bridgeSandboxReady = false;
   });
-
   async function runSandboxedEval(msg, reply) {
     const nonce = msg.nonce || null;
-
     const sandboxFrame = await ensureBridgeSandbox();
     if (!sandboxFrame || !sandboxFrame.contentWindow) {
       reply({
@@ -563,13 +465,11 @@
       });
       return;
     }
-
     const outcome = await new Promise(function (resolve) {
       const timer = setTimeout(function () {
         window.removeEventListener('message', onReplResult);
         resolve({ error: { name: 'Error', message: 'Sandboxed eval timed out after 15s' }, result: null });
       }, 15000);
-
       function onReplResult(ev) {
         if (ev.source !== sandboxFrame.contentWindow) return;
         if (!ev.data || ev.data.type !== 'forge-repl-result') return;
@@ -581,15 +481,12 @@
           resolve({ result: null, error: ev.data.error });
         }
       }
-
       window.addEventListener('message', onReplResult);
-
       sandboxFrame.contentWindow.postMessage({
         type: 'forge-repl-eval',
         code: msg.code
       }, '*');
     });
-
     reply({
       type: 'forge-bridge-eval-response',
       nonce,
@@ -597,61 +494,48 @@
       error:  outcome.error || null
     });
   }
-
   const previewConsoleHistory = [];
   const previewEvalQueue = [];
   let previewEvalBusy = false;
-
   function mapPreviewConsole(msg, source) {
     return typeof mapPreviewSourceLocations === 'function'
       ? mapPreviewSourceLocations(msg, source)
       : msg;
   }
-
   function recordPreviewConsole(event) {
     const frame = $('#previewFrame');
     if (!frame || event.source !== frame.contentWindow) return;
-
     previewConsoleHistory.push({
       level: event.data.level,
       msg: mapPreviewConsole(event.data.msg, event.source),
       timestamp: Date.now()
     });
-
     if (previewConsoleHistory.length > 500) {
       previewConsoleHistory.shift();
     }
   }
-
   function handlePreviewEval(event) {
     const msg = event.data;
-
     const reply = makeReply(event);
-
     return new Promise(function (resolve) {
       previewEvalQueue.push({ msg, reply, resolve });
       drainPreviewEvalQueue();
     });
   }
-
   function drainPreviewEvalQueue() {
     if (previewEvalBusy || !previewEvalQueue.length) return;
-
     previewEvalBusy = true;
     const job = previewEvalQueue.shift();
-
     runPreviewEval(job.msg, job.reply).finally(function () {
       previewEvalBusy = false;
       job.resolve();
       drainPreviewEvalQueue();
     });
   }
-
   async function runPreviewEval(msg, reply) {
     const nonce = msg.nonce || null;
     const all = msg.captureConsole === 'all';
     const history = all ? previewConsoleHistory.slice() : [];
-
     if (msg.code == null) {
       reply({
         type: 'forge-bridge-preview-eval-response',
@@ -663,9 +547,7 @@
       });
       return;
     }
-
     const frame = $('#previewFrame');
-
     if (!frame || !frame.contentWindow) {
       reply({
         type: 'forge-bridge-preview-eval-response',
@@ -680,9 +562,7 @@
       });
       return;
     }
-
     const captured = [];
-
     const outcome = await new Promise(function (resolve) {
       const timer = setTimeout(function () {
         cleanup();
@@ -694,15 +574,12 @@
           }
         });
       }, 15000);
-
       function cleanup() {
         clearTimeout(timer);
         window.removeEventListener('message', onRuntimeMessage);
       }
-
       function onRuntimeMessage(ev) {
         if (ev.source !== frame.contentWindow || !ev.data) return;
-
         if (ev.data.type === 'forge-console') {
           captured.push({
             level: ev.data.level,
@@ -711,11 +588,8 @@
           });
           return;
         }
-
         if (ev.data.type !== 'forge-repl-result') return;
-
         cleanup();
-
         if (ev.data.success) {
           resolve({
             result: ev.data.result,
@@ -723,31 +597,25 @@
           });
           return;
         }
-
         const error = ev.data.error || {
           name: 'Error',
           message: 'Preview eval failed.'
         };
-
         if (error.stack) {
           error.stack =
             mapPreviewConsole(error.stack, ev.source);
         }
-
         resolve({
           result: null,
           error
         });
       }
-
       window.addEventListener('message', onRuntimeMessage);
-
       frame.contentWindow.postMessage({
         type: 'forge-repl-eval',
         code: String(msg.code)
       }, '*');
     });
-
     reply({
       type: 'forge-bridge-preview-eval-response',
       nonce,
@@ -757,15 +625,11 @@
       error: outcome.error || null
     });
   }
-
   // Privileged IDE-context eval remains separately confirmed per request.
-
   async function handlePrivilegedEval(event) {
     const msg   = event.data;
     const nonce = msg.nonce || null;
-
     const reply = makeReply(event);
-
     // Show a confirmation for every privileged eval request.
     const confirmed = await requestPrivilegedEvalConfirmation(event.origin, msg.code);
     if (!confirmed) {
@@ -776,7 +640,6 @@
       });
       return;
     }
-
     let result = null;
     let error  = null;
     try {
@@ -789,7 +652,6 @@
         stack:   err && err.stack   ? err.stack   : null
       };
     }
-
     let serialized = null;
     if (error === null) {
       try {
@@ -800,13 +662,11 @@
         else                            serialized = result;
       } catch (e) { serialized = String(result); }
     }
-
     reply({
       type: 'forge-bridge-eval-response',
       nonce, result: serialized, error
     });
   }
-
   function requestPrivilegedEvalConfirmation(origin, code) {
     return new Promise(function (resolve) {
     const modal    = $('#forgeBridgePrivEvalModal');
@@ -814,16 +674,13 @@
     const codeEl   = $('#forgeBridgePrivEvalCode');
     const allowBtn = $('#forgeBridgePrivEvalAllow');
     const denyBtn  = $('#forgeBridgePrivEvalDeny');
-
       if (!modal || !allowBtn || !denyBtn) {
         console.warn('[ForgeBridge] Privileged eval modal not found. Denying.');
         resolve(false);
         return;
       }
-
       if (originEl) originEl.textContent = origin;
       if (codeEl)   codeEl.textContent   = String(code).slice(0, 500);
-
       function finish(allowed) {
         allowBtn.removeEventListener('click', onAllow);
         denyBtn.removeEventListener('click', onDeny);
@@ -835,14 +692,11 @@
         bridgeAttention(false);
         resolve(allowed);
       }
-
       function onAllow() { finish(true); }
       function onDeny()  { finish(false); }
-
       allowBtn.addEventListener('click', onAllow);
       denyBtn.addEventListener('click', onDeny);
       bridgeAttention(true);
-
       if (typeof window.ForgeModal !== 'undefined') {
         window.ForgeModal.open('forgeBridgePrivEvalModal', {
           initialFocus: '#forgeBridgePrivEvalDeny',
@@ -855,8 +709,6 @@
       }
     });
   }
-
-
   const INTERNAL_MSG_TYPES = new Set([
     'forge-network', 'vfs-fetch', 'vfs-navigate', 'vfs-spa-navigate', 'vfs-hash-change', 'vfs-shortcut',
     'forge-repl-eval', 'forge-repl-result',
@@ -864,17 +716,13 @@
     'forge-network-response', 'vfs-fetch-response',
     'forge-console', 'page-title',
   ]);
-
   function onMessage(event) {
     const type = event.data && event.data.type;
-
     if (type === 'forge-console') {
       recordPreviewConsole(event);
     }
-
     if (type && INTERNAL_MSG_TYPES.has(type)) return;
     if (type && type.startsWith('forge-idb-')) return;
-
     // Log bridge-related messages for diagnostics.
     if (type && typeof type === 'string' && type.startsWith('forge-')) {
       console.log(
@@ -885,9 +733,7 @@
         '| registered:', registeredThisSession.has(event.origin)
       );
     }
-
     if (!event.data || typeof event.data !== 'object') return;
-
     // Handshake -- no trust check yet, that happens inside handleRegister.
     if (type === 'forge-bridge-register') {
       if (event.data.secret !== 'forge-bridge-hello') {
@@ -899,7 +745,6 @@
       );
       return;
     }
-
     // All other message types require the caller to be trusted.
     if (!isTrustedOrigin(event.origin)) {
       console.warn(
@@ -910,28 +755,24 @@
       );
       return;
     }
-
     if (type === 'forge-proxy-fetch') {
       handleProxyFetch(event).catch(err =>
         console.error('[ForgeBridge] Error in proxy fetch:', err)
       );
       return;
     }
-
     if (type === 'forge-bridge-eval') {
       handleBridgeEval(event).catch(err =>
         console.error('[ForgeBridge] Error in sandboxed eval:', err)
       );
       return;
     }
-
     if (type === 'forge-bridge-preview-eval') {
       handlePreviewEval(event).catch(err =>
         console.error('[ForgeBridge] Error in preview eval:', err)
       );
       return;
     }
-
     if (type === 'forge-bridge-eval-privileged') {
       handlePrivilegedEval(event).catch(err =>
         console.error('[ForgeBridge] Error in privileged eval:', err)
@@ -939,12 +780,8 @@
       return;
     }
   }
-
   // ── Waiting modal helpers ──────────────────────────────────────────────
-
-
   // ── Init ───────────────────────────────────────────────────────────────
-
   function init() {
     window.addEventListener('message', onMessage);
     if (document.readyState === 'loading') {
@@ -954,10 +791,7 @@
     }
     console.log('[ForgeBridge] Ready. Trusted patterns: .gov, vertexaisearch.cloud.google, chatgpt.com');
   }
-
-
   // ── Public API ─────────────────────────────────────────────────────────
-
   function diagnose() {
     console.group('%c[ForgeBridge] Diagnostic Report', 'color:#4fc3f7; font-weight:bold;');
     console.log('Bridge initialized:    ', !!window.ForgeBridge);
@@ -983,7 +817,6 @@
     console.log('  4. Verify both pages are HTTPS (mixed content blocks postMessage)');
     console.groupEnd();
   }
-
   window.ForgeBridge = {
     init,
     isTrustedOrigin,
@@ -994,11 +827,9 @@
     diagnose,
     BUILTIN_TRUSTED_PATTERNS
   };
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
-
 })();

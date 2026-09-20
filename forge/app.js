@@ -1,15 +1,11 @@
-
 var tt = location.pathname.split("/");
 tt.pop();
 var pref = tt.join("/") + "/";
-
-
 const _noopProxy = new Proxy(() => _noopProxy, {
     get:   ()  => _noopProxy,
     set:   ()  => true,
     apply: ()  => _noopProxy,
 });
-
 const _lazy = (id) => new Proxy({}, {
     get(_, prop) {
         const el = document.getElementById(id);
@@ -23,7 +19,6 @@ const _lazy = (id) => new Proxy({}, {
         return true;
     }
 });
-
 const adjectives = [
     'swift', 'bright', 'calm', 'bold', 'clever', 'gentle', 'happy', 'kind',
     'lively', 'merry', 'nice', 'proud', 'quiet', 'rapid', 'smart', 'warm',
@@ -33,7 +28,6 @@ const adjectives = [
     'crisp', 'fresh', 'golden', 'jade', 'noble', 'pearl', 'royal', 'silver',
     'smooth', 'stellar'
 ];
-
 const nouns = [
     'cloud', 'river', 'mountain', 'forest', 'ocean', 'desert', 'valley', 'island',
     'meadow', 'canyon', 'glacier', 'volcano', 'prairie', 'lagoon', 'reef', 'delta',
@@ -43,19 +37,15 @@ const nouns = [
     'phoenix', 'dragon', 'falcon', 'eagle', 'tiger', 'panther', 'wolf', 'bear',
     'hawk', 'lion'
 ];
-
 function generateProjectName() {
     const adj1 = adjectives[Math.floor(Math.random() * adjectives.length)];
     const adj2 = adjectives[Math.floor(Math.random() * adjectives.length)];
     const adj3 = adjectives[Math.floor(Math.random() * adjectives.length)];
     const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    
-
     return adj1 + adj2.charAt(0).toUpperCase() + adj2.slice(1) + 
            adj3.charAt(0).toUpperCase() + adj3.slice(1) + 
            noun.charAt(0).toUpperCase() + noun.slice(1);
 }
-
 function getTimestamp() {
     const now = new Date();
     const year = now.getFullYear();
@@ -65,27 +55,22 @@ function getTimestamp() {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     return `${year}${month}${day}${hours}${minutes}`;
 }
-
 let projectTitle = generateProjectName();
 let previewPageTitle = '';
 const forgeDefaultFavicon =
     document.querySelector('link[rel*="icon"]')?.href || '/favicon.ico';
-
 function updateForgeAttentionFavicon() {
     let link = document.getElementById('forgeContentAttentionFavicon');
-
     if (!window.forgeContentAttention) {
         if (link) link.href = forgeDefaultFavicon;
         return;
     }
-
     if (!link) {
         link = document.createElement('link');
         link.id = 'forgeContentAttentionFavicon';
         link.rel = 'icon';
         document.head.appendChild(link);
     }
-
     link.href = 'data:image/svg+xml,' + encodeURIComponent(
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
         '<circle cx="32" cy="32" r="30" fill="#ff8a00"/>' +
@@ -93,87 +78,69 @@ function updateForgeAttentionFavicon() {
         '</svg>'
     );
 }
-
 function clearForgeContentAttention() {
     if (!window.forgeContentAttention) return;
     window.forgeContentAttention = false;
     updateForgeAttentionFavicon();
     updateBrowserTitle();
 }
-
 window.markForgeContentAttention = function () {
-
     window.forgeContentAttention = true;
     updateForgeAttentionFavicon();
     updateBrowserTitle();
 };
-
 window.addEventListener('focus', clearForgeContentAttention);
 document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible' && document.hasFocus()) {
         clearForgeContentAttention();
     }
 });
-
 function updateBrowserTitle() {
     const fullscreenEl = document.getElementById('fullscreenContainer');
     const isFullscreen = Boolean(
         fullscreenEl && fullscreenEl.classList.contains('active')
     );
-
     const reportedTitle = $if(isFullscreen)
         .use(previewPageTitle)
         .otherwise(previewPageTitle);
-
     let fallbackTitle = 'FORGE IDE';
     if (typeof projectTitle === 'string' && projectTitle.trim()) {
         fallbackTitle = projectTitle.trim();
     }
-
     let title = fallbackTitle;
     if (typeof reportedTitle === 'string' && reportedTitle.trim()) {
         title = reportedTitle.trim();
     }
-
     const attention = window.forgeBridgeAttention
         ? '⚠️ '
         : window.forgeContentAttention
             ? '🟠 '
             : '';
-
     document.title = attention +
         $if(isFullscreen)
         .use(title)
         .otherwise(`[FORGE] ${title}`);
 }
-
-
 function updateProjectTitleDisplay() {
     const el = document.getElementById('projectTitle');
     if (el) el.value = projectTitle;
     updateBrowserTitle();
 }
-
-
 function openShortcutsModal() {
     ForgeModal.open('shortcutsModal', {
         closeOnBackdrop: true,
         onRequestClose: closeShortcutsModal
     });
 }
-
 function closeShortcutsModal() {
     ForgeModal.close('shortcutsModal');
 }
-
-
 document.addEventListener('input', (e) => {
     if (e.target && e.target.id === 'projectTitle') {
         projectTitle = e.target.value;
         updateBrowserTitle();
     }
 });
-
 document.addEventListener('keypress', (e) => {
     if (e.target && e.target.id === 'projectTitle') {
         if (e.key === 'Enter') {
@@ -182,7 +149,6 @@ document.addEventListener('keypress', (e) => {
         }
     }
 });
-
 document.addEventListener('click', (e) => {
     if (e.target && e.target.id === 'regenerateTitleBtn') {
         projectTitle = generateProjectName();
@@ -233,11 +199,7 @@ document.addEventListener('click', (e) => {
         }, 0);
     }
 });
-
-
-
 document.addEventListener('keydown', (e) => {
-
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         if (currentEditingFile && !saveFileBtn.hidden) {
@@ -245,21 +207,16 @@ document.addEventListener('keydown', (e) => {
         }
         return;
     }
-
     if ((e.ctrlKey || e.metaKey) && e.shiftKey &&
         projectClipboardShortcut(e.key)) {
         e.preventDefault();
         return;
     }
-
-
-
     if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
         e.preventDefault();
         if (!rerunBtn.hidden) {
            rerunProject();
         } else {
-
             const entryPoint = vfs.findEntryPoint();
             if (entryPoint) {
                 renderPage(entryPoint);
@@ -268,22 +225,16 @@ document.addEventListener('keydown', (e) => {
         }
         return;
     }
-
-
   if ((e.ctrlKey || e.metaKey) && e.key === '1') {
     e.preventDefault();
     switchTab('preview');
     return;
   }
-
-
   if ((e.ctrlKey || e.metaKey) && e.key === '2') {
     e.preventDefault();
     switchTab('files');
     return;
   }
-
-
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'f') {
         if (currentEditingFile && ForgeEditor.isReady()) {
             e.preventDefault();
@@ -291,8 +242,6 @@ document.addEventListener('keydown', (e) => {
         }
         return;
     }
-
-
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'h') {
         if (currentEditingFile && ForgeEditor.isReady()) {
             e.preventDefault();
@@ -300,8 +249,6 @@ document.addEventListener('keydown', (e) => {
         }
         return;
     }
-
-
     if (e.key === 'Escape') {
         const searchBar = document.getElementById('editorSearchBar');
         if (searchBar && searchBar.classList.contains('active')) {
@@ -315,39 +262,30 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 });
-
-
-
 function openEditorSearch(showReplace) {
     const bar   = document.getElementById('editorSearchBar');
     const input = document.getElementById('editorSearchInput');
     if (!bar || !input) return;
-
-
     if (window.forgePanels && window.forgePanels.activeTab !== 'files') {
         switchTab('files');
     }
-
     bar.classList.add('active');
     setEditorReplaceVisible(!!showReplace);
     input.focus();
     input.select();
     _runSearch();
 }
-
 function setEditorReplaceVisible(visible) {
     const row = document.getElementById('editorReplaceRow');
     const toggle = document.getElementById('editorSearchToggleReplace');
     if (row) row.classList.toggle('active', visible);
     if (toggle) toggle.textContent = visible ? '▾' : '▸';
 }
-
 function toggleEditorReplace() {
     const row = document.getElementById('editorReplaceRow');
     const isVisible = row && row.classList.contains('active');
     setEditorReplaceVisible(!isVisible);
 }
-
 function closeEditorSearch() {
     const bar   = document.getElementById('editorSearchBar');
     const input = document.getElementById('editorSearchInput');
@@ -358,7 +296,6 @@ function closeEditorSearch() {
     ForgeEditor.searchClear();
     ForgeEditor.focus();
 }
-
 function _runSearch() {
     const query = document.getElementById('editorSearchInput')?.value ?? '';
     const input = document.getElementById('editorSearchInput');
@@ -367,13 +304,11 @@ function _runSearch() {
     if (input) input.classList.toggle('no-match', query.length > 0 && total === 0);
     _updateSearchCount(current, total);
 }
-
 function _searchStep(direction) {
     if (!ForgeEditor.isReady()) return;
     const { total, current } = ForgeEditor.searchStep(direction);
     _updateSearchCount(current, total);
 }
-
 function _updateSearchCount(current, total) {
     const el = document.getElementById('editorSearchCount');
     if (!el) return;
@@ -382,21 +317,16 @@ function _updateSearchCount(current, total) {
         ? (query ? 'No results' : '')
         : `${current} / ${total}`;
 }
-
-
 window.addEventListener('load', () => {
     document.getElementById('editorSearchInput')?.addEventListener('input', _runSearch);
-
     document.getElementById('editorSearchInput')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); _searchStep(e.shiftKey ? -1 : 1); }
         if (e.key === 'Escape') { closeEditorSearch(); }
     });
-
     document.getElementById('editorSearchPrev')?.addEventListener('click', () => _searchStep(-1));
     document.getElementById('editorSearchNext')?.addEventListener('click', () => _searchStep(1));
     document.getElementById('editorSearchClose')?.addEventListener('click', closeEditorSearch);
     document.getElementById('editorSearchToggleReplace')?.addEventListener('click', toggleEditorReplace);
-
     document.getElementById('editorReplaceOne')?.addEventListener('click', () => {
         if (!ForgeEditor.isReady()) return;
         const replacement = document.getElementById('editorReplaceInput')?.value ?? '';
@@ -404,7 +334,6 @@ window.addEventListener('load', () => {
         _updateSearchCount(current, total);
         hasUnsavedChanges = true;
     });
-
     document.getElementById('editorReplaceAll')?.addEventListener('click', () => {
         if (!ForgeEditor.isReady()) return;
         const query       = document.getElementById('editorSearchInput')?.value ?? '';
@@ -416,16 +345,12 @@ window.addEventListener('load', () => {
         hasUnsavedChanges = true;
     });
 });
-
-
-
 function projectClipboardShortcut(key) {
     if (key === 'C') copyProjectToClipboard();
     else if (key === 'V') pasteProjectFromClipboard();
     else return false;
     return true;
 }
-
 async function copyProjectToClipboard() {
     if (vfs.getAllPaths().length === 0) {
         showToast('No project to copy', 'error');
@@ -441,7 +366,6 @@ async function copyProjectToClipboard() {
         console.error('copyProjectToClipboard error:', e);
     }
 }
-
 async function pasteProjectFromClipboard() {
     try {
         if (!navigator.clipboard || !navigator.clipboard.readText) {
@@ -457,7 +381,6 @@ async function pasteProjectFromClipboard() {
             showToast('Clipboard is empty', 'error');
             return;
         }
-
         let parsed;
         try {
             parsed = JSON.parse(text.trim());
@@ -465,64 +388,47 @@ async function pasteProjectFromClipboard() {
             showToast('Clipboard does not contain valid JSON', 'error');
             return;
         }
-
-
         const files = Array.isArray(parsed) ? parsed : parsed.files;
         if (!Array.isArray(files) || files.length === 0) {
             showToast('Clipboard JSON does not appear to be a forge project (no files array)', 'error');
             return;
         }
-
-
         if (!files.some(f => f.path)) {
             showToast('Clipboard JSON does not appear to be a forge project (no file paths found)', 'error');
             return;
         }
-
-
         pendingClipboardProject = parsed;
-
-
         const title = parsed.title || '(untitled)';
         const fileCount = files.length;
         const excludedCount = files.filter(f => f.excluded || f.ignored).length;
         const specVersion = parsed.specVersion ? ` — spec v${parsed.specVersion}` : '';
-
         document.getElementById('clipboardPasteTitle').textContent =
             `"${title}"${specVersion}`;
         document.getElementById('clipboardPasteStats').textContent =
             excludedCount > 0
                 ? `${fileCount} files (${excludedCount} excluded)`
                 : `${fileCount} files`;
-
         ForgeModal.open('clipboardPasteModal', {
             initialFocus: '#clipboardPasteConfirmBtn',
             closeOnBackdrop: true,
             onRequestClose: closeClipboardPasteModal
         });
-
     } catch (e) {
-
         showToast('Could not read clipboard: ' + e.message, 'error');
         console.error('pasteProjectFromClipboard error:', e);
     }
 }
-
-
 function loadProjectFromParsed(
     parsed,
     { preserveUrl = false, managedShareMetadata = null, merge = false } = {}
 ) {
     try {
-
         if (!preserveUrl && !merge && !document.documentElement.classList.contains('initializing')) {
             window.history.replaceState({}, '', window.location.pathname);
         }
-
         const { loadedCount, excludedCount, title } = vfs.loadFromJSON(parsed, merge);
         previewHistory = [];
         previewHistoryIndex = -1;
-
         if (!merge) {
             if (title) {
                 projectTitle = title;
@@ -532,66 +438,43 @@ function loadProjectFromParsed(
                 projectTitle = generateProjectName();
             }
         }
-
         if (loadedCount === 0) {
             showToast('No valid files found in project JSON', 'error');
             return;
         }
-
-
         setCurrentManagedShareMetadata(managedShareMetadata);
         if (!getURLParam('namedShare')) currentNamedShareMetadata = null;
-
         resetEditorSession();
-
         updateProjectTitleDisplay();
-
-
         if (typeof applyForgeConfigToVFS === 'function') applyForgeConfigToVFS();
-
-
         if (typeof ForgeGitPush !== 'undefined') ForgeGitPush.loadContextFromVfs();
-
         refreshProjectViews();
         closeEditor();
-
-
         const sharedPage = getURLParam('url');
         const sharedLocation = splitPreviewLocation(sharedPage || '');
         const entryPoint = (sharedLocation.path && vfs.hasFile(sharedLocation.path))
             ? sharedLocation.display
             : vfs.findEntryPoint();
-
         if (entryPoint) {
             renderPage(entryPoint);
-
-
             switchTab('preview');
-
             if (getURLParam('fullscreen')) {
                 const fc = document.getElementById('fullscreenContainer');
                 if (fc) fc.classList.add('active');
                 updateBrowserTitle();
             }
         } else {
-
             switchTab('files');
         }
-
         const statusMsg = `${merge ? 'Merged' : 'Loaded'} ${loadedCount} file(s)` +
             (excludedCount > 0 ? ` (${excludedCount} excluded)` : '');
         setStatus(statusMsg, 'success');
         showToast(statusMsg, 'success', 4000);
-
     } catch (e) {
         showToast('Error loading project: ' + e.message, 'error');
         console.error('loadProjectFromParsed error:', e);
     }
 }
-
-
-
-
 const gitlabModal = document.getElementById('gitlabModal');
 const gitlabUrlInput = document.getElementById('gitlabUrl');
 const gitlabTokenInput = document.getElementById('gitlabToken');
@@ -599,7 +482,6 @@ const gitlabProjectInput = document.getElementById('gitlabProject');
 const gitlabBranchInput = document.getElementById('gitlabBranch');
 const saveTokenCheckbox = document.getElementById('saveToken');
 const importProgress = document.getElementById('importProgress');
-
 const gitlabBrowseProjectsBtn = document.getElementById('gitlabBrowseProjectsBtn');
 const gitlabProjectBrowser = document.getElementById('gitlabProjectBrowser');
 const gitlabRecentProjects = document.getElementById('gitlabRecentProjects');
@@ -611,7 +493,6 @@ const gitlabProjectPrevBtn = document.getElementById('gitlabProjectPrevBtn');
 const gitlabProjectNextBtn = document.getElementById('gitlabProjectNextBtn');
 const gitlabProjectPageLabel = document.getElementById('gitlabProjectPageLabel');
 const gitlabProjectBrowseStatus = document.getElementById('gitlabProjectBrowseStatus');
-
 const GITLAB_PROJECT_PAGE_SIZE = 8;
 const GITLAB_RECENT_PROJECTS_KEY = 'forge-gitlab-recent-projects';
 const GITLAB_RECENT_PROJECTS_LIMIT = 3;
@@ -627,58 +508,40 @@ function setGitImportProvider(n){
     renderRecentGitLabProjects();setGitLabProjectBrowserExpanded(false);
     document.getElementById('gitImportBtn').disabled=0;
 }
-
 let gitlabProjectSearchQuery = '';
 let gitlabProjectSearchPage = 1;
-
-
 const savedToken = localStorage.getItem('gitlabToken');
 if (savedToken) {
     gitlabTokenInput.value = savedToken;
     saveTokenCheckbox.checked = true;
 }
-
-
 function ensureCliUrlFlag() {
     const hash = location.hash.substring(1);
     const params = new URLSearchParams(hash);
-
     if (params.has('cli')) return;
-
     const url = new URL(window.location.href);
     url.hash = hash ? `${hash}&cli` : 'cli';
     window.history.replaceState(window.history.state, '', url.toString());
 }
-
 function openCliInstallModal() {
     ensureCliUrlFlag();
-
     ForgeModal.open('cliInstallModal', {
         closeOnBackdrop: true,
         onRequestClose: closeCliInstallModal
     });
-
-
     const container = document.getElementById('cliInstallContainer');
     ForgeCliInstall.renderInstallUI(container, { compact: false });
 }
-
 function closeCliInstallModal() {
     ForgeModal.close('cliInstallModal');
-
-
     const hashParts = location.hash.substring(1)
         .split('&')
         .filter(Boolean)
         .filter(part => part !== 'cli' && !part.startsWith('cli='));
-
     const url = new URL(window.location.href);
     url.hash = hashParts.join('&');
     window.history.replaceState({}, '', url.toString());
 }
-
-
-
 function openLoadJsonModal() {
     ForgeModal.open('loadJsonModal', {
         initialFocus: '#jsonInput',
@@ -686,23 +549,18 @@ function openLoadJsonModal() {
         onRequestClose: closeLoadJsonModal
     });
 }
-
 function closeLoadJsonModal() {
     ForgeModal.close('loadJsonModal');
 }
-
 function normalizeRecentGitLabProject(project) {
     if (!project || typeof project !== 'object') return null;
-
     const id = project.id === undefined || project.id === null
         ? ''
         : String(project.id);
     const path = typeof project.path_with_namespace === 'string'
         ? project.path_with_namespace.trim()
         : '';
-
     if (!id && !path) return null;
-
     return {
         id,
         path_with_namespace: path,
@@ -712,15 +570,12 @@ function normalizeRecentGitLabProject(project) {
             : ''
     };
 }
-
 function getRecentGitLabProjects() {
     try {
         const parsed = JSON.parse(
             localStorage.getItem(GITLAB_RECENT_PROJECTS_KEY) || '[]'
         );
-
         if (!Array.isArray(parsed)) return [];
-
         return parsed
             .map(normalizeRecentGitLabProject)
             .filter(Boolean)
@@ -729,11 +584,9 @@ function getRecentGitLabProjects() {
         return [];
     }
 }
-
 function rememberGitLabProject(project) {
     const normalized = normalizeRecentGitLabProject(project);
     if (!normalized) return;
-
     const recent = getRecentGitLabProjects().filter(existing => {
         if (normalized.id && existing.id === normalized.id) return false;
         if (
@@ -744,36 +597,28 @@ function rememberGitLabProject(project) {
         }
         return true;
     });
-
     recent.unshift(normalized);
-
     try {
         localStorage.setItem(
             GITLAB_RECENT_PROJECTS_KEY,
             JSON.stringify(recent.slice(0, GITLAB_RECENT_PROJECTS_LIMIT))
         );
     } catch {
-
     }
 }
-
 function selectGitLabProject(project) {
     const normalized = normalizeRecentGitLabProject(project);
     if (!normalized) return;
-
     gitlabProjectInput.value =
         normalized.path_with_namespace || normalized.id;
-
     if (normalized.default_branch) {
         gitlabBranchInput.value = normalized.default_branch;
     }
-
     if(gitImportProviderName==='gitlab')rememberGitLabProject(normalized);
     renderRecentGitLabProjects();
     setGitLabProjectBrowserExpanded(false);
     gitlabProjectInput.focus();
 }
-
 function createGitLabProjectOption(
     project,
     recent = false,
@@ -783,17 +628,14 @@ function createGitLabProjectOption(
     button.type = 'button';
     button.className = 'gitlab-project-option';
     button.setAttribute('role', 'option');
-
     const name = document.createElement('span');
     name.className = 'gitlab-project-option-name';
     name.textContent =
         project.path_with_namespace ||
         project.name ||
         String(project.id || 'GitLab project');
-
     const meta = document.createElement('span');
     meta.className = 'gitlab-project-option-meta';
-
     if (recent) {
         meta.textContent = project.default_branch
             ? `Recently used · default: ${project.default_branch}`
@@ -811,38 +653,28 @@ function createGitLabProjectOption(
         }
         meta.textContent = parts.join(' · ') || 'GitLab repository';
     }
-
     button.append(name, meta);
     button.addEventListener('click', () => onSelect(project));
-
     return button;
 }
-
 function renderRecentGitLabProjects() {
     const recent = gitImportProviderName==='gitlab'?getRecentGitLabProjects():[];
     gitlabRecentProjects.textContent = '';
-
     if (recent.length === 0) {
         gitlabRecentProjects.hidden = true;
         return;
     }
-
     gitlabRecentProjects.hidden = false;
-
     const heading = document.createElement('div');
     heading.className = 'gitlab-recent-projects-heading';
     heading.textContent = 'Recently used';
-
     const list = document.createElement('div');
     list.className = 'gitlab-recent-project-list';
-
     recent.forEach(project => {
         list.appendChild(createGitLabProjectOption(project, true));
     });
-
     gitlabRecentProjects.append(heading, list);
 }
-
 function setGitLabProjectBrowserExpanded(expanded) {
     gitlabProjectBrowser.hidden = !expanded;
     gitlabBrowseProjectsBtn.setAttribute(
@@ -852,22 +684,17 @@ function setGitLabProjectBrowserExpanded(expanded) {
     gitlabBrowseProjectsBtn.textContent =
         expanded ? 'Hide browser' : 'Browse projects';
 }
-
 function setGitLabProjectBrowseLoading() {
     gitlabProjectResults.textContent = '';
-
     const loading = document.createElement('div');
     loading.className = 'gitlab-project-loading';
     loading.textContent = 'Loading repositories…';
-
     gitlabProjectResults.appendChild(loading);
     gitlabProjectPagination.hidden = true;
     gitlabProjectBrowseStatus.textContent = 'Loading repositories…';
 }
-
 function renderGitLabProjectResults(projects, page) {
     gitlabProjectResults.textContent = '';
-
     if (projects.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'gitlab-project-empty';
@@ -882,21 +709,17 @@ function renderGitLabProjectResults(projects, page) {
             );
         });
     }
-
     const hasMore = projects.length === GITLAB_PROJECT_PAGE_SIZE;
-
     gitlabProjectPrevBtn.disabled = page <= 1;
     gitlabProjectNextBtn.disabled = !hasMore;
     gitlabProjectPageLabel.textContent = `Page ${page}`;
     gitlabProjectPagination.hidden = page <= 1 && !hasMore;
-
     gitlabProjectBrowseStatus.textContent = projects.length
         ? `${projects.length} result(s)${
             hasMore ? ' — more on next page' : ''
         }`
         : '';
 }
-
 async function fetchGitLabProjects(token,query='',page=1,provider='gitlab'){
     const q=query.trim(),p=Math.max(1,page),n=GITLAB_PROJECT_PAGE_SIZE;
     if(provider==='github'){
@@ -925,10 +748,8 @@ async function fetchGitLabProjects(token,query='',page=1,provider='gitlab'){
     if(!r.ok)throw new Error(`GitLab API error ${r.status}: ${r.statusText}`);
     const d=await r.json();return Array.isArray(d)?d:[];
 }
-
 async function loadGitLabProjects(query = '', page = 1) {
     const token = gitlabTokenInput.value.trim();
-
     if (!token) {
         gitlabProjectResults.textContent = '';
         gitlabProjectPagination.hidden = true;
@@ -936,14 +757,11 @@ async function loadGitLabProjects(query = '', page = 1) {
             'Enter an access token to browse repositories.';
         return;
     }
-
     gitlabUrlInput.value=gitImportOrigin();
     gitlabProjectSearchQuery = query.trim();
     gitlabProjectSearchPage = Math.max(1, page);
-
     setGitLabProjectBrowseLoading();
     gitlabProjectSearchBtn.disabled = true;
-
     try {
         const projects = await fetchGitLabProjects(
             token,
@@ -951,7 +769,6 @@ async function loadGitLabProjects(query = '', page = 1) {
             gitlabProjectSearchPage,
             gitImportProviderName
         );
-
         renderGitLabProjectResults(
             projects,
             gitlabProjectSearchPage
@@ -965,7 +782,6 @@ async function loadGitLabProjects(query = '', page = 1) {
         gitlabProjectSearchBtn.disabled = false;
     }
 }
-
 window.ForgeGitProjects=window.ForgeGitLabProjects={
     pageSize:GITLAB_PROJECT_PAGE_SIZE,
     normalize:normalizeRecentGitLabProject,
@@ -974,48 +790,38 @@ window.ForgeGitProjects=window.ForgeGitLabProjects={
     fetchProjects:fetchGitLabProjects,
     createOption:createGitLabProjectOption
 };
-
 function toggleGitLabProjectBrowser() {
     const expanding = gitlabProjectBrowser.hidden;
-
     setGitLabProjectBrowserExpanded(expanding);
-
     if (!expanding) return;
-
     renderRecentGitLabProjects();
     loadGitLabProjects(gitlabProjectSearchInput.value.trim(), 1);
 }
-
 gitlabBrowseProjectsBtn.addEventListener(
     'click',
     toggleGitLabProjectBrowser
 );
-
 gitlabProjectSearchBtn.addEventListener('click', () => {
     loadGitLabProjects(gitlabProjectSearchInput.value.trim(), 1);
 });
-
 gitlabProjectSearchInput.addEventListener('keydown', event => {
     if (event.key === 'Enter') {
         event.preventDefault();
         loadGitLabProjects(gitlabProjectSearchInput.value.trim(), 1);
     }
 });
-
 gitlabProjectPrevBtn.addEventListener('click', () => {
     loadGitLabProjects(
         gitlabProjectSearchQuery,
         gitlabProjectSearchPage - 1
     );
 });
-
 gitlabProjectNextBtn.addEventListener('click', () => {
     loadGitLabProjects(
         gitlabProjectSearchQuery,
         gitlabProjectSearchPage + 1
     );
 });
-
 function openGitLabModal() {
     gitlabUrlInput.value=gitImportOrigin();
     const p=document.getElementById('gitImportProvider');if(p)p.value=gitImportProviderName;
@@ -1027,13 +833,10 @@ function openGitLabModal() {
         gitlabTokenInput.value = '';
         saveTokenCheckbox.checked = false;
     }
-
     renderRecentGitLabProjects();
-
     const browseProjects =
         gitlabTokenInput.value.trim() &&
         !gitlabProjectInput.value.trim();
-
     if (browseProjects) {
         gitlabProjectSearchInput.value = '';
         setGitLabProjectBrowserExpanded(true);
@@ -1041,7 +844,6 @@ function openGitLabModal() {
     } else {
         setGitLabProjectBrowserExpanded(false);
     }
-
     ForgeModal.open('gitlabModal', {
         initialFocus: () => browseProjects
             ? gitlabProjectSearchInput
@@ -1049,7 +851,6 @@ function openGitLabModal() {
         onRequestClose: closeGitLabModal
     });
 }
-
 function closeGitLabModal() {
     ForgeModal.close('gitlabModal');
     setGitLabProjectBrowserExpanded(false);
@@ -1062,28 +863,21 @@ function closeGitLabModal() {
     importProgress.style.display = 'none';
     importProgress.textContent = '';
 }
-
 function logProgress(message, replaceProgress = false) {
     importProgress.style.display = 'block';
-
     if (replaceProgress) {
         const existing = importProgress.textContent.trimEnd();
         const lines = existing ? existing.split('\n') : [];
         const last = lines[lines.length - 1] || '';
-
         if (/^  (?:Fetched|Excluded) \d+/.test(last)) {
             lines.pop();
         }
-
         importProgress.textContent =
             lines.length ? lines.join('\n') + '\n' : '';
     }
-
     importProgress.textContent += message + '\n';
     importProgress.scrollTop = importProgress.scrollHeight;
 }
-
-
 function parseForgeIgnore(content) {
     return content
         .split('\n')
@@ -1091,18 +885,11 @@ function parseForgeIgnore(content) {
         .filter(line => line && !line.startsWith('#'))
         .map(pattern => pattern.replace(/\r/g, ''));
 }
-
-
 function matchesIgnorePattern(filePath, pattern) {
-
     const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
-    
-
     if (pattern.endsWith('/')) {
         return cleanPath.startsWith(pattern) || cleanPath.startsWith(pattern.slice(0, -1) + '/');
     }
-    
-
     if (pattern.includes('*')) {
         const regexPattern = '^' + pattern
             .replace(/\./g, '\\.')
@@ -1111,12 +898,8 @@ function matchesIgnorePattern(filePath, pattern) {
         const regex = new RegExp(regexPattern);
         return regex.test(cleanPath);
     }
-    
-
     return cleanPath === pattern || cleanPath.startsWith(pattern + '/');
 }
-
-
 function shouldIgnoreFile(filePath, ignorePatterns) {
     for (const pattern of ignorePatterns) {
         if (matchesIgnorePattern(filePath, pattern)) {
@@ -1125,38 +908,30 @@ function shouldIgnoreFile(filePath, ignorePatterns) {
     }
     return null;
 }
-
-
 function markInvalidFormField(input) {
     if (!input) return;
-
     const modal = input.closest('.modal');
     if (modal) {
         modal.querySelectorAll('[aria-invalid="true"]').forEach(field => {
             field.removeAttribute('aria-invalid');
         });
     }
-
     input.setAttribute('aria-invalid', 'true');
     input.focus();
-
     const clearInvalid = () => {
         input.removeAttribute('aria-invalid');
         input.removeEventListener('input', clearInvalid);
         input.removeEventListener('change', clearInvalid);
     };
-
     input.addEventListener('input', clearInvalid);
     input.addEventListener('change', clearInvalid);
 }
-
 async function importFromGitLab() {
     const provider=gitImportProviderName;
     const gitlabUrl=gitImportOrigin();
     const isGithub=provider==='github';
     const providerLabel=isGithub?'GitHub':'GitLab';
     gitlabUrlInput.value=gitlabUrl;
-
     const token=gitlabTokenInput.value.trim();
     const projectInput=gitlabProjectInput.value.trim();
     const headers=isGithub
@@ -1165,7 +940,6 @@ async function importFromGitLab() {
     const rawHeaders=isGithub
         ? {...headers,Accept:'application/vnd.github.raw+json'}
         : headers;
-
     const pendingMr=gitlabUrlInput.dataset.mrNumber;
     if (!isGithub && pendingMr && token && gitlabUrl) {
         try {
@@ -1189,30 +963,23 @@ async function importFromGitLab() {
             delete gitlabUrlInput.dataset.mrNumber;
         }
     }
-
     if (!gitlabUrl || !token || !projectInput) {
         if (!token) {
             markInvalidFormField(gitlabTokenInput);
         } else if (!projectInput) {
             markInvalidFormField(gitlabProjectInput);
         }
-
         showToast('Please fill in all required fields', 'error');
         return;
     }
-
-
     if (saveTokenCheckbox.checked) {
         localStorage.setItem(provider+'Token',token);
     } else {
         localStorage.removeItem(provider+'Token');
     }
-
     importProgress.textContent = '';
     logProgress('Starting import...');
-
     try {
-
         let projectId=projectInput;
         if(!isGithub){
             if(isNaN(projectInput)){
@@ -1222,21 +989,17 @@ async function importFromGitLab() {
                 logProgress(`Using project ID: ${projectInput}`);
             }
         }
-
         const repoPath=isGithub
             ? projectInput.split('/').map(encodeURIComponent).join('/')
             : projectId;
-
         logProgress('Fetching project info...');
         const projectUrl=isGithub
             ? `${gitlabUrl}/repos/${repoPath}`
             : `${gitlabUrl}/api/v4/projects/${projectId}`;
         const projectResponse=await fetch(projectUrl,{headers});
-
         if(!projectResponse.ok){
             throw new Error(`Failed to fetch repository: ${projectResponse.status} ${projectResponse.statusText}`);
         }
-
         const projectRaw=await projectResponse.json();
         const projectData=isGithub?{
             ...projectRaw,
@@ -1246,23 +1009,17 @@ async function importFromGitLab() {
         if(!isGithub)rememberGitLabProject(projectData);
         logProgress(`✓ Found project: ${projectData.name}`);
         logProgress(`  Path: ${projectData.path_with_namespace}`);
-
         const targetBranch = gitlabBranchInput.value.trim() || projectData.default_branch;
-        
         projectTitle = projectData.path_with_namespace;
         logProgress(`  Branch: ${targetBranch}`);
-
-
         logProgress('\nChecking for .forgeignore...');
         let ignorePatterns = [];
         let forgeIgnoreContent = null;
-        
         try {
             const forgeIgnoreUrl=isGithub
                 ? `${gitlabUrl}/repos/${repoPath}/contents/.forgeignore?ref=${encodeURIComponent(targetBranch)}`
                 : `${gitlabUrl}/api/v4/projects/${projectData.id}/repository/files/${encodeURIComponent('.forgeignore')}/raw?ref=${targetBranch}`;
             const forgeIgnoreResponse=await fetch(forgeIgnoreUrl,{headers:rawHeaders});
-            
             if (forgeIgnoreResponse.ok) {
                 forgeIgnoreContent = await forgeIgnoreResponse.text();
                 ignorePatterns = parseForgeIgnore(forgeIgnoreContent);
@@ -1274,36 +1031,27 @@ async function importFromGitLab() {
         } catch (error) {
             logProgress('  No .forgeignore file found');
         }
-
-
         logProgress('\nFetching repository tree...');
         const treeUrl=isGithub
             ? `${gitlabUrl}/repos/${repoPath}/git/trees/${encodeURIComponent(targetBranch)}?recursive=1`
             : `${gitlabUrl}/api/v4/projects/${projectData.id}/repository/tree?recursive=true&per_page=1000&ref=${targetBranch}`;
         const treeResponse=await fetch(treeUrl,{headers});
-
         if(!treeResponse.ok){
             throw new Error(`Failed to fetch tree: ${treeResponse.status} ${treeResponse.statusText}`);
         }
-
         const treeRaw=await treeResponse.json();
         if(isGithub&&treeRaw.truncated)throw new Error('Repository tree is truncated.');
         const treeData=isGithub?treeRaw.tree:treeRaw;
         const files=treeData.filter(item=>item.type==='blob');
         logProgress(`✓ Found ${files.length} files`);
-
-
         logProgress('\nFetching file contents...');
         const projectFiles = [];
         let fetchedCount = 0;
         let ignoredCount = 0;
-
         for (const file of files) {
             const filePath = '/' + file.path;
             const matchedPattern = shouldIgnoreFile(filePath, ignorePatterns);
-            
                 if (matchedPattern) {
-
                     projectFiles.push({
                         path: filePath,
                         contents: '',
@@ -1318,16 +1066,13 @@ async function importFromGitLab() {
                         );
                     }
                 } else {
-
                 const filePathEncoded=isGithub
                     ? file.path.split('/').map(encodeURIComponent).join('/')
                     : encodeURIComponent(file.path);
                 const fileUrl=isGithub
                     ? `${gitlabUrl}/repos/${repoPath}/contents/${filePathEncoded}?ref=${encodeURIComponent(targetBranch)}`
                     : `${gitlabUrl}/api/v4/projects/${projectData.id}/repository/files/${filePathEncoded}/raw?ref=${targetBranch}`;
-
                 const fileResponse=await fetch(fileUrl,{headers:rawHeaders});
-
                 if (fileResponse.ok) {
                     const imported=await readImportedFile(
                         fileResponse,
@@ -1350,16 +1095,11 @@ async function importFromGitLab() {
                 }
             }
         }
-        
         logProgress(`\n✓ Successfully fetched ${fetchedCount} files`);
         if (ignoredCount > 0) {
             logProgress(`✓ Ignored ${ignoredCount} files based on .forgeignore`);
         }
-
-
         resetEditorSession();
-
-
         logProgress('\nLoading into virtual file system...');
         vfs.clear();
         for (const file of projectFiles) {
@@ -1371,19 +1111,11 @@ async function importFromGitLab() {
             };
             vfs.addFile(file.path, file.contents, meta);
         }
-
-
         updateProjectTitleDisplay();
-
-
         if (typeof applyForgeConfigToVFS === 'function') applyForgeConfigToVFS();
-
         refreshAndOpenProject();
-
         logProgress('\n✓ Import complete!');
         showToast(`Imported ${fetchedCount} files from ${providerLabel} (${ignoredCount} excluded)`,'success',4000);
-
-
         if (typeof ForgeGitPush !== 'undefined') {
             ForgeGitPush.recordImportContext(
                 gitlabUrl,
@@ -1395,27 +1127,21 @@ async function importFromGitLab() {
                 provider
             );
         }
-
-
         setTimeout(() => {
             closeGitLabModal();
         }, 2000);
-
     } catch (error) {
         logProgress(`\n❌ Error: ${error.message}`);
         showToast('Import failed: ' + error.message, 'error', 5000);
         console.error('Git import error:',error);
     }
 }
-
 async function compress(text) {
     const stream = new CompressionStream('gzip');
     const writer = stream.writable.getWriter();
     writer.write(new TextEncoder().encode(text));
     writer.close();
     const buf = await new Response(stream.readable).arrayBuffer();
-    
-
     const bytes = new Uint8Array(buf);
     const CHUNK_SIZE = 8192;
     let binary = '';
@@ -1425,7 +1151,6 @@ async function compress(text) {
     }
     return btoa(binary);
 }
-
 async function decompress(b64) {
     const stream = new DecompressionStream('gzip');
     const writer = stream.writable.getWriter();
@@ -1433,33 +1158,25 @@ async function decompress(b64) {
     writer.close();
     return new Response(stream.readable).arrayBuffer().then(d => new TextDecoder().decode(d));
 }
-
 function getURLParam(name) {
-
     const hash = location.hash.substring(1);
     if (hash) {
         const hashParams = new URLSearchParams(hash);
         const hashValue = hashParams.get(name);
         if (hashValue) return hashValue;
     }
-
     return new URLSearchParams(location.search).get(name);
 }
-
-
 /**
  * Copy text to clipboard.
  * Uses navigator.clipboard (secure contexts) with fallback to
  * execCommand for HTTP environments.
  */
 async function copyToClipboard(text) {
-
     if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
         return;
     }
-
-
     const textarea = document.createElement('textarea');
     textarea.value = text;
     textarea.style.position = 'fixed';
@@ -1468,36 +1185,28 @@ async function copyToClipboard(text) {
     textarea.setAttribute('readonly', '');
     document.body.appendChild(textarea);
     textarea.select();
-
     const success = document.execCommand('copy');
     document.body.removeChild(textarea);
-
     if (!success) {
         throw new Error('Copy failed — clipboard not available in this context');
     }
 }
-
-
 const accessibleModalOrigins = new WeakMap();
 const accessibleModalOptions = new WeakMap();
 let activeAccessibleModal = null;
-
 function getModalOverlay(target) {
     if (!target) return null;
     if (typeof target === 'string') return document.getElementById(target);
     return target.classList?.contains('modal-overlay') ? target : null;
 }
-
 function getModalInitialFocus(overlay) {
     const options = accessibleModalOptions.get(overlay) || {};
     const target = options.initialFocus;
-
     if (!target) return null;
     if (typeof target === 'string') return overlay.querySelector(target);
     if (typeof target === 'function') return target(overlay);
     return typeof target.focus === 'function' ? target : null;
 }
-
 /**
  * Shared modal mechanics.
  *
@@ -1511,49 +1220,38 @@ const ForgeModal = {
     open(target, options = {}) {
         const overlay = getModalOverlay(target);
         if (!overlay) return false;
-
         accessibleModalOptions.set(overlay, options || {});
-
         if (!overlay.classList.contains('active')) {
             if (!accessibleModalOrigins.has(overlay)) {
                 accessibleModalOrigins.set(overlay, document.activeElement);
             }
             overlay.classList.add('active');
         }
-
         updateAccessibleModalState(overlay);
         return true;
     },
-
     close(target) {
         const overlay = getModalOverlay(target);
         if (!overlay) return false;
-
         overlay.classList.remove('active');
         updateAccessibleModalState(overlay);
         return true;
     },
-
     requestClose(target) {
         const overlay = getModalOverlay(target);
         if (!overlay) return false;
-
         const options = accessibleModalOptions.get(overlay) || {};
         if (typeof options.onRequestClose === 'function') {
             options.onRequestClose(overlay);
             return true;
         }
-
         return this.close(overlay);
     },
-
     active() {
         return activeAccessibleModal;
     }
 };
-
 window.ForgeModal = ForgeModal;
-
 function getModalFocusableElements(overlay) {
     return Array.from(overlay.querySelectorAll(
         'a[href], button:not([disabled]), input:not([disabled]), ' +
@@ -1561,24 +1259,19 @@ function getModalFocusableElements(overlay) {
         '[tabindex]:not([tabindex="-1"])'
     )).filter(el => !el.hidden && el.offsetParent !== null);
 }
-
 function updateAccessibleModalState(overlay) {
     const dialog = overlay.querySelector('.modal');
     if (!dialog) return;
-
     const isActive = overlay.classList.contains('active');
-
     if (isActive) {
         if (!accessibleModalOrigins.has(overlay)) {
             accessibleModalOrigins.set(overlay, document.activeElement);
         }
         activeAccessibleModal = overlay;
         overlay.setAttribute('aria-hidden', 'false');
-
         requestAnimationFrame(() => {
             if (!overlay.contains(document.activeElement)) {
                 const initialFocus = getModalInitialFocus(overlay);
-
                 if (
                     initialFocus &&
                     initialFocus.isConnected &&
@@ -1587,7 +1280,6 @@ function updateAccessibleModalState(overlay) {
                     initialFocus.focus();
                     return;
                 }
-
                 const focusable = getModalFocusableElements(overlay);
                 if (focusable.length > 0) {
                     focusable[0].focus();
@@ -1599,29 +1291,23 @@ function updateAccessibleModalState(overlay) {
         });
         return;
     }
-
     if (activeAccessibleModal === overlay) {
         activeAccessibleModal = null;
     }
-
     const origin = accessibleModalOrigins.get(overlay);
     if (origin && origin.isConnected && typeof origin.focus === 'function') {
         origin.focus();
     }
-
     accessibleModalOrigins.delete(overlay);
     accessibleModalOptions.delete(overlay);
     overlay.setAttribute('aria-hidden', 'true');
 }
-
 function initializeAccessibleModals() {
     document.querySelectorAll('.modal-overlay').forEach((overlay, index) => {
         const dialog = overlay.querySelector('.modal');
         if (!dialog) return;
-
         dialog.setAttribute('role', 'dialog');
         dialog.setAttribute('aria-modal', 'true');
-
         const heading = dialog.querySelector('h1, h2, h3');
         if (heading) {
             if (!heading.id) {
@@ -1629,7 +1315,6 @@ function initializeAccessibleModals() {
             }
             dialog.setAttribute('aria-labelledby', heading.id);
         }
-
         const closeButton = dialog.querySelector('.modal-header button');
         if (
             closeButton &&
@@ -1638,25 +1323,18 @@ function initializeAccessibleModals() {
         ) {
             closeButton.setAttribute('aria-label', 'Close dialog');
         }
-
         overlay.addEventListener('click', event => {
             if (event.target !== overlay) return;
-
             const options = accessibleModalOptions.get(overlay) || {};
             if (!options.closeOnBackdrop) return;
-
             ForgeModal.requestClose(overlay);
         });
-
         updateAccessibleModalState(overlay);
     });
 }
-
 document.addEventListener('DOMContentLoaded', initializeAccessibleModals);
-
 document.addEventListener('keydown', event => {
     if (event.key !== 'Tab' || !activeAccessibleModal) return;
-
     const focusable = getModalFocusableElements(activeAccessibleModal);
     if (focusable.length === 0) {
         event.preventDefault();
@@ -1664,10 +1342,8 @@ document.addEventListener('keydown', event => {
         if (dialog) dialog.focus();
         return;
     }
-
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
-
     if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
@@ -1676,17 +1352,12 @@ document.addEventListener('keydown', event => {
         first.focus();
     }
 });
-
-
 document.addEventListener('keydown', event => {
     if (event.key !== 'Escape' || !activeAccessibleModal) return;
-
     event.preventDefault();
     event.stopImmediatePropagation();
     ForgeModal.requestClose(activeAccessibleModal);
 }, true);
-
-
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
@@ -1697,46 +1368,33 @@ function showToast(message, type = 'info', duration = 3000) {
     );
     toast.textContent = message;
     container.appendChild(toast);
-    
     setTimeout(() => toast.classList.add('show'), 10);
-    
     setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
     }, duration);
 }
-
-
 let serverFeatures = {
   urlShortening: false,
   sharing: false
 };
-
 let serverSharePolicy = {
   defaultTtlMs: null
 };
-
 let forgeContactEmail = 'forge@fda.hhs.gov';
-
 let serverAuth = {
   mode: 'none',
   assertedIdentity: false,
   anonymousAllowed: true
 };
-
 let currentUser = null;
-
 let managedShareAdminEnabled = false;
 let managedShareAdminTimer = null;
 let managedShareAdminBusy = false;
-
-
 let currentManagedShareMetadata = null;
 let currentNamedShareMetadata = null;
-
 const ASSERTED_EMAIL_STORAGE_KEY = 'forgeAssertedEmail';
 const PENDING_MANAGED_SHARE_PREFIX = 'forgePendingManagedShare:';
-
 async function managedSharePayloadHash(data) {
     const digest = await crypto.subtle.digest(
         'SHA-1',
@@ -1746,7 +1404,6 @@ async function managedSharePayloadHash(data) {
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
 }
-
 function getPendingManagedShare(payloadHash) {
     try {
         const raw = localStorage.getItem(
@@ -1757,7 +1414,6 @@ function getPendingManagedShare(payloadHash) {
         return null;
     }
 }
-
 function savePendingManagedShare(payloadHash, pending) {
     try {
         localStorage.setItem(
@@ -1769,7 +1425,6 @@ function savePendingManagedShare(payloadHash, pending) {
         return false;
     }
 }
-
 function removePendingManagedShare(payloadHash) {
     try {
         localStorage.removeItem(
@@ -1777,12 +1432,10 @@ function removePendingManagedShare(payloadHash) {
         );
     } catch {}
 }
-
 function normalizeForgeContactEmail(value) {
     if (typeof value !== 'string') {
         return 'forge@fda.hhs.gov';
     }
-
     const email = value.trim();
     if (
         email.length === 0 ||
@@ -1791,10 +1444,8 @@ function normalizeForgeContactEmail(value) {
     ) {
         return 'forge@fda.hhs.gov';
     }
-
     return email;
 }
-
 function currentForgePayloadHash() {
     const params = new URLSearchParams(location.hash.substring(1));
     const value =
@@ -1802,10 +1453,8 @@ function currentForgePayloadHash() {
         params.get('payloadsha1') ||
         params.get('htmlsha1') ||
         '';
-
     return /^[a-f0-9]{40}$/i.test(value) ? value.toLowerCase() : '';
 }
-
 function openForgeMailto(subjectSuffix, bodyLines = []) {
     const payloadHash = currentForgePayloadHash();
     const subject = [
@@ -1813,7 +1462,6 @@ function openForgeMailto(subjectSuffix, bodyLines = []) {
         payloadHash || null,
         subjectSuffix || 'Support'
     ].filter(Boolean).join(' ');
-
     const body = [
         'FORGE IDE',
         '',
@@ -1822,66 +1470,52 @@ function openForgeMailto(subjectSuffix, bodyLines = []) {
         '',
         ...bodyLines
     ].filter(line => line !== null).join('\n');
-
     window.location.href =
         `mailto:${forgeContactEmail}` +
         `?subject=${encodeURIComponent(subject)}` +
         `&body=${encodeURIComponent(body)}`;
 }
-
 function emailForge() {
     openForgeMailto('Support', [
         'Question or feedback:',
         ''
     ]);
 }
-
 function openForgeReportModal(preferredReason = '') {
     const modal = document.getElementById('forgeReportModal');
     if (!modal) return;
-
     const reasons = Array.from(
         document.querySelectorAll('input[name="forgeReportReason"]')
     );
-
     const preferred =
         reasons.find(input => input.value === preferredReason) ||
         reasons.find(input => input.value === 'Other') ||
         reasons[0];
-
     reasons.forEach(input => {
         input.checked = input === preferred;
     });
-
     const details = document.getElementById('forgeReportDetails');
     if (details) details.value = '';
-
     ForgeModal.open('forgeReportModal', {
         initialFocus: preferred,
         onRequestClose: closeForgeReportModal
     });
 }
-
 function closeForgeReportModal() {
     ForgeModal.close('forgeReportModal');
 }
-
 function sendForgeReportEmail() {
     const selectedReason = document.querySelector(
         'input[name="forgeReportReason"]:checked'
     );
     const details = document.getElementById('forgeReportDetails');
-
     const reason = selectedReason
         ? selectedReason.value
         : 'Other';
-
     const detailText = details && details.value
         ? details.value.trim()
         : '';
-
     closeForgeReportModal();
-
     openForgeMailto(`Report: ${reason}`, [
         `Reason: ${reason}`,
         '',
@@ -1889,29 +1523,23 @@ function sendForgeReportEmail() {
         detailText
     ]);
 }
-
 function hidePreviewUnavailableState() {
     const unavailable = document.getElementById('previewUnavailable');
     if (!unavailable) return;
     unavailable.hidden = true;
 }
-
 function showManagedShareUnavailableState(error, payloadHash) {
     const unavailable = document.getElementById('previewUnavailable');
     const title = document.getElementById('previewUnavailableTitle');
     const message = document.getElementById('previewUnavailableMessage');
     const hint = document.getElementById('previewUnavailableHint');
-
     if (!unavailable || !title || !message || !hint) return;
-
     const reason = error && error.message
         ? error.message
         : 'Share is no longer available';
-
     let heading = 'This Short Link could not be loaded.';
     let explanation =
         'FORGE could not retrieve this shared project. The link may be unavailable or the server may be temporarily unreachable.';
-
     if (reason === 'Share has expired') {
         heading = 'This Short Link has expired.';
         explanation =
@@ -1925,23 +1553,19 @@ function showManagedShareUnavailableState(error, payloadHash) {
         explanation =
             'FORGE could not find a shared project for this payload hash.';
     }
-
     title.textContent = heading;
     message.textContent = explanation;
     hint.textContent = /^[a-f0-9]{40}$/i.test(payloadHash || '')
         ? `Payload hash: ${payloadHash.toLowerCase()}`
         : '';
-
     previewFrame.srcdoc = '';
     urlBar.value = 'Short Link unavailable';
     setCurrentManagedShareMetadata(null);
     setPreviewWelcomeVisible(false);
     unavailable.hidden = false;
 }
-
 function normalizeAssertedEmail(value) {
   if (typeof value !== 'string') return null;
-
   const email = value.trim();
   if (
     email.length === 0 ||
@@ -1950,10 +1574,8 @@ function normalizeAssertedEmail(value) {
   ) {
     return null;
   }
-
   return email;
 }
-
 function getAssertedEmail() {
   try {
     return normalizeAssertedEmail(
@@ -1963,28 +1585,22 @@ function getAssertedEmail() {
     return null;
   }
 }
-
 function forgeRequestHeaders(headers = {}) {
   const result = { ...headers };
-
   if (serverAuth.assertedIdentity) {
     const email = getAssertedEmail();
     if (email) {
       result['X-Forge-Asserted-Email'] = email;
     }
   }
-
   return result;
 }
-
-
 function forgeServerFetch(endpointName, options = {}, params = {}) {
   return fetch(forgeEndpoint(endpointName, params), {
     ...options,
     headers: forgeRequestHeaders(options.headers || {})
   });
 }
-
 function legacyManagedSharePacketBody(packet) {
   const operation = packet.type === 'share.make'
     ? 'make'
@@ -1996,14 +1612,12 @@ function legacyManagedSharePacketBody(packet) {
       reason: packet.reason
     }
   };
-
   if (packet.payloadHash) {
     body.payloadHash = packet.payloadHash;
   }
   if (operation === 'make' && packet.data != null) {
     body.data = packet.data;
   }
-
   for (const field of ['title', 'expiresAt', 'state']) {
     if (
       packet.changes &&
@@ -2012,46 +1626,35 @@ function legacyManagedSharePacketBody(packet) {
       body[field] = packet.changes[field];
     }
   }
-
   return body;
 }
-
 let managedShareGitCredentialResolve = null;
 let managedShareGitCredentialPromise = null;
-
 function finishManagedShareGitCredentialPrompt(accepted) {
   const resolve = managedShareGitCredentialResolve;
-
   managedShareGitCredentialResolve = null;
   managedShareGitCredentialPromise = null;
-
   ForgeModal.close('managedShareGitCredentialModal');
-
   if (resolve) {
     resolve(accepted === true);
   }
 }
-
 function closeManagedShareGitCredentialModal() {
   finishManagedShareGitCredentialPrompt(false);
 }
-
 function managedShareGitCredentialInputs() {
   return {
     tokenInput: document.getElementById('managedShareGitCredential'),
     rememberInput: document.getElementById('managedShareGitRemember')
   };
 }
-
 function resetManagedShareGitCredentialInputs() {
   const { tokenInput, rememberInput } = managedShareGitCredentialInputs();
   if (tokenInput) tokenInput.value = '';
   if (rememberInput) rememberInput.checked = false;
 }
-
 function openManagedShareGitCredentialModal() {
   const git = window.ForgeManagedShareGit;
-
   if (
     !git ||
     typeof git.isConfigured !== 'function' ||
@@ -2059,24 +1662,19 @@ function openManagedShareGitCredentialModal() {
   ) {
     return Promise.resolve(false);
   }
-
   if (
     typeof git.hasCredential === 'function' &&
     git.hasCredential()
   ) {
     return Promise.resolve(true);
   }
-
   if (managedShareGitCredentialPromise) {
     return managedShareGitCredentialPromise;
   }
-
   resetManagedShareGitCredentialInputs();
-
   managedShareGitCredentialPromise = new Promise(resolve => {
     managedShareGitCredentialResolve = resolve;
   });
-
   const opened = ForgeModal.open(
     'managedShareGitCredentialModal',
     {
@@ -2085,30 +1683,24 @@ function openManagedShareGitCredentialModal() {
       onRequestClose: closeManagedShareGitCredentialModal
     }
   );
-
   if (!opened) {
     finishManagedShareGitCredentialPrompt(false);
   }
-
   return managedShareGitCredentialPromise ||
     Promise.resolve(false);
 }
-
 function saveManagedShareGitCredential() {
   const git = window.ForgeManagedShareGit;
   const { tokenInput, rememberInput } =
     managedShareGitCredentialInputs();
-
   const token = tokenInput
     ? tokenInput.value.trim()
     : '';
-
   if (!token) {
     showToast('Enter a GitHub inbox credential.', 'warning', 3000);
     if (tokenInput) tokenInput.focus();
     return;
   }
-
   try {
     git.setCredential(
       token,
@@ -2119,31 +1711,24 @@ function saveManagedShareGitCredential() {
     showToast(error.message, 'error', 4000);
   }
 }
-
 function forgetManagedShareGitCredential() {
   const git = window.ForgeManagedShareGit;
-
   if (
     git &&
     typeof git.clearCredential === 'function'
   ) {
     git.clearCredential();
   }
-
   resetManagedShareGitCredentialInputs();
-
   showToast(
     'GitHub sharing credential forgotten from this browser.',
     'success',
     3000
   );
-
   if (tokenInput) tokenInput.focus();
 }
-
 function managedShareAdminAllowed() {
   const git = window.ForgeManagedShareGit;
-
   return !!(
     managedShareAdminEnabled &&
     new URLSearchParams(location.search).get('admin') === 'true' &&
@@ -2152,60 +1737,47 @@ function managedShareAdminAllowed() {
     git.isConfigured()
   );
 }
-
 function managedShareAdminLog(message) {
   const log = document.getElementById('managedShareAdminLog');
   if (!log) return;
-
   const time = new Date().toLocaleTimeString();
   log.textContent += `[${time}] ${message}\n`;
   log.scrollTop = log.scrollHeight;
 }
-
 function setManagedShareAdminStatus(message) {
   const status = document.getElementById('managedShareAdminStatus');
   if (status) status.textContent = message;
 }
-
 function useManagedShareAdminCredential() {
   const git = window.ForgeManagedShareGit;
   const input = document.getElementById('managedShareAdminCredential');
   const remember = document.getElementById('managedShareAdminRemember');
   const token = input ? input.value.trim() : '';
-
   if (token) {
     git.setProcessorCredential(token, !!(remember && remember.checked));
     input.value = '';
     managedShareAdminLog('Trusted processor credential loaded.');
   }
-
   if (
     typeof git.hasProcessorCredential !== 'function' ||
     !git.hasProcessorCredential()
   ) {
     throw new Error('Trusted processor credential is required');
   }
-
   return git;
 }
-
 async function processManagedShareAdminInbox(logEmpty = true) {
   if (!managedShareAdminAllowed() || managedShareAdminBusy) return;
-
   managedShareAdminBusy = true;
-
   try {
     const git = useManagedShareAdminCredential();
     const items = await git.listInbox();
-
     setManagedShareAdminStatus(
       `${items.length} inbox request${items.length === 1 ? '' : 's'} pending`
     );
-
     if (items.length === 0 && logEmpty) {
       managedShareAdminLog('Inbox is empty.');
     }
-
     for (const item of items) {
       try {
         managedShareAdminLog(`Processing ${item.path}`);
@@ -2224,7 +1796,6 @@ async function processManagedShareAdminInbox(logEmpty = true) {
         );
       }
     }
-
     const remaining = await git.listInbox();
     setManagedShareAdminStatus(
       `${remaining.length} inbox request${remaining.length === 1 ? '' : 's'} pending`
@@ -2236,30 +1807,23 @@ async function processManagedShareAdminInbox(logEmpty = true) {
     managedShareAdminBusy = false;
   }
 }
-
 async function startManagedShareAdminPolling() {
   if (!managedShareAdminAllowed()) return;
-
   try {
     useManagedShareAdminCredential();
   } catch (error) {
     setManagedShareAdminStatus(error.message);
     return;
   }
-
   if (managedShareAdminTimer) return;
-
   managedShareAdminLog('Polling started.');
   await processManagedShareAdminInbox();
-
   managedShareAdminTimer = setInterval(
     () => processManagedShareAdminInbox(false),
     5000
   );
-
   setManagedShareAdminStatus('Polling every 5 seconds');
 }
-
 function stopManagedShareAdminPolling() {
   if (managedShareAdminTimer) {
     clearInterval(managedShareAdminTimer);
@@ -2267,31 +1831,25 @@ function stopManagedShareAdminPolling() {
     managedShareAdminLog('Polling stopped.');
   }
 }
-
 function forgetManagedShareAdminCredential() {
   const git = window.ForgeManagedShareGit;
   if (git && typeof git.clearProcessorCredential === 'function') {
     git.clearProcessorCredential();
   }
-
   const input = document.getElementById('managedShareAdminCredential');
   if (input) input.value = '';
-
   stopManagedShareAdminPolling();
   setManagedShareAdminStatus('Trusted processor credential cleared');
   managedShareAdminLog('Trusted processor credential cleared.');
 }
-
 function closeManagedShareAdminModal() {
   stopManagedShareAdminPolling();
   ForgeModal.close('managedShareAdminModal');
 }
-
 function openManagedShareAdminIfRequested() {
   const git = window.ForgeManagedShareGit;
   const requested =
     new URLSearchParams(location.search).get('admin') === 'true';
-
   console.log('[FORGE admin] startup gate', {
     requested,
     configEnabled: managedShareAdminEnabled,
@@ -2303,14 +1861,12 @@ function openManagedShareAdminIfRequested() {
     ),
     allowed: managedShareAdminAllowed()
   });
-
   if (!managedShareAdminAllowed()) return;
   setManagedShareAdminStatus(
     git.hasProcessorCredential()
       ? 'Trusted processor credential available'
       : 'Enter the trusted processor credential'
   );
-
   ForgeModal.open('managedShareAdminModal', {
     initialFocus: git.hasProcessorCredential()
       ? '#managedShareAdminProcessBtn'
@@ -2319,7 +1875,6 @@ function openManagedShareAdminIfRequested() {
     onRequestClose: closeManagedShareAdminModal
   });
 }
-
 async function sendManagedShareRequest(packet) {
   const aliasRequest = packet && [
     'share.alias.make', 'share.alias.update'
@@ -2332,7 +1887,6 @@ async function sendManagedShareRequest(packet) {
   ) {
     throw new Error('Invalid managed-share packet');
   }
-
   const nativePacket =
     !aliasRequest && forgeEndpointAdvertised('shareRequest');
   const endpoint = aliasRequest
@@ -2342,10 +1896,8 @@ async function sendManagedShareRequest(packet) {
       : packet.type === 'share.make'
         ? 'shareCreate'
         : 'shareUpdate';
-
   if (aliasRequest || !forgeEndpointAdvertised(endpoint)) {
     const git = window.ForgeManagedShareGit;
-
     if (
       git &&
       typeof git.isConfigured === 'function' &&
@@ -2357,7 +1909,6 @@ async function sendManagedShareRequest(packet) {
       ) {
         const accepted =
           await openManagedShareGitCredentialModal();
-
         if (!accepted) {
           const error = new Error(
             'Managed-share request cancelled'
@@ -2366,7 +1917,6 @@ async function sendManagedShareRequest(packet) {
           throw error;
         }
       }
-
       if (
         typeof git.canSubmit !== 'function' ||
         !git.canSubmit(packet.type)
@@ -2375,13 +1925,10 @@ async function sendManagedShareRequest(packet) {
           'GitHub inbox credential is unavailable'
         );
       }
-
       return git.submit(packet);
     }
-
     throw new Error('Managed-share request endpoint is unavailable');
   }
-
   return forgeServerFetch(endpoint, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -2392,27 +1939,19 @@ async function sendManagedShareRequest(packet) {
     )
   });
 }
-
-
 const GSRS_WHOAMI_URL = '/ginas/app/api/v1/whoami';
-
-
 let suppressGsrsIdentitySeed = false;
-
 function gsrsIdentitySeedEligible() {
   const host = window.location.hostname.toLowerCase();
   return host.startsWith('gsrs.') && host.endsWith('.fda.gov');
 }
-
 function bootstrapGsrsSso() {
   return new Promise(resolve => {
     const frame = document.createElement('iframe');
     frame.hidden = true;
     frame.setAttribute('aria-hidden', 'true');
-
     let finished = false;
     let timeoutId = null;
-
     const finish = () => {
       if (finished) return;
       finished = true;
@@ -2420,26 +1959,20 @@ function bootstrapGsrsSso() {
       frame.remove();
       resolve();
     };
-
     frame.onload = () => setTimeout(finish, 250);
     frame.onerror = finish;
     timeoutId = setTimeout(finish, 4000);
-
     frame.src =
       GSRS_WHOAMI_URL +
       '?forge_sso_bootstrap=' +
       encodeURIComponent(Date.now());
-
     document.body.appendChild(frame);
   });
 }
-
 async function loadGsrsAssertedEmailSeed() {
   if (!gsrsIdentitySeedEligible() || suppressGsrsIdentitySeed) return null;
-
   try {
     await bootstrapGsrsSso();
-
     const response = await fetch(GSRS_WHOAMI_URL, {
       method: 'GET',
       credentials: 'include',
@@ -2448,83 +1981,61 @@ async function loadGsrsAssertedEmailSeed() {
         Accept: 'application/json'
       }
     });
-
     if (!response.ok) return null;
-
     const result = await response.json();
     const email = normalizeAssertedEmail(
       result && result.user && result.user.email
     );
-
     return email ? email.toLowerCase() : null;
   } catch (error) {
     console.info('GSRS asserted identity seed unavailable:', error);
     return null;
   }
 }
-
-
 async function loadCurrentUser() {
   currentUser = null;
-
-
   if (serverAuth.mode !== 'none') {
     try {
       const response = await forgeServerFetch('whoami', {
         cache: 'no-store'
       });
-
       if (response.status !== 401) {
         if (!response.ok) {
           throw new Error(`whoami returned ${response.status}`);
         }
-
         const user = await response.json();
         if (!user || typeof user.email !== 'string') {
           throw new Error('whoami returned an invalid person object');
         }
-
         currentUser = user;
         return currentUser;
       }
     } catch (error) {
-
       if (!serverAuth.assertedIdentity) {
         console.warn('Unable to determine current FORGE user:', error);
       }
     }
   }
-
-
   let email = getAssertedEmail();
-
-
   if (!email) {
     email = await loadGsrsAssertedEmailSeed();
-
     if (email) {
       try {
         localStorage.setItem(ASSERTED_EMAIL_STORAGE_KEY, email);
       } catch {
-
       }
     }
   }
-
   if (!email) return null;
-
   currentUser = { email };
   return currentUser;
 }
-
 function closeCurrentUserMenu() {
   const dropdown = document.getElementById('currentUserDropdown');
   const button = document.getElementById('currentUserBtn');
-
   if (dropdown) dropdown.classList.remove('open');
   if (button) button.setAttribute('aria-expanded', 'false');
 }
-
 function refreshCurrentUserMenuUi() {
   const email = document.getElementById('currentUserMenuEmail');
   const kind = document.getElementById('currentUserMenuKind');
@@ -2543,67 +2054,54 @@ function refreshCurrentUserMenuUi() {
   const managedNote = document.getElementById(
     'currentUserManagedIdentityNote'
   );
-
   if (email) {
     email.textContent = currentUser && currentUser.email
       ? currentUser.email
       : 'No current identity';
   }
-
   if (kind) {
     kind.textContent = serverAuth.assertedIdentity
       ? 'Asserted identity (unverified)'
       : 'Deployment-managed identity';
   }
-
   if (changeButton) {
     changeButton.hidden = !serverAuth.assertedIdentity;
   }
-
   if (changeLabel) {
     changeLabel.textContent = currentUser
       ? 'Change identity'
       : 'Set identity';
   }
-
   if (refreshSsoButton) {
     refreshSsoButton.hidden =
       !serverAuth.assertedIdentity ||
       !gsrsIdentitySeedEligible();
   }
-
   if (logoutButton) {
     logoutButton.hidden =
       !serverAuth.assertedIdentity ||
       !currentUser;
   }
-
   if (managedNote) {
     managedNote.hidden = serverAuth.assertedIdentity;
   }
 }
-
 function refreshCurrentUserUi() {
   const button = document.getElementById('currentUserBtn');
   if (!button) return;
-
-
   if (serverAuth.mode === 'none' && !currentUser) {
     closeCurrentUserMenu();
     button.hidden = true;
     refreshCurrentUserMenuUi();
     return;
   }
-
   button.hidden = false;
-
   if (serverAuth.assertedIdentity) {
     if (currentUser) {
       const label =
         currentUser.fullName ||
         currentUser.identifier ||
         currentUser.email;
-
       button.textContent = `👤 ${label}`;
       button.title =
         `Asserted identity (unverified): ${currentUser.email}. ` +
@@ -2618,7 +2116,6 @@ function refreshCurrentUserUi() {
       currentUser.fullName ||
       currentUser.identifier ||
       currentUser.email;
-
     button.textContent = `👤 ${label}`;
     button.title =
       `Signed in as ${currentUser.email}. Click for identity details.`;
@@ -2627,71 +2124,53 @@ function refreshCurrentUserUi() {
     button.title =
       'No authenticated FORGE user was reported by this deployment';
   }
-
   refreshCurrentUserMenuUi();
 }
-
 function currentUserAction(event) {
   if (event) {
     event.preventDefault();
     event.stopPropagation();
   }
-
   const dropdown = document.getElementById('currentUserDropdown');
   const button = document.getElementById('currentUserBtn');
   if (!dropdown || !button) return;
-
   refreshCurrentUserMenuUi();
-
   const opening = !dropdown.classList.contains('open');
   closeCurrentUserMenu();
-
   if (opening) {
     dropdown.classList.add('open');
     button.setAttribute('aria-expanded', 'true');
   }
 }
-
 async function logoutCurrentUser() {
   if (!serverAuth.assertedIdentity) {
     closeCurrentUserMenu();
     return;
   }
-
   closeCurrentUserMenu();
   suppressGsrsIdentitySeed = true;
-
   try {
     localStorage.removeItem(ASSERTED_EMAIL_STORAGE_KEY);
   } catch {
-
   }
-
   currentUser = null;
   refreshCurrentUserUi();
-
   showToast(
     'Logged out of FORGE identity. Reload or use Refresh from SSO to sign in again.',
     'info',
     4000
   );
 }
-
 async function refreshAssertedIdentityFromSso() {
   if (!serverAuth.assertedIdentity) return;
-
   closeCurrentUserMenu();
   suppressGsrsIdentitySeed = false;
-
   try {
     localStorage.removeItem(ASSERTED_EMAIL_STORAGE_KEY);
   } catch {
-
   }
-
   await loadCurrentUser();
   refreshCurrentUserUi();
-
   if (currentUser) {
     showToast(
       `Refreshed SSO identity: ${currentUser.email}`,
@@ -2706,32 +2185,24 @@ async function refreshAssertedIdentityFromSso() {
     );
   }
 }
-
 async function setAssertedIdentity() {
   if (!serverAuth.assertedIdentity) return;
-
   closeCurrentUserMenu();
-
   const current =
     getAssertedEmail() ||
     (currentUser && currentUser.email) ||
     '';
-
   const value = window.prompt(
     'Asserted email (unverified)\n\n' +
     'Enter the email to use, or leave blank to log out:',
     current
   );
-
   if (value === null) return;
-
   const trimmed = value.trim();
-
   if (!trimmed) {
     await logoutCurrentUser();
     return;
   }
-
   const email = normalizeAssertedEmail(trimmed);
   if (!email) {
     showToast(
@@ -2741,20 +2212,16 @@ async function setAssertedIdentity() {
     );
     return;
   }
-
   suppressGsrsIdentitySeed = false;
   localStorage.setItem(ASSERTED_EMAIL_STORAGE_KEY, email);
-
   await loadCurrentUser();
   refreshCurrentUserUi();
-
   showToast(
     `Using asserted email: ${email}`,
     'info',
     3000
   );
 }
-
 document.addEventListener('click', event => {
   const dropdown = document.getElementById('currentUserDropdown');
   if (
@@ -2765,17 +2232,12 @@ document.addEventListener('click', event => {
     closeCurrentUserMenu();
   }
 });
-
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
     closeCurrentUserMenu();
   }
 });
-
-
 window.FORGE_GITLAB_ORIGIN = 'https://git.fda.gov';
-
-
 window.FORGE_ENDPOINTS = {
   whoami: pref + 'whoami',
   payloadCreate: pref + 'post',
@@ -2785,14 +2247,10 @@ window.FORGE_ENDPOINTS = {
   shareRequest: pref + 'share/request',
   shareGet: pref + 'share/{hash}'
 };
-
-
 let advertisedForgeEndpoints = new Set();
-
 function forgeEndpointAdvertised(name) {
   return advertisedForgeEndpoints.has(name);
 }
-
 function gitManagedShareCreateAvailable() {
   return !!(
     window.ForgeManagedShareGit &&
@@ -2800,7 +2258,6 @@ function gitManagedShareCreateAvailable() {
     window.ForgeManagedShareGit.isConfigured()
   );
 }
-
 function managedSharingAvailable() {
   const httpAvailable =
     forgeEndpointAdvertised('shareGet') &&
@@ -2808,13 +2265,11 @@ function managedSharingAvailable() {
       forgeEndpointAdvertised('shareRequest') ||
       forgeEndpointAdvertised('shareCreate')
     );
-
   return (
     serverFeatures.sharing === true &&
     httpAvailable
   ) || gitManagedShareCreateAvailable();
 }
-
 function managedShareUpdatesAvailable() {
   return (
     serverFeatures.sharing === true &&
@@ -2825,28 +2280,19 @@ function managedShareUpdatesAvailable() {
     )
   ) || gitManagedShareCreateAvailable();
 }
-
 function normalizeForgeEndpoint(value, fallback) {
   if (typeof value !== 'string' || !value.trim()) return fallback;
-
   const endpoint = value.trim();
-
-
   if (/^[a-z][a-z0-9+.-]*:/i.test(endpoint) || endpoint.startsWith('/')) {
     return endpoint;
   }
-
-
   return pref + endpoint.replace(/^\.\//, '');
 }
-
 function applyForgeEndpointConfig(config) {
   advertisedForgeEndpoints = new Set();
-
   if (!config || !config.endpoints || typeof config.endpoints !== 'object') {
     return;
   }
-
   for (const name of [
     'whoami',
     'payloadCreate',
@@ -2857,11 +2303,9 @@ function applyForgeEndpointConfig(config) {
     'shareGet'
   ]) {
     const configured = config.endpoints[name];
-
     if (typeof configured !== 'string' || !configured.trim()) {
       continue;
     }
-
     advertisedForgeEndpoints.add(name);
     window.FORGE_ENDPOINTS[name] = normalizeForgeEndpoint(
       configured,
@@ -2869,41 +2313,34 @@ function applyForgeEndpointConfig(config) {
     );
   }
 }
-
 function forgeEndpoint(name, params = {}) {
   let endpoint = window.FORGE_ENDPOINTS[name];
   if (typeof endpoint !== 'string') {
     throw new Error(`FORGE endpoint is not configured: ${name}`);
   }
-
   for (const [key, value] of Object.entries(params)) {
     endpoint = endpoint.replace(
       `{${key}}`,
       encodeURIComponent(String(value))
     );
   }
-
   return endpoint;
 }
-
 async function detectServerFeatures() {
   try {
     const response = await fetch(pref + 'forge-config.json', {
       cache: 'no-cache'
     });
-    
     if (response.ok) {
       const config = await response.json();
       managedShareAdminEnabled = !!(
         config.managedSharing &&
         config.managedSharing.admin === true
       );
-
       serverFeatures = config.serverFeatures || {
         urlShortening: false,
         sharing: false
       };
-
       const configuredDefaultTtlMs = Number(
         config.sharePolicy && config.sharePolicy.defaultTtlMs
       );
@@ -2914,9 +2351,7 @@ async function detectServerFeatures() {
             ? configuredDefaultTtlMs
             : null
       };
-
       forgeContactEmail = normalizeForgeContactEmail(config.contactEmail);
-
       serverAuth = config.auth && typeof config.auth === 'object'
         ? {
             mode: config.auth.mode || 'none',
@@ -2928,24 +2363,19 @@ async function detectServerFeatures() {
             assertedIdentity: false,
             anonymousAllowed: true
           };
-
       if (typeof config.gitlabOrigin === 'string' && config.gitlabOrigin.trim()) {
         window.FORGE_GITLAB_ORIGIN = config.gitlabOrigin.trim();
       }
       if (gitlabUrlInput) {
         gitlabUrlInput.value = window.FORGE_GITLAB_ORIGIN;
       }
-
       if (
         window.ForgeManagedShareGit &&
         typeof window.ForgeManagedShareGit.configure === 'function'
       ) {
         window.ForgeManagedShareGit.configure(config);
       }
-
       applyForgeEndpointConfig(config);
-
-
       if (typeof applyForgeFetchConfig === 'function') {
         applyForgeFetchConfig(config);
       }
@@ -2955,70 +2385,53 @@ async function detectServerFeatures() {
   } catch (e) {
     console.log('No server config found, running in static-only mode');
   }
-  
-
   return {
     urlShortening: false,
     sharing: false
   };
 }
-
 function applyFeatureVisibility() {
     refreshCurrentUserUi();
     refreshManagedShareManagementUi();
-
     const hasManagedSharing = managedSharingAvailable();
     const hasLegacyShortening = serverFeatures.urlShortening === true;
-
     const managedShareItem = document.getElementById('managedShareDropdownItem');
     if (managedShareItem) {
         managedShareItem.hidden = !hasManagedSharing;
     }
-
-
     const shortUrlDropdownItem = document.getElementById('shortUrlDropdownItem');
     if (shortUrlDropdownItem) {
         shortUrlDropdownItem.hidden =
             !hasLegacyShortening || hasManagedSharing;
     }
-
     const shareShortUrlBtn = document.getElementById('shareShortUrlBtn');
     if (shareShortUrlBtn) {
-
         shareShortUrlBtn.hidden =
             !hasManagedSharing && !hasLegacyShortening;
     }
-
     const managedFullscreenShareItem =
         document.getElementById('managedFullscreenShareDropdownItem');
     if (managedFullscreenShareItem) {
         managedFullscreenShareItem.hidden = !hasManagedSharing;
     }
-
-
     const shortFullscreenUrlItem =
         document.getElementById('shortFullscreenUrlItem');
     if (shortFullscreenUrlItem) {
         shortFullscreenUrlItem.hidden =
             !hasLegacyShortening || hasManagedSharing;
     }
-
     console.log('Feature visibility applied:', serverFeatures);
 }
-
-
 const vfs = new VirtualFileSystem();
 const processor = new HTMLProcessor(vfs);
 let currentPath = null;
 let previewHistory = [];
 let previewHistoryIndex = -1;
 let previewHistoryRestoring = false;
-
 function recordPreviewHistory(value, replace = false) {
     value = String(value || '');
     if (!value || previewHistoryRestoring ||
         previewHistory[previewHistoryIndex] === value) return;
-
     const first = previewHistoryIndex < 0;
     if (replace && !first) {
         previewHistory[previewHistoryIndex] = value;
@@ -3027,7 +2440,6 @@ function recordPreviewHistory(value, replace = false) {
         previewHistory.push(value);
         previewHistoryIndex++;
     }
-
     const state = {
         ...(window.history.state || {}),
         forgePreview: previewHistoryIndex
@@ -3037,16 +2449,13 @@ function recordPreviewHistory(value, replace = false) {
         ''
     );
 }
-
 async function restorePreviewHistory(index) {
     if (index < 0 || index >= previewHistory.length) return;
-
     const value = previewHistory[index];
     const location = splitPreviewLocation(value);
     const path = vfs.resolveDirectoryIndex(location.path);
     const current = splitPreviewLocation(urlBar.value || currentPath || '');
     previewHistoryIndex = index;
-
     if (!vfs.hasFile(path)) {
         document.getElementById('previewFrame')?.contentWindow?.postMessage({
             type: 'forge-history-location',
@@ -3060,7 +2469,6 @@ async function restorePreviewHistory(index) {
         );
         return;
     }
-
     if (path === currentPath && location.query === current.query) {
         document.getElementById('previewFrame')?.contentWindow?.postMessage({
             type: 'forge-set-hash',
@@ -3070,7 +2478,6 @@ async function restorePreviewHistory(index) {
         syncPreviewLocationToParent(path, location.query, location.hash);
         return;
     }
-
     previewHistoryRestoring = true;
     try {
         await renderPage(value);
@@ -3079,18 +2486,15 @@ async function restorePreviewHistory(index) {
     }
     syncPreviewLocationToParent(path, location.query, location.hash);
 }
-
 function goPreviewHistory(delta) {
     const index = previewHistoryIndex + delta;
     if (index >= 0 && index < previewHistory.length) {
         window.history.go(delta);
     }
 }
-
 window.addEventListener('popstate', async e => {
     const index = e.state?.forgePreview;
     if (!Number.isInteger(index)) return;
-
     const fullscreen = fullscreenContainer.classList.contains('active');
     await restorePreviewHistory(index);
     if (fullscreen) setFullscreen(true);
@@ -3100,7 +2504,6 @@ let currentViewMode = 'editor'; // 'editor' | 'settings'
 let hasUnsavedChanges = false;
 let originalContent = '';
 let pendingNavigation = null;
-
 // UI Elements
 const jsonInput = document.getElementById('jsonInput');
 const loadBtn = document.getElementById('loadBtn');
@@ -3110,18 +2513,13 @@ const shareCommentBtn = document.getElementById('shareCommentBtn');
 const previewFrame      = _lazy('previewFrame');
 const urlBar            = _lazy('urlBar');
 const fullscreenContainer = _lazy('fullscreenContainer');
-
 const fullscreenBtn     = _lazy('fullscreenBtn');
 const exitFullscreenBtn = _lazy('exitFullscreenBtn');
-
 const status          = document.getElementById('status');
 const fileList        = document.getElementById('fileList');
 const fileListContent = document.getElementById('fileListContent');
 const fileBrowserList = _lazy('fileBrowserList');
-
 // These elements are rendered by Vue (forge-vue-panels.js) and don't
-
-
 const editorTextarea  = _lazy('editorTextarea');
 const editorPlaceholder = _lazy('editorPlaceholder');
 const editorFilename  = _lazy('editorFilename');
@@ -3130,29 +2528,23 @@ const deleteFileBtn   = _lazy('deleteFileBtn');
 const rerunBtn        = _lazy('rerunBtn');
 const addFileInput    = _lazy('addFileInput');
 const addFileBtn      = _lazy('addFileBtn');
-
-
 // Unsaved changes modal
 const unsavedModal = document.getElementById('unsavedModal');
 const unsavedFileName = document.getElementById('unsavedFileName');
 const unsavedSaveBtn = document.getElementById('unsavedSaveBtn');
 const unsavedDiscardBtn = document.getElementById('unsavedDiscardBtn');
 const unsavedCancelBtn = document.getElementById('unsavedCancelBtn');
-
 // Clipboard paste modal
 const clipboardPasteModal = document.getElementById('clipboardPasteModal');
 const clipboardPasteCancelBtn = document.getElementById('clipboardPasteCancelBtn');
 const clipboardPasteMergeBtn = document.getElementById('clipboardPasteMergeBtn');
 const clipboardPasteConfirmBtn = document.getElementById('clipboardPasteConfirmBtn');
 let pendingClipboardProject = null; // holds parsed project waiting for confirmation
-
 function closeClipboardPasteModal() {
     ForgeModal.close('clipboardPasteModal');
     pendingClipboardProject = null;
 }
-
 clipboardPasteCancelBtn.addEventListener('click', closeClipboardPasteModal);
-
 function confirmClipboardPaste(merge) {
     ForgeModal.close('clipboardPasteModal');
     if (pendingClipboardProject) {
@@ -3160,31 +2552,25 @@ function confirmClipboardPaste(merge) {
         pendingClipboardProject = null;
     }
 }
-
 clipboardPasteMergeBtn.addEventListener('click', () => confirmClipboardPaste(true));
 clipboardPasteConfirmBtn.addEventListener('click', () => confirmClipboardPaste(false));
-
 // -- Per-tab state ----------------------------------------------------------
 // Stores the CM content + scroll position for each open-but-not-active tab
 // so switching back restores exactly where you were.
 const tabContentCache = new Map(); // path → { content, scrollTop }
 const tabUnsavedMap   = new Map(); // path → boolean
-
 function resetEditorSession() {
     // Clear per-file editor state from the previous project
     tabContentCache.clear();
     tabUnsavedMap.clear();
-
     // Clear Vue tab state
     if (window.forgePanels) {
         window.forgePanels.closeAllTabs();
         window.forgePanels.selectPath(null);
     }
-
     // Reset the active editor
     closeEditor();
 }
-
 function saveCmStateToCache(path) {
     if (!path) return;
     const content    = ForgeEditor.isReady()
@@ -3193,7 +2579,6 @@ function saveCmStateToCache(path) {
     const scrollTop  = ForgeEditor.isReady() ? ForgeEditor.getScrollTop() : 0;
     tabContentCache.set(path, { content, scrollTop });
 }
-
 // Called by forge-file-move.js when a file/folder is renamed
 window.forgeTabCache = {
     rename(oldPath, newPath) {
@@ -3211,10 +2596,8 @@ window.forgeTabCache = {
         tabUnsavedMap.delete(path);
     }
 };
-
 // Initialize project title display
 updateProjectTitleDisplay();
-
 // Track changes in editor — delegated because editorTextarea is Vue-rendered.
 // When CodeMirror is active, change tracking is handled by ForgeEditor.onChange()
 // instead. This fallback handles the case where CM failed to load.
@@ -3225,24 +2608,20 @@ document.addEventListener('input', (e) => {
         }
     }
 });
-
 // Unsaved changes modal handlers
 function closeUnsavedModal() {
     ForgeModal.close('unsavedModal');
     pendingNavigation = null;
 }
-
 function openUnsavedModal(fileName, callback) {
     unsavedFileName.textContent = fileName;
     pendingNavigation = callback;
-
     ForgeModal.open('unsavedModal', {
         initialFocus: '#unsavedSaveBtn',
         closeOnBackdrop: true,
         onRequestClose: closeUnsavedModal
     });
 }
-
 unsavedSaveBtn.addEventListener('click', () => {
     if (currentEditingFile) {
         const newContent = editorTextarea.value;
@@ -3252,29 +2631,23 @@ unsavedSaveBtn.addEventListener('click', () => {
         updateFileList();
         showToast('File saved', 'success');
     }
-
     ForgeModal.close('unsavedModal');
-
     if (pendingNavigation) {
         const navigate = pendingNavigation;
         pendingNavigation = null;
         navigate();
     }
 });
-
 unsavedDiscardBtn.addEventListener('click', () => {
     hasUnsavedChanges = false;
     ForgeModal.close('unsavedModal');
-
     if (pendingNavigation) {
         const navigate = pendingNavigation;
         pendingNavigation = null;
         navigate();
     }
 });
-
 unsavedCancelBtn.addEventListener('click', closeUnsavedModal);
-
 // Check for unsaved changes before navigation
 function checkUnsavedChanges(callback) {
     if (hasUnsavedChanges && currentEditingFile) {
@@ -3284,9 +2657,7 @@ function checkUnsavedChanges(callback) {
     callback();
     return true;
 }
-
 // ZIP import functionality
-
 // Binary extensions for import/export; SVG intentionally remains editable text.
 const BINARY_EXTENSIONS = new Set([
   'png','jpg','jpeg','gif','bmp','webp','ico','tiff','tif','avif','heic','heif',
@@ -3296,13 +2667,11 @@ const BINARY_EXTENSIONS = new Set([
   'ttf','woff','woff2','otf','eot',
   'db','sqlite','sqlite3','pkl','npy','npz','parquet',
 ]);
-
 async function readImportedFile(response,path){
     const ext=path.split('.').pop().toLowerCase();
     if(!BINARY_EXTENSIONS.has(ext)){
         return {content:await response.text(),encoding:null};
     }
-
     const bytes=new Uint8Array(await response.arrayBuffer());
     let binary='';
     for(let i=0;i<bytes.length;i+=8192){
@@ -3313,7 +2682,6 @@ async function readImportedFile(response,path){
     }
     return {content:btoa(binary),encoding:'base64'};
 }
-
 async function addUploadedFile(file, dir=''){
     if(!file)return;
     const path=(dir ? dir.replace(/\/$/,'') : '')+'/'+file.name;
@@ -3331,21 +2699,18 @@ async function addUploadedFile(file, dir=''){
         showToast('Upload failed: '+error.message,'error');
     }
 }
-
 function selectSingleFileUpload(){
     const input=document.createElement('input');
     input.type='file';
     input.onchange=()=>addUploadedFile(input.files[0]);
     input.click();
 }
-
 document.addEventListener('dragover',e=>{
     if(!e.target.closest?.('#fileBrowserList,#previewWelcome')||
        !Array.from(e.dataTransfer?.types||[]).includes('Files'))return;
     e.preventDefault();
     e.dataTransfer.dropEffect='copy';
 });
-
 function addDroppedEntry(entry,dir){
     if(entry.isFile){
         entry.file(file=>addUploadedFile(file,dir));
@@ -3361,7 +2726,6 @@ function addDroppedEntry(entry,dir){
     });
     read();
 }
-
 document.addEventListener('drop',e=>{
     if(!e.target.closest?.('#fileBrowserList,#previewWelcome')||!e.dataTransfer)return;
     const items=Array.from(e.dataTransfer.items||[]);
@@ -3375,13 +2739,11 @@ document.addEventListener('drop',e=>{
     if(entries.length)entries.forEach(entry=>addDroppedEntry(entry,dir));
     else files.forEach(file=>addUploadedFile(file,dir));
 });
-
 function downloadCurrentFile(){
     if(!currentEditingFile)return;
     let url=vfs.getBlobUrl(currentEditingFile);
     let revoke=false;
     const meta=vfs.getMeta(currentEditingFile);
-
     if(meta.encoding!=='base64'&&hasUnsavedChanges&&ForgeEditor.isReady()){
         url=URL.createObjectURL(new Blob(
             [ForgeEditor.getValue()],
@@ -3389,54 +2751,42 @@ function downloadCurrentFile(){
         ));
         revoke=true;
     }
-
     if(!url){
         showToast('File has no downloadable content','error');
         return;
     }
-
     const a=document.createElement('a');
     a.href=url;
     a.download=currentEditingFile.split('/').pop();
     a.click();
     if(revoke)setTimeout(()=>URL.revokeObjectURL(url),0);
 }
-
 async function importFromZip() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.zip';
-    
     input.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        
         try {
             showToast('Loading ZIP file...', 'info');
-            
             // Load JSZip library if not already loaded
             if (typeof JSZip === 'undefined') {
                 await loadScript('lib/jszip.min.js');
             }
-            
             // Read the ZIP file
             const arrayBuffer = await file.arrayBuffer();
             const zip = new JSZip();
             const zipContent = await zip.loadAsync(arrayBuffer);
-
             // Reset editor cache
             resetEditorSession();
-            
             // Clear existing project
             vfs.clear();
-            
             const filePromises = [];
             zipContent.forEach((relativePath, zipEntry) => {
                 if (zipEntry.dir) return;
-
                 const ext = relativePath.split('.').pop().toLowerCase();
                 const isBinary = BINARY_EXTENSIONS.has(ext);
-
                 filePromises.push(
                     zipEntry.async(isBinary ? 'base64' : 'string').then(content => {
                         return {
@@ -3447,9 +2797,7 @@ async function importFromZip() {
                     })
                 );
             });
-            
             const files = (await Promise.all(filePromises)).filter(Boolean);
-
             // Strip one common ZIP root only when every entry is nested under it.
             const allPaths = files.map(f => f.path.substring(1)); // strip leading /
             const firstSegments = allPaths.map(p => p.split('/')[0]);
@@ -3457,7 +2805,6 @@ async function importFromZip() {
             const hasCommonRoot =
                 firstSegments.every(s => s === commonRoot) &&
                 allPaths.some(p => p.includes('/'));
-
             if (hasCommonRoot) {
                 const prefix = '/' + commonRoot + '/';
                 files.forEach(f => {
@@ -3465,102 +2812,74 @@ async function importFromZip() {
                 });
                 console.log(`[FORGE] Stripped common root folder: ${commonRoot}/`);
             }
-            
             // Add files to VFS
             files.forEach(({path, content, encoding}) => {
                 vfs.addFile(path, content, encoding ? { encoding } : {});
             });
-            
             // Set project title from ZIP filename
             projectTitle = file.name.replace(/\.zip$/i, '');
             updateProjectTitleDisplay();
-            
             // Apply any .forgeconfig metadata to VFS
             if (typeof applyForgeConfigToVFS === 'function') applyForgeConfigToVFS();
-
             refreshAndOpenProject();
-
             showToast(`Imported ${files.length} files from ZIP`, 'success', 4000);
-            
         } catch (error) {
             showToast('Error importing ZIP: ' + error.message, 'error', 5000);
             console.error('ZIP import error:', error);
         }
     };
-    
     input.click();
 }
-
 // Folder import functionality
 async function importFromFolder() {
     const input = document.createElement('input');
-
     input.type = 'file';
     input.webkitdirectory = true;
     input.multiple = true;
-
     input.onchange = async (e) => {
         const selectedFiles = Array.from(e.target.files);
-
         if (selectedFiles.length === 0) return;
-
         try {
             showToast('Loading folder...', 'info');
-
             // Get selected folder name
             const firstRelativePath = selectedFiles[0].webkitRelativePath;
             const folderName = firstRelativePath.split('/')[0];
-
             // Reset editor/project state
             resetEditorSession();
             vfs.clear();
-
             for (const file of selectedFiles) {
                 const relativePath = file.webkitRelativePath;
-
                 // Remove selected root folder from VFS path
                 const parts = relativePath.split('/');
                 parts.shift();
-
                 const vfsPath = '/' + parts.join('/');
                 const content = await file.text();
-
                 vfs.addFile(vfsPath, content, {});
             }
-
             projectTitle = folderName || generateProjectName();
             updateProjectTitleDisplay();
-
             if (typeof applyForgeConfigToVFS === 'function') {
                 applyForgeConfigToVFS();
             }
-
             refreshAndOpenProject();
-
             showToast(`Imported ${selectedFiles.length} files from folder`, 'success', 4000);
         }
         catch (error) {
             showToast('Error importing folder: ' + error.message, 'error', 5000);
-
             console.error('Folder import error:', error);
         }
     };
-
     input.click();
 }
-
 // Intentionally do NOT close the GitLab modal when clicking outside —
 // it's easy to accidentally click off during a long import and lose
 // all the fields. Only the Cancel button and ✕ close it.
-
-
 // Tab switching — delegated to Vue panels app (forge-vue-panels.js)
 function switchTab(tabName) {
     if (window.forgePanels) {
         window.forgePanels.setTab(tabName);
     }
 }
-
 // Shim: allow legacy querySelector('.tab[data-tab="x"]').click() calls
 // by wiring any remaining static tab elements to the Vue setter.
 // The tabs themselves are now rendered by Vue, so this is a safety net.
@@ -3570,19 +2889,16 @@ document.addEventListener('click', (e) => {
         window.forgePanels.setTab(tab.dataset.tab);
     }
 });
-
 function refreshProjectSettingsTab() {
     if (window.forgePanels) {
         window.forgePanels.refreshProject();
     }
 }
-
 function refreshProjectViews() {
     updateFileList();
     updateFileBrowser();
     refreshProjectSettingsTab();
 }
-
 function refreshAndOpenProject() {
     refreshProjectViews();
     const entryPoint = vfs.findEntryPoint();
@@ -3594,15 +2910,12 @@ function refreshAndOpenProject() {
     }
     return entryPoint;
 }
-
-
 // Download JSON file
 function downloadProjectJson() {
     if (vfs.getAllPaths().length === 0) {
         showToast('No project to download', 'error');
         return;
     }
-
     try {
         const json = JSON.stringify(vfs.toJSON(), null, 2);
         const blob = new Blob([json], {type: 'application/json'});
@@ -3620,7 +2933,6 @@ function downloadProjectJson() {
         console.error(e);
     }
 }
-
 // Load project from JSON
 loadBtn.addEventListener('click', () => {
     try {
@@ -3629,10 +2941,8 @@ loadBtn.addEventListener('click', () => {
             setStatus('Please paste JSON data first', 'error');
             return;
         }
-
         const parsed = JSON.parse(json);
         const { loadedCount, excludedCount, title } = vfs.loadFromJSON(parsed);
-
         // Set project title
         if (title) {
             projectTitle = title;
@@ -3641,21 +2951,16 @@ loadBtn.addEventListener('click', () => {
         } else {
             projectTitle = parsed.title || generateProjectName();
         }
-
         if (loadedCount === 0) {
             setStatus('No valid files found in JSON', 'error');
             return;
         }
-
         updateProjectTitleDisplay();
-
         // Reset unsaved changes tracking
         hasUnsavedChanges = false;
         originalContent = '';
-
         // Apply any .forgeconfig metadata to VFS
         if (typeof applyForgeConfigToVFS === 'function') applyForgeConfigToVFS();
-
         const entryPoint = refreshAndOpenProject();
         if (entryPoint) {
             const statusMsg = excludedCount > 0
@@ -3669,40 +2974,32 @@ loadBtn.addEventListener('click', () => {
                 'success'
             );
         }
-
         // Close the Load JSON modal if it was open
         closeLoadJsonModal();
-
     } catch (e) {
         setStatus(`Error: ${e.message}`, 'error');
         showToast(`Error: ${e.message}`, 'error');
         console.error(e);
     }
 });
-
 // Filename used to mark an otherwise-empty directory so it still shows up
 // in the tree view. The VFS has no real concept of folders — they're
 // derived from file paths — so an empty folder needs *something* to anchor
 // it. This file is hidden everywhere in the UI.
 const FORGE_DIR_PLACEHOLDER = '.forgekeep';
-
 let createMode = 'file'; // 'file' | 'dir' — controls what the add-file input creates
-
 function setCreateMode(mode) {
     createMode = mode;
     const fileBtn = document.getElementById('addFileModeFileBtn');
     const dirBtn  = document.getElementById('addFileModeDirBtn');
     if (fileBtn) fileBtn.classList.toggle('active', mode === 'file');
     if (dirBtn)  dirBtn.classList.toggle('active', mode === 'dir');
-
     if (addFileInput) {
         addFileInput.placeholder = mode === 'dir' ? '/path/to/folder' : '/path/to/file.html';
     }
     const addBtn = document.getElementById('addFileBtn');
     addBtn.textContent = '+';
 }
-
-
 // Seed .forgekeep for newly created parents before vfs.addFile().
 function ensureParentDirsHavePlaceholders(newFilePath) {
     const parts = newFilePath.split('/').filter(Boolean);
@@ -3710,16 +3007,13 @@ function ensureParentDirsHavePlaceholders(newFilePath) {
     for (let i = 1; i < parts.length; i++) {
         const dirPath = '/' + parts.slice(0, i).join('/');
         const placeholderPath = dirPath + '/' + FORGE_DIR_PLACEHOLDER;
-
         if (vfs.hasFile(placeholderPath)) continue; // already anchored
-
         // Only seed if no real (non-placeholder) files already exist here —
         // if real files exist the directory already has an anchor via them.
         const dirAlreadyHasFiles = vfs.getAllPaths().some(p =>
             p.startsWith(dirPath + '/') &&
             !p.endsWith('/' + FORGE_DIR_PLACEHOLDER)
         );
-
         if (!dirAlreadyHasFiles) {
             vfs.addFile(placeholderPath, '', {
                 description: 'Folder placeholder — keeps this directory visible even when empty'
@@ -3727,78 +3021,58 @@ function ensureParentDirsHavePlaceholders(newFilePath) {
         }
     }
 }
-
 function addFile(){
     if (createMode === 'dir') {
         createDirectory();
         return;
     }
-
     let path = addFileInput.value.trim();
-    
     if (!path) {
         showToast('Please enter a file path', 'error');
         return;
     }
-
     if (!path.startsWith('/')) {
         path="/"+path;
         showToast('Added as file \'' + path +'\'', 'warning');
     }
-
     if (vfs.hasFile(path)) {
         showToast('File already exists', 'error');
         return;
     }
-
     //Seed .forgekeep into any parent directoreis being created for the first time, so they persist in tree
     ensureParentDirsHavePlaceholders(path);
-
     // Add empty file
     vfs.addFile(path, '');
-
     updateFileList();
     updateFileBrowser();
-    
     // Clear input
     addFileInput.value = '';
-    
     // Open in editor
     openFileInEditor(path);
-    
     // Switch to Files tab
     document.querySelector('.tab[data-tab="files"]').click();
-    
     showToast(`File created: ${path}`, 'success');
-
 }
-
 function createDirectory(){
     let path = addFileInput.value.trim();
-
     if (!path) {
         showToast('Please enter a folder path', 'error');
         return;
     }
-
     if (!path.startsWith('/')) {
         path = '/' + path;
     }
     // Strip any trailing slash(es) the user might type
     path = path.replace(/\/+$/, '');
-
     if (!path || path === '') {
         showToast('Please enter a folder path', 'error');
         return;
     }
-
     const placeholderPath = path + '/' + FORGE_DIR_PLACEHOLDER;
-
     if (vfs.hasFile(placeholderPath)) {
         showToast('Folder already exists', 'error');
         return;
     }
-
     // If real files already live under this path, the folder effectively
     // already exists in the tree — no need for a placeholder.
     const alreadyHasContents = vfs.getAllPaths().some(p => p.startsWith(path + '/'));
@@ -3807,40 +3081,30 @@ function createDirectory(){
         addFileInput.value = '';
         return;
     }
-
     vfs.addFile(placeholderPath, '', {
         description: 'Folder placeholder — keeps this directory visible even when empty'
     });
-
     updateFileList();
     updateFileBrowser();
-
     addFileInput.value = '';
-
     document.querySelector('.tab[data-tab="files"]').click();
-
     showToast(`Folder created: ${path}`, 'success');
 }
-
 function deleteFile(){
     if (currentEditingFile) {
         if (confirm(`Are you sure you want to delete ${currentEditingFile}?`)) {
             const pathToDelete = currentEditingFile;
-
             tabContentCache.delete(pathToDelete);
             tabUnsavedMap.delete(pathToDelete);
             if (window.forgePanels) window.forgePanels.closeTab(pathToDelete);
-
             vfs.deleteFile(pathToDelete);
             closeEditor();
-
             if (currentPath === pathToDelete) {
                 currentPath = null;
                 previewFrame.srcdoc = '';
                 urlBar.value = 'No project loaded';
                 setPreviewWelcomeVisible(true);
             }
-
             updateFileList();
             updateFileBrowser();
             showToast('File deleted', 'success');
@@ -3858,11 +3122,9 @@ function commitCurrentEditorContent(){
         window.forgePanels.setTabUnsaved(currentEditingFile, false);
     }
 }
-
 function rerunProject(){
     if (currentEditingFile) {
         commitCurrentEditorContent();
-
         const entryPoint = vfs.findEntryPoint();
         if (entryPoint) {
             renderPage(entryPoint);
@@ -3882,12 +3144,10 @@ function clearProject(){
     if (!confirm('Are you sure you want to clear the entire project? This cannot be undone.')) {
         return;
     }
-
     vfs.clear();
     tabContentCache.clear();
     tabUnsavedMap.clear();
     if (window.forgePanels) window.forgePanels.closeAllTabs();
-
     currentPath        = null;
     currentEditingFile = null;
     currentViewMode    = 'editor';
@@ -3907,9 +3167,6 @@ function clearProject(){
     setStatus('Project cleared', 'success');
     window.history.replaceState({}, '', window.location.pathname);
 }
-
-
-
 /**
  * Extract &url= and &previewHash= from the current browser hash so they
  * can be appended to newly generated share URLs, preserving the current
@@ -3923,26 +3180,21 @@ function extractCarriedParams() {
     const carriedUrl = params.get('url');
     const carriedHash = params.get('previewHash');
     const eventObjectUrl = /^\[object [A-Za-z]*Event\]$/;
-
     if (carriedUrl && !eventObjectUrl.test(carriedUrl)) {
         carried += '&url=' + encodeURIComponent(carriedUrl);
     }
     if (carriedHash) carried += '&previewHash=' + encodeURIComponent(carriedHash);
     return carried;
 }
-
 function requireShareableProject() {
     if (vfs.getAllPaths().length) return true;
     showToast('No project to share', 'error');
     return false;
 }
-
 // Share Comment Modal
 function openShareCommentModal() {
     if (!requireShareableProject()) return;
-
     const nameInput = document.getElementById('shareCommentName');
-
     if (nameInput && !nameInput.value.trim() && currentUser) {
         const seedName =
             currentUser.fullName ||
@@ -3952,42 +3204,33 @@ function openShareCommentModal() {
                     ? currentUser.email.split('@')[0]
                     : ''
             );
-
         if (seedName) {
             nameInput.value = seedName;
         }
     }
-
     ForgeModal.open('shareCommentModal', {
         initialFocus: '#shareCommentMessage',
         onRequestClose: closeShareCommentModal
     });
 }
-
 function closeShareCommentModal() {
     ForgeModal.close('shareCommentModal');
 }
-
 const FORGE_LONG_URL_WARN_LENGTH = 1024 * 1024;
 const FORGE_LONG_URL_MAX_LENGTH = 2 * 1024 * 1024;
-
 function shortLinkAlternativeAvailable() {
     return managedSharingAvailable() ||
         serverFeatures.urlShortening === true;
 }
-
 function checkShareUrlLength(url) {
     const length = url.length;
-
     if (length <= FORGE_LONG_URL_WARN_LENGTH) {
         return true;
     }
-
     const sizeMiB = (length / (1024 * 1024)).toFixed(2);
     const shortHint = shortLinkAlternativeAvailable()
         ? ' Use Short Link instead.'
         : '';
-
     if (length > FORGE_LONG_URL_MAX_LENGTH) {
         showToast(
             `Long Link is ${sizeMiB} MiB and exceeds FORGE's 2 MiB limit.${shortHint}`,
@@ -3996,7 +3239,6 @@ function checkShareUrlLength(url) {
         );
         return false;
     }
-
     const userAgent = navigator.userAgent || '';
     if (/Firefox\//.test(userAgent)) {
         showToast(
@@ -4006,7 +3248,6 @@ function checkShareUrlLength(url) {
         );
         return false;
     }
-
     showToast(
         `Long Link is ${sizeMiB} MiB. Links over 1 MiB may not work in every browser or sharing tool.${shortHint}`,
         'warning',
@@ -4014,26 +3255,21 @@ function checkShareUrlLength(url) {
     );
     return true;
 }
-
 async function generateShareCommentUrl() {
     const nameInput = document.getElementById('shareCommentName').value.trim();
     const msgInput  = document.getElementById('shareCommentMessage').value.trim();
-
     if (!msgInput) {
         showToast('Please enter a message', 'error');
         return;
     }
-
     try {
         // 1. Generate base project URL
         let baseUrl;
         const urlObj = new URL(window.location.href);
         let hash = urlObj.hash || '';
-
         // Strip any existing context from the hash so we don't duplicate it
         hash = hash.replace(/[&#]context=[^&]*/g, '');
         if (hash === '#') hash = '';
-
         if (hash.includes('payloadsha1=')) {
             // Keep the short URL as-is
             baseUrl = urlObj.origin + urlObj.pathname + urlObj.search + hash;
@@ -4044,25 +3280,19 @@ async function generateShareCommentUrl() {
             const carried           = extractCarriedParams();
             baseUrl = urlObj.origin + urlObj.pathname + '#payload=' + encodeURIComponent(projectCompressed) + carried;
         }
-
         // 2. Generate context payload
         const contextObj = { message: msgInput };
         if (nameInput) contextObj.from = nameInput;
-
         const contextJson       = JSON.stringify(contextObj);
         const contextCompressed = await compress(contextJson);
-
         // 3. Combine
         const sep      = baseUrl.includes('#') ? '&' : '#';
         const finalUrl = baseUrl + sep + 'context=' + encodeURIComponent(contextCompressed);
-
         if (!checkShareUrlLength(finalUrl)) return;
-
         // 4. Copy and close
         await copyToClipboard(finalUrl);
         showToast('URL with comment copied to clipboard!', 'success', 4000);
         closeShareCommentModal();
-
         // Clear message for next time
         document.getElementById('shareCommentMessage').value = '';
     } catch (e) {
@@ -4070,7 +3300,6 @@ async function generateShareCommentUrl() {
         console.error(e);
     }
 }
-
 // Long URL share — compressed, self-contained, nothing stored on server
 async function shareLongUrl() {
     if (!requireShareableProject()) return;
@@ -4082,9 +3311,7 @@ async function shareLongUrl() {
         const carried = extractCarriedParams();
         const url = window.location.origin + window.location.pathname +
                     '#payload=' + encodeURIComponent(compressed) + carried;
-
         if (!checkShareUrlLength(url)) return;
-
         await copyToClipboard(url);
         showToast('Long URL copied to clipboard!', 'success', 4000);
         window.history.replaceState({}, '', url);
@@ -4093,42 +3320,33 @@ async function shareLongUrl() {
         console.error(e);
     }
 }
-
-
 function managedShareExpirationPickerAvailable() {
     const ttlMs = Number(serverSharePolicy.defaultTtlMs);
     return managedSharingAvailable() &&
         Number.isFinite(ttlMs) &&
         ttlMs > 0;
 }
-
 function toLocalDateTimeInputValue(date) {
     const localDate = new Date(
         date.getTime() - date.getTimezoneOffset() * 60 * 1000
     );
     return localDate.toISOString().slice(0, 16);
 }
-
 function prepareShortLinkExpirationPicker() {
     const group = document.getElementById('shortUrlExpirationGroup');
     const input = document.getElementById('shortUrlExpirationInput');
     const never = document.getElementById('shortUrlNeverExpires');
-
     if (!group || !input || !never) return;
-
     never.checked = false;
     input.disabled = false;
-
     if (!managedShareExpirationPickerAvailable()) {
         group.hidden = true;
         input.value = '';
         input.removeAttribute('min');
         return;
     }
-
     const nowMs = Date.now();
     const ttlMs = Number(serverSharePolicy.defaultTtlMs);
-
     group.hidden = false;
     input.min = toLocalDateTimeInputValue(
         new Date(nowMs + 60 * 1000)
@@ -4137,10 +3355,8 @@ function prepareShortLinkExpirationPicker() {
         new Date(nowMs + ttlMs)
     );
 }
-
 function requestShortLink(fullscreen = false) {
     if (!requireShareableProject()) return;
-
     if (
         !managedSharingAvailable() &&
         serverFeatures.urlShortening !== true
@@ -4152,49 +3368,39 @@ function requestShortLink(fullscreen = false) {
         );
         return;
     }
-
     _pendingShortUrlFullscreen = fullscreen === true;
     prepareShortLinkExpirationPicker();
-
     ForgeModal.open('shortUrlWarningModal', {
         initialFocus: '#shortUrlWarningConfirmBtn',
         closeOnBackdrop: true,
         onRequestClose: closeShortUrlWarningModal
     });
 }
-
 async function shareShortUrl() {
     requestShortLink(false);
 }
-
 function showShortUrlWarning() {
     requestShortLink(false);
 }
-
 function closeShortUrlWarningModal() {
     ForgeModal.close('shortUrlWarningModal');
     _pendingShortUrlFullscreen = false;
 }
-
 // Wire up short URL warning modal buttons
 document.getElementById('shortUrlWarningCancelBtn')
     .addEventListener('click', closeShortUrlWarningModal);
-
 document.getElementById('shortUrlWarningConfirmBtn').addEventListener('click', async () => {
     let expiresAt;
-
     if (managedShareExpirationPickerAvailable()) {
         const expirationInput =
             document.getElementById('shortUrlExpirationInput');
         const never = document.getElementById('shortUrlNeverExpires');
-
         if (never && never.checked) {
             expiresAt = null;
         } else {
             const selectedExpiresAtMs = expirationInput
                 ? new Date(expirationInput.value).getTime()
                 : NaN;
-
             if (
                 !Number.isFinite(selectedExpiresAtMs) ||
                 selectedExpiresAtMs <= Date.now()
@@ -4206,44 +3412,34 @@ document.getElementById('shortUrlWarningConfirmBtn').addEventListener('click', a
                 );
                 return;
             }
-
             expiresAt = new Date(selectedExpiresAtMs).toISOString();
         }
     }
-
     ForgeModal.close('shortUrlWarningModal');
-
     const fullscreen = _pendingShortUrlFullscreen;
     _pendingShortUrlFullscreen = false;
-
     if (managedSharingAvailable()) {
         await shareManagedUrl(fullscreen, expiresAt);
     } else {
         await createShorterURL(fullscreen);
     }
 });
-
-
 async function createShorterURL(fullscreen) {
     if (vfs.getAllPaths().length === 0) {
         showToast('No project to shorten', 'error');
         return;
     }
-
     try {
         const json = JSON.stringify(vfs.toJSON());
         const compressed = await compress(json);
-
         const response = await fetch(forgeEndpoint('payloadCreate'), {
             method: 'POST',
             headers: forgeRequestHeaders({'Content-Type': 'application/json'}),
             body: JSON.stringify({data: compressed.replace(/ /g, "+")})
         });
-
         if (!response.ok) {
             throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
         }
-
         const result = await response.json();
         let append="";
         if(fullscreen){
@@ -4252,9 +3448,7 @@ async function createShorterURL(fullscreen) {
         const carried = extractCarriedParams();
         const shortURL = window.location.origin + window.location.pathname +
                          '#payloadsha1=' + result.sha1 + append + carried;
-
         window.history.replaceState(window.history.state, '', shortURL);
-
         await copyToClipboard(shortURL);
         showToast('Shorter URL created! The current page URL has been updated and copied to clipboard.', 'success', 4000);
     } catch (e) {
@@ -4262,24 +3456,19 @@ async function createShorterURL(fullscreen) {
         console.error('createShorterURL error:', e);
     }
 }
-
 async function shareManagedUrl(fullscreen = false, expiresAt) {
     if (!requireShareableProject()) return;
-
     if (!managedSharingAvailable()) {
         showToast('Managed sharing is not available on this deployment.', 'error', 4000);
         return;
     }
-
     try {
         const json = JSON.stringify(vfs.toJSON());
         const compressed = await compress(json);
-
         const requestId = createManagedShareRequestId();
         if (!requestId) {
             throw new Error('Unable to create managed-share request identity');
         }
-
         const packet = {
             id: requestId,
             type: 'share.make',
@@ -4289,19 +3478,15 @@ async function shareManagedUrl(fullscreen = false, expiresAt) {
             },
             reason: 'Managed Short Link created in FORGE IDE'
         };
-
         if (expiresAt !== undefined) {
             packet.changes.expiresAt = expiresAt;
         }
-
         const shareResponse = await sendManagedShareRequest(packet);
-
         if (shareResponse.status === 202) {
             let submitted = null;
             try {
                 submitted = await shareResponse.json();
             } catch (error) {}
-
             const payloadHash = await managedSharePayloadHash(packet.data);
             const pendingMetadata = {
                 schemaVersion: 1,
@@ -4321,18 +3506,14 @@ async function shareManagedUrl(fullscreen = false, expiresAt) {
                 data: packet.data,
                 metadata: pendingMetadata
             });
-
             setCurrentManagedShareMetadata(pendingMetadata);
-
             const fullscreenParam = fullscreen ? '&fullscreen=true' : '';
             const carried = extractCarriedParams();
             const shareURL =
                 window.location.origin + window.location.pathname +
                 '#share=' + payloadHash + fullscreenParam + carried;
-
             window.history.replaceState(window.history.state, '', shareURL);
             await copyToClipboard(shareURL);
-
             showToast(
                 cached
                     ? 'Short Link pending publication — URL copied. ' +
@@ -4344,10 +3525,8 @@ async function shareManagedUrl(fullscreen = false, expiresAt) {
             );
             return;
         }
-
         let shareResult;
         let reusedExistingShare = false;
-
         if (shareResponse.status === 409) {
             let conflictBody = null;
             try {
@@ -4355,7 +3534,6 @@ async function shareManagedUrl(fullscreen = false, expiresAt) {
             } catch {
                 // Fall through to the ordinary conflict error below.
             }
-
             if (
                 conflictBody &&
                 conflictBody.status === 'review-required'
@@ -4368,12 +3546,10 @@ async function shareManagedUrl(fullscreen = false, expiresAt) {
                 );
                 return;
             }
-
             const existingShare = conflictBody && conflictBody.share;
             const existingHash = existingShare && existingShare.payloadHash;
             const existingState = existingShare && (existingShare.state || 'active');
             const existingExpiry = existingShare && Date.parse(existingShare.expiresAt);
-
             if (
                 /^[a-f0-9]{40}$/i.test(existingHash || '') &&
                 existingState === 'active' &&
@@ -4406,22 +3582,17 @@ async function shareManagedUrl(fullscreen = false, expiresAt) {
         } else {
             shareResult = await shareResponse.json();
         }
-
         const payloadHash = shareResult.payloadHash;
-
         // POST /share and the safe 409-reuse path both return the canonical
         // public share record. Retain it now so metadata can be managed
         // immediately without reloading the project or issuing another GET.
         setCurrentManagedShareMetadata(shareResult);
-
         const fullscreenParam = fullscreen ? '&fullscreen=true' : '';
         const carried = extractCarriedParams();
         const shareURL = window.location.origin + window.location.pathname +
                          '#share=' + payloadHash + fullscreenParam + carried;
-
         window.history.replaceState(window.history.state, '', shareURL);
         await copyToClipboard(shareURL);
-
         if (reusedExistingShare) {
             showToast(
                 fullscreen
@@ -4443,21 +3614,17 @@ async function shareManagedUrl(fullscreen = false, expiresAt) {
         if (e && e.code === 'FORGE_CANCELLED') {
             return;
         }
-
         showToast('Error creating managed share: ' + e.message, 'error', 5000);
         console.error('shareManagedUrl error:', e);
     }
 }
-
 async function throwUnavailableManagedShare(response) {
     let reason = null;
     try {
         const errorBody = await response.json();
         reason = errorBody && errorBody.error;
     } catch (e) {
-
     }
-
     if (reason === 'Share tombstoned') {
         throw new Error('Share has been tombstoned');
     }
@@ -4466,7 +3633,6 @@ async function throwUnavailableManagedShare(response) {
     }
     throw new Error('Share is no longer available');
 }
-
 async function loadNamedShare(value) {
     const name = String(value || '').trim().toLowerCase();
     if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(name)) {
@@ -4478,11 +3644,9 @@ async function loadNamedShare(value) {
     }
     const file = await git.readPublicTrusted(`aliases/${name}.json`);
     if (!file) throw new Error('Named share was not found');
-
     let alias;
     try { alias = JSON.parse(file.text); }
     catch (e) { throw new Error('Invalid named share metadata'); }
-
     if (!alias || alias.alias !== name ||
         !/^[a-f0-9]{40}$/i.test(alias.payloadHash || '') ||
         !Number.isInteger(alias.version) || alias.version < 1) {
@@ -4492,12 +3656,10 @@ async function loadNamedShare(value) {
     currentNamedShareMetadata = alias;
     return share;
 }
-
 async function loadManagedShare(payloadHash) {
     if (!/^[a-f0-9]{40}$/i.test(payloadHash || '')) {
         throw new Error('Invalid share hash');
     }
-
     const git = window.ForgeManagedShareGit;
     if (
         git &&
@@ -4507,7 +3669,6 @@ async function loadManagedShare(payloadHash) {
     ) {
         const hash = payloadHash.toLowerCase();
         const shareFile = await git.readPublicTrusted(`shares/${hash}.json`);
-
         if (!shareFile) {
             const pending = getPendingManagedShare(hash);
             if (
@@ -4526,14 +3687,12 @@ async function loadManagedShare(payloadHash) {
             }
             throw new Error('Share was not found');
         }
-
         let metadata;
         try {
             metadata = JSON.parse(shareFile.text);
         } catch (e) {
             throw new Error('Invalid share metadata');
         }
-
         if (
             !metadata ||
             typeof metadata.payloadHash !== 'string' ||
@@ -4543,32 +3702,26 @@ async function loadManagedShare(payloadHash) {
                 'Share metadata does not match the requested payload'
             );
         }
-
         if ((metadata.state || 'active') === 'tombstoned') {
             throw new Error('Share has been tombstoned');
         }
-
         if (
             metadata.expiresAt &&
             Date.parse(metadata.expiresAt) <= Date.now()
         ) {
             throw new Error('Share has expired');
         }
-
         const payloadFile = await git.readPublicTrusted(`payloads/${hash}`);
         if (!payloadFile) {
             throw new Error('Share payload was not found');
         }
-
         const parsed = await parsePayload(payloadFile.text);
         removePendingManagedShare(hash);
-
         return {
             metadata,
             parsed
         };
     }
-
     if (
         serverFeatures.sharing !== true ||
         !forgeEndpointAdvertised('shareGet') ||
@@ -4578,13 +3731,11 @@ async function loadManagedShare(payloadHash) {
             'Managed-share reads are not available on this deployment'
         );
     }
-
     const shareResponse = await forgeServerFetch(
         'shareGet',
         { cache: 'no-store' },
         { hash: payloadHash }
     );
-
     if (!shareResponse.ok) {
         if (shareResponse.status === 410) {
             await throwUnavailableManagedShare(shareResponse);
@@ -4594,7 +3745,6 @@ async function loadManagedShare(payloadHash) {
         }
         throw new Error(`Share server responded with ${shareResponse.status}`);
     }
-
     const metadata = await shareResponse.json();
     if (
         !metadata ||
@@ -4603,35 +3753,28 @@ async function loadManagedShare(payloadHash) {
     ) {
         throw new Error('Share metadata does not match the requested payload');
     }
-
     const payloadResponse = await forgeServerFetch(
         'payloadGet',
         { cache: 'no-store' },
         { id: metadata.payloadHash }
     );
-
     if (!payloadResponse.ok) {
         if (payloadResponse.status === 410) {
             await throwUnavailableManagedShare(payloadResponse);
         }
-
         throw new Error(
             `Payload server responded with ${payloadResponse.status}`
         );
     }
-
     const b64Data = await payloadResponse.text();
-
     return {
         metadata,
         parsed: await parsePayload(b64Data)
     };
 }
-
 function refreshManagedShareManagementUi() {
     const manageButton = document.getElementById('manageManagedShareBtn');
     if (!manageButton) return;
-
     manageButton.hidden = !(
         currentManagedShareMetadata &&
         currentManagedShareMetadata.pending !== true &&
@@ -4639,43 +3782,34 @@ function refreshManagedShareManagementUi() {
         (currentManagedShareMetadata.state || 'active') === 'active'
     );
 }
-
 function setCurrentManagedShareMetadata(metadata) {
     const validMetadata =
         metadata &&
         typeof metadata.payloadHash === 'string' &&
         /^[a-f0-9]{40}$/i.test(metadata.payloadHash);
-
     currentManagedShareMetadata = validMetadata
         ? {
             ...metadata,
             payloadHash: metadata.payloadHash.toLowerCase()
         }
         : null;
-
     updateManagedShareExpirationBadge(currentManagedShareMetadata);
     refreshManagedShareManagementUi();
 }
-
 function createManagedShareRequestId() {
     const cryptoApi = window.crypto;
-
     if (cryptoApi && typeof cryptoApi.randomUUID === 'function') {
         return cryptoApi.randomUUID();
     }
-
     if (cryptoApi && typeof cryptoApi.getRandomValues === 'function') {
         const bytes = new Uint8Array(16);
         cryptoApi.getRandomValues(bytes);
-
         bytes[6] = (bytes[6] & 0x0f) | 0x40;
         bytes[8] = (bytes[8] & 0x3f) | 0x80;
-
         const hex = Array.from(
             bytes,
             byte => byte.toString(16).padStart(2, '0')
         );
-
         return [
             hex.slice(0, 4).join(''),
             hex.slice(4, 6).join(''),
@@ -4684,16 +3818,13 @@ function createManagedShareRequestId() {
             hex.slice(10, 16).join('')
         ].join('-');
     }
-
     return null;
 }
-
 function openManagedShareManageModal() {
     if (!currentManagedShareMetadata) {
         showToast('No managed Short Link is currently loaded.', 'error', 3500);
         return;
     }
-
     if (!managedShareUpdatesAvailable()) {
         showToast(
             'This deployment does not advertise Short Link editing.',
@@ -4702,7 +3833,6 @@ function openManagedShareManageModal() {
         );
         return;
     }
-
     const modal = document.getElementById('managedShareManageModal');
     const titleInput = document.getElementById('managedShareManageTitle');
     const expirationInput =
@@ -4712,7 +3842,6 @@ function openManagedShareManageModal() {
     const identity = document.getElementById('managedShareManageIdentity');
     const deletionButton =
         document.getElementById('managedShareManageDeleteBtn');
-
     if (
         !modal ||
         !titleInput ||
@@ -4724,21 +3853,28 @@ function openManagedShareManageModal() {
         showToast('Short Link management UI is unavailable.', 'error', 3500);
         return;
     }
-
     titleInput.value = currentManagedShareMetadata.title || '';
     deletionButton.hidden =
         (currentManagedShareMetadata.state || 'active') !== 'active';
     deletionButton.disabled = false;
-
     const namedButton = document.getElementById('managedShareNamedBtn');
+    const namedGroup = document.getElementById('managedShareNamedGroup');
+    const namedInput = document.getElementById('managedShareNamedInput');
+    const namedStatus = document.getElementById('managedShareNamedStatus');
     const git = window.ForgeManagedShareGit;
-    if (namedButton) {
-        namedButton.hidden = !(
-            git && git.isConfigured && git.isConfigured() &&
-            typeof git.signAliasRequest === 'function'
-        );
+    const namedAvailable = !!(
+        git && git.isConfigured && git.isConfigured() &&
+        typeof git.signAliasRequest === 'function'
+    );
+    if (namedButton) namedButton.hidden = !namedAvailable;
+    if (namedGroup) namedGroup.hidden = !namedAvailable;
+    if (namedAvailable && namedInput) {
+        namedInput.value = currentNamedShareMetadata?.alias || '';
+        if (namedStatus) namedStatus.textContent = currentNamedShareMetadata
+            ? `This browser controls "${currentNamedShareMetadata.alias}".`
+            : 'Choose a stable name for this published Short Link.';
+        updateNamedSharePreview();
     }
-
     const expiresMs = Date.parse(currentManagedShareMetadata.expiresAt);
     never.checked = !Number.isFinite(expiresMs);
     expirationInput.disabled = never.checked;
@@ -4748,20 +3884,35 @@ function openManagedShareManageModal() {
     expirationInput.value = Number.isFinite(expiresMs)
         ? toLocalDateTimeInputValue(new Date(expiresMs))
         : '';
-
     const version = Number.isInteger(currentManagedShareMetadata.version)
         ? ` · version ${currentManagedShareMetadata.version}`
         : '';
-
     identity.textContent =
         `Payload hash: ${currentManagedShareMetadata.payloadHash}${version}`;
-
     ForgeModal.open('managedShareManageModal', {
         initialFocus: titleInput,
         onRequestClose: closeManagedShareManageModal
     });
 }
-
+function updateNamedSharePreview() {
+    const input = document.getElementById('managedShareNamedInput');
+    const output = document.getElementById('managedShareNamedUrl');
+    const button = document.getElementById('managedShareNamedBtn');
+    const alias = (input?.value || '').trim().toLowerCase();
+    const valid = /^[a-z0-9][a-z0-9_-]{2,63}$/.test(alias) &&
+        !['admin', 'api', 'forge'].includes(alias);
+    if (output) output.value = valid
+        ? `${location.origin}${location.pathname}#namedShare=${alias}` +
+          (getURLParam('fullscreen') ? '&fullscreen=true' : '') +
+          extractCarriedParams()
+        : '';
+    if (button) {
+        button.disabled = !valid;
+        button.textContent = currentNamedShareMetadata?.alias === alias
+            ? 'Update Named Share'
+            : 'Request Named Share';
+    }
+}
 async function saveNamedShare() {
     const git = window.ForgeManagedShareGit;
     if (!currentManagedShareMetadata ||
@@ -4769,16 +3920,17 @@ async function saveNamedShare() {
         showToast('Named Shares are not available.', 'error', 3500);
         return;
     }
-
-    const raw = prompt('Named Share name', currentNamedShareMetadata?.alias || '');
-    if (raw === null) return;
-    const alias = raw.trim().toLowerCase();
+    const input = document.getElementById('managedShareNamedInput');
+    const status = document.getElementById('managedShareNamedStatus');
+    const alias = (input?.value || '').trim().toLowerCase();
     if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(alias) ||
         ['admin', 'api', 'forge'].includes(alias)) {
-        showToast('Use 3-64 lowercase letters, numbers, _ or -.', 'error', 4000);
+        if (status) status.textContent =
+            'Use 3-64 lowercase letters, numbers, _ or -.';
+        input?.focus();
         return;
     }
-
+    if (status) status.textContent = 'Checking named link...';
     try {
         const file = await git.readPublicTrusted(`aliases/${alias}.json`);
         const record = file ? JSON.parse(file.text) : null;
@@ -4787,7 +3939,6 @@ async function saveNamedShare() {
         }
         const id = requireManagedShareRequestId();
         if (!id) return;
-
         const packet = {
             id,
             type: record ? 'share.alias.update' : 'share.alias.make',
@@ -4797,7 +3948,6 @@ async function saveNamedShare() {
             reason: 'Named Share set in FORGE IDE'
         };
         if (record) packet.expectedVersion = record.version;
-
         const response = await sendManagedShareRequest(
             await git.signAliasRequest(packet)
         );
@@ -4805,25 +3955,22 @@ async function saveNamedShare() {
             const {detail} = await readManagedShareError(response);
             throw new Error(`request failed${detail}`);
         }
-
-        const url = `${location.origin}${location.pathname}#namedShare=${alias}` +
-            (getURLParam('fullscreen') ? '&fullscreen=true' : '') +
-            extractCarriedParams();
-        await copyToClipboard(url);
+        if (status) status.textContent = response.status === 202
+            ? 'Request submitted. This link becomes public after processing.'
+            : 'Named Share saved.';
         showToast(
-            `Named Share ${response.status === 202 ? 'request submitted' : 'saved'}. URL copied.`,
+            `Named Share ${response.status === 202 ? 'request submitted' : 'saved'}.`,
             response.status === 202 ? 'warning' : 'success',
             5000
         );
     } catch (e) {
+        if (status) status.textContent = 'Error: ' + e.message;
         showToast('Named Share error: ' + e.message, 'error', 5000);
     }
 }
-
 function closeManagedShareManageModal() {
     ForgeModal.close('managedShareManageModal');
 }
-
 function managedShareMatchesPayload(metadata, payloadHash) {
     return !!(
         metadata &&
@@ -4831,15 +3978,12 @@ function managedShareMatchesPayload(metadata, payloadHash) {
         metadata.payloadHash.toLowerCase() === payloadHash
     );
 }
-
 async function readManagedShareError(response) {
     let errorBody = null;
     try {
         errorBody = await response.json();
     } catch {
-
     }
-
     return {
         errorBody,
         detail: errorBody && errorBody.error
@@ -4847,11 +3991,9 @@ async function readManagedShareError(response) {
             : ''
     };
 }
-
 function requireManagedShareRequestId() {
     const requestId = createManagedShareRequestId();
     if (requestId) return requestId;
-
     showToast(
         'Unable to create managed-share request identity.',
         'error',
@@ -4859,7 +4001,6 @@ function requireManagedShareRequestId() {
     );
     return null;
 }
-
 function handleManagedShareReviewRequired(
     response,
     errorBody,
@@ -4873,52 +4014,43 @@ function handleManagedShareReviewRequired(
     ) {
         return false;
     }
-
     const reviewShare = errorBody.share;
     if (managedShareMatchesPayload(reviewShare, payloadHash)) {
         setCurrentManagedShareMetadata(reviewShare);
     }
-
     closeManagedShareManageModal();
     showToast(message, 'info', 4500);
     return true;
 }
-
 async function sendManagedShareMutation(
     packet,
     payloadHash,
     reviewMessage
 ) {
     const response = await sendManagedShareRequest(packet);
-
     if (!response.ok) {
         const { detail, errorBody } =
             await readManagedShareError(response);
-
         if (handleManagedShareReviewRequired(
             response,
             errorBody,
             payloadHash,
             reviewMessage
         )) return null;
-
         throw new Error(
             `Share server responded with ${response.status}${detail}`
         );
     }
-
     const updatedMetadata = await response.json();
     if (!managedShareMatchesPayload(updatedMetadata, payloadHash)) {
         throw new Error(
             'Updated share metadata does not match the current Short Link'
         );
     }
-
     setCurrentManagedShareMetadata(updatedMetadata);
     closeManagedShareManageModal();
     return updatedMetadata;
 }
-
 async function saveManagedShareMetadata() {
     if (
         !currentManagedShareMetadata ||
@@ -4927,24 +4059,20 @@ async function saveManagedShareMetadata() {
         showToast('Short Link editing is not available.', 'error', 3500);
         return;
     }
-
     const titleInput = document.getElementById('managedShareManageTitle');
     const expirationInput =
         document.getElementById('managedShareManageExpiration');
     const never =
         document.getElementById('managedShareManageNeverExpires');
     const saveButton = document.getElementById('managedShareManageSaveBtn');
-
     if (!titleInput || !expirationInput || !never) {
         showToast('Short Link management UI is unavailable.', 'error', 3500);
         return;
     }
-
     const proposedTitle = titleInput.value.trim() || null;
     const proposedExpiresMs = never.checked
         ? null
         : new Date(expirationInput.value).getTime();
-
     if (
         proposedExpiresMs !== null &&
         (!Number.isFinite(proposedExpiresMs) ||
@@ -4957,7 +4085,6 @@ async function saveManagedShareMetadata() {
         );
         return;
     }
-
     const proposedExpiresAt = proposedExpiresMs === null
         ? null
         : new Date(proposedExpiresMs).toISOString();
@@ -4970,10 +4097,8 @@ async function saveManagedShareMetadata() {
     const currentExpiresAt = Number.isFinite(currentExpiresMs)
         ? new Date(currentExpiresMs).toISOString()
         : null;
-
     const requestId = requireManagedShareRequestId();
     if (!requestId) return;
-
     const packet = {
         id: requestId,
         type: 'share.update',
@@ -4981,23 +4106,18 @@ async function saveManagedShareMetadata() {
         changes: {},
         reason: 'Managed Short Link metadata edited in FORGE IDE'
     };
-
     if (proposedTitle !== currentTitle) {
         packet.changes.title = proposedTitle;
     }
-
     if (proposedExpiresAt !== currentExpiresAt) {
         packet.changes.expiresAt = proposedExpiresAt;
     }
-
     if (Object.keys(packet.changes).length === 0) {
         closeManagedShareManageModal();
         showToast('No Short Link metadata changes to save.', 'info', 3000);
         return;
     }
-
     if (saveButton) saveButton.disabled = true;
-
     try {
         const updatedMetadata = await sendManagedShareMutation(
             packet,
@@ -5005,7 +4125,6 @@ async function saveManagedShareMetadata() {
             'Short Link update submitted for review.'
         );
         if (!updatedMetadata) return;
-
         showToast('Short Link metadata updated.', 'success', 3500);
     } catch (e) {
         showToast(
@@ -5018,7 +4137,6 @@ async function saveManagedShareMetadata() {
         if (saveButton) saveButton.disabled = false;
     }
 }
-
 async function requestManagedShareDeletion() {
     if (
         !currentManagedShareMetadata ||
@@ -5027,28 +4145,22 @@ async function requestManagedShareDeletion() {
         showToast('Short Link deletion is not available.', 'error', 3500);
         return;
     }
-
     if ((currentManagedShareMetadata.state || 'active') !== 'active') {
         showToast('This Short Link is already unavailable.', 'info', 3500);
         return;
     }
-
     const confirmed = confirm(
         'Request deletion of this Short Link?\n\n' +
         'This will make the link unavailable. The immutable project payload ' +
         'may remain stored according to server policy.'
     );
-
     if (!confirmed) return;
-
     const deletionButton =
         document.getElementById('managedShareManageDeleteBtn');
     const saveButton = document.getElementById('managedShareManageSaveBtn');
     const payloadHash = currentManagedShareMetadata.payloadHash;
-
     const requestId = requireManagedShareRequestId();
     if (!requestId) return;
-
     const packet = {
         id: requestId,
         type: 'share.update',
@@ -5058,10 +4170,8 @@ async function requestManagedShareDeletion() {
         },
         reason: 'Managed Short Link deletion requested in FORGE IDE'
     };
-
     if (deletionButton) deletionButton.disabled = true;
     if (saveButton) saveButton.disabled = true;
-
     try {
         const updatedMetadata = await sendManagedShareMutation(
             packet,
@@ -5069,7 +4179,6 @@ async function requestManagedShareDeletion() {
             'Short Link deletion request submitted for review.'
         );
         if (!updatedMetadata) return;
-
         if ((updatedMetadata.state || 'active') === 'tombstoned') {
             showToast(
                 'Short Link deletion applied. The link is now unavailable.',
@@ -5095,25 +4204,20 @@ async function requestManagedShareDeletion() {
         if (saveButton) saveButton.disabled = false;
     }
 }
-
 function managedShareFutureExpiration(metadata) {
     const expiresAt = metadata && metadata.expiresAt;
     const expiresMs = Date.parse(expiresAt);
     if (!expiresAt || !Number.isFinite(expiresMs)) return null;
-
     const remainingMs = expiresMs - Date.now();
     return remainingMs > 0 ? { expiresMs, remainingMs } : null;
 }
-
 function updateManagedShareExpirationBadge(metadata) {
     const badge = document.getElementById('managedShareExpirationBadge');
     if (!badge) return;
-
     badge.hidden = true;
     badge.textContent = '';
     badge.title = '';
     badge.classList.remove('warning', 'urgent');
-
     if (metadata && metadata.pending === true) {
         badge.textContent = '⏳ Short Link · pending publication';
         badge.title =
@@ -5122,11 +4226,9 @@ function updateManagedShareExpirationBadge(metadata) {
         badge.hidden = false;
         return;
     }
-
     const expiration = managedShareFutureExpiration(metadata);
     if (!expiration) return;
     const { expiresMs, remainingMs } = expiration;
-
     const hourMs = 60 * 60 * 1000;
     const dayMs = 24 * hourMs;
     const deadline = new Date(expiresMs);
@@ -5136,19 +4238,15 @@ function updateManagedShareExpirationBadge(metadata) {
         hour: 'numeric',
         minute: '2-digit'
     });
-
     badge.textContent = `⏱ Short Link · expires ${shortDeadline}`;
     badge.title = `This managed Short Link expires ${deadline.toLocaleString()}.`;
-
     if (remainingMs <= hourMs) {
         badge.classList.add('urgent');
     } else if (remainingMs <= dayMs) {
         badge.classList.add('warning');
     }
-
     badge.hidden = false;
 }
-
 function showManagedShareExpirationNotice(metadata) {
     if (metadata && metadata.pending === true) {
         showToast(
@@ -5158,20 +4256,16 @@ function showManagedShareExpirationNotice(metadata) {
         );
         return;
     }
-
     const expiration = managedShareFutureExpiration(metadata);
     if (!expiration) return;
     const { expiresMs, remainingMs } = expiration;
-
     const minuteMs = 60 * 1000;
     const hourMs = 60 * minuteMs;
     const dayMs = 24 * hourMs;
     const exactDeadline = new Date(expiresMs).toLocaleString();
-
     let relative;
     let type = 'info';
     let duration = 6500;
-
     if (remainingMs <= hourMs) {
         const minutes = Math.ceil(remainingMs / minuteMs);
         relative = minutes <= 1
@@ -5192,29 +4286,24 @@ function showManagedShareExpirationNotice(metadata) {
             ? 'in about 1 day'
             : `in about ${days} days`;
     }
-
     showToast(
         `This Short Link expires ${relative} (${exactDeadline}).`,
         type,
         duration
     );
 }
-
 // Download ZIP functionality
 async function downloadProjectZip() {
     if (vfs.getAllPaths().length === 0) {
         showToast('No project to download', 'error');
         return;
     }
-
     try {
         // Load JSZip library if not already loaded
         if (typeof JSZip === 'undefined') {
             await loadScript('lib/jszip.min.js');
         }
-
         const zip = new JSZip();
-        
         // Add all files to the zip (skip excluded files)
         const paths = vfs.getAllPaths();
         for (let path of paths) {
@@ -5236,10 +4325,8 @@ async function downloadProjectZip() {
                 zip.file(zipPath, content);
             }
         }
-
         // Generate the zip file
         const blob = await zip.generateAsync({type: 'blob'});
-        
         // Download it
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -5249,14 +4336,12 @@ async function downloadProjectZip() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-
         showToast('Project downloaded as ZIP', 'success');
     } catch (e) {
         showToast('Error creating ZIP: ' + e.message, 'error');
         console.error(e);
     }
 }
-
 // Helper function to load external scripts
 function loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -5267,18 +4352,15 @@ function loadScript(src) {
         document.head.appendChild(script);
     });
 }
-
 function setFullscreen(active) {
     fullscreenContainer.classList.toggle('active', active);
     updateBrowserTitle();
-
     const url = new URL(window.location.href);
     let hash = (url.hash || '#').replace(/&fullscreen=true/g, '');
     if (active) hash += '&fullscreen=true';
     url.hash = hash;
     window.history.replaceState(window.history.state, '', url.toString());
 }
-
 document.addEventListener('click', (e) => {
     if (e.target && (e.target.id === 'previewBackBtn' || e.target.id === 'previewForwardBtn')) {
         goPreviewHistory(e.target.id === 'previewBackBtn' ? -1 : 1);
@@ -5318,9 +4400,7 @@ document.addEventListener('click', (e) => {
         setFullscreen(false);
     }
 });
-
 // addFileBtn and addFileInput listeners moved to delegated handlers above.
-
 function splitPreviewLocation(value) {
     const raw = String(value || '').trim();
     const hashIdx = raw.indexOf('#');
@@ -5328,18 +4408,15 @@ function splitPreviewLocation(value) {
     const queryIdx = rawQueryIdx >= 0 && (hashIdx < 0 || rawQueryIdx < hashIdx)
         ? rawQueryIdx
         : -1;
-
     const splitIdx = Math.min(
         queryIdx >= 0 ? queryIdx : Infinity,
         hashIdx >= 0 ? hashIdx : Infinity
     );
-
     const path = splitIdx < Infinity ? raw.substring(0, splitIdx) : raw;
     const query = queryIdx >= 0
         ? raw.substring(queryIdx, hashIdx >= 0 ? hashIdx : raw.length)
         : '';
     const hash = hashIdx >= 0 ? raw.substring(hashIdx) : '';
-
     return {
         path,
         query,
@@ -5347,24 +4424,19 @@ function splitPreviewLocation(value) {
         display: path + query + hash
     };
 }
-
 function syncPreviewLocationToParent(path, query = '', hash = '') {
     try {
         const url = new URL(window.location.href);
         let parentHash = url.hash || '#';
-
         parentHash = parentHash
             .replace(/&url=[^&]*/g, '')
             .replace(/&previewHash=[^&]*/g, '');
-
         if (path || query) {
             parentHash += '&url=' + encodeURIComponent(path + query);
         }
-
         if (hash) {
             parentHash += '&previewHash=' + encodeURIComponent(hash);
         }
-
         window.history.replaceState(
             window.history.state,
             '',
@@ -5374,93 +4446,71 @@ function syncPreviewLocationToParent(path, query = '', hash = '') {
         // Preview-location synchronization is non-critical.
     }
 }
-
 // URL bar keypress — delegated because urlBar is inside Vue-controlled DOM
 document.addEventListener('keypress', (e) => {
   if (e.target && e.target.id === 'urlBar' && e.key === 'Enter') {
     const previewLocation = splitPreviewLocation(e.target.value);
     let { path, query, hash } = previewLocation;
-
     if (!path.startsWith('/')) { 
         path = '/' + path; 
     }
-    
     // Resolve directory indexes before checking existence
     path = vfs.resolveDirectoryIndex(path);
-    
     if (!vfs.hasFile(path))    { showToast('File not found: ' + path, 'error'); return; }
     if (!path.endsWith('.html') && !path.endsWith('.htm')) {
       showToast('Can only preview HTML files', 'error'); return;
     }
-
     const display = path + query + hash;
     renderPage(display);
     syncPreviewLocationToParent(path, query, hash);
-
     showToast('Preview updated', 'success');
   }
   if (e.target && e.target.id === 'addFileInput' && e.key === 'Enter') {
     addFile();
   }
 });
-
 // File browser rendering is owned by the Vue panels app.
-
 function updateFileBrowser() {
     // Keep one refresh hook for VFS mutations across the frontend modules.
     if (window.forgePanels) {
         window.forgePanels.refresh();
     }
 }
-
 // Keyboard-accessible alternative to tree drag/drop.
 let pendingFileMove = null;
-
 function getFileMoveParent(path) {
     const index = String(path || '').lastIndexOf('/');
     return index > 0 ? path.substring(0, index) : '';
 }
-
 function getFileMoveDestinations() {
     const directories = new Set(['']);
-
     vfs.getAllPaths().forEach(path => {
         const parts = path.split('/').filter(Boolean);
-
         for (let i = 1; i < parts.length; i++) {
             directories.add('/' + parts.slice(0, i).join('/'));
         }
     });
-
     return Array.from(directories).sort((a, b) => {
         if (a === '') return -1;
         if (b === '') return 1;
         return a.localeCompare(b);
     });
 }
-
 function openFileMoveModal(sourcePath, sourceType = 'file') {
     if (!sourcePath || !window.ForgeFileMove) return;
-
     const source = document.getElementById('fileMoveSource');
     const select = document.getElementById('fileMoveDestination');
     const confirmButton = document.getElementById('fileMoveConfirmBtn');
-
     if (!source || !select || !confirmButton) return;
-
     pendingFileMove = {
         sourcePath,
         sourceType: sourceType === 'dir' ? 'dir' : 'file'
     };
-
     source.textContent = sourcePath;
     select.replaceChildren();
-
     const currentParent = getFileMoveParent(sourcePath);
-
     const destinations = getFileMoveDestinations().filter(directory => {
         if (directory === currentParent) return false;
-
         if (
             pendingFileMove.sourceType === 'dir' &&
             (
@@ -5470,10 +4520,8 @@ function openFileMoveModal(sourcePath, sourceType = 'file') {
         ) {
             return false;
         }
-
         return true;
     });
-
     if (destinations.length === 0) {
         const option = document.createElement('option');
         option.textContent = 'No other folders available';
@@ -5485,7 +4533,6 @@ function openFileMoveModal(sourcePath, sourceType = 'file') {
     } else {
         destinations.forEach(directory => {
             const option = document.createElement('option');
-
             if (directory === '') {
                 option.value = '__forge_project_root__';
                 option.textContent = 'Project root (/)';
@@ -5493,14 +4540,11 @@ function openFileMoveModal(sourcePath, sourceType = 'file') {
                 option.value = directory;
                 option.textContent = directory;
             }
-
             select.appendChild(option);
         });
-
         select.disabled = false;
         confirmButton.disabled = false;
     }
-
     ForgeModal.open('fileMoveModal', {
         initialFocus: destinations.length > 0
             ? '#fileMoveDestination'
@@ -5509,32 +4553,25 @@ function openFileMoveModal(sourcePath, sourceType = 'file') {
         onRequestClose: closeFileMoveModal
     });
 }
-
 function closeFileMoveModal() {
     ForgeModal.close('fileMoveModal');
     pendingFileMove = null;
 }
-
 function confirmFileMoveModal() {
     if (!pendingFileMove || !window.ForgeFileMove) return;
-
     const select = document.getElementById('fileMoveDestination');
     if (!select || select.disabled) return;
-
     const targetDirectory =
         select.value === '__forge_project_root__'
             ? ''
             : select.value;
-
     const moved = window.ForgeFileMove.moveFileOrFolder(
         pendingFileMove.sourcePath,
         targetDirectory,
         pendingFileMove.sourceType
     );
-
     if (moved) closeFileMoveModal();
 }
-
 function getFileStatusTitle(p) {
     const meta = vfs.getMeta(p);
     if (meta.excluded) return meta.description ? `Excluded: ${meta.description}` : 'Excluded file';
@@ -5543,83 +4580,65 @@ function getFileStatusTitle(p) {
     if (meta.description) return meta.description;
     return '';
 }
-
 function previewFile(path) {
   renderPage(path);
   switchTab('preview');
   showToast('Preview loaded', 'success');
 }
-
 function closeTab(path) {
     if (!path) return;
-
     const isDirty = (path === currentEditingFile)
         ? hasUnsavedChanges
         : (tabUnsavedMap.get(path) || false);
-
     const doClose = () => {
         tabContentCache.delete(path);
         tabUnsavedMap.delete(path);
-
         if (!window.forgePanels) return;
         const newActivePath = window.forgePanels.closeTab(path);
-
         if (newActivePath) {
             openFileInEditor(newActivePath);
         } else {
             closeEditor();
         }
     };
-
     if (isDirty) {
         // If closing a background dirty tab, switch to it first so the
         // user can see which file they're being asked about.
         if (path !== currentEditingFile) {
             openFileInEditor(path);
         }
-
         openUnsavedModal(path, doClose);
     } else {
         doClose();
     }
 }
-
 function startNonEditableEditorView(iconText, titleText) {
     editorTextarea.hidden = true;
     editorPlaceholder.hidden = false;
     editorPlaceholder.replaceChildren();
-
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'text-align:center; padding:20px;';
-
     const icon = document.createElement('div');
     icon.style.cssText = 'font-size:2em; margin-bottom:10px;';
     icon.textContent = iconText;
-
     const title = document.createElement('div');
     title.style.cssText = 'font-size:1.1em; margin-bottom:5px;';
     title.textContent = titleText;
-
     wrapper.append(icon, title);
     return wrapper;
 }
-
 function finishNonEditableEditorView(wrapper) {
     const note = document.createElement('div');
     note.style.cssText = 'margin-top:15px; font-size:0.85em; color:#949494;';
     note.textContent = 'Use ⚙️ to edit file settings';
     wrapper.appendChild(note);
-
     editorPlaceholder.appendChild(wrapper);
-
     saveFileBtn.hidden = true;
     deleteFileBtn.hidden = false;
     rerunBtn.hidden = true;
 }
-
 function openFileInEditor(path) {
     if (!path) return;
-
     // -- Save outgoing tab's CM state --------------------------------------
     if (currentEditingFile && currentEditingFile !== path) {
         saveCmStateToCache(currentEditingFile);
@@ -5628,43 +4647,31 @@ function openFileInEditor(path) {
             window.forgePanels.setTabUnsaved(currentEditingFile, hasUnsavedChanges);
         }
     }
-
     // -- Register with tab system ------------------------------------------
     if (window.forgePanels) window.forgePanels.openTab(path);
-
     currentEditingFile = path;
     currentViewMode    = 'editor';
-
     const meta = vfs.getMeta(path);
-
     // Restore dirty state for this tab
     hasUnsavedChanges = tabUnsavedMap.get(path) || false;
-
     // Decide content source: cached (unsaved edits) vs VFS (last saved)
     const cached       = tabContentCache.get(path);
     const vfsContent   = vfs.getFile(path);
     const contentToUse = cached ? cached.content : (vfsContent || '');
     originalContent    = vfsContent || '';
-
     editorFilename.textContent = path;
-
     const settingsPanel = document.getElementById('fileSettingsPanel');
     if (settingsPanel) settingsPanel.style.display = 'none';
-
     if (meta.excluded) {
         const wrapper =
             startNonEditableEditorView('🚫', 'Excluded File');
-
         const desc = document.createElement('div');
         desc.style.cssText = 'font-size:0.9em; color:#949494;';
         desc.textContent = meta.description || 'No description available';
-
         wrapper.appendChild(desc);
-
         if (meta.url) {
             const urlRow = document.createElement('div');
             urlRow.style.marginTop = '10px';
-
             let safeUrl = null;
             try {
                 const parsed = new URL(meta.url, window.location.href);
@@ -5672,7 +4679,6 @@ function openFileInEditor(path) {
                     safeUrl = parsed.href;
                 }
             } catch (e) {}
-
             if (safeUrl) {
                 const link = document.createElement('a');
                 link.href = safeUrl;
@@ -5680,14 +4686,12 @@ function openFileInEditor(path) {
                 link.rel = 'noopener noreferrer';
                 link.style.color = '#4fc3f7';
                 link.textContent = meta.url;
-
                 const fetchButton = document.createElement('button');
                 fetchButton.type = 'button';
                 fetchButton.style.marginLeft = '10px';
                 fetchButton.className = 'info';
                 fetchButton.textContent = '⬇️ Fetch';
                 fetchButton.addEventListener('click', () => fetchRefFile(path));
-
                 urlRow.append(link, fetchButton);
             } else {
                 const invalidUrl = document.createElement('span');
@@ -5695,30 +4699,23 @@ function openFileInEditor(path) {
                 invalidUrl.textContent = `Reference: ${meta.url}`;
                 urlRow.appendChild(invalidUrl);
             }
-
             wrapper.appendChild(urlRow);
         }
-
         finishNonEditableEditorView(wrapper);
-
     } else if (meta.encoding === 'base64') {
         const blobUrl  = vfs.getBlobUrl(path);
         const mimeType = vfs.getMimeType(path);
         const isImage  = mimeType.startsWith('image/');
         const wrapper =
             startNonEditableEditorView('📦', 'Binary File');
-
         const mime = document.createElement('div');
         mime.style.cssText = 'font-size:0.9em; color:#949494;';
         mime.textContent = `MIME: ${mimeType}`;
-
         const size = document.createElement('div');
         size.style.cssText = 'font-size:0.85em; color:#949494; margin-top:5px;';
         size.textContent =
             `Size: ~${Math.round((contentToUse.length * 3) / 4 / 1024)} KB (base64)`;
-
         wrapper.append(mime, size);
-
         if (isImage && blobUrl) {
             const image = document.createElement('img');
             image.src = blobUrl;
@@ -5726,15 +4723,12 @@ function openFileInEditor(path) {
                 'max-width:200px;max-height:150px;margin-top:10px;border-radius:4px;';
             wrapper.appendChild(image);
         }
-
         finishNonEditableEditorView(wrapper);
-
     } else {
         editorPlaceholder.hidden = true;
         saveFileBtn.hidden   = false;
         deleteFileBtn.hidden = false;
         rerunBtn.hidden      = false;
-
         if (ForgeEditor.isReady()) {
             ForgeEditor.setValue(contentToUse, path);
             ForgeEditor.setVisible(true);
@@ -5748,10 +4742,8 @@ function openFileInEditor(path) {
             editorTextarea.hidden = false;
         }
     }
-
     if (window.forgePanels) window.forgePanels.selectPath(path);
 }
-
 function closeEditor() {
     currentEditingFile = null;
     currentViewMode    = 'editor';
@@ -5768,15 +4760,11 @@ function closeEditor() {
     saveFileBtn.hidden   = true;
     deleteFileBtn.hidden = true;
     rerunBtn.hidden      = true;
-
     const settingsPanel = document.getElementById('fileSettingsPanel');
     if (settingsPanel) settingsPanel.style.display = 'none';
-
     if (window.forgePanels) window.forgePanels.selectPath(null);
 }
-
 // saveFileBtn, deleteFileBtn, rerunBtn listeners moved to delegated handlers above.
-
 // Preview CSP: CDN resource loads are separate from restricted connect-src.
 // Inline/eval remain required inside the opaque sandbox for VFS/runtime code.
 function buildPreviewCspMeta() {
@@ -5788,7 +4776,6 @@ function buildPreviewCspMeta() {
         'https://cdnjs.cloudflare.com',
         'https://esm.sh',
     ].join(' ');
-
     // Additional domains allowed for fetch()/XHR (connect-src).
     const connectDomains = [
         'https://*.gov',
@@ -5798,10 +4785,8 @@ function buildPreviewCspMeta() {
         'http://127.0.0.1:*',
         'https://127.0.0.1:*',
     ].join(' ');
-
     // Keep the approved network/resource origins in one combined allowlist.
     const resourceDomains = `${connectDomains} ${cdnDomains}`;
-
     const directives = [
         `connect-src 'self' blob: ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:* ${resourceDomains}`,
         `img-src 'self' blob: data: ${resourceDomains}`,
@@ -5812,37 +4797,29 @@ function buildPreviewCspMeta() {
         `style-src 'self' 'unsafe-inline' blob: https://fonts.googleapis.com ${resourceDomains}`,
         `font-src 'self' blob: data: https://fonts.gstatic.com ${resourceDomains}`
     ];
-
     return `<meta http-equiv="Content-Security-Policy" content="${directives.join('; ')};">`;
 }
-
 // Replace the sandboxed iframe per render to avoid Chromium stale-srcdoc blanks.
 function setPreviewWelcomeVisible(visible) {
     const welcome = document.getElementById('previewWelcome');
     if (!welcome) return;
-
     // Any ordinary Preview-state transition clears a stale managed-share
     // failure overlay. showManagedShareUnavailableState() deliberately calls
     // this first and then re-shows that overlay with the current failure.
     hidePreviewUnavailableState();
     welcome.hidden = !visible;
 }
-
 const previewSourceRanges = {};
-
 function indexPreviewSources(html, sourcePath, sourceHtml) {
     const ranges = [];
     const lineAt = (text, index) =>
         text.slice(0, index).split('\n').length;
-
     const moduleRe =
         /\/\*__FORGE_SOURCE__([^:]+):(\d+)\*\//g;
     let match;
-
     while ((match = moduleRe.exec(html))) {
         const start = lineAt(html, match.index) + 1;
         const count = Number(match[2]);
-
         ranges.push({
             path: decodeURIComponent(match[1]),
             start,
@@ -5851,40 +4828,32 @@ function indexPreviewSources(html, sourcePath, sourceHtml) {
             columnOffset: 4
         });
     }
-
     if (!sourcePath || typeof sourceHtml !== 'string') {
         return ranges;
     }
-
     const scriptRe =
         /<script([^>]*)>([\s\S]*?)<\/script>/gi;
     let scriptCursor = 0;
-
     while ((match = scriptRe.exec(sourceHtml))) {
         const attrs = match[1];
-
         if (
             /\bsrc\s*=/i.test(attrs) ||
             /\btype\s*=\s*["']module["']/i.test(attrs)
         ) {
             continue;
         }
-
         const openingLength =
             match[0].indexOf('>') + 1;
         const content = match[2];
         const finalIndex =
             html.indexOf(match[0], scriptCursor);
-
         if (finalIndex < 0) continue;
-
         const sourceContentIndex =
             match.index + openingLength;
         const finalContentIndex =
             finalIndex + openingLength;
         const count =
             content.split('\n').length;
-
         ranges.push({
             path: sourcePath,
             start: lineAt(html, finalContentIndex),
@@ -5895,24 +4864,18 @@ function indexPreviewSources(html, sourcePath, sourceHtml) {
                 lineAt(sourceHtml, sourceContentIndex),
             columnOffset: 0
         });
-
         scriptCursor =
             finalIndex + match[0].length;
     }
-
     const handlerRe =
         /\bon[a-z][\w:-]*\s*=\s*(["'])([\s\S]*?)\1/gi;
     let handlerCursor = 0;
-
     while ((match = handlerRe.exec(sourceHtml))) {
         const finalIndex =
             html.indexOf(match[0], handlerCursor);
-
         if (finalIndex < 0) continue;
-
         const generatedLine =
             lineAt(html, finalIndex);
-
         ranges.push({
             path: sourcePath,
             start: generatedLine,
@@ -5921,24 +4884,18 @@ function indexPreviewSources(html, sourcePath, sourceHtml) {
                 lineAt(sourceHtml, match.index),
             columnOffset: 0
         });
-
         handlerCursor =
             finalIndex + match[0].length;
     }
-
     return ranges;
 }
-
 function mapPreviewSourceLocations(msg, source) {
     if (typeof msg !== 'string') return msg;
-
     const frame = document.getElementById('previewFrame');
     const ranges = source === frame?.contentWindow
         ? previewSourceRanges.previewFrame
         : null;
-
     if (!ranges || !ranges.length) return msg;
-
     return msg.replace(
         /about:srcdoc:(\d+)(?::(\d+))?/g,
         (raw, line, column) => {
@@ -5947,13 +4904,10 @@ function mapPreviewSourceLocations(msg, source) {
                 generatedLine >= item.start &&
                 generatedLine <= item.end
             );
-
             if (!range) return raw;
-
             const sourceLine =
                 range.sourceStart +
                 generatedLine - range.start;
-
             const sourceColumn = column
                 ? Math.max(
                     1,
@@ -5961,13 +4915,11 @@ function mapPreviewSourceLocations(msg, source) {
                         (range.columnOffset || 0)
                 )
                 : null;
-
             return `forge-vfs://${range.path}:${sourceLine}` +
                 (sourceColumn ? `:${sourceColumn}` : '');
         }
     );
 }
-
 function commitPreviewFrame(
     frameEl,
     html,
@@ -5975,7 +4927,6 @@ function commitPreviewFrame(
     sourceHtml
 ) {
     if (!frameEl || !frameEl.parentNode) return null;
-
     // A fresh browsing context has not reported its page title yet. Clear the
     // previous frame's value so the project title is the temporary fallback.
     if (frameEl.id === 'previewFrame') {
@@ -5983,7 +4934,6 @@ function commitPreviewFrame(
         setPreviewWelcomeVisible(false);
     }
     updateBrowserTitle();
-
     const replacement = frameEl.cloneNode(false);
     previewSourceRanges[replacement.id] =
         indexPreviewSources(
@@ -5995,23 +4945,19 @@ function commitPreviewFrame(
     frameEl.parentNode.replaceChild(replacement, frameEl);
     return replacement;
 }
-
 // Opaque previews use parent-brokered storage snapshots.
 // localStorage persists; sessionStorage lasts for this FORGE page lifetime.
 const PREVIEW_LOCAL_STORAGE_KEY = 'forgePreviewLocalStorageV1';
 const PREVIEW_SESSION_STORAGE_KEY = 'forgePreviewSessionStorageV1';
-
 function loadPreviewStorage(storage, key, label) {
     const store = Object.create(null);
     try {
         const raw = storage.getItem(key);
         if (!raw) return store;
-
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
             return store;
         }
-
         for (const [name, value] of Object.entries(parsed)) {
             store[String(name)] = String(value);
         }
@@ -6020,7 +4966,6 @@ function loadPreviewStorage(storage, key, label) {
     }
     return store;
 }
-
 function loadPreviewLocalStorage() {
     return loadPreviewStorage(
         localStorage,
@@ -6028,7 +4973,6 @@ function loadPreviewLocalStorage() {
         'localStorage'
     );
 }
-
 function loadPreviewSessionStorage() {
     return loadPreviewStorage(
         sessionStorage,
@@ -6036,10 +4980,8 @@ function loadPreviewSessionStorage() {
         'sessionStorage'
     );
 }
-
 let forgePreviewLocalStorage = loadPreviewLocalStorage();
 let forgePreviewSessionStorage = loadPreviewSessionStorage();
-
 function savePreviewLocalStorage() {
     try {
         localStorage.setItem(
@@ -6050,7 +4992,6 @@ function savePreviewLocalStorage() {
         console.warn('[FORGE] Could not persist preview localStorage:', e);
     }
 }
-
 function savePreviewSessionStorage() {
     try {
         sessionStorage.setItem(
@@ -6061,7 +5002,6 @@ function savePreviewSessionStorage() {
         console.warn('[FORGE] Could not persist preview sessionStorage:', e);
     }
 }
-
 function serializePreviewStorage(store) {
     // Escape characters that could terminate or disturb the inline interceptor.
     return JSON.stringify(store)
@@ -6069,16 +5009,13 @@ function serializePreviewStorage(store) {
         .replace(/\u2028/g, '\\u2028')
         .replace(/\u2029/g, '\\u2029');
 }
-
 function applyPreviewStorageMutation(message) {
     const isLocal = message.storage === 'localStorage';
     const isSession = message.storage === 'sessionStorage';
     if (!isLocal && !isSession) return;
-
     let store = isLocal
         ? forgePreviewLocalStorage
         : forgePreviewSessionStorage;
-
     if (message.action === 'set') {
         if (message.key == null) return;
         store[String(message.key)] = String(message.value);
@@ -6092,22 +5029,16 @@ function applyPreviewStorageMutation(message) {
     } else {
         return;
     }
-
     if (isLocal) savePreviewLocalStorage();
     else savePreviewSessionStorage();
 }
-
 // IndexedDB bridge keeps upgrade commands inside the parent's live
 // versionchange transaction via a temporary internal store.
 const PREVIEW_IDB_PREFIX = 'forgePreviewIndexedDBV1:';
 const PREVIEW_IDB_KEEPALIVE_STORE = '__forge_internal_keepalive_v1__';
-
 let forgePreviewIdbNextConnection = 1;
 const forgePreviewIdbConnections = new Map();
 const forgePreviewIdbSessions = new Map();
-
-
-
 function previewIdbError(error) {
     return {
         name: error && error.name ? error.name : 'Error',
@@ -6116,12 +5047,10 @@ function previewIdbError(error) {
             : String(error || 'Unknown error')
     };
 }
-
 function previewIdbStores(db) {
     return Array.from(db.objectStoreNames)
         .filter(name => name !== PREVIEW_IDB_KEEPALIVE_STORE);
 }
-
 function postPreviewIdb(target, message) {
     try {
         target.postMessage(message, '*');
@@ -6132,28 +5061,22 @@ function postPreviewIdb(target, message) {
         );
     }
 }
-
 function previewIdbOperation(store, message) {
     const op = String(message.operation);
-
     if (op === 'put' || op === 'add') {
         return message.hasKey
             ? store[op](message.value, message.key)
             : store[op](message.value);
     }
-
     if (op === 'get' || op === 'delete') {
         return store[op](message.key);
     }
-
     if (op === 'clear') return store.clear();
-
     if (op === 'count') {
         return message.hasQuery
             ? store.count(message.query)
             : store.count();
     }
-
     if (op === 'getAll' || op === 'getAllKeys') {
         if (message.hasCount) {
             return store[op](
@@ -6161,58 +5084,46 @@ function previewIdbOperation(store, message) {
                 message.count
             );
         }
-
         return message.hasQuery
             ? store[op](message.query)
             : store[op]();
     }
-
     throw new DOMException(
         'Unsupported FORGE IndexedDB operation',
         'NotSupportedError'
     );
 }
-
 function previewIdbRequest(source, store, message) {
     const request = previewIdbOperation(store, message);
-
     request.onsuccess = () => postPreviewIdb(source, {
         type: 'forge-idb-op-success',
         requestId: String(message.requestId || ''),
         result: request.result
     });
-
     request.onerror = () => postPreviewIdb(source, {
         type: 'forge-idb-op-error',
         requestId: String(message.requestId || ''),
         error: previewIdbError(request.error)
     });
-
     return request;
 }
-
 function previewIdbPump(session) {
     if (!forgePreviewIdbSessions.has(session.id)) return;
-
     try {
         if (session.abort || Date.now() > session.expiresAt) {
             session.tx.abort();
             return;
         }
-
         while (session.queue.length) {
             const message = session.queue.shift();
-
             if (session.kind === 'upgrade') {
                 const name = String(message.name);
-
                 if (name === PREVIEW_IDB_KEEPALIVE_STORE) {
                     throw new DOMException(
                         'Reserved FORGE IndexedDB object-store name',
                         'ConstraintError'
                     );
                 }
-
                 if (message.type === 'forge-idb-create-store') {
                     session.db.createObjectStore(
                         name,
@@ -6224,10 +5135,8 @@ function previewIdbPump(session) {
                 } else {
                     session.db.deleteObjectStore(name);
                 }
-
                 continue;
             }
-
             try {
                 previewIdbRequest(
                     session.source,
@@ -6245,7 +5154,6 @@ function previewIdbPump(session) {
                 throw error;
             }
         }
-
         if (session.done) {
             if (
                 session.kind === 'upgrade' &&
@@ -6257,13 +5165,10 @@ function previewIdbPump(session) {
                     PREVIEW_IDB_KEEPALIVE_STORE
                 );
             }
-
             forgePreviewIdbSessions.delete(session.id);
             return;
         }
-
         const keepalive = session.keepalive.get(0);
-
         keepalive.onsuccess = () => previewIdbPump(session);
         keepalive.onerror = () => {
             try {
@@ -6278,32 +5183,26 @@ function previewIdbPump(session) {
                 error: previewIdbError(error)
             });
         }
-
         try {
             session.tx.abort();
         } catch (abortError) {}
     }
 }
-
 function handlePreviewIndexedDbMessage(event) {
     const message = event.data;
     const type = message.type;
-
     if (type === 'forge-idb-open') {
         const requestId = String(message.requestId || '');
         const dbId =
             'forge-idb-' + forgePreviewIdbNextConnection++;
         const physicalName =
             PREVIEW_IDB_PREFIX + String(message.name || '');
-
         let request;
-
         try {
             if (message.version == null) {
                 request = indexedDB.open(physicalName);
             } else {
                 const version = Number(message.version);
-
                 if (
                     !Number.isInteger(version) ||
                     version <= 0
@@ -6312,7 +5211,6 @@ function handlePreviewIndexedDbMessage(event) {
                         'IndexedDB version must be a positive integer'
                     );
                 }
-
                 request = indexedDB.open(
                     physicalName,
                     version
@@ -6326,15 +5224,11 @@ function handlePreviewIndexedDbMessage(event) {
             });
             return;
         }
-
         request.onupgradeneeded = upgradeEvent => {
             const db = request.result;
             const tx = request.transaction;
-
             forgePreviewIdbConnections.set(dbId, db);
-
             let keepalive;
-
             try {
                 keepalive = db.objectStoreNames.contains(
                     PREVIEW_IDB_KEEPALIVE_STORE
@@ -6351,7 +5245,6 @@ function handlePreviewIndexedDbMessage(event) {
                 } catch (abortError) {}
                 return;
             }
-
             const session = {
                 id: requestId,
                 kind: 'upgrade',
@@ -6364,14 +5257,11 @@ function handlePreviewIndexedDbMessage(event) {
                 abort: false,
                 expiresAt: Date.now() + 5000
             };
-
             forgePreviewIdbSessions.set(
                 requestId,
                 session
             );
-
             previewIdbPump(session);
-
             postPreviewIdb(event.source, {
                 type: 'forge-idb-upgrade',
                 requestId,
@@ -6381,12 +5271,9 @@ function handlePreviewIndexedDbMessage(event) {
                 stores: previewIdbStores(db)
             });
         };
-
         request.onsuccess = () => {
             const db = request.result;
-
             forgePreviewIdbConnections.set(dbId, db);
-
             postPreviewIdb(event.source, {
                 type: 'forge-idb-open-success',
                 requestId,
@@ -6395,21 +5282,17 @@ function handlePreviewIndexedDbMessage(event) {
                 stores: previewIdbStores(db)
             });
         };
-
         request.onerror = () => {
             forgePreviewIdbSessions.delete(requestId);
             forgePreviewIdbConnections.delete(dbId);
-
             postPreviewIdb(event.source, {
                 type: 'forge-idb-open-error',
                 requestId,
                 error: previewIdbError(request.error)
             });
         };
-
         return;
     }
-
     if (
         type === 'forge-idb-create-store' ||
         type === 'forge-idb-delete-store'
@@ -6417,17 +5300,14 @@ function handlePreviewIndexedDbMessage(event) {
         const session = forgePreviewIdbSessions.get(
             String(message.requestId || '')
         );
-
         if (
             session &&
             session.kind === 'upgrade'
         ) {
             session.queue.push(message);
         }
-
         return;
     }
-
     if (
         type === 'forge-idb-upgrade-done' ||
         type === 'forge-idb-upgrade-abort'
@@ -6435,7 +5315,6 @@ function handlePreviewIndexedDbMessage(event) {
         const session = forgePreviewIdbSessions.get(
             String(message.requestId || '')
         );
-
         if (
             session &&
             session.kind === 'upgrade'
@@ -6446,17 +5325,14 @@ function handlePreviewIndexedDbMessage(event) {
                 session.abort = true;
             }
         }
-
         return;
     }
-
     if (type === 'forge-idb-transaction-open') {
         const transactionId =
             String(message.transactionId || '');
         const db = forgePreviewIdbConnections.get(
             String(message.dbId || '')
         );
-
         if (!db || !transactionId) {
             postPreviewIdb(event.source, {
                 type: 'forge-idb-transaction-abort',
@@ -6468,19 +5344,16 @@ function handlePreviewIndexedDbMessage(event) {
             });
             return;
         }
-
         try {
             const names = Array.isArray(message.storeNames)
                 ? message.storeNames.map(String)
                 : [String(message.storeNames)];
-
             const tx = db.transaction(
                 names,
                 message.mode === 'readwrite'
                     ? 'readwrite'
                     : 'readonly'
             );
-
             const session = {
                 id: transactionId,
                 kind: 'transaction',
@@ -6492,7 +5365,6 @@ function handlePreviewIndexedDbMessage(event) {
                 abort: false,
                 expiresAt: Date.now() + 300000
             };
-
             forgePreviewIdbSessions.set(
                 transactionId,
                 session
@@ -6501,18 +5373,15 @@ function handlePreviewIndexedDbMessage(event) {
                 forgePreviewIdbSessions.delete(
                     transactionId
                 );
-
                 postPreviewIdb(session.source, {
                     type: 'forge-idb-transaction-complete',
                     transactionId
                 });
             };
-
             tx.onabort = () => {
                 forgePreviewIdbSessions.delete(
                     transactionId
                 );
-
                 postPreviewIdb(session.source, {
                     type: 'forge-idb-transaction-abort',
                     transactionId,
@@ -6525,7 +5394,6 @@ function handlePreviewIndexedDbMessage(event) {
                     )
                 });
             };
-
             previewIdbPump(session);
         } catch (error) {
             postPreviewIdb(event.source, {
@@ -6534,25 +5402,20 @@ function handlePreviewIndexedDbMessage(event) {
                 error: previewIdbError(error)
             });
         }
-
         return;
     }
-
     if (type === 'forge-idb-transaction-op') {
         const session = forgePreviewIdbSessions.get(
             String(message.transactionId || '')
         );
-
         if (
             session &&
             session.kind === 'transaction'
         ) {
             session.queue.push(message);
         }
-
         return;
     }
-
     if (
         type === 'forge-idb-transaction-done' ||
         type === 'forge-idb-transaction-abort'
@@ -6560,31 +5423,25 @@ function handlePreviewIndexedDbMessage(event) {
         const session = forgePreviewIdbSessions.get(
             String(message.transactionId || '')
         );
-
         if (
             !session ||
             session.kind !== 'transaction'
         ) {
             return;
         }
-
         if (type === 'forge-idb-transaction-done') {
             session.done = true;
         } else {
             session.abort = true;
-
             try {
                 session.tx.abort();
             } catch (error) {}
         }
-
         return;
     }
-
     if (type === 'forge-idb-delete-db') {
         const requestId = String(message.requestId || '');
         let request;
-
         try {
             request = indexedDB.deleteDatabase(
                 PREVIEW_IDB_PREFIX +
@@ -6598,7 +5455,6 @@ function handlePreviewIndexedDbMessage(event) {
             });
             return;
         }
-
         request.onsuccess = () => postPreviewIdb(
             event.source,
             {
@@ -6606,7 +5462,6 @@ function handlePreviewIndexedDbMessage(event) {
                 requestId
             }
         );
-
         request.onerror = () => postPreviewIdb(
             event.source,
             {
@@ -6615,7 +5470,6 @@ function handlePreviewIndexedDbMessage(event) {
                 error: previewIdbError(request.error)
             }
         );
-
         request.onblocked = () => postPreviewIdb(
             event.source,
             {
@@ -6623,31 +5477,24 @@ function handlePreviewIndexedDbMessage(event) {
                 requestId
             }
         );
-
         return;
     }
-
     if (type === 'forge-idb-close') {
         const dbId = String(message.dbId || '');
         const db = forgePreviewIdbConnections.get(dbId);
-
         if (db) {
             try {
                 db.close();
             } catch (error) {}
-
             forgePreviewIdbConnections.delete(dbId);
         }
-
         return;
     }
-
     if (type === 'forge-idb-op') {
         const requestId = String(message.requestId || '');
         const db = forgePreviewIdbConnections.get(
             String(message.dbId || '')
         );
-
         if (!db) {
             postPreviewIdb(event.source, {
                 type: 'forge-idb-op-error',
@@ -6659,7 +5506,6 @@ function handlePreviewIndexedDbMessage(event) {
             });
             return;
         }
-
         try {
             const tx = db.transaction(
                 String(message.storeName),
@@ -6667,7 +5513,6 @@ function handlePreviewIndexedDbMessage(event) {
                     ? 'readwrite'
                     : 'readonly'
             );
-
             previewIdbRequest(
                 event.source,
                 tx.objectStore(
@@ -6684,7 +5529,6 @@ function handlePreviewIndexedDbMessage(event) {
         }
     }
 }
-
 // Render a page into a specific iframe element.
 // Resolve a src path against the VFS, falling back to an IDE-origin fetch
 // (with credentials) for files like lib/vue.global.prod.js that live in the
@@ -6705,7 +5549,6 @@ async function resolveScriptContent(src) {
         return null;
     }
 }
-
 // Inline <script src="..."> tags whose content resolves from the VFS or the
 // IDE-origin lib fallback. Leaves absolute/CDN URLs untouched so they load
 // normally via script-src CSP. Uses a replacer function to avoid String
@@ -6726,44 +5569,35 @@ async function inlineVfsMisses(html) {
     }
     return html;
 }
-
 // Ensure the preview interceptor is always injected.
 function injectPreviewHead(html, content) {
     const head = `<head>${content}</head>`;
     const headTag = /<head(\s[^>]*)?>/i;
-
     if (headTag.test(html)) {
         return html.replace(headTag, match => match + content);
     }
-
     const htmlTag = /<html(\s[^>]*)?>/i;
     if (htmlTag.test(html)) {
         return html.replace(htmlTag, match => match + head);
     }
-
     return html.replace(
         /^(<!doctype[^>]*>\s*)?/i,
         match => match + head
     );
 }
-
 async function renderHtmlIntoFrame(path, frameEl, basePath) {
     let html = vfs.getFile(path);
     if (!html) {
         setStatus(`File not found: ${path}`, 'error');
         return;
     }
-
     const sourceHtml = html;
     html = processor.process(html, path);
-
     // Inline <script src> tags resolvable via VFS or IDE-origin lib fallback
     // before committing — opaque srcdoc origin cannot carry session cookies.
     html = await inlineVfsMisses(html);
-
     const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
     const pageTitle  = titleMatch ? titleMatch[1] : null;
-
     const interceptorScript = buildInterceptorScript(pageTitle, basePath || path);
     const cspMeta = buildPreviewCspMeta();
     // Inject policy before the interceptor so it governs the whole preview.
@@ -6779,21 +5613,16 @@ async function renderHtmlIntoFrame(path, frameEl, basePath) {
         sourceHtml
     );
 }
-
 // Build the injected interceptor script (extracted so both frames can use it)
 function buildInterceptorScript(pageTitle, basePath) {
     const localStorageSnapshot = serializePreviewStorage(forgePreviewLocalStorage);
     const sessionStorageSnapshot = serializePreviewStorage(forgePreviewSessionStorage);
-
     return `
-
         <script>
-
         (function() {
             const parentHostname = ${JSON.stringify(window.location.hostname)};
             const parentHost = ${JSON.stringify(window.location.host)};
             const parentOrigin = ${JSON.stringify(window.location.origin)};
-            
             function maskOrigin(proto) {
                 ['hostname', 'host', 'origin'].forEach(prop => {
                     const orig = Object.getOwnPropertyDescriptor(proto, prop);
@@ -6812,28 +5641,23 @@ function buildInterceptorScript(pageTitle, basePath) {
                     }
                 });
             }
-            
             if (window.HTMLAnchorElement) maskOrigin(HTMLAnchorElement.prototype);
             if (window.URL) maskOrigin(URL.prototype);
         })();
-
             (function() {
               try {
                 const originalFetch = window.fetch;
-
                 // Opaque-origin previews cannot use native localStorage or
                 // sessionStorage. Install synchronous Storage-like mirrors
                 // before project scripts execute. Mutations are persisted by
                 // the trusted parent through the validated postMessage bridge.
                 function __install_forge_storage(propertyName, storageName, initialData) {
                     const data = new Map();
-
                     if (initialData && typeof initialData === 'object') {
                         for (const key of Object.keys(initialData)) {
                             data.set(String(key), String(initialData[key]));
                         }
                     }
-
                     function notify(action, key, value) {
                         try {
                             window.parent.postMessage({
@@ -6845,12 +5669,10 @@ function buildInterceptorScript(pageTitle, basePath) {
                             }, '*');
                         } catch (e) {}
                     }
-
                     const api = {
                         get length() {
                             return data.size;
                         },
-
                         key(index) {
                             const keys = Array.from(data.keys());
                             const i = Number(index);
@@ -6858,31 +5680,26 @@ function buildInterceptorScript(pageTitle, basePath) {
                                 ? keys[i]
                                 : null;
                         },
-
                         getItem(key) {
                             key = String(key);
                             return data.has(key) ? data.get(key) : null;
                         },
-
                         setItem(key, value) {
                             key = String(key);
                             value = String(value);
                             data.set(key, value);
                             notify('set', key, value);
                         },
-
                         removeItem(key) {
                             key = String(key);
                             data.delete(key);
                             notify('remove', key, null);
                         },
-
                         clear() {
                             data.clear();
                             notify('clear', null, null);
                         }
                     };
-
                     // Native Storage exposes stored keys during enumeration,
                     // but its built-in API members are not enumerable.
                     for (const name of [
@@ -6900,7 +5717,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             Object.defineProperty(api, name, descriptor);
                         }
                     }
-
                     // Support the common localStorage.foo / delete
                     // localStorage.foo shorthand in addition to the standard
                     // Storage methods.
@@ -6914,7 +5730,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             }
                             return Reflect.get(target, prop, receiver);
                         },
-
                         set(target, prop, value, receiver) {
                             if (
                                 typeof prop === 'string' &&
@@ -6925,7 +5740,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             }
                             return Reflect.set(target, prop, value, receiver);
                         },
-
                         deleteProperty(target, prop) {
                             if (
                                 typeof prop === 'string' &&
@@ -6936,7 +5750,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             }
                             return Reflect.deleteProperty(target, prop);
                         },
-
                         ownKeys(target) {
                             const own = Reflect.ownKeys(target);
                             for (const key of data.keys()) {
@@ -6944,11 +5757,9 @@ function buildInterceptorScript(pageTitle, basePath) {
                             }
                             return own;
                         },
-
                         getOwnPropertyDescriptor(target, prop) {
                             const own = Reflect.getOwnPropertyDescriptor(target, prop);
                             if (own) return own;
-
                             if (typeof prop === 'string' && data.has(prop)) {
                                 return {
                                     configurable: true,
@@ -6960,34 +5771,28 @@ function buildInterceptorScript(pageTitle, basePath) {
                             return undefined;
                         }
                     });
-
                     Object.defineProperty(window, propertyName, {
                         configurable: true,
                         enumerable: true,
                         value: proxy
                     });
-
                     return proxy;
                 }
-
                 __install_forge_storage(
                     'localStorage',
                     'localStorage',
                     ${localStorageSnapshot}
                 );
-
                 __install_forge_storage(
                     'sessionStorage',
                     'sessionStorage',
                     ${sessionStorageSnapshot}
                 );
-
                 // IndexedDB facade for opaque-origin previews. Native IndexedDB
                 // remains in the parent; this side only mirrors the useful API.
                 const __forge_idb_pending = new Map();
                 let __forge_idb_next_request = 1;
                 let __forge_idb_next_transaction = 1;
-
                 function __forge_idb_post(message) {
                     try {
                         window.parent.postMessage(message, '*');
@@ -6996,7 +5801,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             error.name !== 'DataCloneError' ||
                             !('value' in message)
                         ) throw error;
-
                         let value =
                             window.Vue && Vue.toRaw
                                 ? Vue.toRaw(message.value)
@@ -7012,7 +5816,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         );
                     }
                 }
-
                 function __forge_idb_error(info) {
                     const error = new Error(
                         info && info.message
@@ -7022,35 +5825,29 @@ function buildInterceptorScript(pageTitle, basePath) {
                     error.name = info && info.name ? info.name : 'Error';
                     return error;
                 }
-
                 function __forge_idb_target(target) {
                     const listeners = Object.create(null);
-
                     target.addEventListener = function(type, listener) {
                         if (typeof listener !== 'function') return;
                         (listeners[type] || (listeners[type] = []))
                             .push(listener);
                     };
-
                     target.removeEventListener = function(type, listener) {
                         const list = listeners[type];
                         if (!list) return;
                         const index = list.indexOf(listener);
                         if (index >= 0) list.splice(index, 1);
                     };
-
                     target.__fire = function(type, detail) {
                         const event = Object.assign({
                             type,
                             target,
                             currentTarget: target
                         }, detail || {});
-
                         const handler = target['on' + type];
                         if (typeof handler === 'function') {
                             handler.call(target, event);
                         }
-
                         const list = listeners[type];
                         if (list) {
                             for (const listener of list.slice()) {
@@ -7058,10 +5855,8 @@ function buildInterceptorScript(pageTitle, basePath) {
                             }
                         }
                     };
-
                     return target;
                 }
-
                 function __forge_idb_request(kind, name) {
                     const request = __forge_idb_target({
                         __forgeKind: kind,
@@ -7078,43 +5873,34 @@ function buildInterceptorScript(pageTitle, basePath) {
                         onupgradeneeded: null,
                         onblocked: null
                     });
-
                     __forge_idb_pending.set(request.__forgeId, request);
                     return request;
                 }
-
                 function __forge_idb_store_list(initialStores) {
                     const names = Array.from(initialStores || []).map(String);
-
                     return {
                         get length() {
                             return names.length;
                         },
-
                         contains(name) {
                             return names.includes(String(name));
                         },
-
                         item(index) {
                             return names[index] === undefined
                                 ? null
                                 : names[index];
                         },
-
                         [Symbol.iterator]() {
                             return names[Symbol.iterator]();
                         },
-
                         __add(name) {
                             name = String(name);
                             if (!names.includes(name)) names.push(name);
                         },
-
                         __delete(name) {
                             const index = names.indexOf(String(name));
                             if (index >= 0) names.splice(index, 1);
                         },
-
                         __replace(next) {
                             names.length = 0;
                             names.push(
@@ -7123,7 +5909,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         }
                     };
                 }
-
                 function __forge_idb_store(
                     dbId,
                     storeName,
@@ -7131,20 +5916,16 @@ function buildInterceptorScript(pageTitle, basePath) {
                     transaction
                 ) {
                     storeName = String(storeName);
-
                     const store = {
                         name: storeName
                     };
-
                     function send(operation, detail) {
                         if (transaction) {
                             transaction.__requestStarted();
                         }
-
                         const request = __forge_idb_request('operation');
                         request.source = store;
                         request.transaction = transaction || null;
-
                         const message = Object.assign({
                             type: transaction
                                 ? 'forge-idb-transaction-op'
@@ -7155,16 +5936,13 @@ function buildInterceptorScript(pageTitle, basePath) {
                             mode,
                             operation
                         }, detail || {});
-
                         if (transaction) {
                             message.transactionId =
                                 transaction.__forgeId;
                         }
-
                         __forge_idb_post(message);
                         return request;
                     }
-
                     store.put = function(value, key) {
                         return send('put', {
                             value,
@@ -7172,7 +5950,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             hasKey: arguments.length > 1
                         });
                     };
-
                     store.add = function(value, key) {
                         return send('add', {
                             value,
@@ -7180,26 +5957,21 @@ function buildInterceptorScript(pageTitle, basePath) {
                             hasKey: arguments.length > 1
                         });
                     };
-
                     store.get = function(key) {
                         return send('get', { key });
                     };
-
                     store.delete = function(key) {
                         return send('delete', { key });
                     };
-
                     store.clear = function() {
                         return send('clear');
                     };
-
                     store.count = function(query) {
                         return send('count', {
                             query,
                             hasQuery: arguments.length > 0
                         });
                     };
-
                     store.getAll = function(query, count) {
                         return send('getAll', {
                             query,
@@ -7208,7 +5980,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             hasCount: arguments.length > 1
                         });
                     };
-
                     store.getAllKeys = function(query, count) {
                         return send('getAllKeys', {
                             query,
@@ -7217,10 +5988,8 @@ function buildInterceptorScript(pageTitle, basePath) {
                             hasCount: arguments.length > 1
                         });
                     };
-
                     return store;
                 }
-
                 function __forge_idb_transaction(
                     dbId,
                     storeNames,
@@ -7229,16 +5998,13 @@ function buildInterceptorScript(pageTitle, basePath) {
                     const names = Array.isArray(storeNames)
                         ? storeNames.map(String)
                         : [String(storeNames)];
-
                     const transactionMode =
                         mode === 'readwrite'
                             ? 'readwrite'
                             : 'readonly';
-
                     let pendingRequests = 0;
                     let doneTimer = null;
                     let inactive = false;
-
                     const transaction = __forge_idb_target({
                         __forgeId:
                             'idb-transaction-' +
@@ -7251,7 +6017,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         onabort: null,
                         onerror: null
                     });
-
                     function assertActive() {
                         if (inactive) {
                             throw new DOMException(
@@ -7260,7 +6025,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             );
                         }
                     }
-
                     function scheduleDone(delay = true) {
                         if (
                             inactive ||
@@ -7269,11 +6033,9 @@ function buildInterceptorScript(pageTitle, basePath) {
                         ) {
                             return;
                         }
-
                         const finish = function() {
                             doneTimer = null;
                             if (inactive || pendingRequests > 0) return;
-
                             inactive = true;
                             __forge_idb_post({
                                 type: 'forge-idb-transaction-done',
@@ -7281,22 +6043,18 @@ function buildInterceptorScript(pageTitle, basePath) {
                                     transaction.__forgeId
                             });
                         };
-
                         if (delay) doneTimer = setTimeout(finish, 0);
                         else queueMicrotask(finish);
                     }
-
                     transaction.objectStore = function(name) {
                         assertActive();
                         name = String(name);
-
                         if (!names.includes(name)) {
                             throw new DOMException(
                                 'Object store is not in this transaction',
                                 'NotFoundError'
                             );
                         }
-
                         return __forge_idb_store(
                             dbId,
                             name,
@@ -7304,44 +6062,35 @@ function buildInterceptorScript(pageTitle, basePath) {
                             transaction
                         );
                     };
-
                     transaction.abort = function() {
                         assertActive();
                         inactive = true;
-
                         if (doneTimer) clearTimeout(doneTimer);
-
                         __forge_idb_post({
                             type: 'forge-idb-transaction-abort',
                             transactionId: transaction.__forgeId
                         });
                     };
-
                     transaction.__requestStarted = function() {
                         assertActive();
                         pendingRequests++;
-
                         if (doneTimer) {
                             clearTimeout(doneTimer);
                             doneTimer = null;
                         }
                     };
-
                     transaction.__requestFinished = function() {
                         if (pendingRequests > 0) pendingRequests--;
                         scheduleDone(false);
                     };
-
                     transaction.__finish = function() {
                         inactive = true;
                         if (doneTimer) clearTimeout(doneTimer);
                     };
-
                     __forge_idb_pending.set(
                         transaction.__forgeId,
                         transaction
                     );
-
                     __forge_idb_post({
                         type: 'forge-idb-transaction-open',
                         transactionId: transaction.__forgeId,
@@ -7349,13 +6098,11 @@ function buildInterceptorScript(pageTitle, basePath) {
                         storeNames: names,
                         mode: transactionMode
                     });
-
                     // Match native auto-commit closely enough to allow
                     // synchronous requests and request callback chaining.
                     scheduleDone(false);
                     return transaction;
                 }
-
                 function __forge_idb_database(
                     dbId,
                     name,
@@ -7365,15 +6112,12 @@ function buildInterceptorScript(pageTitle, basePath) {
                 ) {
                     const objectStoreNames =
                         __forge_idb_store_list(stores);
-
                     let upgradeId = upgradeRequestId || null;
-
                     const db = {
                         name,
                         version,
                         objectStoreNames
                     };
-
                     db.createObjectStore = function(
                         storeName,
                         options
@@ -7384,10 +6128,8 @@ function buildInterceptorScript(pageTitle, basePath) {
                                 'InvalidStateError'
                             );
                         }
-
                         storeName = String(storeName);
                         objectStoreNames.__add(storeName);
-
                         __forge_idb_post({
                             type: 'forge-idb-create-store',
                             requestId: upgradeId,
@@ -7398,7 +6140,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                                     ? options
                                     : undefined
                         });
-
                         return __forge_idb_store(
                             dbId,
                             storeName,
@@ -7406,7 +6147,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             null
                         );
                     };
-
                     db.deleteObjectStore = function(storeName) {
                         if (!upgradeId) {
                             throw new DOMException(
@@ -7414,25 +6154,20 @@ function buildInterceptorScript(pageTitle, basePath) {
                                 'InvalidStateError'
                             );
                         }
-
                         storeName = String(storeName);
-
                         if (!objectStoreNames.contains(storeName)) {
                             throw new DOMException(
                                 'Object store does not exist',
                                 'NotFoundError'
                             );
                         }
-
                         objectStoreNames.__delete(storeName);
-
                         __forge_idb_post({
                             type: 'forge-idb-delete-store',
                             requestId: upgradeId,
                             name: storeName
                         });
                     };
-
                     db.transaction = function(storeNames, mode) {
                         return __forge_idb_transaction(
                             dbId,
@@ -7440,18 +6175,15 @@ function buildInterceptorScript(pageTitle, basePath) {
                             mode
                         );
                     };
-
                     db.close = function() {
                         __forge_idb_post({
                             type: 'forge-idb-close',
                             dbId
                         });
                     };
-
                     db.__finishUpgrade = function() {
                         upgradeId = null;
                     };
-
                     db.__update = function(
                         nextVersion,
                         nextStores
@@ -7459,15 +6191,12 @@ function buildInterceptorScript(pageTitle, basePath) {
                         db.version = nextVersion;
                         objectStoreNames.__replace(nextStores);
                     };
-
                     return db;
                 }
-
                 const __forge_indexed_db = {
                     open(name, version) {
                         const request =
                             __forge_idb_request('open', name);
-
                         __forge_idb_post({
                             type: 'forge-idb-open',
                             requestId: request.__forgeId,
@@ -7477,33 +6206,27 @@ function buildInterceptorScript(pageTitle, basePath) {
                                     ? null
                                     : version
                         });
-
                         return request;
                     },
-
                     deleteDatabase(name) {
                         const request =
                             __forge_idb_request(
                                 'deleteDatabase',
                                 name
                             );
-
                         __forge_idb_post({
                             type: 'forge-idb-delete-db',
                             requestId: request.__forgeId,
                             name: String(name)
                         });
-
                         return request;
                     }
                 };
-
                 Object.defineProperty(window, 'indexedDB', {
                     configurable: true,
                     enumerable: true,
                     value: __forge_indexed_db
                 });
-
                 window.addEventListener(
                     'message',
                     function(event) {
@@ -7514,9 +6237,7 @@ function buildInterceptorScript(pageTitle, basePath) {
                         ) {
                             return;
                         }
-
                         const message = event.data;
-
                         if (
                             message.type ===
                                 'forge-idb-transaction-complete' ||
@@ -7529,11 +6250,8 @@ function buildInterceptorScript(pageTitle, basePath) {
                                         message.transactionId || ''
                                     )
                                 );
-
                             if (!transaction) return;
-
                             transaction.__finish();
-
                             if (
                                 message.type ===
                                 'forge-idb-transaction-complete'
@@ -7546,20 +6264,16 @@ function buildInterceptorScript(pageTitle, basePath) {
                                     );
                                 transaction.__fire('abort');
                             }
-
                             __forge_idb_pending.delete(
                                 transaction.__forgeId
                             );
                             return;
                         }
-
                         const request =
                             __forge_idb_pending.get(
                                 String(message.requestId || '')
                             );
-
                         if (!request) return;
-
                         if (message.type === 'forge-idb-upgrade') {
                             request.result =
                                 __forge_idb_database(
@@ -7569,13 +6283,10 @@ function buildInterceptorScript(pageTitle, basePath) {
                                     message.stores,
                                     request.__forgeId
                                 );
-
                             request.transaction = {
                                 mode: 'versionchange'
                             };
-
                             let upgradeError = null;
-
                             try {
                                 request.__fire(
                                     'upgradeneeded',
@@ -7589,14 +6300,12 @@ function buildInterceptorScript(pageTitle, basePath) {
                             } catch (error) {
                                 upgradeError = error;
                             }
-
                             __forge_idb_post({
                                 type: upgradeError
                                     ? 'forge-idb-upgrade-abort'
                                     : 'forge-idb-upgrade-done',
                                 requestId: request.__forgeId
                             });
-
                             if (upgradeError) {
                                 setTimeout(function() {
                                     throw upgradeError;
@@ -7604,7 +6313,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             }
                             return;
                         }
-
                         if (
                             message.type ===
                             'forge-idb-schema-error'
@@ -7615,7 +6323,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                                 );
                             return;
                         }
-
                         if (
                             message.type ===
                             'forge-idb-delete-db-blocked'
@@ -7623,7 +6330,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             request.__fire('blocked');
                             return;
                         }
-
                         if (
                             message.type ===
                             'forge-idb-delete-db-success'
@@ -7636,7 +6342,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             );
                             return;
                         }
-
                         if (
                             message.type ===
                             'forge-idb-delete-db-error'
@@ -7652,13 +6357,11 @@ function buildInterceptorScript(pageTitle, basePath) {
                             );
                             return;
                         }
-
                         if (
                             message.type ===
                             'forge-idb-open-success'
                         ) {
                             request.readyState = 'done';
-
                             if (!request.result) {
                                 request.result =
                                     __forge_idb_database(
@@ -7676,7 +6379,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                                     message.stores
                                 );
                             }
-
                             request.transaction = null;
                             request.__fire('success');
                             __forge_idb_pending.delete(
@@ -7684,7 +6386,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             );
                             return;
                         }
-
                         if (
                             message.type ===
                             'forge-idb-open-error'
@@ -7700,7 +6401,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             );
                             return;
                         }
-
                         if (
                             message.type ===
                                 'forge-idb-op-success' ||
@@ -7708,7 +6408,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                                 'forge-idb-op-error'
                         ) {
                             request.readyState = 'done';
-
                             if (
                                 message.type ===
                                 'forge-idb-op-success'
@@ -7721,7 +6420,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                                         message.error
                                     );
                             }
-
                             try {
                                 request.__fire(
                                     message.type ===
@@ -7738,7 +6436,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                                     request.transaction
                                         .__requestFinished();
                                 }
-
                                 __forge_idb_pending.delete(
                                     request.__forgeId
                                 );
@@ -7746,10 +6443,8 @@ function buildInterceptorScript(pageTitle, basePath) {
                         }
                     }
                 );
-                
                 // Base path for resolving relative fetch() URLs — baked in at render time.
                 const __fetch_base = ${JSON.stringify(basePath || '/')};
-
                 // Resolve a fetch URL to an absolute VFS path.
                 // Relative URLs (bare or ./-prefixed) are resolved against the
                 // current page's directory. Absolute http(s) URLs are left alone.
@@ -7770,7 +6465,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                     }
                     return '/' + out.join('/');
                 }
-
                 function __report_network(detail) {
                     try {
                         window.parent.postMessage({
@@ -7779,7 +6473,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         }, '*');
                     } catch(e) {}
                 }
-
                 // Observe resources the browser itself loads (images, scripts,
                 // stylesheets, XHR, fonts, etc.). fetch() is excluded because
                 // the interceptor below already reports it with richer VFS
@@ -7791,13 +6484,11 @@ function buildInterceptorScript(pageTitle, basePath) {
                                 if (entry.entryType !== 'resource' || entry.initiatorType === 'fetch') {
                                     continue;
                                 }
-
                                 const responseStatus =
                                     typeof entry.responseStatus === 'number' &&
                                     entry.responseStatus > 0
                                         ? entry.responseStatus
                                         : null;
-
                                 __report_network({
                                     via: 'resource',
                                     resourceType: entry.initiatorType || 'resource',
@@ -7812,14 +6503,12 @@ function buildInterceptorScript(pageTitle, basePath) {
                                 });
                             }
                         });
-
                         __resource_observer.observe({
                             type: 'resource',
                             buffered: true
                         });
                     } catch(e) {}
                 }
-
                 // CSP is enforced by the browser. This listener is telemetry
                 // only: it reports violations without changing policy.
                 document.addEventListener('securitypolicyviolation', (event) => {
@@ -7827,7 +6516,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         event.effectiveDirective ||
                         event.violatedDirective ||
                         'csp';
-
                     __report_network({
                         via: 'csp',
                         resourceType: directive,
@@ -7841,7 +6529,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         disposition: event.disposition || 'enforce'
                     });
                 });
-
                 // Opaque previews cannot send a useful Referer. Route approved
                 // OSM tile images through the authenticated parent fetch bridge.
                 const __img_src = Object.getOwnPropertyDescriptor(
@@ -7860,7 +6547,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             __img_src.set.call(this, value);
                             return;
                         }
-
                         window.fetch(url)
                             .then(response => {
                                 if (!response.ok) throw new Error('HTTP ' + response.status);
@@ -7874,26 +6560,21 @@ function buildInterceptorScript(pageTitle, basePath) {
                             .catch(() => __img_src.set.call(this, url));
                     }
                 });
-
                 window.fetch = function(url, ...args) {
                     const fetchOptions = args[0] || {};
                     let requestMethod =
                         fetchOptions.method ||
                         (url instanceof Request ? url.method : 'GET');
-
                     if (url instanceof Request) {
                         url = url.url;
                     }
-
                     requestMethod = String(requestMethod || 'GET').toUpperCase();
                     const resolvedUrl = __resolve_fetch_url(url, __fetch_base);
-
                     // Use a MessageChannel so each fetch gets its own private
                     // reply port — no broadcast matching, no handler leaks,
                     // no race conditions between concurrent fetches.
                     return new Promise((resolve, reject) => {
                         const channel = new MessageChannel();
-
                         channel.port1.onmessage = (event) => {
                             const {
                                 found,
@@ -7906,7 +6587,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                                 const responseStatus =
                                     Number.isInteger(status) ? status : 200;
                                 const responseRoute = route || 'vfs';
-
                                 __report_network({
                                     via: 'fetch',
                                     requested: String(url),
@@ -7918,7 +6598,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                                         responseStatus >= 200 &&
                                         responseStatus < 400
                                 });
-
                                 resolve(new Response(content, {
                                     status: responseStatus,
                                     headers: {
@@ -7957,7 +6636,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                                 });
                             }
                         };
-
                         window.parent.postMessage(
                             {
                                 type: 'vfs-fetch',
@@ -7969,7 +6647,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         );
                     });
                 };
-
                 // -- VFS Navigation Interceptor ------------------------------
                 const isInternal = (href) => {
                     if (!href ||
@@ -7978,20 +6655,15 @@ function buildInterceptorScript(pageTitle, basePath) {
                         href.startsWith('//') ||
                         href.startsWith('mailto:') ||
                         href.startsWith('javascript:')) return false;
-
                     const path = href.split('?')[0].split('#')[0];
                     const last = path.split('/').pop();
-
                     // Extensionless paths are SPA routes, not VFS documents.
                     if (!path.endsWith('/') &&
                         (!last || !last.includes('.'))) return false;
-
                     if (!path.includes('..')) return true;
-
                     const base = ${JSON.stringify(basePath || '/')};
                     const dir = base.slice(0, base.lastIndexOf('/') + 1);
                     let depth = 0;
-
                     for (const part of (dir + path).split('/')) {
                         if (part === '..') {
                             if (!depth) return false;
@@ -8000,25 +6672,20 @@ function buildInterceptorScript(pageTitle, basePath) {
                             depth++;
                         }
                     }
-
                     return true;
                 };
-
                 const sendNav = (href, replace = false) => {
                     window.parent.postMessage({ type: 'vfs-navigate', href, replace }, '*');
                 };
-
                 const sendSpa = (path, replace = false) => {
                     window.parent.postMessage({ type: 'vfs-spa-navigate', path, replace }, '*');
                 };
-
                 const sendHash = () => {
                     window.parent.postMessage({
                         type: 'vfs-hash-change',
                         hash: window.location.hash
                     }, '*');
                 };
-
                 document.addEventListener('click', (e) => {
                     const a = e.target.closest('a');
                     if (!a) return;
@@ -8047,17 +6714,14 @@ function buildInterceptorScript(pageTitle, basePath) {
                     e.preventDefault();
                     sendNav(href);
                 }, true);
-
                 const _assign  = window.location.assign.bind(window.location);
                 const _replace = window.location.replace.bind(window.location);
-
                 window.location.assign = (href) => {
                     if (isInternal(href)) { sendNav(href); } else { _assign(href); }
                 };
                 window.location.replace = (href) => {
                     if (isInternal(href)) { sendNav(href, true); } else { _replace(href); }
                 };
-
                 try {
                     Object.defineProperty(window.location, 'href', {
                         set(href) {
@@ -8067,24 +6731,18 @@ function buildInterceptorScript(pageTitle, basePath) {
                         configurable: true
                     });
                 } catch(e) {}
-
                 const _pushState    = history.pushState.bind(history);
                 const _replaceState = history.replaceState.bind(history);
-
                 function reportHistory(url, replace = false) {
                     if (url == null || url === '') return;
-
                     // Event handlers receive the DOM event as their first argument.
                     // Do not turn an accidentally forwarded event into a SPA route
                     // such as "[object PointerEvent]".
                     if (typeof Event !== 'undefined' && url instanceof Event) return;
-
                     let value = String(url);
-
                     // Some frameworks stringify callback arguments before they
                     // reach history. Reject those event-object strings too.
                     if (/^\[object [A-Za-z]*Event\]$/.test(value)) return;
-
                     if (value.startsWith('#')) {
                         window.parent.postMessage({
                             type: 'vfs-hash-change',
@@ -8092,7 +6750,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         }, '*');
                         return;
                     }
-
                     if (value.startsWith('about:///')) {
                         // Vue Router exposes opaque srcdoc routes as about:///path.
                         value = value.slice(8);
@@ -8119,38 +6776,31 @@ function buildInterceptorScript(pageTitle, basePath) {
                         if (colon > 0 &&
                             (slash < 0 || colon < slash)) return;
                     }
-
                     if (value.startsWith('?')) {
                         value = ${JSON.stringify(basePath || '/')} + value;
                     }
-
                     const path = value.split('?')[0].split('#')[0];
                     const last = path.split('/').pop();
                     const isSpa =
                         path.endsWith('/') ||
                         !last ||
                         !last.includes('.');
-
                     (isSpa ? sendSpa : sendNav)(value, replace);
                 }
-
                 const nativeHistoryUrl = url =>
                     typeof url === 'string' && url.startsWith('#')
                         ? location.href.split('#')[0] + url
                         : url;
-
                 history.pushState = (state, title, url) => {
                     try { _replaceState(state, title, nativeHistoryUrl(url)); } catch(e) {}
                     if (url != null) reportHistory(url);
                     else setTimeout(sendHash, 50);
                 };
-
                 history.replaceState = (state, title, url) => {
                     try { _replaceState(state, title, nativeHistoryUrl(url)); } catch(e) {}
                     if (url != null) reportHistory(url, true);
                     else setTimeout(sendHash, 50);
                 };
-
                 window.addEventListener('keydown', e => {
                     const key = e.key;
                     if (!e.defaultPrevented &&
@@ -8162,7 +6812,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         );
                     }
                 });
-
                 let __forge_history_restoring = false;
                 window.addEventListener('hashchange', () => {
                     if (!__forge_history_restoring) sendHash();
@@ -8186,48 +6835,39 @@ function buildInterceptorScript(pageTitle, basePath) {
                     }
                 });
                 if (window.location.hash) sendHash();
-
                 // Keep the trusted parent tab title synchronized without giving
                 // it DOM access to this opaque-origin preview. Watching <head>
                 // also captures SPA code that changes document.title later.
                 let __forge_last_page_title = null;
-
                 const __forge_report_page_title = () => {
                     const title =
                         typeof document.title === 'string'
                             ? document.title.trim()
                             : '';
-
                     if (title === __forge_last_page_title) return;
                     __forge_last_page_title = title;
-
                     window.parent.postMessage({
                         type: 'page-title',
                         title
                     }, '*');
                 };
-
                 document.addEventListener(
                     'DOMContentLoaded',
                     __forge_report_page_title,
                     { once: true }
                 );
-
                 if (document.head && typeof MutationObserver !== 'undefined') {
                     const __forge_title_observer =
                         new MutationObserver(__forge_report_page_title);
-
                     __forge_title_observer.observe(document.head, {
                         subtree: true,
                         childList: true,
                         characterData: true
                     });
                 }
-
                 // -- REPL eval handler --------------------------------
                 window.addEventListener('message', function(event) {
                     if (event.source !== window.parent) return;
-
                     if (event.data && event.data.type === 'forge-set-hash') {
                         const hash = typeof event.data.hash === 'string'
                             ? event.data.hash
@@ -8242,25 +6882,20 @@ function buildInterceptorScript(pageTitle, basePath) {
                         } catch (e) {}
                         window.dispatchEvent(new Event('hashchange'));
                         __forge_history_restoring = false;
-
                         if (!hash) {
                             window.scrollTo(0, 0);
                             return;
                         }
-
                         let id = hash.startsWith('#') ? hash.substring(1) : hash;
                         try {
                             id = decodeURIComponent(id);
                         } catch (e) {}
-
                         const target =
                             document.getElementById(id) ||
                             document.getElementsByName(id)[0];
-
                         if (target) target.scrollIntoView();
                         return;
                     }
-
                     if (event.data && event.data.type === 'forge-repl-eval') {
                         var code = event.data.code;
                         var result;
@@ -8270,7 +6905,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         } catch(e) {
                             error = e;
                         }
-                        
                         // Send result back to parent
                         if (error) {
                             window.parent.postMessage({
@@ -8300,7 +6934,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             } catch(e) {
                                 serialized = String(result);
                             }
-                            
                             window.parent.postMessage({
                                 type: 'forge-repl-result',
                                 success: true,
@@ -8309,7 +6942,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         }
                     }
                 });
-
                 // -- Console capture ----------------------------------
                 (function() {
                     var _levels = ['log', 'warn', 'error', 'info'];
@@ -8353,7 +6985,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                         window.parent.postMessage({ type: 'forge-console', level: 'error', msg: 'Unhandled promise rejection: ' + (reason && reason.stack ? reason.stack : reason == null ? 'unknown' : String(reason)) }, '*');
                     });
                 })();
-
               } catch(e) {
                 // Surface interceptor errors visibly so they're not silently swallowed
                 console.error('[FORGE interceptor error]', e);
@@ -8365,18 +6996,15 @@ function buildInterceptorScript(pageTitle, basePath) {
                 });
               }
             })();
-
             // -- Dynamic import() interceptor -----------------------------
             const __vfs_module_cache = {};
             const __vfs_module_base  = ${JSON.stringify(basePath || '/')};
-
             // Dynamic imports are rewritten to __vfs_module() so project-local
             // modules can resolve through the VFS. Absolute HTTP(S) modules are
             // already real browser resources, so keep those on the native ESM
             // loader instead of normalizing them into fake VFS paths.
             const __vfs_native_import =
                 new Function('url', 'return import(url);');
-
             function __vfs_module(path) {
                 if (
                     typeof path === 'string' &&
@@ -8387,7 +7015,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                 ) {
                     return __vfs_native_import(path);
                 }
-
                 // Resolve relative paths against the base path of the entry file
                 function resolvePath(p, base) {
                     if (p.startsWith('/')) return p;
@@ -8400,16 +7027,12 @@ function buildInterceptorScript(pageTitle, basePath) {
                     }
                     return '/' + out.join('/');
                 }
-
                 const resolved = resolvePath(path, __vfs_module_base);
-
                 if (__vfs_module_cache[resolved]) {
                     return Promise.resolve(__vfs_module_cache[resolved]);
                 }
-
                 return new Promise((resolve, reject) => {
                     const channel = new MessageChannel();
-
                     channel.port1.onmessage = (event) => {
                         const { found, content } = event.data;
                         if (!found) {
@@ -8442,9 +7065,7 @@ function buildInterceptorScript(pageTitle, basePath) {
                 src = src.replace(/^import\\s+['"][^'"]+['"]\\s*;?/gm, '');
                                 return src;
                             }
-
                             const stripped = __strip_exports(content);
-
                             // Eval the stripped source and collect exports
                             const moduleExports = {};
                             const moduleObj = { exports: moduleExports };
@@ -8462,7 +7083,6 @@ function buildInterceptorScript(pageTitle, basePath) {
                             reject(new Error('[FORGE] __vfs_module eval error in ' + resolved + ': ' + e.message));
                         }
                     };
-
                     window.parent.postMessage(
                         { type: 'vfs-fetch', url: resolved },
                         '*',
@@ -8473,20 +7093,15 @@ function buildInterceptorScript(pageTitle, basePath) {
         <\/script>
     `;
 }
-
 // Render into the preview frame.
 let previewRenderWaitingForPanels = false;
-
 async function renderPage(path) {
     const previewLocation = splitPreviewLocation(path);
     const filePath = vfs.resolveDirectoryIndex(previewLocation.path);
-
     currentPath = filePath;
-    
     // Update the URL bar to reflect the resolved path, keeping query/hash
     urlBar.value = filePath + previewLocation.query + previewLocation.hash;
     recordPreviewHistory(urlBar.value);
-
     if (!window.forgePanels) {
         if (!previewRenderWaitingForPanels) {
             previewRenderWaitingForPanels = true;
@@ -8497,13 +7112,11 @@ async function renderPage(path) {
         }
         return;
     }
-
     let html = vfs.getFile(filePath);
     if (!html) {
         setStatus(`File not found: ${filePath}`, 'error');
         return;
     }
-
     const sourceHtml = html;
     const frame = document.getElementById('previewFrame');
     const loading = document.querySelector('.loading-spinner');
@@ -8516,20 +7129,16 @@ async function renderPage(path) {
     loadText.textContent = 'Processing project…';
     await new Promise(r=>requestAnimationFrame(()=>setTimeout(r)));
     html = processor.process(html, filePath);
-
     const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
     const pageTitle = titleMatch ? titleMatch[1] : null;
-
     loadText.textContent = 'Resolving files…';
     html = await inlineVfsMisses(html);
     loadText.textContent = 'Starting app…';
-
     html = injectPreviewHead(
         html,
         buildPreviewCspMeta() +
             buildInterceptorScript(pageTitle, filePath)
     );
-
     const nextFrame = commitPreviewFrame(
         frame,
         html,
@@ -8542,7 +7151,6 @@ async function renderPage(path) {
         document.body.classList.remove('loading-fullscreen');
         document.documentElement.classList.remove('loading-fullscreen');
     };
-
     // Restore preview hash navigation after render.
     const previewHash = previewLocation.hash || getURLParam('previewHash');
     if (previewHash) {
@@ -8557,15 +7165,12 @@ async function renderPage(path) {
         }, 300);
     }
 }
-
-
 // Handle messages from the preview iframes.
 // Preview applications sometimes expect a deployment-provided whoami endpoint.
 // Keep this deliberately narrow: only local preview paths are eligible, never
 // explicit remote URLs. The response is a Forge person object, not credentials.
 function isPreviewWhoamiRequest(url) {
     if (typeof url !== 'string') return false;
-
     const cleanUrl = url.split('?')[0].split('#')[0];
     if (
         /^https?:\/\//i.test(cleanUrl) ||
@@ -8573,14 +7178,11 @@ function isPreviewWhoamiRequest(url) {
     ) {
         return false;
     }
-
     const path = cleanUrl.startsWith('/')
         ? cleanUrl
         : '/' + cleanUrl;
-
     return /\/whoami(?:\.cfm)?$/i.test(path);
 }
-
 // people.json is a well-known FORGE directory resource. Apps historically
 // reference it from several deployment-specific locations, but the IDE can
 // resolve those references through its own canonical ./data/people.json.
@@ -8588,21 +7190,18 @@ function isPreviewWhoamiRequest(url) {
 // A project-local VFS file still wins; this helper is only used after a miss.
 function isPreviewPeopleDirectoryRequest(url) {
     if (typeof url !== 'string') return false;
-
     try {
         const parsed = new URL(url, window.location.href);
         const segments = parsed.pathname.split('/').filter(Boolean);
         const filename = segments.length
             ? segments[segments.length - 1]
             : '';
-
         return filename.toLowerCase() === 'people.json';
     } catch {
         const cleanUrl = url.split('?')[0].split('#')[0];
         return /(?:^|\/)people\.json$/i.test(cleanUrl);
     }
 }
-
 function getPreviewWhoamiPerson() {
     if (
         !currentUser ||
@@ -8611,38 +7210,30 @@ function getPreviewWhoamiPerson() {
     ) {
         return null;
     }
-
     const person = {
         email: currentUser.email
     };
-
     if (typeof currentUser.fullName === 'string') {
         person.fullName = currentUser.fullName;
     }
-
     if (typeof currentUser.identifier === 'string') {
         person.identifier = currentUser.identifier;
     }
-
     return person;
 }
-
 // Source validation remains useful even if previews later become opaque-origin.
 window.addEventListener('message', (event) => {
     const previewEl = document.getElementById('previewFrame');
     const isPreviewSource =
         previewEl && event.source === previewEl.contentWindow;
-
     if (!isPreviewSource || !event.data || typeof event.data !== 'object') {
         return;
     }
-
     if (event.data.type === 'forge-storage') {
         // The message source has already been authenticated as one of the
         // current preview frames. Only mutate the dedicated preview storage
         // namespaces; IDE localStorage/session state is never exposed.
         applyPreviewStorageMutation(event.data);
-
     } else if (
         typeof event.data.type === 'string' &&
         event.data.type.startsWith('forge-idb-')
@@ -8650,11 +7241,9 @@ window.addEventListener('message', (event) => {
         // Experimental IndexedDB bridge. Source authentication above ensures
         // only the current opaque preview frames can reach this capability.
         handlePreviewIndexedDbMessage(event);
-
     } else if (event.data.type === 'vfs-fetch') {
         const url = event.data.url;
         const method = String(event.data.method || 'GET').toUpperCase();
-
         // Compatibility identity endpoint for preview apps. A project may use
         // /whoami, /whoami.cfm, /ginas/app/api/v1/whoami, or another local
         // path ending in the same endpoint name. Identity stays in the parent
@@ -8670,7 +7259,6 @@ window.addEventListener('message', (event) => {
                 status: user ? 200 : 401,
                 route: 'identity'
             };
-
             if (event.ports && event.ports[0]) {
                 event.ports[0].postMessage(payload);
             } else {
@@ -8680,10 +7268,8 @@ window.addEventListener('message', (event) => {
                     ...payload
                 }, '*');
             }
-
             return;
         }
-
         // Broker approved OSM tiles through the trusted parent so browser
         // requests carry the IDE's normal Referer instead of opaque "null".
         if (
@@ -8692,7 +7278,6 @@ window.addEventListener('message', (event) => {
             event.ports && event.ports[0]
         ) {
             const port = event.ports[0];
-
             fetch(url, {
                 method,
                 referrerPolicy: 'strict-origin-when-cross-origin'
@@ -8700,7 +7285,6 @@ window.addEventListener('message', (event) => {
                 const content = method === 'HEAD'
                     ? ''
                     : new Uint8Array(await response.arrayBuffer());
-
                 port.postMessage({
                     found: true,
                     content,
@@ -8715,10 +7299,8 @@ window.addEventListener('message', (event) => {
                     mimeType: null
                 });
             });
-
             return;
         }
-
         // Strip query string and fragment before VFS lookup — the VFS uses
         // exact path matching and has no concept of query params.
         const cleanUrl = url.split('?')[0].split('#')[0];
@@ -8727,7 +7309,6 @@ window.addEventListener('message', (event) => {
         // Use strict undefined check — empty string is a valid file content
         const found = content !== undefined;
         const mimeType = found ? vfs.getMimeType(path) : null;
-
         // If a MessageChannel port was provided (from __vfs_module or the
         // fetch interceptor), reply directly on that port — no broadcast
         // matching needed, no race conditions.
@@ -8747,7 +7328,6 @@ window.addEventListener('message', (event) => {
                     './data/people.json',
                     window.location.href
                 ).href;
-
                 fetch(peopleDirectoryUrl, {
                     method,
                     credentials: 'include',
@@ -8761,7 +7341,6 @@ window.addEventListener('message', (event) => {
                             method === 'HEAD'
                                 ? ''
                                 : await response.text();
-
                         port.postMessage({
                             found: true,
                             content: directoryContent,
@@ -8782,7 +7361,6 @@ window.addEventListener('message', (event) => {
                         });
                     });
             } else {
-
                 const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
                 const libFallbackUrl = window.location.origin + basePath + path;
                 fetch(libFallbackUrl, { credentials: 'include' })
@@ -8810,7 +7388,6 @@ window.addEventListener('message', (event) => {
                 mimeType
             }, '*');
         }
-
     } else if (event.data.type === 'vfs-navigate') {
         const href = event.data.href;
         const requested = splitPreviewLocation(href);
@@ -8824,16 +7401,12 @@ window.addEventListener('message', (event) => {
         let cleanPath = previewLocation.path;
         const query = previewLocation.query;
         const hash = previewLocation.hash;
-
         cleanPath = vfs.resolveDirectoryIndex(cleanPath);
-
         if (vfs.hasFile(cleanPath)) {
             renderPage(previewLocation.display);
-
             currentPath = cleanPath;
             urlBar.value = previewLocation.display;
             syncPreviewLocationToParent(cleanPath, query, hash);
-
             if (hash) {
                 setTimeout(() => {
                     const target = document.getElementById('previewFrame');
@@ -8848,26 +7421,22 @@ window.addEventListener('message', (event) => {
         } else {
             showToast(`Page not found in VFS: ${cleanPath}`, 'error');
         }
-
     } else if (event.data.type === 'vfs-spa-navigate') {
         // SPA framework (e.g. Vue Router) navigated internally — update the
         // FORGE url bar and browser hash &url= param without touching the VFS.
         const spaPath = event.data.path || '';
         urlBar.value = spaPath;
         recordPreviewHistory(spaPath, event.data.replace);
-
         const spaLocation = splitPreviewLocation(spaPath);
         syncPreviewLocationToParent(
             spaLocation.path,
             spaLocation.query,
             spaLocation.hash
         );
-
     } else if (event.data.type === 'vfs-shortcut') {
         if (event.source === previewEl?.contentWindow) {
             projectClipboardShortcut(event.data.key);
         }
-
     } else if (event.data.type === 'vfs-hash-change') {
         // SPA hash changed inside the iframe — sync to IDE url bar and parent URL
         const hash = event.data.hash || '';
@@ -8876,7 +7445,6 @@ window.addEventListener('message', (event) => {
         urlBar.value = path + currentLocation.query + hash;
         recordPreviewHistory(urlBar.value);
         syncPreviewLocationToParent(path, currentLocation.query, hash);
-
     } else if (event.data.type === 'forge-network') {
         const loadingText=document.querySelector('.loading-text');
         if(loadingText)loadingText.textContent='Loaded '+String(event.data.requested).split('/').pop().split('?')[0]+'…';
@@ -8895,17 +7463,14 @@ window.addEventListener('message', (event) => {
             directive: event.data.directive || null,
             disposition: event.data.disposition || null
         });
-
         if (window.forgeNetworkEvents.length > 500) {
             window.forgeNetworkEvents.shift();
         }
-
         if (window.forgePanels && window.forgePanels.addNetworkEntry) {
             window.forgePanels.addNetworkEntry(
                 window.forgeNetworkEvents[window.forgeNetworkEvents.length - 1]
             );
         }
-
     } else if (event.data.type === 'forge-console') {
         if (window.forgePanels && window.forgePanels.addConsoleEntry) {
             window.forgePanels.addConsoleEntry(
@@ -8913,7 +7478,6 @@ window.addEventListener('message', (event) => {
                 mapPreviewSourceLocations(event.data.msg, event.source)
             );
         }
-
     } else if (event.data.type === 'forge-repl-result') {
         // Handle REPL execution results
         if (window.forgePanels && window.forgePanels.addConsoleEntry) {
@@ -8930,13 +7494,11 @@ window.addEventListener('message', (event) => {
                 }
             }
         }
-
     } else if (event.data.type === 'page-title') {
         const title =
             typeof event.data.title === 'string'
                 ? event.data.title.trim()
                 : '';
-
         previewPageTitle = title;
         updateBrowserTitle();
     }
@@ -8947,19 +7509,15 @@ function updateFileList() {
     if (paths.length > 0) {
         fileListContent.textContent = '';
         const fragment = document.createDocumentFragment();
-
         paths.forEach(p => {
             const item = document.createElement('div');
             item.className = 'file-item';
-
             const name = document.createElement('span');
             name.className = 'file-item-name';
             name.textContent = p;
-
             item.appendChild(name);
             fragment.appendChild(item);
         });
-
         fileListContent.appendChild(fragment);
         fileList.hidden = false;
     } else {
@@ -8967,7 +7525,6 @@ function updateFileList() {
         fileList.hidden = true;
     }
 }
-
 async function parsePayload(b64Data){
     const decompressed = await decompress(b64Data);
     let parsed;
@@ -8988,17 +7545,13 @@ async function parsePayload(b64Data){
                   ]
         };
     }
-    
-    
     return parsed;
 }
-
 // Set status message
 function setStatus(message, type = '') {
     status.textContent = message;
     status.className = 'status ' + type;
 }
-
 // Load from URL on page load
 window.addEventListener('load', async () => {
   // Initialize CodeMirror editor
@@ -9017,7 +7570,6 @@ window.addEventListener('load', async () => {
       });
     }
   }, 300);
-
   // Parse &context= URL param and show overlay if present
   const contextParam = getURLParam('context');
   if (contextParam) {
@@ -9031,7 +7583,6 @@ window.addEventListener('load', async () => {
           console.warn('[FORGE] Could not parse context param:', e.message);
       }
   }
-
   // Expose context URL helper for agents and developers
   window.forgeContextUrl = async function(message, from) {
       const json       = JSON.stringify({ message, from: from || undefined });
@@ -9041,37 +7592,27 @@ window.addEventListener('load', async () => {
       const sep        = hash ? '&' : '#';
       return base + hash + sep + 'context=' + encodeURIComponent(compressed);
   };
-
   // Detect server capabilities and resolve the current user through the
   // deployment's portable /whoami contract.
   await detectServerFeatures();
   await loadCurrentUser();
   applyFeatureVisibility();
   openManagedShareAdminIfRequested();
-
   populateExamplesDropdown();
-
   if (!getURLParam('fullscreen') && !getURLParam('html') &&
       !getURLParam('htmlsha1') && !getURLParam('payload') &&
       !getURLParam('payloadsha1') && !getURLParam('share') &&
       !getURLParam('namedShare') && !getURLParam('loadExample')) {
     document.documentElement.classList.remove('initializing');
   }
-
-
   const startupHashParams = new URLSearchParams(location.hash.substring(1));
   if (startupHashParams.has('cli')) {
     openCliInstallModal();
   }
-
-
-
   const clearStartupLoading = () => {
     document.body.classList.remove('preload-check', 'loading-fullscreen');
     document.documentElement.classList.remove('loading-fullscreen');
   };
-
-
   const exampleName = getURLParam('loadExample');
   if (exampleName) {
     await loadExampleProject(exampleName);
@@ -9079,14 +7620,12 @@ window.addEventListener('load', async () => {
     document.documentElement.classList.remove('initializing');
     return;
   }
-
   let payload = getURLParam('payload');
   let payloadsha1 = getURLParam('payloadsha1');
   const shareHash = getURLParam('share');
   const namedShare = getURLParam('namedShare');
   const shorten = getURLParam('shorten');
   let autoFullscreen = getURLParam('fullscreen');
-    
     if(!payload && !payloadsha1 && !shareHash && !namedShare){
         let html=getURLParam('html');
         let htmlsha1=getURLParam('htmlsha1');
@@ -9098,15 +7637,12 @@ window.addEventListener('load', async () => {
             autoFullscreen=true;
         }
     }
-    
     document.body.classList.remove('preload-check');
     if (autoFullscreen && (payload || payloadsha1 || shareHash || namedShare)) {
         document.body.classList.add('loading-fullscreen');
     }
-    
     let parsed;
     let managedShareMetadata = null;
-
     if (namedShare || shareHash) {
         try {
             currentNamedShareMetadata = null;
@@ -9145,8 +7681,6 @@ window.addEventListener('load', async () => {
         if(parsed && Array.isArray(parsed.files)){
         try{
             jsonInput.value = JSON.stringify(parsed, null, 2);
-
-
             loadProjectFromParsed(parsed, {
                 preserveUrl: true,
                 managedShareMetadata
@@ -9154,20 +7688,14 @@ window.addEventListener('load', async () => {
             if (getURLParam('bridge') === '1') {
                 window.markForgeContentAttention?.();
             }
-            
-
             if (!autoFullscreen) {
                 showToast('Project loaded from URL', 'success');
             }
-
-
             if (payload && shorten) {
                 setTimeout(() => {
                     createShorterURL(autoFullscreen);
                 }, 500);
             }
-
-
             if (autoFullscreen) setFullscreen(true);
         }catch(e){
             clearStartupLoading();
@@ -9177,12 +7705,8 @@ window.addEventListener('load', async () => {
     } else if (autoFullscreen) {
         clearStartupLoading();
     }
-
     document.documentElement.classList.remove('initializing');
 });
-
-
-
 function loadExampleProject(name) {
     checkUnsavedChanges(async () => {
         try {
@@ -9190,38 +7714,29 @@ function loadExampleProject(name) {
             const response = await fetch(`examples/${name}.json`);
             if (!response.ok) throw new Error(`Example not found: ${name}`);
             const parsed = await response.json();
-
             // Update URL to reflect the loaded example — makes it
             // shareable and bookmarkable before we load the project
             // (loadProjectFromParsed may overwrite the URL with a
             // payload hash, so set it first as a clean base)
             const url = new URL(window.location.href);
-
             url.hash = getURLParam('fullscreen') ? 'fullscreen=true' : '';
             url.searchParams.set('loadExample', name);
             window.history.replaceState({}, '', url.toString());
-
             loadProjectFromParsed(parsed, { preserveUrl: true });
-
         } catch (e) {
             showToast(`Could not load example: ${e.message}`, 'error', 5000);
             console.error('loadExampleProject error:', e);
         }
     });
 }
-
-
-
 async function populateExamplesDropdown() {
     const menu = document.getElementById('examplesDropdownMenu');
     if (!menu) return;
-
     try {
         const res = await fetch('examples/manifest.json');
         if (!res.ok) throw new Error('No manifest');
         const data = await res.json();
         const visible = data.examples || [];
-
         if (visible.length === 0) {
             menu.innerHTML = `
                 <div class="dropdown-item" style="cursor:default;">
@@ -9231,7 +7746,6 @@ async function populateExamplesDropdown() {
                 </div>`;
             return;
         }
-
         menu.innerHTML = visible.map(ex => `
             <div class="dropdown-item"
                  onclick="loadExampleProject('${ex.id}'); toggleDropdown('dd-examples')">
@@ -9242,8 +7756,6 @@ async function populateExamplesDropdown() {
                 </span>
             </div>
         `).join('');
-
-
     } catch (e) {
         menu.innerHTML = `
             <div class="dropdown-item" style="cursor:default;">
@@ -9253,9 +7765,7 @@ async function populateExamplesDropdown() {
             </div>`;
     }
 }
-
 // -- Fullscreen URL sharing ------------------------------------------------
-
 async function shareFullscreenUrl() {
     if (!requireShareableProject()) return;
     try {
@@ -9265,9 +7775,7 @@ async function shareFullscreenUrl() {
         const url = window.location.origin + window.location.pathname +
                     '#payload=' + encodeURIComponent(compressed) +
                     '&fullscreen=true' + carried;
-
         if (!checkShareUrlLength(url)) return;
-
         await copyToClipboard(url);
         showToast('Fullscreen URL copied to clipboard!', 'success', 4000);
         window.history.replaceState({}, '', url);
@@ -9276,21 +7784,15 @@ async function shareFullscreenUrl() {
         console.error(e);
     }
 }
-
 async function shareShortFullscreenUrl() {
     requestShortLink(true);
 }
-
 // Flag for whether pending short URL is fullscreen
 let _pendingShortUrlFullscreen = false;
-
 // Copy fullscreen URL from within the fullscreen overlay
 async function copyFullscreenUrl() {
     await shareFullscreenUrl();
 }
-
-
-
 const IMPORT_PARAMS = [
     'loadExample',
     'payload',
@@ -9300,37 +7802,26 @@ const IMPORT_PARAMS = [
     'html',
     'htmlsha1'
 ];
-
 window.addEventListener('hashchange', async event => {
     const params = new URLSearchParams(location.hash.substring(1));
-
-
     if (params.has('cli')) {
         openCliInstallModal();
     }
-
-
     const oldParams = new URLSearchParams(
         new URL(event.oldURL).hash.substring(1)
     );
     if (!IMPORT_PARAMS.some(p => oldParams.get(p) !== params.get(p))) return;
-
     const hasImportParam = IMPORT_PARAMS.some(p => params.has(p));
     if (!hasImportParam) return;
-
-
     const exampleName = params.get('loadExample');
     if (exampleName) {
         await loadExampleProject(exampleName);
         return;
     }
-
-
     const payload     = params.get('payload') || params.get('html');
     const payloadsha1 = params.get('payloadsha1') || params.get('htmlsha1');
     const shareHash   = params.get('share');
     const namedShare  = params.get('namedShare');
-
     if (namedShare || shareHash) {
         try {
             showToast('Loading managed share…', 'info', 3000);
@@ -9341,7 +7832,6 @@ window.addEventListener('hashchange', async event => {
             const parsed = managedShare.parsed;
             showManagedShareExpirationNotice(managedShare.metadata);
             if (parsed && Array.isArray(parsed.files)) {
-
                 loadProjectFromParsed(parsed, {
                     preserveUrl: true,
                     managedShareMetadata: managedShare.metadata
@@ -9360,7 +7850,6 @@ window.addEventListener('hashchange', async event => {
         }
         return;
     }
-
     if (payloadsha1) {
         try {
             showToast('Loading project from URL…', 'info', 3000);
@@ -9381,7 +7870,6 @@ window.addEventListener('hashchange', async event => {
         }
         return;
     }
-
     if (payload) {
         try {
             showToast('Loading project from URL…', 'info', 3000);

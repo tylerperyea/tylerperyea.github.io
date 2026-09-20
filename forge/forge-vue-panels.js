@@ -1,35 +1,26 @@
 // Vue panels app; mounts existing DOM and exposes window.forgePanels.
-
 (function () {
     const { createApp, ref, computed, reactive } = Vue;
-
     function focusForgeEditorSoon() {
         setTimeout(() => {
             if (typeof ForgeEditor !== 'undefined') ForgeEditor.focus();
         }, 0);
     }
-
     function moveActionFocus(event, controls) {
         const currentIndex = controls.indexOf(event.currentTarget);
         if (currentIndex < 0) return false;
-
         event.preventDefault();
-
         if (event.key === 'ArrowLeft') {
             controls[Math.max(0, currentIndex - 1)].focus();
             return false;
         }
-
         if (currentIndex < controls.length - 1) {
             controls[currentIndex + 1].focus();
             return false;
         }
-
         return true;
     }
-
     // -- File List Component ---------------------------------------------------
-
     const ForgeFileList = {
         name: 'ForgeFileList',
         props: {
@@ -75,62 +66,47 @@
             onFileKeydown(event, item) {
                 if (event.key === 'ArrowRight') {
                     event.preventDefault();
-
                     const row = event.currentTarget.closest('.file-item');
                     const firstAction = row?.querySelector('.file-item-actions .file-item-btn');
-
                     if (firstAction) {
                         firstAction.focus();
                         return;
                     }
-
                     this.$emit('select', item.path);
                     focusForgeEditorSoon();
                     return;
                 }
-
                 if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-
                 const buttons = Array.from(
                     event.currentTarget
                         .closest('[role="list"]')
                         ?.querySelectorAll('.file-item-open-btn') || []
                 );
-
                 const currentIndex = buttons.indexOf(event.currentTarget);
                 if (currentIndex < 0 || buttons.length === 0) return;
-
                 const delta = event.key === 'ArrowDown' ? 1 : -1;
                 const nextIndex = Math.max(
                     0,
                     Math.min(buttons.length - 1, currentIndex + delta)
                 );
-
                 event.preventDefault();
-
                 const nextButton = buttons[nextIndex];
                 const nextPath = nextButton
                     ?.closest('.file-item')
                     ?.dataset.path;
-
                 if (!nextButton || !nextPath) return;
-
                 nextButton.focus();
                 this.$emit('select', nextPath);
             },
             onFileActionKeydown(event, item) {
                 if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-
                 const row = event.currentTarget.closest('.file-item');
                 if (!row) return;
-
                 const controls = [
                     row.querySelector('.file-item-open-btn'),
                     ...row.querySelectorAll('.file-item-actions .file-item-btn')
                 ].filter(Boolean);
-
                 if (!moveActionFocus(event, controls)) return;
-
                 this.$emit('select', item.path);
                 focusForgeEditorSoon();
             }
@@ -168,7 +144,6 @@
                             @keydown="onFileActionKeydown($event, item)"
                             title="Preview"
                             aria-label="Preview file">👁️</button>
-
                         <button
                             class="file-item-btn"
                             @click.stop="$emit('move', { path: item.path, type: 'file' })"
@@ -187,9 +162,7 @@
             <div v-else class="info-text" style="padding:10px;">No files loaded</div>
         `
     };
-
 // -- Project Settings Panel
-
     const ProjectSettingsPanel = {
         name: 'ProjectSettingsPanel',
         props: {
@@ -263,7 +236,6 @@
                     Load a project to view settings.
                 </div>
                 <div v-else class="project-settings-content">
-
                     <div class="settings-section">
                         <h3 class="settings-section-title">📋 Project Metadata</h3>
                         <div class="settings-field">
@@ -279,7 +251,6 @@
                             <div class="settings-hint">Default filename when running forge out -o (CLI only).</div>
                         </div>
                     </div>
-
                     <div class="settings-section">
                         <h3 class="settings-section-title">⚙️ Forge CLI Options</h3>
                         <div class="settings-field">
@@ -297,7 +268,6 @@
                             <div class="settings-hint">When enabled, forge in downloads files that have a url field.</div>
                         </div>
                     </div>
-
                     <div class="settings-section">
                         <h3 class="settings-section-title">🔥 .forgeignore Patterns</h3>
                         <p class="settings-hint" style="margin-bottom:10px;">
@@ -309,7 +279,6 @@
                             v-model="forgeignore"
                         ></textarea>
                     </div>
-
                     <div class="settings-section">
                         <h3 class="settings-section-title">🌐 Fetch Settings</h3>
                         <div class="settings-field">
@@ -320,7 +289,6 @@
                             </select>
                         </div>
                     </div>
-
                     <div class="settings-section">
                         <h3 class="settings-section-title">📊 Project Stats</h3>
                         <div class="settings-stats-grid">
@@ -354,37 +322,29 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="settings-actions">
                         <button class="success" @click="save">💾 Save Project Settings</button>
                     </div>
-
                 </div>
             </div>
         `
     };
-
     // Must match the constant of the same name in app.js. Kept as a
     // separate literal since these are two independent non-module scripts
     // and don't share top-level const/let bindings.
     const FORGE_DIR_PLACEHOLDER = '.forgekeep';
-
     function buildFileTree(paths) {
         const root = { name: '', path: '', type: 'dir', children: [], _map: {} };
-
         for (const path of paths) {
             const parts = path.split('/').filter(Boolean);
             let current = root;
             let currentPath = '';
-
             parts.forEach((part, idx) => {
                 currentPath += '/' + part;
                 const isFile = idx === parts.length - 1;
-
                 // Directory placeholders build the folder structure but
                 // must never appear as a visible leaf node.
                 if (isFile && part === FORGE_DIR_PLACEHOLDER) return;
-
                 if (!current._map[part]) {
                     const node = {
                         name: part,
@@ -399,7 +359,6 @@
                 current = current._map[part];
             });
         }
-
         // Sort recursively: directories first, then files, alphabetically.
         (function sortNode(node) {
             node.children.sort((a, b) => {
@@ -408,13 +367,10 @@
             });
             node.children.forEach(sortNode);
         })(root);
-
         return root.children;
     }
-
     // Transient cross-component drag state does not need Vue reactivity.
     let _draggedNode = null;
-
     const TreeNode = {
         name: 'TreeNode',
         props: {
@@ -476,19 +432,15 @@
             },
             onRowKeydown(event) {
                 const key = event.key;
-
                 if (key === 'Enter' || key === ' ') {
                     event.preventDefault();
                     this.onRowClick();
                     return;
                 }
-
                 if (key === 'ArrowRight' && !this.isDir) {
                     event.preventDefault();
-
                     const firstAction = event.currentTarget
                         .querySelector('.file-item-actions .file-item-btn');
-
                     if (firstAction) {
                         firstAction.focus();
                     } else {
@@ -497,7 +449,6 @@
                     }
                     return;
                 }
-
                 if (key === 'ArrowRight' && this.isDir) {
                     event.preventDefault();
                     if (this.isCollapsed) {
@@ -509,15 +460,12 @@
                     }
                     return;
                 }
-
                 if (key === 'ArrowLeft') {
                     event.preventDefault();
-
                     if (this.isDir && !this.isCollapsed) {
                         this.toggleDir();
                         return;
                     }
-
                     const childGroup = event.currentTarget.closest('.tree-children');
                     const parentRow = childGroup
                         ?.parentElement
@@ -525,19 +473,14 @@
                     if (parentRow) parentRow.focus();
                     return;
                 }
-
                 const tree = event.currentTarget.closest('[role="tree"]');
                 if (!tree) return;
-
                 const items = Array.from(
                     tree.querySelectorAll('[role="treeitem"]')
                 ).filter(item => item.offsetParent !== null);
-
                 const currentIndex = items.indexOf(event.currentTarget);
                 if (currentIndex < 0 || items.length === 0) return;
-
                 let nextIndex = currentIndex;
-
                 if (key === 'ArrowDown') {
                     nextIndex = Math.min(currentIndex + 1, items.length - 1);
                 } else if (key === 'ArrowUp') {
@@ -549,31 +492,23 @@
                 } else {
                     return;
                 }
-
                 event.preventDefault();
                 items[nextIndex].focus();
             },
             onActionKeydown(event) {
                 if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-
                 event.stopPropagation();
-
                 const row = event.currentTarget.closest('.tree-row');
                 if (!row) return;
-
                 const controls = [
                     row,
                     ...row.querySelectorAll('.file-item-actions .file-item-btn')
                 ];
-
                 if (!moveActionFocus(event, controls)) return;
-
                 if (this.isDir) return;
-
                 this.$emit('select', this.node.path);
                 focusForgeEditorSoon();
             },
-
             // -- Drag & drop --------------------------------------------------
             onDragStart(e) {
                 _draggedNode = { path: this.node.path, type: this.node.type };
@@ -602,10 +537,8 @@
                 e.preventDefault();
                 e.stopPropagation();
                 e.currentTarget.classList.remove('tree-row-drag-over');
-
                 const { path: sourcePath, type: sourceType } = _draggedNode;
                 _draggedNode = null;
-
                 if (window.ForgeFileMove) {
                     window.ForgeFileMove.moveFileOrFolder(sourcePath, this.dropTargetDir, sourceType);
                     if (window.forgePanels) window.forgePanels.refresh();
@@ -636,7 +569,6 @@
                 this.renaming = false;
                 const newName = this.editValue.trim();
                 if (!newName || newName === this.node.name) return;
-
                 if (window.ForgeFileMove) {
                     const ok = window.ForgeFileMove.renameFileOrFolder(this.node.path, newName, this.node.type);
                     if (ok && window.forgePanels) window.forgePanels.refresh();
@@ -647,16 +579,12 @@
             },
             deleteFolder() {
                 if (!this.isDir || !window.ForgeFileMove) return;
-
                 const { allPaths, realPaths } = window.ForgeFileMove.getFolderContents(this.node.path);
                 if (allPaths.length === 0) return;
-
                 const message = realPaths.length > 0
                     ? `Delete folder "${this.node.name}" and its ${realPaths.length} file${realPaths.length !== 1 ? 's' : ''}? This cannot be undone.`
                     : `Delete empty folder "${this.node.name}"?`;
-
                 if (!confirm(message)) return;
-
                 window.ForgeFileMove.deleteFolder(this.node.path);
                 if (window.forgePanels) window.forgePanels.refresh();
             },
@@ -711,7 +639,6 @@
                             @keydown="onActionKeydown"
                             title="Preview"
                             aria-label="Preview file">👁️</button>
-
                         <button class="file-item-btn"
                             @click.stop="$emit('move', { path: node.path, type: node.type })"
                             @keydown="onActionKeydown"
@@ -747,7 +674,6 @@
         `
     };
     TreeNode.components = { TreeNode };
-
     // -- Tree view wrapper (same props/events shape as ForgeFileList) -------
     const ForgeFileTree = {
         name: 'ForgeFileTree',
@@ -816,7 +742,6 @@
             <div v-else class="info-text" style="padding: 10px;">No files loaded</div>
         `
     };
-
     // -- Editor Tab Bar --------------------------------------------------------
     const EditorTabBar = {
         name: 'EditorTabBar',
@@ -849,18 +774,14 @@
                 ) {
                     return;
                 }
-
                 const tablist = event.currentTarget.closest('[role="tablist"]');
                 if (!tablist) return;
-
                 const tabs = Array.from(
                     tablist.querySelectorAll('[role="tab"]')
                 );
                 const currentIndex = tabs.indexOf(event.currentTarget);
                 if (currentIndex < 0 || tabs.length === 0) return;
-
                 let nextIndex = currentIndex;
-
                 if (key === 'ArrowRight') {
                     nextIndex = (currentIndex + 1) % tabs.length;
                 } else if (key === 'ArrowLeft') {
@@ -870,9 +791,7 @@
                 } else if (key === 'End') {
                     nextIndex = tabs.length - 1;
                 }
-
                 event.preventDefault();
-
                 const nextTab = tabs[nextIndex];
                 nextTab.focus();
                 nextTab.click();
@@ -924,9 +843,7 @@
             </div>
         `
     };
-
     // -- Console Panel ---------------------------------------------------------
-
     const ConsolePanel = {
         name: 'ConsolePanel',
         props: {
@@ -948,16 +865,13 @@
             executeRepl() {
                 const code = this.replInput.trim();
                 if (!code) return;
-
                 // Add to history
                 this.commandHistory.push(code);
                 this.historyIndex = this.commandHistory.length;
-
                 // Log the input command
                 if (window.forgePanels && window.forgePanels.addConsoleEntry) {
                     window.forgePanels.addConsoleEntry('log', '> ' + code);
                 }
-
                 // Send to preview iframe for execution
                 const previewFrame = document.getElementById('previewFrame');
                 if (previewFrame && previewFrame.contentWindow) {
@@ -966,7 +880,6 @@
                         code: code
                     }, '*');
                 }
-
                 // Clear input
                 this.replInput = '';
             },
@@ -1041,9 +954,7 @@
             </div>
         `
     };
-
     // -- Network Panel ---------------------------------------------------------
-
     const NetworkPanel = {
         name: 'NetworkPanel',
         props: {
@@ -1092,7 +1003,6 @@
                         </button>
                     </div>
                 </div>
-
                 <div style="flex:1; overflow:auto;">
                     <table style="width:100%; border-collapse:collapse; font-size:13px;">
                         <thead>
@@ -1142,32 +1052,24 @@
             </div>
         `
     };
-
     // -- Main app --------------------------------------------------------------
-
     const app = createApp({
         components: { ProjectSettingsPanel, ForgeFileList, ForgeFileTree, EditorTabBar, ConsolePanel, NetworkPanel },
-
         setup() {
             const activeTab        = ref('preview');
             const vfsVersion       = ref(0);
             const selectedFilePath = ref(null);
-
             const FILE_VIEW_MODE_KEY = 'forge_file_view_mode';
             const fileViewMode = ref(
                 localStorage.getItem(FILE_VIEW_MODE_KEY) === 'flat' ? 'flat' : 'tree'
             );
-
             function setFileViewMode(mode) {
                 fileViewMode.value = mode;
                 localStorage.setItem(FILE_VIEW_MODE_KEY, mode);
             }
-
             const FILE_BROWSER_MIN_WIDTH = 250; // also default width
             const FILE_BROWSER_COLLAPSED_WIDTH = 40;
-
             const fileBrowserWidth = ref(FILE_BROWSER_MIN_WIDTH);
-
             const isFileBrowserCollapsed = ref(false);
             function toggleFileBrowser() {
                 isFileBrowserCollapsed.value = !isFileBrowserCollapsed.value;
@@ -1176,78 +1078,62 @@
                     fileBrowserWidth.value = FILE_BROWSER_MIN_WIDTH;
                 }
             }
-
             function getFileBrowserMaxWidth() {
                 return Math.max(
                     FILE_BROWSER_MIN_WIDTH,
                     Math.floor(window.innerWidth * 0.7)
                 );
             }
-
             function resizeFileBrowserByKeyboard(e) {
                 const key = e.key;
                 const step = e.shiftKey ? 50 : 25;
-
                 if (key === 'Enter' || key === ' ') {
                     e.preventDefault();
                     toggleFileBrowser();
                     return;
                 }
-
                 if (key === 'Home') {
                     e.preventDefault();
                     isFileBrowserCollapsed.value = false;
                     fileBrowserWidth.value = FILE_BROWSER_MIN_WIDTH;
                     return;
                 }
-
                 if (key === 'End') {
                     e.preventDefault();
                     isFileBrowserCollapsed.value = false;
                     fileBrowserWidth.value = getFileBrowserMaxWidth();
                     return;
                 }
-
                 if (key === 'ArrowRight') {
                     e.preventDefault();
-
                     if (isFileBrowserCollapsed.value) {
                         isFileBrowserCollapsed.value = false;
                         fileBrowserWidth.value = FILE_BROWSER_MIN_WIDTH;
                         return;
                     }
-
                     fileBrowserWidth.value = Math.min(
                         getFileBrowserMaxWidth(),
                         fileBrowserWidth.value + step
                     );
                     return;
                 }
-
                 if (key === 'ArrowLeft') {
                     e.preventDefault();
-
                     if (isFileBrowserCollapsed.value) return;
-
                     fileBrowserWidth.value = Math.max(
                         FILE_BROWSER_MIN_WIDTH,
                         fileBrowserWidth.value - step
                     );
                 }
             }
-
             function startFileBrowserResize(e) {
                 e.preventDefault();
-
                 const startX = e.clientX;
                 const startWidth = isFileBrowserCollapsed.value ? FILE_BROWSER_COLLAPSED_WIDTH : fileBrowserWidth.value;
-
                 // True once popped out of collapsed state during this drag, don't retrigger the pop-out every mousemove.
                 let poppedOutFromCollapsed = false;
-
                 function onMouseMove(moveEvent) {
                     const delta = moveEvent.clientX - startX;
-
                     if (isFileBrowserCollapsed.value && !poppedOutFromCollapsed) {
                         // Only pop out once drag has clearly moved outward (avoid accidental expand from jittery click-like movement)
                         if (delta > 4) {
@@ -1259,45 +1145,36 @@
                             return; 
                         }
                     }
-                    
                     const proposedWidth = Math.min(
                         startWidth + delta,
                         getFileBrowserMaxWidth()
                     );
-
                     if (proposedWidth < FILE_BROWSER_MIN_WIDTH) {
                         isFileBrowserCollapsed.value = true;
                         return;
                     }
-
                     isFileBrowserCollapsed.value = false;
                     fileBrowserWidth.value = proposedWidth;
                 }
-
                 function onMouseUp() {
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
                 }
-
                 document.addEventListener('mousemove', onMouseMove);
                 document.addEventListener('mouseup', onMouseUp);
             }
-
             const hasProject = computed(() => {
                 void vfsVersion.value;
                 return typeof vfs !== 'undefined' && vfs.getAllPaths().length > 0;
             });
-
             const projectSizeLabel = computed(() => {
                 void vfsVersion.value;
                 if (typeof vfs === 'undefined') return '0 B';
                 return vfs.formatBytes(vfs.getTotalSizeBytes());
             });
-
             // Console state
             const consoleLogs = ref([]);
             const MAX_CONSOLE = 500;
-
             // Network state
             const MAX_NETWORK = 500;
             const networkLogs = ref(
@@ -1305,14 +1182,12 @@
                     ? window.forgeNetworkEvents.slice(-MAX_NETWORK)
                     : []
             );
-
             // Context overlay state
             const contextMessage = ref(null);
             const contextVisible = ref(false);
             const contextFrom    = ref(null);
             const contextPos     = ref({ top: 16, right: null, left: null, center: true });
             let _dragState       = null;
-
             function addConsoleEntry(level, msg) {
                 const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 consoleLogs.value.push({ level, msg: String(msg), time });
@@ -1320,27 +1195,22 @@
                     consoleLogs.value.splice(0, consoleLogs.value.length - MAX_CONSOLE);
                 }
             }
-
             function clearConsole() { consoleLogs.value = []; }
-
             function addNetworkEntry(entry) {
                 networkLogs.value.push({ ...entry });
                 if (networkLogs.value.length > MAX_NETWORK) {
                     networkLogs.value.splice(0, networkLogs.value.length - MAX_NETWORK);
                 }
             }
-
             function clearNetwork() {
                 networkLogs.value = [];
                 window.forgeNetworkEvents = [];
             }
-
             async function copyText(text) {
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     await navigator.clipboard.writeText(text);
                     return;
                 }
-
                 const ta = document.createElement('textarea');
                 ta.value = text;
                 ta.style.position = 'fixed';
@@ -1350,7 +1220,6 @@
                 document.execCommand('copy');
                 document.body.removeChild(ta);
             }
-
             async function copyNetwork() {
                 try {
                     const json = JSON.stringify(networkLogs.value, null, 2);
@@ -1360,7 +1229,6 @@
                     if (typeof showToast === 'function') showToast('Copy failed: ' + e.message, 'error');
                 }
             }
-
             async function copyConsole() {
                 try {
                     const json = JSON.stringify(consoleLogs.value, null, 2);
@@ -1370,7 +1238,6 @@
                     if (typeof showToast === 'function') showToast('Copy failed: ' + e.message, 'error');
                 }
             }
-
             function setContextMessage(msg, from) {
                 contextMessage.value = msg;
                 contextFrom.value    = from || null;
@@ -1378,9 +1245,7 @@
                 contextPos.value     = { top: 16, right: null, left: null, center: true };
                 _dragState           = null;
             }
-
             function dismissContext() { contextVisible.value = false; }
-
             function contextDragStart(e) {
                 if (e.button !== 0) return;
                 const el = e.currentTarget.closest('.context-overlay');
@@ -1392,7 +1257,6 @@
                     origLeft: el.offsetLeft,
                 };
                 e.preventDefault();
-
                 function onMove(ev) {
                     if (!_dragState) return;
                     const dx = ev.clientX - _dragState.startX;
@@ -1414,11 +1278,9 @@
                 window.addEventListener('mouseup',   onUp);
                 document.body.classList.add('is-dragging-context');
             }
-
             // -- Tab state ------------------------------------------------------
             const openTabs     = ref([]);  // [{ path, unsaved }]
             const activeTabPath = ref(null);
-
             function openTab(path) {
                 if (!path) return;
                 const existing = openTabs.value.find(t => t.path === path);
@@ -1427,7 +1289,6 @@
                 }
                 activeTabPath.value = path;
             }
-
             // Returns the path that should become active after closing,
             // or null if no tabs remain. Callers use this to load the
             // new active file or call closeEditor().
@@ -1435,32 +1296,26 @@
                 const idx = openTabs.value.findIndex(t => t.path === path);
                 if (idx === -1) return null;
                 openTabs.value.splice(idx, 1);
-
                 if (activeTabPath.value === path) {
                     // Prefer the tab to the right, fall back to left
                     const next = openTabs.value[idx] || openTabs.value[idx - 1];
                     activeTabPath.value = next ? next.path : null;
                 }
-
                 return activeTabPath.value;
             }
-
             function setTabUnsaved(path, unsaved) {
                 const tab = openTabs.value.find(t => t.path === path);
                 if (tab) tab.unsaved = !!unsaved;
             }
-
             function renameTab(oldPath, newPath) {
                 const tab = openTabs.value.find(t => t.path === oldPath);
                 if (tab) tab.path = newPath;
                 if (activeTabPath.value === oldPath) activeTabPath.value = newPath;
             }
-
             function closeAllTabs() {
                 openTabs.value  = [];
                 activeTabPath.value = null;
             }
-
             function closeTabsForPaths(paths) {
                 const pathSet = new Set(paths);
                 openTabs.value = openTabs.value.filter(t => !pathSet.has(t.path));
@@ -1470,37 +1325,30 @@
                         : null;
                 }
             }
-
             function onTabSwitch(path) {
                 if (path === activeTabPath.value) return;
                 // Delegate actual CM swap to app.js
                 if (typeof openFileInEditor === 'function') openFileInEditor(path);
             }
-
             function onTabClose(path) {
                 if (typeof closeTab === 'function') closeTab(path);
             }
-
             function setTab(name) {
                 activeTab.value = name;
                 if (name === 'project') vfsVersion.value++;
             }
-
             function onMainTabKeydown(event, tabName) {
                 if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
                     setTab(tabName);
                     return;
                 }
-
                 const tabs = Array.from(
                     document.querySelectorAll('.main-tab-list [role="tab"]:not([hidden])')
                 );
                 const currentIndex = tabs.findIndex(tab => tab.dataset.tab === tabName);
                 if (currentIndex < 0 || tabs.length === 0) return;
-
                 let nextIndex = currentIndex;
-
                 if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
                     nextIndex = (currentIndex + 1) % tabs.length;
                 } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
@@ -1512,27 +1360,20 @@
                 } else {
                     return;
                 }
-
                 event.preventDefault();
                 const nextTab = tabs[nextIndex];
                 nextTab.focus();
                 if (nextTab.dataset.tab) setTab(nextTab.dataset.tab);
             }
-
             function refresh() {
                 vfsVersion.value++;
             }
-
             function refreshProject() {
                 vfsVersion.value++;
             }
-
             function selectPath(path) {
                 selectedFilePath.value = path;
             }
-
-
-
             // File browser event handlers
             function onFileSelect(path) {
                 if (typeof checkUnsavedChanges === 'function') {
@@ -1544,35 +1385,27 @@
                     selectedFilePath.value = path;
                 }
             }
-
             function onFilePreview(path) {
                 if (typeof previewFile === 'function') previewFile(path);
             }
-
-
             function onFileOpenSettings(path) {
                 selectedFilePath.value = path;
-
                 // Clicking settings again for the same file returns to the editor
                 if (typeof currentViewMode !== 'undefined' && currentViewMode === 'settings' && currentEditingFile === path) {
                     if (typeof saveFileSettings === 'function') {
                         saveFileSettings(path);
                     }
-
                     if (typeof openFileInEditor === 'function') {
                         openFileInEditor(path);
                     }
                     return;
                 }
-
                 if (typeof openFileSettings === 'function') openFileSettings(path);
             }
-
             function onFileMove(move) {
                 if (!move || typeof openFileMoveModal !== 'function') return;
                 openFileMoveModal(move.path, move.type);
             }
-
             return {
                 activeTab,
                 vfsVersion,
@@ -1625,7 +1458,6 @@
         },
         // No template property — Vue compiles from the existing DOM inside #forge-panels-app
     });
-
     function mount() {
         const el = document.getElementById('forge-panels-app');
         if (!el) {
@@ -1637,7 +1469,6 @@
         window.dispatchEvent(new Event('forge-panels-mounted'));
         console.log('[FORGE] Vue panels app mounted, activeTab:', instance.activeTab);
     }
-
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', mount);
     } else {
