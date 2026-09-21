@@ -270,6 +270,7 @@
     function openPushModal() {
         if (_provider === _providers.gitlab) loadContextFromVfs();
         _populateModal();
+        _el('pushCloseBtn').textContent = 'Cancel';
         _showTab('push');
         ForgeModal.open('gitlabPushModal', {
             initialFocus: '#pushGitlabToken',
@@ -1324,6 +1325,7 @@
                 pushBtn.disabled = true;
                 pushBtn.textContent = '✓ Pushed';
             }
+            _el('pushCloseBtn').textContent = 'Close';
         } catch (e) {
             _log(`\n❌ Error: ${e.message}`);
             if (typeof showToast === 'function')

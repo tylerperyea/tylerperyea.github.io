@@ -2687,9 +2687,29 @@ body.is-dragging-context iframe {
  * horizontal scrolling.
  */
 @media (max-width: 700px) {
+    body {
+        height: 100dvh;
+    }
+    .header {
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 8px 10px;
+    }
+    .header-left {
+        flex: 1 1 auto;
+    }
+    .header-controls {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+    }
+    .header-divider {
+        display: none;
+    }
     .tabs {
         flex-wrap: wrap;
         gap: 4px;
+        padding: 4px;
     }
     .project-title-container {
         flex: 1 1 100%;
@@ -2708,6 +2728,57 @@ body.is-dragging-context iframe {
     .tabs-clear-btn {
         margin-left: 0;
         margin-right: 0;
+    }
+    .preview-header {
+        flex-wrap: wrap;
+        padding: 6px;
+    }
+    .preview-header .url-bar {
+        flex: 1 1 100%;
+        order: -1;
+    }
+    .file-editor {
+        flex-direction: column;
+    }
+    .file-browser {
+        width: 100% !important;
+        flex: 0 0 min(34vh, 240px);
+        max-height: min(34vh, 240px);
+        border-right: 0;
+        border-bottom: 1px solid #3e3e42;
+    }
+    .file-browser.is-collapsed {
+        flex-basis: 40px;
+        max-height: 40px;
+    }
+    .file-browser-resize-handle {
+        display: none;
+    }
+    .editor-header,
+    .editor-actions {
+        flex-wrap: wrap;
+    }
+    .editor-header {
+        gap: 6px;
+        padding: 6px 8px;
+    }
+    .modal {
+        width: calc(100% - 16px);
+        max-height: calc(100dvh - 16px);
+    }
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 12px;
+    }
+    .modal-footer {
+        flex-wrap: wrap;
+    }
+    .modal-footer button {
+        flex: 1 1 auto;
+    }
+    .status {
+        padding: 4px 8px;
     }
     .toast {
         min-width: 0;

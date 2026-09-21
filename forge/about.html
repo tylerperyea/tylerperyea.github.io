@@ -949,6 +949,14 @@
               that opens it directly in the browser — no install needed for the person
               you're sharing with. You'll see a privacy notice and can choose an expiration
               time before creating the link.
+              <br><br>
+              On deployments that support stable Named Shares, FORGE generates a P-256
+              signing key in your browser. The private key is non-extractable and stays in
+              this browser profile; updates are signed locally, while only the public key
+              and signature are published. That lets FORGE verify that a later update came
+              from the browser that originally claimed the name. Clearing browser storage
+              or moving to another browser can therefore lose update access unless that
+              deployment provides recovery or administrative support.
             </div>
           </div>
         </div>

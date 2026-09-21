@@ -978,8 +978,12 @@
 
         <div class="form-group" id="shortUrlNamedGroup" hidden>
           <label for="shortUrlNamedInput">Stable name (optional)</label>
-          <input id="shortUrlNamedInput" maxlength="64"
+          <input type="text" id="shortUrlNamedInput" maxlength="64"
                  placeholder="my_cool_app">
+          <div class="info-text" style="margin-top:6px;">
+            A stable name keeps the same URL when you publish newer versions.
+            This browser profile keeps the private key required to update it.
+          </div>
         </div>
 
       </div>
@@ -1038,10 +1042,14 @@
 
         <div id="managedShareNamedGroup" class="form-group" style="margin-top:16px;" hidden>
           <label for="managedShareNamedInput">Stable named link</label>
-          <input id="managedShareNamedInput" maxlength="64"
+          <input type="text" id="managedShareNamedInput" maxlength="64"
                  placeholder="my_cool_app" oninput="updateNamedSharePreview()">
+          <div class="info-text" style="margin-top:6px;">
+            This URL stays the same across new versions. Updating it requires
+            the private key stored in this browser profile.
+          </div>
           <div style="display:flex; gap:8px; margin-top:8px;">
-            <input id="managedShareNamedUrl" readonly
+            <input type="text" id="managedShareNamedUrl" readonly
                    style="flex:1;" onclick="this.select()">
             <button class="secondary" type="button"
                     onclick="copyToClipboard(document.getElementById('managedShareNamedUrl').value)">Copy</button>
@@ -1608,7 +1616,7 @@
       </div>
 
       <div class="modal-footer">
-        <button class="secondary" onclick="ForgeGitPush.closePushModal()">Cancel</button>
+        <button class="secondary" id="pushCloseBtn" onclick="ForgeGitPush.closePushModal()">Cancel</button>
         <button class="info"    onclick="ForgeGitPush.previewChanges()">Preview =&gt;</button>
         <button class="success" onclick="ForgeGitPush.pushToGitLab()">Push =&gt;</button>
       </div>
