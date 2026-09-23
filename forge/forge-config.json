@@ -6,7 +6,7 @@
   "sharePolicy": {
     "defaultTtlMs": 604800000
   },
-  "previewResourceOrigins": ["https://unpkg.com","https://cdn.jsdelivr.net","https://cdnjs.cloudflare.com","https://esm.sh","https://*.gov","https://tile.openstreetmap.org","http://localhost:*","https://localhost:*","http://127.0.0.1:*","https://127.0.0.1:*", "https://scryfall.com", "https://github.com", "https://mtggoldfish.com", "https://mtgjson.com"],
+  "previewResourceOrigins": ["https://unpkg.com","https://cdn.jsdelivr.net","https://cdnjs.cloudflare.com","https://esm.sh","https://*.gov","https://tile.openstreetmap.org","http://localhost:*","https://localhost:*","http://127.0.0.1:*","https://127.0.0.1:*", "https://scryfall.com", "https://github.com", "https://mtggoldfish.com", "https://api.scryfall.*" , "https://svgs.scryfall.*"],
   "contactEmail": "tyler.peryea@gmail.com",
   "fetchMode": "browser",
   "deploymentMode": "static",
