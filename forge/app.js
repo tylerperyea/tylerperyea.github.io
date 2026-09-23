@@ -457,21 +457,26 @@ function loadProjectFromParsed(
         if (typeof ForgeGitPush !== 'undefined') ForgeGitPush.loadContextFromVfs();
         refreshProjectViews();
         closeEditor();
-        const sharedPage = getURLParam('url');
-        const sharedLocation = splitPreviewLocation(sharedPage || '');
-        const entryPoint = (sharedLocation.path && vfs.hasFile(sharedLocation.path))
-            ? sharedLocation.display
-            : vfs.findEntryPoint();
-        if (entryPoint) {
-            renderPage(entryPoint);
-            switchTab('preview');
-            if (getURLParam('fullscreen')) {
-                const fc = byId('fullscreenContainer');
-                if (fc) fc.classList.add('active');
-                updateBrowserTitle();
+        const linkedFile=getURLParam('file');
+        if (!linkedFile || !openVfsLocation(
+            linkedFile,getURLParam('line'),getURLParam('column')
+        )) {
+            const sharedPage = getURLParam('url');
+            const sharedLocation = splitPreviewLocation(sharedPage || '');
+            const entryPoint = (sharedLocation.path && vfs.hasFile(sharedLocation.path))
+                ? sharedLocation.display
+                : vfs.findEntryPoint();
+            if (entryPoint) {
+                renderPage(entryPoint);
+                switchTab('preview');
+                if (getURLParam('fullscreen')) {
+                    const fc = byId('fullscreenContainer');
+                    if (fc) fc.classList.add('active');
+                    updateBrowserTitle();
+                }
+            } else if (!openVfsLocation(preferredVfsFile())) {
+                switchTab('files');
             }
-        } else {
-            switchTab('files');
         }
         const statusMsg = `${merge ? 'Merged' : 'Loaded'} ${loadedCount} file(s)` +
             (excludedCount > 0 ? ` (${excludedCount} excluded)` : '');
@@ -2903,13 +2908,30 @@ function refreshProjectViews() {
     updateFileBrowser();
     refreshProjectSettingsTab();
 }
+function preferredVfsFile(){
+    const rank=p=>/\/readme\.md$/i.test(p)?0:/\.md$/i.test(p)?1:2;
+    return vfs.getAllPaths().filter(p=>!vfs.isExcluded(p)&&
+        !p.endsWith('/'+FORGE_DIR_PLACEHOLDER)).sort((a,b)=>
+        rank(a)-rank(b)||a.split('/').length-b.split('/').length||
+        a.localeCompare(b))[0];
+}
+function openVfsLocation(p,l,c){
+    if(!p||!vfs.hasFile(p))return false;
+    openFileInEditor(p);switchTab('files');
+    let n=20,j=()=>ForgeEditor.isReady()
+        ?ForgeEditor.jumpToLine(+l-1,Math.max(0,(+c||1)-1),0)
+        :n--&&setTimeout(j,50);
+    if(+l>0)j();
+    return true;
+}
+window.openVfsLocation=openVfsLocation;
 function refreshAndOpenProject() {
     refreshProjectViews();
     const entryPoint = vfs.findEntryPoint();
     if (entryPoint) {
         renderPage(entryPoint);
         switchTab('preview');
-    } else {
+    } else if (!openVfsLocation(preferredVfsFile())) {
         switchTab('files');
     }
     return entryPoint;
@@ -4800,7 +4822,6 @@ function finishNonEditableEditorView(wrapper) {
 }
 function openFileInEditor(path) {
     if (!path) return;
-    // -- Save outgoing tab's CM state --------------------------------------
     if (currentEditingFile && currentEditingFile !== path) {
         saveCmStateToCache(currentEditingFile);
         tabUnsavedMap.set(currentEditingFile, hasUnsavedChanges);
@@ -4808,14 +4829,11 @@ function openFileInEditor(path) {
             window.forgePanels.setTabUnsaved(currentEditingFile, hasUnsavedChanges);
         }
     }
-    // -- Register with tab system ------------------------------------------
     if (window.forgePanels) window.forgePanels.openTab(path);
     currentEditingFile = path;
     currentViewMode    = 'editor';
     const meta = vfs.getMeta(path);
-    // Restore dirty state for this tab
     hasUnsavedChanges = tabUnsavedMap.get(path) || false;
-    // Decide content source: cached (unsaved edits) vs VFS (last saved)
     const cached       = tabContentCache.get(path);
     const vfsContent   = vfs.getFile(path);
     const contentToUse = cached ? cached.content : (vfsContent || '');
@@ -6855,7 +6873,7 @@ function buildInterceptorScript(pageTitle, basePath) {
                     if (href.startsWith('#')) {
                         e.preventDefault();
                         // Scroll manually since we're preventing default
-                        const target = byId(href.substring(1));
+                        const target = document.getElementById(href.substring(1));
                         if (target) {
                             const reduceMotion = window.matchMedia(
                                 '(prefers-reduced-motion: reduce)'
@@ -7052,7 +7070,7 @@ function buildInterceptorScript(pageTitle, basePath) {
                             id = decodeURIComponent(id);
                         } catch (e) {}
                         const target =
-                            byId(id) ||
+                            document.getElementById(id) ||
                             document.getElementsByName(id)[0];
                         if (target) target.scrollIntoView();
                         return;
@@ -7651,7 +7669,8 @@ window.addEventListener('message', (event) => {
                 const errMsg = err.name + ': ' + err.message;
                 window.forgePanels.addConsoleEntry('error', '← ' + errMsg);
                 if (err.stack) {
-                    window.forgePanels.addConsoleEntry('error', err.stack);
+                    window.forgePanels.addConsoleEntry('error',
+                        mapPreviewSourceLocations(err.stack,event.source));
                 }
             }
         }

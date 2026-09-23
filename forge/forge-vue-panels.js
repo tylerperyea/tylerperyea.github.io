@@ -862,6 +862,10 @@
             warnCount()  { return this.entries.filter(e => e.level === 'warn').length;  },
         },
         methods: {
+            openSource(msg) {
+                const m=String(msg).match(/forge-vfs:\/\/(.+?):(\d+)(?::(\d+))?/);
+                if(m) window.openVfsLocation?.(m[1],m[2],m[3]);
+            },
             executeRepl() {
                 const code = this.replInput.trim();
                 if (!code) return;
@@ -935,7 +939,7 @@
                     <div v-for="(entry, i) in entries" :key="i" class="console-entry">
                         <span class="console-entry-time">{{ entry.time }}</span>
                         <span class="console-entry-level" :class="'console-level-' + entry.level">{{ entry.level }}</span>
-                        <span class="console-entry-msg" :class="'msg-' + entry.level">{{ entry.msg }}</span>
+                        <span class="console-entry-msg" :class="'msg-' + entry.level" @click="openSource(entry.msg)" :style="entry.msg.includes('forge-vfs://')?'cursor:pointer':''" :title="entry.msg.includes('forge-vfs://')?'Open source':''">{{ entry.msg }}</span>
                     </div>
                 </div>
                 <div class="console-repl-input">
