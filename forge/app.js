@@ -2342,6 +2342,13 @@ async function detectServerFeatures() {
     });
     if (response.ok) {
       const config = await response.json();
+      const origins=config.previewResourceOrigins;
+      if(Array.isArray(origins)){
+        const valid=/^https?:\/\/(?:\*|(?:\*\.)?[a-z0-9.-]+)(?::(?:\*|\d+))?$/i;
+        previewResourceOrigins=origins.filter(
+          v=>typeof v==='string'&&valid.test(v)
+        );
+      }
       managedShareAdminEnabled = !!(
         config.managedSharing &&
         config.managedSharing.admin === true
@@ -4944,28 +4951,14 @@ function closeEditor() {
     if (window.forgePanels) window.forgePanels.selectPath(null);
 }
 // saveFileBtn, deleteFileBtn, rerunBtn listeners moved to delegated handlers above.
-// Preview CSP: CDN resource loads are separate from restricted connect-src.
-// Inline/eval remain required inside the opaque sandbox for VFS/runtime code.
+let previewResourceOrigins=[
+    'https://unpkg.com','https://cdn.jsdelivr.net','https://cdnjs.cloudflare.com',
+    'https://esm.sh','https://*.gov','https://tile.openstreetmap.org',
+    'http://localhost:*','https://localhost:*','http://127.0.0.1:*',
+    'https://127.0.0.1:*'
+];
 function buildPreviewCspMeta() {
-    // Explicit CDN allowlist for browser resources and fetch-backed resources
-    // such as WebAssembly companions loaded by trusted external ESM modules.
-    const cdnDomains = [
-        'https://unpkg.com',
-        'https://cdn.jsdelivr.net',
-        'https://cdnjs.cloudflare.com',
-        'https://esm.sh',
-    ].join(' ');
-    // Additional domains allowed for fetch()/XHR (connect-src).
-    const connectDomains = [
-        'https://*.gov',
-        'https://tile.openstreetmap.org',
-        'http://localhost:*',
-        'https://localhost:*',
-        'http://127.0.0.1:*',
-        'https://127.0.0.1:*',
-    ].join(' ');
-    // Keep the approved network/resource origins in one combined allowlist.
-    const resourceDomains = `${connectDomains} ${cdnDomains}`;
+    const resourceDomains=previewResourceOrigins.join(' ');
     const directives = [
         `connect-src 'self' blob: ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:* ${resourceDomains}`,
         `img-src 'self' blob: data: ${resourceDomains}`,
