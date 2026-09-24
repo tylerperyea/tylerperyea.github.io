@@ -2679,6 +2679,8 @@ function checkUnsavedChanges(callback) {
 const BINARY_EXTENSIONS = new Set([
   'png','jpg','jpeg','gif','bmp','webp','ico','tiff','tif','avif','heic','heif',
   'pdf','zip','tar','gz','tgz','bz2','xz','7z','rar',
+  'xlsx','xlsm','xlsb','xls','docx','docm','doc','pptx','pptm','ppt',
+  'ods','odt','odp',
   'exe','dll','so','dylib','wasm','bin',
   'mp3','mp4','wav','ogg','flac','aac','m4a','avi','mov','mkv','webm',
   'ttf','woff','woff2','otf','eot',
@@ -2870,8 +2872,9 @@ async function importFromFolder() {
                 const parts = relativePath.split('/');
                 parts.shift();
                 const vfsPath = '/' + parts.join('/');
-                const content = await file.text();
-                vfs.addFile(vfsPath, content, {});
+                const {content,encoding}=
+                    await readImportedFile(new Response(file),vfsPath);
+                vfs.addFile(vfsPath,content,encoding?{encoding}:{});
             }
             projectTitle = folderName || generateProjectName();
             updateProjectTitleDisplay();
@@ -4804,6 +4807,7 @@ function closeTab(path) {
     }
 }
 function startNonEditableEditorView(iconText, titleText) {
+    if (ForgeEditor.isReady()) ForgeEditor.setVisible(false);
     editorTextarea.hidden = true;
     editorPlaceholder.hidden = false;
     editorPlaceholder.replaceChildren();
@@ -7523,9 +7527,11 @@ window.addEventListener('message', (event) => {
         // exact path matching and has no concept of query params.
         const cleanUrl = url.split('?')[0].split('#')[0];
         const path = cleanUrl.startsWith('/') ? cleanUrl : '/' + cleanUrl;
-        const content = vfs.getFile(path);
+        let content = vfs.getFile(path);
         // Use strict undefined check — empty string is a valid file content
         const found = content !== undefined;
+        if(found&&content&&vfs.getEncoding(path)==='base64')
+            content=Uint8Array.from(atob(content),c=>c.charCodeAt(0));
         const mimeType = found ? vfs.getMimeType(path) : null;
         // If a MessageChannel port was provided (from __vfs_module or the
         // fetch interceptor), reply directly on that port — no broadcast
