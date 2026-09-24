@@ -990,6 +990,11 @@
                 if (entry.via === 'resource') return 'Observed';
                 return '—';
             },
+            allow(entry) {
+                if (window.forgeAllowPreviewOrigin) {
+                    window.forgeAllowPreviewOrigin(entry);
+                }
+            },
         },
         template: `
             <div style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
@@ -1039,6 +1044,13 @@
                                     >
                                         → {{ entry.resolved }}
                                     </div>
+                                    <button
+                                        v-if="entry.allowable"
+                                        class="secondary"
+                                        style="margin-top:5px;"
+                                        @click="allow(entry)"
+                                        title="Allow this exact origin for this blocked resource type in this browser"
+                                    >Allow origin</button>
                                 </td>
                                 <td style="padding:7px 8px; white-space:nowrap; vertical-align:top;">
                                     {{ routeLabel(entry.route) }}

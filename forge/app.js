@@ -2349,6 +2349,7 @@ async function detectServerFeatures() {
           v=>typeof v==='string'&&valid.test(v)
         );
       }
+      previewUserAllowlist=config.previewUserAllowlist===true;
       managedShareAdminEnabled = !!(
         config.managedSharing &&
         config.managedSharing.admin === true
@@ -4957,17 +4958,62 @@ let previewResourceOrigins=[
     'http://localhost:*','https://localhost:*','http://127.0.0.1:*',
     'https://127.0.0.1:*'
 ];
+let previewUserAllowlist=false;
+const previewUserDirectives=[
+    'connect-src','img-src','form-action','frame-src',
+    'script-src','style-src','font-src'
+];
+const previewUserOriginsKey='forge_preview_origins:'+location.pathname;
+let previewUserOrigins={};
+try{
+    previewUserOrigins=
+        JSON.parse(localStorage.getItem(previewUserOriginsKey)||'{}')||{};
+}catch(e){}
+function previewUserSources(d){
+    return (previewUserOrigins[d]||[]).filter(v=>{
+        try{
+            const u=new URL(v);
+            return /^https?:$/.test(u.protocol)&&u.origin===v;
+        }catch(e){return false;}
+    }).join(' ');
+}
+function allowPreviewOrigin(entry){
+    if(!previewUserAllowlist||entry.outcome!=='blocked'||
+        !previewUserDirectives.includes(entry.directive))return;
+    let url;
+    try{url=new URL(entry.requested);}catch(e){return;}
+    if(!/^https?:$/.test(url.protocol))return;
+    const origin=url.origin;
+    const warning=entry.directive==='script-src'
+        ?' This permits executable scripts from that origin.'
+        :'';
+    if(!confirm(
+        `Allow ${entry.directive} from ${origin} for Preview on this browser?`+
+        warning
+    ))return;
+    const list=previewUserOrigins[entry.directive]||
+        (previewUserOrigins[entry.directive]=[]);
+    if(!list.includes(origin))list.push(origin);
+    localStorage.setItem(
+        previewUserOriginsKey,
+        JSON.stringify(previewUserOrigins)
+    );
+    toast.warning(`Locally allowing ${entry.directive} from ${origin}`);
+    rerunProject();
+}
+window.forgeAllowPreviewOrigin=allowPreviewOrigin;
 function buildPreviewCspMeta() {
     const resourceDomains=previewResourceOrigins.join(' ');
+    const extra=d=>previewUserSources(d);
     const directives = [
-        `connect-src 'self' blob: ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:* ${resourceDomains}`,
-        `img-src 'self' blob: data: ${resourceDomains}`,
-        `form-action 'self' ${resourceDomains}`,
-        `frame-src 'self' blob: data: ${resourceDomains}`,
+        `connect-src 'self' blob: ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:* ${resourceDomains} ${extra('connect-src')}`,
+        `img-src 'self' blob: data: ${resourceDomains} ${extra('img-src')}`,
+        `form-action 'self' ${resourceDomains} ${extra('form-action')}`,
+        `frame-src 'self' blob: data: ${resourceDomains} ${extra('frame-src')}`,
         `object-src 'none'`,
-        `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: ${resourceDomains}`,
-        `style-src 'self' 'unsafe-inline' blob: https://fonts.googleapis.com ${resourceDomains}`,
-        `font-src 'self' blob: data: https://fonts.gstatic.com ${resourceDomains}`
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: ${resourceDomains} ${extra('script-src')}`,
+        `style-src 'self' 'unsafe-inline' blob: https://fonts.googleapis.com ${resourceDomains} ${extra('style-src')}`,
+        `font-src 'self' blob: data: https://fonts.gstatic.com ${resourceDomains} ${extra('font-src')}`
     ];
     return `<meta http-equiv="Content-Security-Policy" content="${directives.join('; ')};">`;
 }
@@ -7633,7 +7679,11 @@ window.addEventListener('message', (event) => {
             ok: event.data.ok,
             error: event.data.error || null,
             directive: event.data.directive || null,
-            disposition: event.data.disposition || null
+            disposition: event.data.disposition || null,
+            allowable: previewUserAllowlist &&
+                event.data.outcome === 'blocked' &&
+                previewUserDirectives.includes(event.data.directive) &&
+                /^https?:\/\//i.test(event.data.requested || '')
         });
         if (window.forgeNetworkEvents.length > 500) {
             window.forgeNetworkEvents.shift();
