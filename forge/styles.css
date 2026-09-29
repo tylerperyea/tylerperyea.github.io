@@ -1341,6 +1341,27 @@ body .preview-tab-wrapper.active {
     gap: 10px;
     justify-content: flex-end;
 }
+.government-notice-modal {
+    max-width: 720px;
+}
+.government-notice-modal .modal-body {
+    line-height: 1.5;
+}
+.government-notice-modal p {
+    margin: 0 0 14px;
+}
+.government-notice-modal ol,
+.government-notice-modal ul {
+    margin: 0 0 16px;
+    padding-left: 2rem;
+}
+.government-notice-modal li {
+    margin: 7px 0;
+    padding-left: 4px;
+}
+.government-notice-modal li::marker {
+    font-weight: 700;
+}
 .required-marker {
     color: #f48771;
 }

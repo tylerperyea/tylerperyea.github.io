@@ -413,6 +413,32 @@
             </span>
           </button>
 
+          <button id="currentUserMySharesBtn"
+                  class="dropdown-item"
+                  type="button"
+                  role="menuitem"
+                  hidden
+                  onclick="openMySharesModal()">
+            <span class="dropdown-icon">S</span>
+            <span>
+              <strong>My Shares</strong>
+              <small>See Short Links you own</small>
+            </span>
+          </button>
+
+          <button id="currentUserAdminBtn"
+                  class="dropdown-item"
+                  type="button"
+                  role="menuitem"
+                  hidden
+                  onclick="openForgeAdminModal()">
+            <span class="dropdown-icon">A</span>
+            <span>
+              <strong>Administration</strong>
+              <small>Manage shares and administrators</small>
+            </span>
+          </button>
+
           <button id="currentUserLogoutBtn"
                   class="dropdown-item current-user-logout"
                   type="button"
@@ -535,6 +561,11 @@
                    onclick="this.closest('.forge-dropdown').classList.remove('open')">⚡ Short Link</div>
             </div>
           </div>
+          <button id="previewIdentityBtn"
+                  class="secondary preview-action-btn"
+                  hidden
+                  onclick="setPreviewIdentity()"
+                  title="Preview app sign-in identity">👤 App User: Actual</button>
           <button id="fullscreenBtn" title="Fullscreen preview (Esc to exit)">⛶ Fullscreen</button>
         </div>
         <div class="preview-surface">
@@ -786,6 +817,35 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
+  <div class="modal-overlay" id="governmentNoticeModal">
+    <div class="modal government-notice-modal">
+      <div class="modal-header">
+        <h2>U.S. Government Information System</h2>
+      </div>
+      <div class="modal-body">
+        <p>You are accessing a U.S. Government information system, which includes:</p>
+        <ol>
+          <li>this computer,</li>
+          <li>this computer network,</li>
+          <li>all computers connected to this network, and</li>
+          <li>all devices and storage media attached to this network or to a computer on this network.</li>
+        </ol>
+        <p>This information system is provided for U.S. Government authorized use only.</p>
+        <p>Unauthorized or improper use of this system may result in disciplinary action, as well as civil and criminal penalties.</p>
+        <p>By using this information system, you understand and consent to the following:</p>
+        <ul>
+          <li>You have no reasonable expectation of privacy regarding any communication or data transiting or stored on this information system.</li>
+          <li>At any time, and for any lawful Government purpose, the government may monitor, intercept, and search and seize any communication or data transiting or stored on this information system.</li>
+          <li>Any communication or data transiting or stored on this information system may be disclosed or used for any lawful Government purpose.</li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button class="success" id="governmentNoticeAcknowledgeBtn">
+          Acknowledge and Continue
+        </button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="globalSearchModal">
     <div class="modal global-search-modal">
@@ -994,6 +1054,129 @@
     </div>
   </div>
 
+
+  <div class="modal-overlay" id="mySharesModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>My Shares</h2>
+        <button class="secondary"
+                onclick="closeMySharesModal()"
+                aria-label="Close My Shares dialog">X</button>
+      </div>
+      <div class="modal-body">
+        <p class="info-text" style="margin-top:0;">
+          Managed Short Links owned by your authenticated FORGE identity.
+        </p>
+        <div id="mySharesList" aria-live="polite">
+          Loading...
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary"
+                id="mySharesRefreshBtn"
+                onclick="refreshMyShares()">Refresh</button>
+        <button class="secondary"
+                onclick="closeMySharesModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="forgeAdminModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>FORGE Administration</h2>
+        <button class="secondary"
+                onclick="closeForgeAdminModal()"
+                aria-label="Close FORGE Administration dialog">X</button>
+      </div>
+      <div class="modal-body">
+        <p class="info-text" style="margin-top:0;">
+          Administrative actions are authorized by the server and recorded
+          independently of this browser UI.
+        </p>
+
+        <div class="form-group">
+          <label for="forgeAdminEmail">Add administrator</label>
+          <div style="display:flex; gap:8px;">
+            <input id="forgeAdminEmail"
+                   type="email"
+                   autocomplete="off"
+                   placeholder="person@example.gov"
+                   style="flex:1;">
+            <button class="secondary"
+                    type="button"
+                    onclick="grantForgeAdmin()">Add</button>
+          </div>
+        </div>
+
+        <div style="margin-top:20px;">
+          <strong>Administrators</strong>
+          <div id="forgeAdminUsers"
+               style="margin-top:8px;"
+               aria-live="polite">Loading...</div>
+        </div>
+
+        <div style="margin-top:24px; padding-top:16px; border-top:1px solid #444;">
+          <strong>Share Policy</strong>
+
+          <div class="form-group" style="margin-top:12px;">
+            <label for="forgeAdminDefaultTtlHours">
+              Default Short Link lifetime (hours)
+            </label>
+            <input id="forgeAdminDefaultTtlHours"
+                   type="number"
+                   min="1"
+                   max="8760"
+                   step="1">
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input id="forgeAdminAllowNeverExpire"
+                     type="checkbox"
+                     style="width:auto;">
+              Allow new shares to never expire
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label for="forgeAdminSharePolicy">
+              Managed-share admission policy
+            </label>
+            <select id="forgeAdminSharePolicy">
+              <option value="apply">Apply immediately</option>
+              <option value="review-required">Require review</option>
+              <option value="reject">Reject requests</option>
+            </select>
+          </div>
+
+          <button class="secondary"
+                  type="button"
+                  onclick="saveForgeAdminSettings()">
+            Save Share Policy
+          </button>
+        </div>
+
+        <div style="margin-top:24px; padding-top:16px; border-top:1px solid #444;">
+          <strong>Managed Shares</strong>
+          <div class="info-text" style="margin-top:4px;">
+            Administrators may make a share unavailable or restore a
+            tombstoned share.
+          </div>
+          <div id="forgeAdminShares"
+               style="margin-top:8px;"
+               aria-live="polite">Loading...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary"
+                id="forgeAdminRefreshBtn"
+                onclick="refreshForgeAdmin()">Refresh</button>
+        <button class="secondary"
+                onclick="closeForgeAdminModal()">Close</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="managedShareManageModal">
     <div class="modal unsaved-modal">

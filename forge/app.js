@@ -1264,6 +1264,52 @@ const ForgeModal = {
     }
 };
 window.ForgeModal = ForgeModal;
+
+const GOVERNMENT_NOTICE_KEY = 'forgeGovernmentNoticeAcknowledgedAt';
+const GOVERNMENT_NOTICE_MS = 24 * 60 * 60 * 1000;
+let governmentNoticeEnabled = false;
+function governmentNoticeAcknowledged() {
+    try {
+        const value = Number(localStorage.getItem(GOVERNMENT_NOTICE_KEY));
+        const now = Date.now();
+        return (
+            Number.isFinite(value) &&
+            value > 0 &&
+            value <= now &&
+            now - value < GOVERNMENT_NOTICE_MS
+        );
+    } catch {
+        return false;
+    }
+}
+function showGovernmentSystemNotice() {
+    if (governmentNoticeAcknowledged()) {
+        return Promise.resolve(false);
+    }
+    return new Promise(resolve => {
+        const button = byId('governmentNoticeAcknowledgeBtn');
+        if (!button) {
+            console.error('[FORGE] Government system notice is unavailable');
+            resolve(false);
+            return;
+        }
+        button.addEventListener('click', () => {
+            try {
+                localStorage.setItem(
+                    GOVERNMENT_NOTICE_KEY,
+                    String(Date.now())
+                );
+            } catch {}
+            ForgeModal.close('governmentNoticeModal');
+            resolve(true);
+        }, { once: true });
+        ForgeModal.open('governmentNoticeModal', {
+            initialFocus: '#governmentNoticeAcknowledgeBtn',
+            closeOnBackdrop: false,
+            onRequestClose: () => {}
+        });
+    });
+}
 function getModalFocusableElements(overlay) {
     return Array.from(overlay.querySelectorAll(
         'a[href], button:not([disabled]), input:not([disabled]), ' +
@@ -1391,7 +1437,9 @@ let serverFeatures = {
   sharing: false
 };
 let serverSharePolicy = {
-  defaultTtlMs: null
+  defaultTtlMs: null,
+  allowNeverExpire: true,
+  managedSharePolicy: 'apply'
 };
 let forgeContactEmail = '';
 let serverAuth = {
@@ -1400,12 +1448,14 @@ let serverAuth = {
   anonymousAllowed: true
 };
 let currentUser = null;
+let previewIdentityEnabled = false;
 let managedShareAdminEnabled = false;
 let managedShareAdminTimer = null;
 let managedShareAdminBusy = false;
 let currentManagedShareMetadata = null;
 let currentNamedShareMetadata = null;
 const ASSERTED_EMAIL_STORAGE_KEY = 'forgeAssertedEmail';
+const PREVIEW_IDENTITY_STORAGE_KEY = 'forgePreviewIdentity';
 const PENDING_MANAGED_SHARE_PREFIX = 'forgePendingManagedShare:';
 async function managedSharePayloadHash(data) {
     const digest = await crypto.subtle.digest(
@@ -1595,6 +1645,75 @@ function getAssertedEmail() {
   } catch {
     return null;
   }
+}
+function previewIdentityAvailable() {
+  return !!(
+    previewIdentityEnabled ||
+    currentUser?.capabilities?.previewIdentity
+  );
+}
+function getPreviewIdentity() {
+  if (!previewIdentityAvailable()) return null;
+  try {
+    return sessionStorage.getItem(PREVIEW_IDENTITY_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+function refreshPreviewIdentityUi() {
+  const button = byId('previewIdentityBtn');
+  if (!button) return;
+  button.hidden = !previewIdentityAvailable();
+  if (button.hidden) return;
+  const value = getPreviewIdentity();
+  const label = value === 'anonymous'
+    ? 'Anonymous'
+    : value
+      ? value.split('@')[0]
+      : 'Actual';
+  button.textContent = `👤 App User: ${label}`;
+  button.title = value
+    ? `Preview app sign-in identity: ${value}`
+    : 'Preview app sign-in uses your actual FORGE identity';
+}
+function setPreviewIdentity() {
+  if (!previewIdentityAvailable()) return;
+  const current = getPreviewIdentity();
+  const value = window.prompt(
+    'Preview App User\n\n' +
+    'Enter an email to simulate, "anonymous" for no user, or leave blank ' +
+    'to use your actual FORGE identity:',
+    current || ''
+  );
+  if (value === null) return;
+  const trimmed = value.trim();
+  let next = null;
+  if (trimmed && trimmed.toLowerCase() === 'anonymous') {
+    next = 'anonymous';
+  } else if (trimmed) {
+    next = normalizeAssertedEmail(trimmed);
+    if (!next) {
+      toast.error('Please enter a valid email address', 3500);
+      return;
+    }
+    next = next.toLowerCase();
+  }
+  try {
+    if (next) {
+      sessionStorage.setItem(PREVIEW_IDENTITY_STORAGE_KEY, next);
+    } else {
+      sessionStorage.removeItem(PREVIEW_IDENTITY_STORAGE_KEY);
+    }
+  } catch {}
+  refreshPreviewIdentityUi();
+  toast.info(
+    next === 'anonymous'
+      ? 'Preview app is now anonymous.'
+      : next
+        ? `Preview app is now ${next}.`
+        : 'Preview app now uses your actual FORGE identity.',
+    3000
+  );
 }
 function forgeRequestHeaders(headers = {}) {
   const result = { ...headers };
@@ -2062,6 +2181,8 @@ function refreshCurrentUserMenuUi() {
   const managedNote = byId(
     'currentUserManagedIdentityNote'
   );
+  const mySharesButton = byId('currentUserMySharesBtn');
+  const adminButton = byId('currentUserAdminBtn');
   if (email) {
     email.textContent = currentUser && currentUser.email
       ? currentUser.email
@@ -2093,10 +2214,27 @@ function refreshCurrentUserMenuUi() {
   if (managedNote) {
     managedNote.hidden = serverAuth.assertedIdentity;
   }
+  if (mySharesButton) {
+    mySharesButton.hidden = !(
+      currentUser &&
+      forgeEndpointAdvertised('sharesMine')
+    );
+  }
+  if (adminButton) {
+    adminButton.hidden = !(
+      currentUser &&
+      currentUser.isAdmin === true &&
+      forgeEndpointAdvertised('adminShares') &&
+      forgeEndpointAdvertised('adminAdmins') &&
+      forgeEndpointAdvertised('adminAdminGrant') &&
+      forgeEndpointAdvertised('adminAdminRevoke')
+    );
+  }
 }
 function refreshCurrentUserUi() {
   const button = byId('currentUserBtn');
   if (!button) return;
+  refreshPreviewIdentityUi();
   if (serverAuth.mode === 'none' && !currentUser) {
     closeCurrentUserMenu();
     button.hidden = true;
@@ -2150,6 +2288,464 @@ function currentUserAction(event) {
     button.setAttribute('aria-expanded', 'true');
   }
 }
+function managedShareDisplayDate(value) {
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return 'No date';
+  return new Date(time).toLocaleString();
+}
+
+function managedShareDisplayTitle(share) {
+  return share && share.title
+    ? String(share.title)
+    : 'Untitled Short Link';
+}
+
+function managedShareOpenUrl(share) {
+  return (
+    location.origin +
+    location.pathname +
+    '#share=' +
+    encodeURIComponent(share.payloadHash)
+  );
+}
+
+function createManagedShareListItem(share, options = {}) {
+  const item = document.createElement('div');
+  item.style.cssText =
+    'padding:10px 0;border-bottom:1px solid #444;';
+
+  const heading = document.createElement('div');
+  heading.style.fontWeight = '600';
+  heading.textContent = managedShareDisplayTitle(share);
+  item.appendChild(heading);
+
+  const details = document.createElement('div');
+  details.className = 'info-text';
+  details.style.cssText =
+    'margin-top:3px;overflow-wrap:anywhere;';
+  const state = share.state || 'active';
+  const owner = share.ownerEmail
+    ? ` | owner ${share.ownerEmail}`
+    : '';
+  details.textContent =
+    `${state} | created ${managedShareDisplayDate(share.createdAt)}` +
+    `${owner} | ${share.payloadHash}`;
+  item.appendChild(details);
+
+  const actions = document.createElement('div');
+  actions.style.cssText =
+    'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;';
+
+  const openButton = document.createElement('button');
+  openButton.type = 'button';
+  openButton.className = 'secondary';
+  openButton.textContent = 'Open';
+  openButton.addEventListener('click', () => {
+    window.open(managedShareOpenUrl(share), '_blank', 'noopener');
+  });
+  actions.appendChild(openButton);
+
+  if (options.admin === true) {
+    const lifecycleButton = document.createElement('button');
+    lifecycleButton.type = 'button';
+    lifecycleButton.className =
+      state === 'tombstoned' ? 'success' : 'danger';
+    lifecycleButton.textContent =
+      state === 'tombstoned' ? 'Restore' : 'Tombstone';
+    lifecycleButton.addEventListener('click', () => {
+      setAdminShareState(
+        share,
+        state === 'tombstoned' ? 'active' : 'tombstoned'
+      );
+    });
+    actions.appendChild(lifecycleButton);
+  }
+
+  item.appendChild(actions);
+  return item;
+}
+
+function renderManagedShareList(target, shares, options = {}) {
+  if (!target) return;
+  target.replaceChildren();
+  if (!Array.isArray(shares) || shares.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'info-text';
+    empty.textContent = options.emptyText || 'No managed shares found.';
+    target.appendChild(empty);
+    return;
+  }
+  for (const share of shares) {
+    if (
+      !share ||
+      typeof share.payloadHash !== 'string' ||
+      !/^[a-f0-9]{40}$/i.test(share.payloadHash)
+    ) continue;
+    target.appendChild(
+      createManagedShareListItem(share, options)
+    );
+  }
+}
+
+function closeMySharesModal() {
+  ForgeModal.close('mySharesModal');
+}
+
+async function refreshMyShares() {
+  const target = byId('mySharesList');
+  if (!target) return;
+  target.textContent = 'Loading...';
+  try {
+    const response = await forgeServerFetch('sharesMine', {
+      cache: 'no-store'
+    });
+    if (!response.ok) {
+      throw new Error(`server returned ${response.status}`);
+    }
+    const result = await response.json();
+    renderManagedShareList(target, result.shares, {
+      emptyText: 'You have not created any managed Short Links.'
+    });
+  } catch (error) {
+    target.textContent = 'Unable to load your shares.';
+    toast.error('Unable to load My Shares: ' + error.message, 4500);
+  }
+}
+
+async function openMySharesModal() {
+  closeCurrentUserMenu();
+  if (
+    !currentUser ||
+    !forgeEndpointAdvertised('sharesMine')
+  ) {
+    toast.error('My Shares is not available on this deployment.', 3500);
+    return;
+  }
+  ForgeModal.open('mySharesModal', {
+    initialFocus: '#mySharesRefreshBtn',
+    onRequestClose: closeMySharesModal
+  });
+  await refreshMyShares();
+}
+
+function closeForgeAdminModal() {
+  ForgeModal.close('forgeAdminModal');
+}
+
+function renderForgeAdmins(result) {
+  const target = byId('forgeAdminUsers');
+  if (!target) return;
+  target.replaceChildren();
+
+  const bootstrap = new Set(
+    Array.isArray(result.bootstrap) ? result.bootstrap : []
+  );
+  const mutable = Array.isArray(result.mutable)
+    ? result.mutable
+    : [];
+  const all = Array.from(
+    new Set([...bootstrap, ...mutable])
+  ).sort();
+
+  if (all.length === 0) {
+    target.textContent = 'No administrators configured.';
+    return;
+  }
+
+  for (const email of all) {
+    const row = document.createElement('div');
+    row.style.cssText =
+      'display:flex;gap:8px;align-items:center;' +
+      'padding:7px 0;border-bottom:1px solid #444;';
+
+    const label = document.createElement('div');
+    label.style.flex = '1';
+    label.textContent =
+      email + (bootstrap.has(email) ? ' (deployment)' : '');
+    row.appendChild(label);
+
+    if (!bootstrap.has(email)) {
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'danger';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => revokeForgeAdmin(email));
+      row.appendChild(remove);
+    }
+
+    target.appendChild(row);
+  }
+}
+
+function renderForgeAdminSettings(settings) {
+  if (!settings || typeof settings !== 'object') return;
+  const ttl = byId('forgeAdminDefaultTtlHours');
+  const never = byId('forgeAdminAllowNeverExpire');
+  const policy = byId('forgeAdminSharePolicy');
+
+  if (ttl) {
+    const hours = Number(settings.defaultTtlMs) / (60 * 60 * 1000);
+    ttl.value = Number.isFinite(hours)
+      ? String(Math.max(1, Math.round(hours)))
+      : '';
+  }
+  if (never) {
+    never.checked = settings.allowNeverExpire === true;
+  }
+  if (
+    policy &&
+    ['apply', 'review-required', 'reject'].includes(
+      settings.managedSharePolicy
+    )
+  ) {
+    policy.value = settings.managedSharePolicy;
+  }
+}
+
+function applyForgeSharePolicy(settings) {
+  if (!settings || typeof settings !== 'object') return;
+  const ttl = Number(settings.defaultTtlMs);
+  serverSharePolicy = {
+    defaultTtlMs:
+      Number.isFinite(ttl) && ttl > 0 ? ttl : null,
+    allowNeverExpire: settings.allowNeverExpire === true,
+    managedSharePolicy:
+      typeof settings.managedSharePolicy === 'string'
+        ? settings.managedSharePolicy
+        : 'apply'
+  };
+}
+
+async function saveForgeAdminSettings() {
+  const ttl = Number(byId('forgeAdminDefaultTtlHours')?.value);
+  const never = byId('forgeAdminAllowNeverExpire');
+  const policy = byId('forgeAdminSharePolicy');
+  if (!Number.isFinite(ttl) || ttl < 1 || ttl > 8760) {
+    toast.error(
+      'Default Short Link lifetime must be 1 to 8760 hours.',
+      4000
+    );
+    return;
+  }
+  if (!never || !policy) {
+    toast.error('Share policy controls are unavailable.', 3500);
+    return;
+  }
+
+  try {
+    const response = await forgeServerFetch('adminSettings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        defaultTtlMs: Math.round(ttl * 60 * 60 * 1000),
+        allowNeverExpire: never.checked,
+        managedSharePolicy: policy.value
+      })
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(
+        body && body.error
+          ? body.error
+          : `server returned ${response.status}`
+      );
+    }
+    const settings = await response.json();
+    applyForgeSharePolicy(settings);
+    renderForgeAdminSettings(settings);
+    toast.success('Share policy saved.', 3000);
+  } catch (error) {
+    toast.error(
+      'Unable to save share policy: ' + error.message,
+      5000
+    );
+  }
+}
+
+async function refreshForgeAdmin() {
+  const usersTarget = byId('forgeAdminUsers');
+  const sharesTarget = byId('forgeAdminShares');
+  if (usersTarget) usersTarget.textContent = 'Loading...';
+  if (sharesTarget) sharesTarget.textContent = 'Loading...';
+
+  try {
+    const [
+      adminsResponse,
+      sharesResponse,
+      settingsResponse
+    ] = await Promise.all([
+      forgeServerFetch('adminAdmins', {cache: 'no-store'}),
+      forgeServerFetch('adminShares', {cache: 'no-store'}),
+      forgeServerFetch('adminSettings', {cache: 'no-store'})
+    ]);
+    if (!adminsResponse.ok) {
+      throw new Error(
+        `administrator list returned ${adminsResponse.status}`
+      );
+    }
+    if (!sharesResponse.ok) {
+      throw new Error(
+        `share list returned ${sharesResponse.status}`
+      );
+    }
+    if (!settingsResponse.ok) {
+      throw new Error(
+        `settings returned ${settingsResponse.status}`
+      );
+    }
+
+    const admins = await adminsResponse.json();
+    const shares = await sharesResponse.json();
+    const settings = await settingsResponse.json();
+    renderForgeAdmins(admins);
+    renderForgeAdminSettings(settings);
+    applyForgeSharePolicy(settings);
+    renderManagedShareList(
+      sharesTarget,
+      shares.shares,
+      {
+        admin: true,
+        emptyText: 'No managed shares found.'
+      }
+    );
+  } catch (error) {
+    if (usersTarget) {
+      usersTarget.textContent = 'Unable to load administrators.';
+    }
+    if (sharesTarget) {
+      sharesTarget.textContent = 'Unable to load managed shares.';
+    }
+    toast.error(
+      'Unable to load FORGE Administration: ' + error.message,
+      5000
+    );
+  }
+}
+
+async function openForgeAdminModal() {
+  closeCurrentUserMenu();
+  if (!currentUser || currentUser.isAdmin !== true) {
+    toast.error('Administrator access is required.', 3500);
+    return;
+  }
+  if (
+    !forgeEndpointAdvertised('adminShares') ||
+    !forgeEndpointAdvertised('adminAdmins') ||
+    !forgeEndpointAdvertised('adminSettings')
+  ) {
+    toast.error(
+      'Administration is not available on this deployment.',
+      3500
+    );
+    return;
+  }
+  ForgeModal.open('forgeAdminModal', {
+    initialFocus: '#forgeAdminRefreshBtn',
+    onRequestClose: closeForgeAdminModal
+  });
+  await refreshForgeAdmin();
+}
+
+async function grantForgeAdmin() {
+  const input = byId('forgeAdminEmail');
+  const email = normalizeAssertedEmail(input?.value || '');
+  if (!email) {
+    toast.error('Enter a valid administrator email.', 3500);
+    input?.focus();
+    return;
+  }
+  try {
+    const response = await forgeServerFetch('adminAdminGrant', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email})
+    });
+    if (!response.ok) {
+      throw new Error(`server returned ${response.status}`);
+    }
+    if (input) input.value = '';
+    toast.success(`Administrator added: ${email}`, 3000);
+    await refreshForgeAdmin();
+  } catch (error) {
+    toast.error(
+      'Unable to add administrator: ' + error.message,
+      4500
+    );
+  }
+}
+
+async function revokeForgeAdmin(email) {
+  if (!confirm(`Remove administrator privileges from ${email}?`)) {
+    return;
+  }
+  try {
+    const response = await forgeServerFetch('adminAdminRevoke', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email})
+    });
+    if (!response.ok) {
+      throw new Error(`server returned ${response.status}`);
+    }
+    toast.success(`Administrator removed: ${email}`, 3000);
+    await refreshForgeAdmin();
+    await loadCurrentUser();
+    refreshCurrentUserUi();
+  } catch (error) {
+    toast.error(
+      'Unable to remove administrator: ' + error.message,
+      4500
+    );
+  }
+}
+
+async function setAdminShareState(share, state) {
+  const verb = state === 'active' ? 'restore' : 'tombstone';
+  const title = managedShareDisplayTitle(share);
+  if (!confirm(`${verb === 'restore' ? 'Restore' : 'Tombstone'} "${title}"?`)) {
+    return;
+  }
+  const requestId = requireManagedShareRequestId();
+  if (!requestId) return;
+
+  const packet = {
+    id: requestId,
+    type: 'share.update',
+    payloadHash: share.payloadHash,
+    changes: {state},
+    reason:
+      state === 'active'
+        ? 'Share restored by FORGE administrator'
+        : 'Share tombstoned by FORGE administrator'
+  };
+
+  try {
+    const response = await forgeServerFetch('shareRequest', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(packet)
+    });
+    if (!response.ok) {
+      const {detail} = await readManagedShareError(response);
+      throw new Error(
+        `server returned ${response.status}${detail}`
+      );
+    }
+    toast.success(
+      state === 'active'
+        ? 'Share restored.'
+        : 'Share tombstoned.',
+      3500
+    );
+    await refreshForgeAdmin();
+  } catch (error) {
+    toast.error(
+      `Unable to ${verb} share: ${error.message}`,
+      5000
+    );
+  }
+}
+
 async function logoutCurrentUser() {
   if (!serverAuth.assertedIdentity) {
     closeCurrentUserMenu();
@@ -2235,7 +2831,13 @@ window.FORGE_ENDPOINTS = {
   shareRequest: pref + 'share/request',
   shareRequestGet: pref + 'share/request/{id}',
   shareAliasGet: pref + 'share/alias/{alias}',
-  shareGet: pref + 'share/{hash}'
+  shareGet: pref + 'share/{hash}',
+  sharesMine: pref + 'shares/mine',
+  adminShares: pref + 'admin/shares',
+  adminAdmins: pref + 'admin/admins',
+  adminAdminGrant: pref + 'admin/admins',
+  adminAdminRevoke: pref + 'admin/admins/revoke',
+  adminSettings: pref + 'admin/settings'
 };
 let advertisedForgeEndpoints = new Set();
 function forgeEndpointAdvertised(name) {
@@ -2309,7 +2911,13 @@ function applyForgeEndpointConfig(config) {
     'shareRequest',
     'shareRequestGet',
     'shareAliasGet',
-    'shareGet'
+    'shareGet',
+    'sharesMine',
+    'adminShares',
+    'adminAdmins',
+    'adminAdminGrant',
+    'adminAdminRevoke',
+    'adminSettings'
   ]) {
     const configured = config.endpoints[name];
     if (typeof configured !== 'string' || !configured.trim()) {
@@ -2342,6 +2950,8 @@ async function detectServerFeatures() {
     });
     if (response.ok) {
       const config = await response.json();
+      governmentNoticeEnabled = config.governmentNotice === true;
+      previewIdentityEnabled = config.previewIdentity === true;
       const origins=config.previewResourceOrigins;
       if(Array.isArray(origins)){
         const valid=/^https?:\/\/(?:\*|(?:\*\.)?[a-z0-9.-]+)(?::(?:\*|\d+))?$/i;
@@ -2366,7 +2976,15 @@ async function detectServerFeatures() {
           Number.isFinite(configuredDefaultTtlMs) &&
           configuredDefaultTtlMs > 0
             ? configuredDefaultTtlMs
-            : null
+            : null,
+        allowNeverExpire:
+          !config.sharePolicy ||
+          config.sharePolicy.allowNeverExpire !== false,
+        managedSharePolicy:
+          config.sharePolicy &&
+          typeof config.sharePolicy.managedSharePolicy === 'string'
+            ? config.sharePolicy.managedSharePolicy
+            : 'apply'
       };
       forgeContactEmail = normalizeForgeContactEmail(config.contactEmail);
       serverAuth = config.auth && typeof config.auth === 'object'
@@ -3364,6 +3982,10 @@ function prepareShortLinkExpirationPicker() {
     if (!group || !input || !never) return;
     never.checked = false;
     input.disabled = false;
+    const neverLabel = never.closest('label');
+    if (neverLabel) {
+      neverLabel.hidden = serverSharePolicy.allowNeverExpire === false;
+    }
     if (!managedShareExpirationPickerAvailable()) {
         group.hidden = true;
         input.value = '';
@@ -3915,6 +4537,12 @@ function openManagedShareManageModal() {
     }
     const expiresMs = Date.parse(currentManagedShareMetadata.expiresAt);
     never.checked = !Number.isFinite(expiresMs);
+    const neverLabel = never.closest('label');
+    if (neverLabel) {
+      neverLabel.hidden =
+        serverSharePolicy.allowNeverExpire === false &&
+        Number.isFinite(expiresMs);
+    }
     expirationInput.disabled = never.checked;
     expirationInput.min = toLocalDateTimeInputValue(
         new Date(Date.now() + 60 * 1000)
@@ -5840,1479 +6468,1472 @@ function buildInterceptorScript(pageTitle, basePath) {
     const localStorageSnapshot = serializePreviewStorage(forgePreviewLocalStorage);
     const sessionStorageSnapshot = serializePreviewStorage(forgePreviewSessionStorage);
     return `
-        <script>
-        (function() {
-            const parentHostname = ${JSON.stringify(window.location.hostname)};
-            const parentHost = ${JSON.stringify(window.location.host)};
-            const parentOrigin = ${JSON.stringify(window.location.origin)};
-            function maskOrigin(proto) {
-                ['hostname', 'host', 'origin'].forEach(prop => {
-                    const orig = Object.getOwnPropertyDescriptor(proto, prop);
-                    if (orig) {
-                        Object.defineProperty(proto, prop, {
-                            get: function() {
-                                const val = orig.get.call(this);
-                                // If the DOM element resolved to the parent IDE's origin,
-                                // pretend it resolved to the sandboxed iframe's origin instead.
-                                if (val === parentHostname || val === parentHost || val === parentOrigin) {
-                                    return window.location[prop];
-                                }
-                                return val;
-                            }
-                        });
-                    }
-                });
-            }
-            if (window.HTMLAnchorElement) maskOrigin(HTMLAnchorElement.prototype);
-            if (window.URL) maskOrigin(URL.prototype);
-        })();
-            (function() {
-              try {
-                const originalFetch = window.fetch;
-                // Opaque-origin previews cannot use native localStorage or
-                // sessionStorage. Install synchronous Storage-like mirrors
-                // before project scripts execute. Mutations are persisted by
-                // the trusted parent through the validated postMessage bridge.
-                function __install_forge_storage(propertyName, storageName, initialData) {
-                    const data = new Map();
-                    if (initialData && typeof initialData === 'object') {
-                        for (const key of Object.keys(initialData)) {
-                            data.set(String(key), String(initialData[key]));
-                        }
-                    }
-                    function notify(action, key, value) {
-                        try {
-                            window.parent.postMessage({
-                                type: 'forge-storage',
-                                storage: storageName,
-                                action: action,
-                                key: key == null ? null : String(key),
-                                value: value == null ? null : String(value)
-                            }, '*');
-                        } catch (e) {}
-                    }
-                    const api = {
-                        get length() {
-                            return data.size;
-                        },
-                        key(index) {
-                            const keys = Array.from(data.keys());
-                            const i = Number(index);
-                            return Number.isInteger(i) && i >= 0 && i < keys.length
-                                ? keys[i]
-                                : null;
-                        },
-                        getItem(key) {
-                            key = String(key);
-                            return data.has(key) ? data.get(key) : null;
-                        },
-                        setItem(key, value) {
-                            key = String(key);
-                            value = String(value);
-                            data.set(key, value);
-                            notify('set', key, value);
-                        },
-                        removeItem(key) {
-                            key = String(key);
-                            data.delete(key);
-                            notify('remove', key, null);
-                        },
-                        clear() {
-                            data.clear();
-                            notify('clear', null, null);
-                        }
-                    };
-                    // Native Storage exposes stored keys during enumeration,
-                    // but its built-in API members are not enumerable.
-                    for (const name of [
-                        'length',
-                        'key',
-                        'getItem',
-                        'setItem',
-                        'removeItem',
-                        'clear'
-                    ]) {
-                        const descriptor =
-                            Object.getOwnPropertyDescriptor(api, name);
-                        if (descriptor) {
-                            descriptor.enumerable = false;
-                            Object.defineProperty(api, name, descriptor);
-                        }
-                    }
-                    // Support the common localStorage.foo / delete
-                    // localStorage.foo shorthand in addition to the standard
-                    // Storage methods.
-                    const proxy = new Proxy(api, {
-                        get(target, prop, receiver) {
-                            if (
-                                typeof prop === 'string' &&
-                                !(prop in target)
-                            ) {
-                                return data.has(prop) ? data.get(prop) : undefined;
-                            }
-                            return Reflect.get(target, prop, receiver);
-                        },
-                        set(target, prop, value, receiver) {
-                            if (
-                                typeof prop === 'string' &&
-                                !(prop in target)
-                            ) {
-                                api.setItem(prop, value);
-                                return true;
-                            }
-                            return Reflect.set(target, prop, value, receiver);
-                        },
-                        deleteProperty(target, prop) {
-                            if (
-                                typeof prop === 'string' &&
-                                !(prop in target)
-                            ) {
-                                api.removeItem(prop);
-                                return true;
-                            }
-                            return Reflect.deleteProperty(target, prop);
-                        },
-                        ownKeys(target) {
-                            const own = Reflect.ownKeys(target);
-                            for (const key of data.keys()) {
-                                if (!own.includes(key)) own.push(key);
-                            }
-                            return own;
-                        },
-                        getOwnPropertyDescriptor(target, prop) {
-                            const own = Reflect.getOwnPropertyDescriptor(target, prop);
-                            if (own) return own;
-                            if (typeof prop === 'string' && data.has(prop)) {
-                                return {
-                                    configurable: true,
-                                    enumerable: true,
-                                    writable: true,
-                                    value: data.get(prop)
-                                };
-                            }
-                            return undefined;
-                        }
-                    });
-                    Object.defineProperty(window, propertyName, {
-                        configurable: true,
-                        enumerable: true,
-                        value: proxy
-                    });
-                    return proxy;
-                }
-                __install_forge_storage(
-                    'localStorage',
-                    'localStorage',
-                    ${localStorageSnapshot}
-                );
-                __install_forge_storage(
-                    'sessionStorage',
-                    'sessionStorage',
-                    ${sessionStorageSnapshot}
-                );
-                // IndexedDB facade for opaque-origin previews. Native IndexedDB
-                // remains in the parent; this side only mirrors the useful API.
-                const __forge_idb_pending = new Map();
-                let __forge_idb_next_request = 1;
-                let __forge_idb_next_transaction = 1;
-                function __forge_idb_post(message) {
-                    try {
-                        window.parent.postMessage(message, '*');
-                    } catch (error) {
-                        if (
-                            error.name !== 'DataCloneError' ||
-                            !('value' in message)
-                        ) throw error;
-                        let value =
-                            window.Vue && Vue.toRaw
-                                ? Vue.toRaw(message.value)
-                                : message.value;
-                        try {
-                            value = structuredClone(value);
-                        } catch (cloneError) {
-                            value = JSON.parse(JSON.stringify(value));
-                        }
-                        window.parent.postMessage(
-                            Object.assign({}, message, { value }),
-                            '*'
-                        );
-                    }
-                }
-                function __forge_idb_error(info) {
-                    const error = new Error(
-                        info && info.message
-                            ? info.message
-                            : 'IndexedDB bridge error'
-                    );
-                    error.name = info && info.name ? info.name : 'Error';
-                    return error;
-                }
-                function __forge_idb_target(target) {
-                    const listeners = Object.create(null);
-                    target.addEventListener = function(type, listener) {
-                        if (typeof listener !== 'function') return;
-                        (listeners[type] || (listeners[type] = []))
-                            .push(listener);
-                    };
-                    target.removeEventListener = function(type, listener) {
-                        const list = listeners[type];
-                        if (!list) return;
-                        const index = list.indexOf(listener);
-                        if (index >= 0) list.splice(index, 1);
-                    };
-                    target.__fire = function(type, detail) {
-                        const event = Object.assign({
-                            type,
-                            target,
-                            currentTarget: target
-                        }, detail || {});
-                        const handler = target['on' + type];
-                        if (typeof handler === 'function') {
-                            handler.call(target, event);
-                        }
-                        const list = listeners[type];
-                        if (list) {
-                            for (const listener of list.slice()) {
-                                listener.call(target, event);
-                            }
-                        }
-                    };
-                    return target;
-                }
-                function __forge_idb_request(kind, name) {
-                    const request = __forge_idb_target({
-                        __forgeKind: kind,
-                        __forgeId:
-                            'idb-request-' + (__forge_idb_next_request++),
-                        __forgeName: name == null ? '' : String(name),
-                        readyState: 'pending',
-                        result: undefined,
-                        error: null,
-                        source: null,
-                        transaction: null,
-                        onsuccess: null,
-                        onerror: null,
-                        onupgradeneeded: null,
-                        onblocked: null
-                    });
-                    __forge_idb_pending.set(request.__forgeId, request);
-                    return request;
-                }
-                function __forge_idb_store_list(initialStores) {
-                    const names = Array.from(initialStores || []).map(String);
-                    return {
-                        get length() {
-                            return names.length;
-                        },
-                        contains(name) {
-                            return names.includes(String(name));
-                        },
-                        item(index) {
-                            return names[index] === undefined
-                                ? null
-                                : names[index];
-                        },
-                        [Symbol.iterator]() {
-                            return names[Symbol.iterator]();
-                        },
-                        __add(name) {
-                            name = String(name);
-                            if (!names.includes(name)) names.push(name);
-                        },
-                        __delete(name) {
-                            const index = names.indexOf(String(name));
-                            if (index >= 0) names.splice(index, 1);
-                        },
-                        __replace(next) {
-                            names.length = 0;
-                            names.push(
-                                ...Array.from(next || []).map(String)
-                            );
-                        }
-                    };
-                }
-                function __forge_idb_store(
-                    dbId,
-                    storeName,
-                    mode,
-                    transaction
-                ) {
-                    storeName = String(storeName);
-                    const store = {
-                        name: storeName
-                    };
-                    function send(operation, detail) {
-                        if (transaction) {
-                            transaction.__requestStarted();
-                        }
-                        const request = __forge_idb_request('operation');
-                        request.source = store;
-                        request.transaction = transaction || null;
-                        const message = Object.assign({
-                            type: transaction
-                                ? 'forge-idb-transaction-op'
-                                : 'forge-idb-op',
-                            requestId: request.__forgeId,
-                            dbId,
-                            storeName,
-                            mode,
-                            operation
-                        }, detail || {});
-                        if (transaction) {
-                            message.transactionId =
-                                transaction.__forgeId;
-                        }
-                        __forge_idb_post(message);
-                        return request;
-                    }
-                    store.put = function(value, key) {
-                        return send('put', {
-                            value,
-                            key,
-                            hasKey: arguments.length > 1
-                        });
-                    };
-                    store.add = function(value, key) {
-                        return send('add', {
-                            value,
-                            key,
-                            hasKey: arguments.length > 1
-                        });
-                    };
-                    store.get = function(key) {
-                        return send('get', { key });
-                    };
-                    store.delete = function(key) {
-                        return send('delete', { key });
-                    };
-                    store.clear = function() {
-                        return send('clear');
-                    };
-                    store.count = function(query) {
-                        return send('count', {
-                            query,
-                            hasQuery: arguments.length > 0
-                        });
-                    };
-                    store.getAll = function(query, count) {
-                        return send('getAll', {
-                            query,
-                            count,
-                            hasQuery: arguments.length > 0,
-                            hasCount: arguments.length > 1
-                        });
-                    };
-                    store.getAllKeys = function(query, count) {
-                        return send('getAllKeys', {
-                            query,
-                            count,
-                            hasQuery: arguments.length > 0,
-                            hasCount: arguments.length > 1
-                        });
-                    };
-                    return store;
-                }
-                function __forge_idb_transaction(
-                    dbId,
-                    storeNames,
-                    mode
-                ) {
-                    const names = Array.isArray(storeNames)
-                        ? storeNames.map(String)
-                        : [String(storeNames)];
-                    const transactionMode =
-                        mode === 'readwrite'
-                            ? 'readwrite'
-                            : 'readonly';
-                    let pendingRequests = 0;
-                    let doneTimer = null;
-                    let inactive = false;
-                    const transaction = __forge_idb_target({
-                        __forgeId:
-                            'idb-transaction-' +
-                            (__forge_idb_next_transaction++),
-                        mode: transactionMode,
-                        objectStoreNames:
-                            __forge_idb_store_list(names),
-                        error: null,
-                        oncomplete: null,
-                        onabort: null,
-                        onerror: null
-                    });
-                    function assertActive() {
-                        if (inactive) {
-                            throw new DOMException(
-                                'Transaction is inactive',
-                                'TransactionInactiveError'
-                            );
-                        }
-                    }
-                    function scheduleDone(delay = true) {
-                        if (
-                            inactive ||
-                            pendingRequests > 0 ||
-                            doneTimer
-                        ) {
-                            return;
-                        }
-                        const finish = function() {
-                            doneTimer = null;
-                            if (inactive || pendingRequests > 0) return;
-                            inactive = true;
-                            __forge_idb_post({
-                                type: 'forge-idb-transaction-done',
-                                transactionId:
-                                    transaction.__forgeId
-                            });
-                        };
-                        if (delay) doneTimer = setTimeout(finish, 0);
-                        else queueMicrotask(finish);
-                    }
-                    transaction.objectStore = function(name) {
-                        assertActive();
-                        name = String(name);
-                        if (!names.includes(name)) {
-                            throw new DOMException(
-                                'Object store is not in this transaction',
-                                'NotFoundError'
-                            );
-                        }
-                        return __forge_idb_store(
-                            dbId,
-                            name,
-                            transactionMode,
-                            transaction
-                        );
-                    };
-                    transaction.abort = function() {
-                        assertActive();
-                        inactive = true;
-                        if (doneTimer) clearTimeout(doneTimer);
-                        __forge_idb_post({
-                            type: 'forge-idb-transaction-abort',
-                            transactionId: transaction.__forgeId
-                        });
-                    };
-                    transaction.__requestStarted = function() {
-                        assertActive();
-                        pendingRequests++;
-                        if (doneTimer) {
-                            clearTimeout(doneTimer);
-                            doneTimer = null;
-                        }
-                    };
-                    transaction.__requestFinished = function() {
-                        if (pendingRequests > 0) pendingRequests--;
-                        scheduleDone(false);
-                    };
-                    transaction.__finish = function() {
-                        inactive = true;
-                        if (doneTimer) clearTimeout(doneTimer);
-                    };
-                    __forge_idb_pending.set(
-                        transaction.__forgeId,
-                        transaction
-                    );
-                    __forge_idb_post({
-                        type: 'forge-idb-transaction-open',
-                        transactionId: transaction.__forgeId,
-                        dbId,
-                        storeNames: names,
-                        mode: transactionMode
-                    });
-                    // Match native auto-commit closely enough to allow
-                    // synchronous requests and request callback chaining.
-                    scheduleDone(false);
-                    return transaction;
-                }
-                function __forge_idb_database(
-                    dbId,
-                    name,
-                    version,
-                    stores,
-                    upgradeRequestId
-                ) {
-                    const objectStoreNames =
-                        __forge_idb_store_list(stores);
-                    let upgradeId = upgradeRequestId || null;
-                    const db = {
-                        name,
-                        version,
-                        objectStoreNames
-                    };
-                    db.createObjectStore = function(
-                        storeName,
-                        options
-                    ) {
-                        if (!upgradeId) {
-                            throw new DOMException(
-                                'createObjectStore() requires an upgrade',
-                                'InvalidStateError'
-                            );
-                        }
-                        storeName = String(storeName);
-                        objectStoreNames.__add(storeName);
-                        __forge_idb_post({
-                            type: 'forge-idb-create-store',
-                            requestId: upgradeId,
-                            name: storeName,
-                            options:
-                                options &&
-                                typeof options === 'object'
-                                    ? options
-                                    : undefined
-                        });
-                        return __forge_idb_store(
-                            dbId,
-                            storeName,
-                            'versionchange',
-                            null
-                        );
-                    };
-                    db.deleteObjectStore = function(storeName) {
-                        if (!upgradeId) {
-                            throw new DOMException(
-                                'deleteObjectStore() requires an upgrade',
-                                'InvalidStateError'
-                            );
-                        }
-                        storeName = String(storeName);
-                        if (!objectStoreNames.contains(storeName)) {
-                            throw new DOMException(
-                                'Object store does not exist',
-                                'NotFoundError'
-                            );
-                        }
-                        objectStoreNames.__delete(storeName);
-                        __forge_idb_post({
-                            type: 'forge-idb-delete-store',
-                            requestId: upgradeId,
-                            name: storeName
-                        });
-                    };
-                    db.transaction = function(storeNames, mode) {
-                        return __forge_idb_transaction(
-                            dbId,
-                            storeNames,
-                            mode
-                        );
-                    };
-                    db.close = function() {
-                        __forge_idb_post({
-                            type: 'forge-idb-close',
-                            dbId
-                        });
-                    };
-                    db.__finishUpgrade = function() {
-                        upgradeId = null;
-                    };
-                    db.__update = function(
-                        nextVersion,
-                        nextStores
-                    ) {
-                        db.version = nextVersion;
-                        objectStoreNames.__replace(nextStores);
-                    };
-                    return db;
-                }
-                const __forge_indexed_db = {
-                    open(name, version) {
-                        const request =
-                            __forge_idb_request('open', name);
-                        __forge_idb_post({
-                            type: 'forge-idb-open',
-                            requestId: request.__forgeId,
-                            name: String(name),
-                            version:
-                                version === undefined
-                                    ? null
-                                    : version
-                        });
-                        return request;
-                    },
-                    deleteDatabase(name) {
-                        const request =
-                            __forge_idb_request(
-                                'deleteDatabase',
-                                name
-                            );
-                        __forge_idb_post({
-                            type: 'forge-idb-delete-db',
-                            requestId: request.__forgeId,
-                            name: String(name)
-                        });
-                        return request;
-                    }
-                };
-                Object.defineProperty(window, 'indexedDB', {
-                    configurable: true,
-                    enumerable: true,
-                    value: __forge_indexed_db
-                });
-                window.addEventListener(
-                    'message',
-                    function(event) {
-                        if (event.source !== window.parent) return;
-                        if (
-                            !event.data ||
-                            typeof event.data !== 'object'
-                        ) {
-                            return;
-                        }
-                        const message = event.data;
-                        if (
-                            message.type ===
-                                'forge-idb-transaction-complete' ||
-                            message.type ===
-                                'forge-idb-transaction-abort'
-                        ) {
-                            const transaction =
-                                __forge_idb_pending.get(
-                                    String(
-                                        message.transactionId || ''
-                                    )
-                                );
-                            if (!transaction) return;
-                            transaction.__finish();
-                            if (
-                                message.type ===
-                                'forge-idb-transaction-complete'
-                            ) {
-                                transaction.__fire('complete');
-                            } else {
-                                transaction.error =
-                                    __forge_idb_error(
-                                        message.error
-                                    );
-                                transaction.__fire('abort');
-                            }
-                            __forge_idb_pending.delete(
-                                transaction.__forgeId
-                            );
-                            return;
-                        }
-                        const request =
-                            __forge_idb_pending.get(
-                                String(message.requestId || '')
-                            );
-                        if (!request) return;
-                        if (message.type === 'forge-idb-upgrade') {
-                            request.result =
-                                __forge_idb_database(
-                                    message.dbId,
-                                    request.__forgeName,
-                                    message.newVersion,
-                                    message.stores,
-                                    request.__forgeId
-                                );
-                            request.transaction = {
-                                mode: 'versionchange'
-                            };
-                            let upgradeError = null;
-                            try {
-                                request.__fire(
-                                    'upgradeneeded',
-                                    {
-                                        oldVersion:
-                                            message.oldVersion,
-                                        newVersion:
-                                            message.newVersion
-                                    }
-                                );
-                            } catch (error) {
-                                upgradeError = error;
-                            }
-                            __forge_idb_post({
-                                type: upgradeError
-                                    ? 'forge-idb-upgrade-abort'
-                                    : 'forge-idb-upgrade-done',
-                                requestId: request.__forgeId
-                            });
-                            if (upgradeError) {
-                                setTimeout(function() {
-                                    throw upgradeError;
-                                }, 0);
-                            }
-                            return;
-                        }
-                        if (
-                            message.type ===
-                            'forge-idb-schema-error'
-                        ) {
-                            request.error =
-                                __forge_idb_error(
-                                    message.error
-                                );
-                            return;
-                        }
-                        if (
-                            message.type ===
-                            'forge-idb-delete-db-blocked'
-                        ) {
-                            request.__fire('blocked');
-                            return;
-                        }
-                        if (
-                            message.type ===
-                            'forge-idb-delete-db-success'
-                        ) {
-                            request.readyState = 'done';
-                            request.result = undefined;
-                            request.__fire('success');
-                            __forge_idb_pending.delete(
-                                request.__forgeId
-                            );
-                            return;
-                        }
-                        if (
-                            message.type ===
-                            'forge-idb-delete-db-error'
-                        ) {
-                            request.readyState = 'done';
-                            request.error =
-                                __forge_idb_error(
-                                    message.error
-                                );
-                            request.__fire('error');
-                            __forge_idb_pending.delete(
-                                request.__forgeId
-                            );
-                            return;
-                        }
-                        if (
-                            message.type ===
-                            'forge-idb-open-success'
-                        ) {
-                            request.readyState = 'done';
-                            if (!request.result) {
-                                request.result =
-                                    __forge_idb_database(
-                                        message.dbId,
-                                        request.__forgeName,
-                                        message.version,
-                                        message.stores,
-                                        null
-                                    );
-                            } else {
-                                request.result
-                                    .__finishUpgrade();
-                                request.result.__update(
-                                    message.version,
-                                    message.stores
-                                );
-                            }
-                            request.transaction = null;
-                            request.__fire('success');
-                            __forge_idb_pending.delete(
-                                request.__forgeId
-                            );
-                            return;
-                        }
-                        if (
-                            message.type ===
-                            'forge-idb-open-error'
-                        ) {
-                            request.readyState = 'done';
-                            request.error =
-                                __forge_idb_error(
-                                    message.error
-                                );
-                            request.__fire('error');
-                            __forge_idb_pending.delete(
-                                request.__forgeId
-                            );
-                            return;
-                        }
-                        if (
-                            message.type ===
-                                'forge-idb-op-success' ||
-                            message.type ===
-                                'forge-idb-op-error'
-                        ) {
-                            request.readyState = 'done';
-                            if (
-                                message.type ===
-                                'forge-idb-op-success'
-                            ) {
-                                request.result =
-                                    message.result;
-                            } else {
-                                request.error =
-                                    __forge_idb_error(
-                                        message.error
-                                    );
-                            }
-                            try {
-                                request.__fire(
-                                    message.type ===
-                                        'forge-idb-op-success'
-                                        ? 'success'
-                                        : 'error'
-                                );
-                            } finally {
-                                if (
-                                    request.transaction &&
-                                    request.transaction
-                                        .__requestFinished
-                                ) {
-                                    request.transaction
-                                        .__requestFinished();
-                                }
-                                __forge_idb_pending.delete(
-                                    request.__forgeId
-                                );
-                            }
-                        }
-                    }
-                );
-                // Base path for resolving relative fetch() URLs — baked in at render time.
-                const __fetch_base = ${JSON.stringify(basePath || '/')};
-                // Resolve a fetch URL to an absolute VFS path.
-                // Relative URLs (bare or ./-prefixed) are resolved against the
-                // current page's directory. Absolute http(s) URLs are left alone.
-                function __resolve_fetch_url(rawUrl, base) {
-                    // postMessage cannot reliably structured-clone URL objects
-                    // across the opaque preview boundary. fetch() accepts URL
-                    // objects and other stringifiable RequestInfo values, so
-                    // normalize them before VFS resolution or bridge messaging.
-                    if (typeof rawUrl !== 'string') rawUrl = String(rawUrl);
-                    if (/^https?:\\/\\/|\\/\\//.test(rawUrl)) return rawUrl;
-                    if (rawUrl.startsWith('/')) return rawUrl;
-                    const dir = base.substring(0, base.lastIndexOf('/') + 1);
-                    const parts = (dir + rawUrl).split('/');
-                    const out = [];
-                    for (const part of parts) {
-                        if (part === '..') out.pop();
-                        else if (part !== '.' && part !== '') out.push(part);
-                    }
-                    return '/' + out.join('/');
-                }
-                function __report_network(detail) {
-                    try {
-                        window.parent.postMessage({
-                            type: 'forge-network',
-                            ...detail
-                        }, '*');
-                    } catch(e) {}
-                }
-                // Observe resources the browser itself loads (images, scripts,
-                // stylesheets, XHR, fonts, etc.). fetch() is excluded because
-                // the interceptor below already reports it with richer VFS
-                // versus network information.
-                if ('PerformanceObserver' in window) {
-                    try {
-                        const __resource_observer = new PerformanceObserver((list) => {
-                            for (const entry of list.getEntries()) {
-                                if (entry.entryType !== 'resource' || entry.initiatorType === 'fetch') {
-                                    continue;
-                                }
-                                const responseStatus =
-                                    typeof entry.responseStatus === 'number' &&
-                                    entry.responseStatus > 0
-                                        ? entry.responseStatus
-                                        : null;
-                                __report_network({
-                                    via: 'resource',
-                                    resourceType: entry.initiatorType || 'resource',
-                                    requested: String(entry.name),
-                                    resolved: String(entry.name),
-                                    route: 'browser',
-                                    outcome: responseStatus === null ? 'observed' : 'response',
-                                    status: responseStatus,
-                                    ok: responseStatus === null
-                                        ? null
-                                        : responseStatus >= 200 && responseStatus < 400
-                                });
-                            }
-                        });
-                        __resource_observer.observe({
-                            type: 'resource',
-                            buffered: true
-                        });
-                    } catch(e) {}
-                }
-                // CSP is enforced by the browser. This listener is telemetry
-                // only: it reports violations without changing policy.
-                document.addEventListener('securitypolicyviolation', (event) => {
-                    const directive =
-                        event.effectiveDirective ||
-                        event.violatedDirective ||
-                        'csp';
-                    __report_network({
-                        via: 'csp',
-                        resourceType: directive,
-                        requested: event.blockedURI || '(inline or unavailable)',
-                        resolved: event.blockedURI || '(inline or unavailable)',
-                        route: 'blocked',
-                        outcome: 'blocked',
-                        status: null,
-                        ok: false,
-                        directive,
-                        disposition: event.disposition || 'enforce'
-                    });
-                });
-                // Opaque previews cannot send a useful Referer. Route approved
-                // OSM tile images through the authenticated parent fetch bridge.
-                const __img_src = Object.getOwnPropertyDescriptor(
-                    HTMLImageElement.prototype, 'src'
-                );
-                Object.defineProperty(HTMLImageElement.prototype, 'src', {
-                    configurable: true,
-                    get() { return __img_src.get.call(this); },
-                    set(value) {
-                        const url = String(value || '');
-                        const osm = url.startsWith('https://tile.openstreetmap.org/');
-                        if (
-                            !url ||
-                            ((url.includes(':') || url.startsWith('//')) && !osm)
-                        ) {
-                            __img_src.set.call(this, value);
-                            return;
-                        }
-                        window.fetch(url)
-                            .then(response => {
-                                if (!response.ok) throw new Error('HTTP ' + response.status);
-                                return response.blob();
-                            })
-                            .then(blob => {
-                                const localUrl = URL.createObjectURL(blob);
-                                __img_src.set.call(this, localUrl);
-                                setTimeout(() => URL.revokeObjectURL(localUrl), 60000);
-                            })
-                            .catch(() => __img_src.set.call(this, url));
-                    }
-                });
-                window.fetch = function(url, ...args) {
-                    const fetchOptions = args[0] || {};
-                    let requestMethod =
-                        fetchOptions.method ||
-                        (url instanceof Request ? url.method : 'GET');
-                    if (url instanceof Request) {
-                        url = url.url;
-                    }
-                    requestMethod = String(requestMethod || 'GET').toUpperCase();
-                    const resolvedUrl = __resolve_fetch_url(url, __fetch_base);
-                    // Use a MessageChannel so each fetch gets its own private
-                    // reply port — no broadcast matching, no handler leaks,
-                    // no race conditions between concurrent fetches.
-                    return new Promise((resolve, reject) => {
-                        const channel = new MessageChannel();
-                        channel.port1.onmessage = (event) => {
-                            const {
-                                found,
-                                content,
-                                mimeType,
-                                status,
-                                route
-                            } = event.data;
-                            if (found) {
-                                const responseStatus =
-                                    Number.isInteger(status) ? status : 200;
-                                const responseRoute = route || 'vfs';
-                                __report_network({
-                                    via: 'fetch',
-                                    requested: String(url),
-                                    resolved: String(resolvedUrl),
-                                    route: responseRoute,
-                                    outcome: 'response',
-                                    status: responseStatus,
-                                    ok:
-                                        responseStatus >= 200 &&
-                                        responseStatus < 400
-                                });
-                                resolve(new Response(content, {
-                                    status: responseStatus,
-                                    headers: {
-                                        'Content-Type':
-                                            mimeType ||
-                                            'application/octet-stream'
-                                    }
-                                }));
-                            } else {
-                                // Not in VFS — fall back to real network fetch
-                                // using the *original* URL so the browser resolves
-                                // it correctly relative to the page origin.
-                                originalFetch(url, ...args).then(response => {
-                                    __report_network({
-                                        via: 'fetch',
-                                        requested: String(url),
-                                        resolved: String(resolvedUrl),
-                                        route: 'network',
-                                        outcome: 'response',
-                                        status: response.status,
-                                        ok: response.ok
-                                    });
-                                    resolve(response);
-                                }).catch(error => {
-                                    __report_network({
-                                        via: 'fetch',
-                                        requested: String(url),
-                                        resolved: String(resolvedUrl),
-                                        route: 'network',
-                                        outcome: 'error',
-                                        status: null,
-                                        ok: false,
-                                        error: error && error.message ? error.message : String(error)
-                                    });
-                                    reject(error);
-                                });
-                            }
-                        };
-                        window.parent.postMessage(
-                            {
-                                type: 'vfs-fetch',
-                                url: resolvedUrl,
-                                method: requestMethod
-                            },
-                            '*',
-                            [channel.port2]
-                        );
-                    });
-                };
-                // -- VFS Navigation Interceptor ------------------------------
-                const isInternal = (href) => {
-                    if (!href ||
-                        href.startsWith('http://') ||
-                        href.startsWith('https://') ||
-                        href.startsWith('//') ||
-                        href.startsWith('mailto:') ||
-                        href.startsWith('javascript:')) return false;
-                    const path = href.split('?')[0].split('#')[0];
-                    const last = path.split('/').pop();
-                    // Extensionless paths are SPA routes, not VFS documents.
-                    if (!path.endsWith('/') &&
-                        (!last || !last.includes('.'))) return false;
-                    if (!path.includes('..')) return true;
-                    const base = ${JSON.stringify(basePath || '/')};
-                    const dir = base.slice(0, base.lastIndexOf('/') + 1);
-                    let depth = 0;
-                    for (const part of (dir + path).split('/')) {
-                        if (part === '..') {
-                            if (!depth) return false;
-                            depth--;
-                        } else if (part && part !== '.') {
-                            depth++;
-                        }
-                    }
-                    return true;
-                };
-                const sendNav = (href, replace = false) => {
-                    window.parent.postMessage({ type: 'vfs-navigate', href, replace }, '*');
-                };
-                const sendSpa = (path, replace = false) => {
-                    window.parent.postMessage({ type: 'vfs-spa-navigate', path, replace }, '*');
-                };
-                const sendHash = () => {
-                    window.parent.postMessage({
-                        type: 'vfs-hash-change',
-                        hash: window.location.hash
-                    }, '*');
-                };
-                document.addEventListener('click', (e) => {
-                    const a = e.target.closest('a');
-                    if (!a) return;
-                    const href = a.getAttribute('href');
-                    if (!href) return;
-                    if (href.startsWith('#')) {
-                        e.preventDefault();
-                        // Scroll manually since we're preventing default
-                        const target = document.getElementById(href.substring(1));
-                        if (target) {
-                            const reduceMotion = window.matchMedia(
-                                '(prefers-reduced-motion: reduce)'
-                            ).matches;
-                            target.scrollIntoView({
-                                behavior: reduceMotion ? 'auto' : 'smooth'
-                            });
-                        }
-                        // Send hash to parent — href already includes the '#'
-                        window.parent.postMessage({
-                            type: 'vfs-hash-change',
-                            hash: href
-                        }, '*');
-                        return;
-                    }
-                    if (!isInternal(href)) return;
-                    e.preventDefault();
-                    sendNav(href);
-                }, true);
-                const _assign  = window.location.assign.bind(window.location);
-                const _replace = window.location.replace.bind(window.location);
-                window.location.assign = (href) => {
-                    if (isInternal(href)) { sendNav(href); } else { _assign(href); }
-                };
-                window.location.replace = (href) => {
-                    if (isInternal(href)) { sendNav(href, true); } else { _replace(href); }
-                };
-                try {
-                    Object.defineProperty(window.location, 'href', {
-                        set(href) {
-                            if (isInternal(href)) { sendNav(href); } else { _assign(href); }
-                        },
-                        get() { return window.location.toString(); },
-                        configurable: true
-                    });
-                } catch(e) {}
-                const _pushState    = history.pushState.bind(history);
-                const _replaceState = history.replaceState.bind(history);
-                function reportHistory(url, replace = false) {
-                    if (url == null || url === '') return;
-                    // Event handlers receive the DOM event as their first argument.
-                    // Do not turn an accidentally forwarded event into a SPA route
-                    // such as "[object PointerEvent]".
-                    if (typeof Event !== 'undefined' && url instanceof Event) return;
-                    let value = String(url);
-                    // Some frameworks stringify callback arguments before they
-                    // reach history. Reject those event-object strings too.
-                    if (/^\[object [A-Za-z]*Event\]$/.test(value)) return;
-                    if (value.startsWith('#')) {
-                        window.parent.postMessage({
-                            type: 'vfs-hash-change',
-                            hash: value
-                        }, '*');
-                        return;
-                    }
-                    if (value.startsWith('about:///')) {
-                        // Vue Router exposes opaque srcdoc routes as about:///path.
-                        value = value.slice(8);
-                        if (value === '/srcdoc' ||
-                            value.startsWith('/srcdoc?') ||
-                            value.startsWith('/srcdoc#')) return;
-                    } else if (
-                        value.startsWith('http://') ||
-                        value.startsWith('https://')
-                    ) {
-                        try {
-                            const parsed = new URL(value);
-                            const base = new URL(document.baseURI);
-                            if (parsed.origin !== base.origin) return;
-                            value = parsed.pathname + parsed.search + parsed.hash;
-                        } catch(e) {
-                            return;
-                        }
-                    } else if (value.startsWith('//')) {
-                        return;
-                    } else {
-                        const colon = value.indexOf(':');
-                        const slash = value.indexOf('/');
-                        if (colon > 0 &&
-                            (slash < 0 || colon < slash)) return;
-                    }
-                    if (value.startsWith('?')) {
-                        value = ${JSON.stringify(basePath || '/')} + value;
-                    }
-                    const path = value.split('?')[0].split('#')[0];
-                    const last = path.split('/').pop();
-                    const isSpa =
-                        path.endsWith('/') ||
-                        !last ||
-                        !last.includes('.');
-                    (isSpa ? sendSpa : sendNav)(value, replace);
-                }
-                const nativeHistoryUrl = url =>
-                    typeof url === 'string' && url.startsWith('#')
-                        ? location.href.split('#')[0] + url
-                        : url;
-                history.pushState = (state, title, url) => {
-                    try { _replaceState(state, title, nativeHistoryUrl(url)); } catch(e) {}
-                    if (url != null) reportHistory(url);
-                    else setTimeout(sendHash, 50);
-                };
-                history.replaceState = (state, title, url) => {
-                    try { _replaceState(state, title, nativeHistoryUrl(url)); } catch(e) {}
-                    if (url != null) reportHistory(url, true);
-                    else setTimeout(sendHash, 50);
-                };
-                window.addEventListener('keydown', e => {
-                    const key = e.key;
-                    if (!e.defaultPrevented &&
-                        (e.ctrlKey || e.metaKey) && e.shiftKey &&
-                        (key === 'C' || key === 'V')) {
-                        e.preventDefault();
-                        window.parent.postMessage(
-                            { type: 'vfs-shortcut', key }, '*'
-                        );
-                    }
-                });
-                let __forge_history_restoring = false;
-                window.addEventListener('hashchange', () => {
-                    if (!__forge_history_restoring) sendHash();
-                });
-                window.addEventListener('popstate', () => {
-                    if (!__forge_history_restoring) reportHistory(location.href);
-                });
-                window.addEventListener('message', e => {
-                    if (e.source !== window.parent) return;
-                    if (e.data?.type === 'forge-history') {
-                        history.go(e.data.delta);
-                    } else if (e.data?.type === 'forge-history-location') {
-                        __forge_history_restoring = true;
-                        try {
-                            _replaceState(history.state, '', e.data.value);
-                        } catch(e) {}
-                        window.dispatchEvent(new PopStateEvent('popstate', {
-                            state: history.state
-                        }));
-                        __forge_history_restoring = false;
-                    }
-                });
-                if (window.location.hash) sendHash();
-                // Keep the trusted parent tab title synchronized without giving
-                // it DOM access to this opaque-origin preview. Watching <head>
-                // also captures SPA code that changes document.title later.
-                let __forge_last_page_title = null;
-                const __forge_report_page_title = () => {
-                    const title =
-                        typeof document.title === 'string'
-                            ? document.title.trim()
-                            : '';
-                    if (title === __forge_last_page_title) return;
-                    __forge_last_page_title = title;
-                    window.parent.postMessage({
-                        type: 'page-title',
-                        title
-                    }, '*');
-                };
-                document.addEventListener(
-                    'DOMContentLoaded',
-                    __forge_report_page_title,
-                    { once: true }
-                );
-                if (document.head && typeof MutationObserver !== 'undefined') {
-                    const __forge_title_observer =
-                        new MutationObserver(__forge_report_page_title);
-                    __forge_title_observer.observe(document.head, {
-                        subtree: true,
-                        childList: true,
-                        characterData: true
-                    });
-                }
-                // -- REPL eval handler --------------------------------
-                window.addEventListener('message', function(event) {
-                    if (event.source !== window.parent) return;
-                    if (event.data && event.data.type === 'forge-set-hash') {
-                        const hash = typeof event.data.hash === 'string'
-                            ? event.data.hash
-                            : '';
-                        __forge_history_restoring = true;
-                        try {
-                            _replaceState(
-                                history.state,
-                                '',
-                                nativeHistoryUrl(hash || '#')
-                            );
-                        } catch (e) {}
-                        window.dispatchEvent(new Event('hashchange'));
-                        __forge_history_restoring = false;
-                        if (!hash) {
-                            window.scrollTo(0, 0);
-                            return;
-                        }
-                        let id = hash.startsWith('#') ? hash.substring(1) : hash;
-                        try {
-                            id = decodeURIComponent(id);
-                        } catch (e) {}
-                        const target =
-                            document.getElementById(id) ||
-                            document.getElementsByName(id)[0];
-                        if (target) target.scrollIntoView();
-                        return;
-                    }
-                    if (event.data && event.data.type === 'forge-repl-eval') {
-                        var code = event.data.code;
-                        var result;
-                        var error = null;
-                        try {
-                            result = eval(code);
-                        } catch(e) {
-                            error = e;
-                        }
-                        // Send result back to parent
-                        if (error) {
-                            window.parent.postMessage({
-                                type: 'forge-repl-result',
-                                success: false,
-                                error: {
-                                    name: error.name || 'Error',
-                                    message: error.message || String(error),
-                                    stack: error.stack
-                                }
-                            }, '*');
-                        } else {
-                            // Serialize the result
-                            var serialized;
-                            try {
-                                if (result === undefined) {
-                                    serialized = 'undefined';
-                                } else if (result === null) {
-                                    serialized = 'null';
-                                } else if (typeof result === 'function') {
-                                    serialized = result.toString();
-                                } else if (typeof result === 'object') {
-                                    serialized = JSON.stringify(result, null, 2);
-                                } else {
-                                    serialized = String(result);
-                                }
-                            } catch(e) {
-                                serialized = String(result);
-                            }
-                            window.parent.postMessage({
-                                type: 'forge-repl-result',
-                                success: true,
-                                result: serialized
-                            }, '*');
-                        }
-                    }
-                });
-                // -- Console capture ----------------------------------
-                (function() {
-                    var _levels = ['log', 'warn', 'error', 'info'];
-                    _levels.forEach(function(level) {
-                        var _orig = console[level].bind(console);
-                        console[level] = function() {
-                            _orig.apply(console, arguments);
-                            try {
-                                var parts = Array.prototype.slice.call(arguments).map(function(a) {
-                                    if (a === null) return 'null';
-                                    if (a === undefined) return 'undefined';
-                                    // Handle Error objects specially - JSON.stringify returns {} for them
-                                    // Check for Error-like objects (has message/stack) not just instanceof
-                                    if (a instanceof Error || (typeof a === 'object' && (a.message || a.stack))) {
-                                        var errObj = {
-                                            name: a.name || 'Error',
-                                            message: a.message || String(a),
-                                            stack: a.stack
-                                        };
-                                        // Include any custom properties
-                                        for (var key in a) {
-                                            if (a.hasOwnProperty(key) && key !== 'name' && key !== 'message' && key !== 'stack') {
-                                                try { errObj[key] = a[key]; } catch(e3) {}
-                                            }
-                                        }
-                                        try { return JSON.stringify(errObj); } catch(e2) { return String(a); }
-                                    }
-                                    if (typeof a === 'object') { try { return JSON.stringify(a); } catch(e2) { return String(a); } }
-                                    return String(a);
-                                });
-                                window.parent.postMessage({ type: 'forge-console', level: level, msg: parts.join(' ') }, '*');
-                            } catch(e) {}
-                        };
-                    });
-                    window.addEventListener('error', function(e) {
-                        const msg = e.error && e.error.stack;
-                        window.parent.postMessage({ type: 'forge-console', level: 'error', msg: msg || (e.message || 'Unknown error') + (e.filename ? ' (' + e.filename + ':' + e.lineno + ':' + e.colno + ')' : '') }, '*');
-                    });
-                    window.addEventListener('unhandledrejection', function(e) {
-                        const reason = e.reason;
-                        window.parent.postMessage({ type: 'forge-console', level: 'error', msg: 'Unhandled promise rejection: ' + (reason && reason.stack ? reason.stack : reason == null ? 'unknown' : String(reason)) }, '*');
-                    });
-                })();
-              } catch(e) {
-                // Surface interceptor errors visibly so they're not silently swallowed
-                console.error('[FORGE interceptor error]', e);
-                document.addEventListener('DOMContentLoaded', function() {
-                  var d = makeEl('div');
-                  d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;padding:8px 12px;font:12px monospace;z-index:99999;';
-                  d.textContent = '[FORGE] Interceptor failed: ' + e.message;
-                  document.body.appendChild(d);
-                });
-              }
-            })();
-            // -- Dynamic import() interceptor -----------------------------
-            const __vfs_module_cache = {};
-            const __vfs_module_base  = ${JSON.stringify(basePath || '/')};
-            // Dynamic imports are rewritten to __vfs_module() so project-local
-            // modules can resolve through the VFS. Absolute HTTP(S) modules are
-            // already real browser resources, so keep those on the native ESM
-            // loader instead of normalizing them into fake VFS paths.
-            const __vfs_native_import =
-                new Function('url', 'return import(url);');
-            function __vfs_module(path) {
-                if (
-                    typeof path === 'string' &&
-                    (
-                        path.startsWith('https://') ||
-                        path.startsWith('http://')
-                    )
-                ) {
-                    return __vfs_native_import(path);
-                }
-                // Resolve relative paths against the base path of the entry file
-                function resolvePath(p, base) {
-                    if (p.startsWith('/')) return p;
-                    const dir = base.substring(0, base.lastIndexOf('/') + 1);
-                    const parts = (dir + p).split('/');
-                    const out = [];
-                    for (const part of parts) {
-                        if (part === '..') out.pop();
-                        else if (part !== '.' && part !== '') out.push(part);
-                    }
-                    return '/' + out.join('/');
-                }
-                const resolved = resolvePath(path, __vfs_module_base);
-                if (__vfs_module_cache[resolved]) {
-                    return Promise.resolve(__vfs_module_cache[resolved]);
-                }
-                return new Promise((resolve, reject) => {
-                    const channel = new MessageChannel();
-                    channel.port1.onmessage = (event) => {
-                        const { found, content } = event.data;
-                        if (!found) {
-                            reject(new Error('[FORGE] __vfs_module: file not found in VFS: ' + resolved));
-                            return;
-                        }
-                        try {
-                            // Strip ES module syntax from the raw source before
-                            // evaling, since the VFS returns the original file
-                            // contents (not the bundler-processed version).
-                            function __strip_exports(src) {
-                                src = src.replace(/\\r\\n/g, '\\n').replace(/\\r/g, '\\n');
-                                // export default function/class — keep declaration
-                                src = src.replace(/^export\\s+default\\s+(function|class)(\\s)/gm, '$1$2');
-                                // export default <expr> → var __moduleDefault = <expr>
-                                src = src.replace(/^export\\s+default\\s+(?!function|class)/gm, 'var __moduleDefault = ');
-                                // export async function
-                                src = src.replace(/^export\\s+async\\s+(function)\\s+/gm, 'async $1 ');
-                                // export const/let/var/function/class
-                                src = src.replace(/^export\\s+(const|let|var|function|class)\\s+/gm, '$1 ');
-                                // export { a, b } — strip entirely
-                                src = src.replace(/^export\\s+\\{[^}]*\\}\\s*;?/gm, '');
-                                // export * from / export { x } from — comment out
-                                src = src.replace(/^export\\s+(?:\\{[^}]*\\}|\\*)\\s+from\\s+['"][^'"]+['"]\\s*;?/gm,
-                                    '/* [FORGE] re-export not supported */');
-                                // rewrite dynamic imports recursively
-                                src = src.replace(/\\bimport\\s*\\(/g, '__vfs_module(');
-                // strip static import statements (avoid [\\s\\S] spanning lines)
-                src = src.replace(/^import\\s+[^\\n]*?\\s+from\\s+['"][^'"]+['"]\\s*;?/gm, '');
-                src = src.replace(/^import\\s+['"][^'"]+['"]\\s*;?/gm, '');
-                                return src;
-                            }
-                            const stripped = __strip_exports(content);
-                            // Eval the stripped source and collect exports
-                            const moduleExports = {};
-                            const moduleObj = { exports: moduleExports };
-                            const fn = new Function(
-                                'exports', 'module', '__vfs_module',
-                                stripped + '\\n' +
-                                'if (typeof __moduleDefault !== "undefined") ' +
-                                '  module.exports.default = __moduleDefault;'
-                            );
-                            fn(moduleExports, moduleObj, __vfs_module);
-                            const result = moduleObj.exports;
-                            __vfs_module_cache[resolved] = result;
-                            resolve(result);
-                        } catch (e) {
-                            reject(new Error('[FORGE] __vfs_module eval error in ' + resolved + ': ' + e.message));
-                        }
-                    };
-                    window.parent.postMessage(
-                        { type: 'vfs-fetch', url: resolved },
-                        '*',
-                        [channel.port2]
-                    );
-                });
-            }
-        <\/script>
+<script>
+(function() {
+const parentHostname = ${JSON.stringify(window.location.hostname)};
+const parentHost = ${JSON.stringify(window.location.host)};
+const parentOrigin = ${JSON.stringify(window.location.origin)};
+function maskOrigin(proto) {
+['hostname', 'host', 'origin'].forEach(prop => {
+const orig = Object.getOwnPropertyDescriptor(proto, prop);
+if (orig) {
+Object.defineProperty(proto, prop, {
+get: function() {
+const val = orig.get.call(this);
+// If the DOM element resolved to the parent IDE's origin,
+// pretend it resolved to the sandboxed iframe's origin instead.
+if (val === parentHostname || val === parentHost || val === parentOrigin) {
+return window.location[prop];
+}
+return val;
+}
+});
+}
+});
+}
+if (window.HTMLAnchorElement) maskOrigin(HTMLAnchorElement.prototype);
+if (window.URL) maskOrigin(URL.prototype);
+})();
+(function() {
+try {
+const originalFetch = window.fetch;
+// Opaque-origin previews cannot use native localStorage or
+// sessionStorage. Install synchronous Storage-like mirrors
+// before project scripts execute. Mutations are persisted by
+// the trusted parent through the validated postMessage bridge.
+function __install_forge_storage(propertyName, storageName, initialData) {
+const data = new Map();
+if (initialData && typeof initialData === 'object') {
+for (const key of Object.keys(initialData)) {
+data.set(String(key), String(initialData[key]));
+}
+}
+function notify(action, key, value) {
+try {
+window.parent.postMessage({
+type: 'forge-storage',
+storage: storageName,
+action: action,
+key: key == null ? null : String(key),
+value: value == null ? null : String(value)
+}, '*');
+} catch (e) {}
+}
+const api = {
+get length() {
+return data.size;
+},
+key(index) {
+const keys = Array.from(data.keys());
+const i = Number(index);
+return Number.isInteger(i) && i >= 0 && i < keys.length
+? keys[i]
+: null;
+},
+getItem(key) {
+key = String(key);
+return data.has(key) ? data.get(key) : null;
+},
+setItem(key, value) {
+key = String(key);
+value = String(value);
+data.set(key, value);
+notify('set', key, value);
+},
+removeItem(key) {
+key = String(key);
+data.delete(key);
+notify('remove', key, null);
+},
+clear() {
+data.clear();
+notify('clear', null, null);
+}
+};
+// Native Storage exposes stored keys during enumeration,
+// but its built-in API members are not enumerable.
+for (const name of [
+'length',
+'key',
+'getItem',
+'setItem',
+'removeItem',
+'clear'
+]) {
+const descriptor =
+Object.getOwnPropertyDescriptor(api, name);
+if (descriptor) {
+descriptor.enumerable = false;
+Object.defineProperty(api, name, descriptor);
+}
+}
+// Support the common localStorage.foo / delete
+// localStorage.foo shorthand in addition to the standard
+// Storage methods.
+const proxy = new Proxy(api, {
+get(target, prop, receiver) {
+if (
+typeof prop === 'string' &&
+!(prop in target)
+) {
+return data.has(prop) ? data.get(prop) : undefined;
+}
+return Reflect.get(target, prop, receiver);
+},
+set(target, prop, value, receiver) {
+if (
+typeof prop === 'string' &&
+!(prop in target)
+) {
+api.setItem(prop, value);
+return true;
+}
+return Reflect.set(target, prop, value, receiver);
+},
+deleteProperty(target, prop) {
+if (
+typeof prop === 'string' &&
+!(prop in target)
+) {
+api.removeItem(prop);
+return true;
+}
+return Reflect.deleteProperty(target, prop);
+},
+ownKeys(target) {
+const own = Reflect.ownKeys(target);
+for (const key of data.keys()) {
+if (!own.includes(key)) own.push(key);
+}
+return own;
+},
+getOwnPropertyDescriptor(target, prop) {
+const own = Reflect.getOwnPropertyDescriptor(target, prop);
+if (own) return own;
+if (typeof prop === 'string' && data.has(prop)) {
+return {
+configurable: true,
+enumerable: true,
+writable: true,
+value: data.get(prop)
+};
+}
+return undefined;
+}
+});
+Object.defineProperty(window, propertyName, {
+configurable: true,
+enumerable: true,
+value: proxy
+});
+return proxy;
+}
+__install_forge_storage(
+'localStorage',
+'localStorage',
+${localStorageSnapshot}
+);
+__install_forge_storage(
+'sessionStorage',
+'sessionStorage',
+${sessionStorageSnapshot}
+);
+// IndexedDB facade for opaque-origin previews. Native IndexedDB
+// remains in the parent; this side only mirrors the useful API.
+const __forge_idb_pending = new Map();
+let __forge_idb_next_request = 1;
+let __forge_idb_next_transaction = 1;
+function __forge_idb_post(message) {
+try {
+window.parent.postMessage(message, '*');
+} catch (error) {
+if (
+error.name !== 'DataCloneError' ||
+!('value' in message)
+) throw error;
+let value =
+window.Vue && Vue.toRaw
+? Vue.toRaw(message.value)
+: message.value;
+try {
+value = structuredClone(value);
+} catch (cloneError) {
+value = JSON.parse(JSON.stringify(value));
+}
+window.parent.postMessage(
+Object.assign({}, message, { value }),
+'*'
+);
+}
+}
+function __forge_idb_error(info) {
+const error = new Error(
+info && info.message
+? info.message
+: 'IndexedDB bridge error'
+);
+error.name = info && info.name ? info.name : 'Error';
+return error;
+}
+function __forge_idb_target(target) {
+const listeners = Object.create(null);
+target.addEventListener = function(type, listener) {
+if (typeof listener !== 'function') return;
+(listeners[type] || (listeners[type] = []))
+.push(listener);
+};
+target.removeEventListener = function(type, listener) {
+const list = listeners[type];
+if (!list) return;
+const index = list.indexOf(listener);
+if (index >= 0) list.splice(index, 1);
+};
+target.__fire = function(type, detail) {
+const event = Object.assign({
+type,
+target,
+currentTarget: target
+}, detail || {});
+const handler = target['on' + type];
+if (typeof handler === 'function') {
+handler.call(target, event);
+}
+const list = listeners[type];
+if (list) {
+for (const listener of list.slice()) {
+listener.call(target, event);
+}
+}
+};
+return target;
+}
+function __forge_idb_request(kind, name) {
+const request = __forge_idb_target({
+__forgeKind: kind,
+__forgeId:
+'idb-request-' + (__forge_idb_next_request++),
+__forgeName: name == null ? '' : String(name),
+readyState: 'pending',
+result: undefined,
+error: null,
+source: null,
+transaction: null,
+onsuccess: null,
+onerror: null,
+onupgradeneeded: null,
+onblocked: null
+});
+__forge_idb_pending.set(request.__forgeId, request);
+return request;
+}
+function __forge_idb_store_list(initialStores) {
+const names = Array.from(initialStores || []).map(String);
+return {
+get length() {
+return names.length;
+},
+contains(name) {
+return names.includes(String(name));
+},
+item(index) {
+return names[index] === undefined
+? null
+: names[index];
+},
+[Symbol.iterator]() {
+return names[Symbol.iterator]();
+},
+__add(name) {
+name = String(name);
+if (!names.includes(name)) names.push(name);
+},
+__delete(name) {
+const index = names.indexOf(String(name));
+if (index >= 0) names.splice(index, 1);
+},
+__replace(next) {
+names.length = 0;
+names.push(
+...Array.from(next || []).map(String)
+);
+}
+};
+}
+function __forge_idb_store(
+dbId,
+storeName,
+mode,
+transaction
+) {
+storeName = String(storeName);
+const store = {
+name: storeName
+};
+function send(operation, detail) {
+if (transaction) {
+transaction.__requestStarted();
+}
+const request = __forge_idb_request('operation');
+request.source = store;
+request.transaction = transaction || null;
+const message = Object.assign({
+type: transaction
+? 'forge-idb-transaction-op'
+: 'forge-idb-op',
+requestId: request.__forgeId,
+dbId,
+storeName,
+mode,
+operation
+}, detail || {});
+if (transaction) {
+message.transactionId =
+transaction.__forgeId;
+}
+__forge_idb_post(message);
+return request;
+}
+store.put = function(value, key) {
+return send('put', {
+value,
+key,
+hasKey: arguments.length > 1
+});
+};
+store.add = function(value, key) {
+return send('add', {
+value,
+key,
+hasKey: arguments.length > 1
+});
+};
+store.get = function(key) {
+return send('get', { key });
+};
+store.delete = function(key) {
+return send('delete', { key });
+};
+store.clear = function() {
+return send('clear');
+};
+store.count = function(query) {
+return send('count', {
+query,
+hasQuery: arguments.length > 0
+});
+};
+store.getAll = function(query, count) {
+return send('getAll', {
+query,
+count,
+hasQuery: arguments.length > 0,
+hasCount: arguments.length > 1
+});
+};
+store.getAllKeys = function(query, count) {
+return send('getAllKeys', {
+query,
+count,
+hasQuery: arguments.length > 0,
+hasCount: arguments.length > 1
+});
+};
+return store;
+}
+function __forge_idb_transaction(
+dbId,
+storeNames,
+mode
+) {
+const names = Array.isArray(storeNames)
+? storeNames.map(String)
+: [String(storeNames)];
+const transactionMode =
+mode === 'readwrite'
+? 'readwrite'
+: 'readonly';
+let pendingRequests = 0;
+let doneTimer = null;
+let inactive = false;
+const transaction = __forge_idb_target({
+__forgeId:
+'idb-transaction-' +
+(__forge_idb_next_transaction++),
+mode: transactionMode,
+objectStoreNames:
+__forge_idb_store_list(names),
+error: null,
+oncomplete: null,
+onabort: null,
+onerror: null
+});
+function assertActive() {
+if (inactive) {
+throw new DOMException(
+'Transaction is inactive',
+'TransactionInactiveError'
+);
+}
+}
+function scheduleDone(delay = true) {
+if (
+inactive ||
+pendingRequests > 0 ||
+doneTimer
+) {
+return;
+}
+const finish = function() {
+doneTimer = null;
+if (inactive || pendingRequests > 0) return;
+inactive = true;
+__forge_idb_post({
+type: 'forge-idb-transaction-done',
+transactionId:
+transaction.__forgeId
+});
+};
+if (delay) doneTimer = setTimeout(finish, 0);
+else queueMicrotask(finish);
+}
+transaction.objectStore = function(name) {
+assertActive();
+name = String(name);
+if (!names.includes(name)) {
+throw new DOMException(
+'Object store is not in this transaction',
+'NotFoundError'
+);
+}
+return __forge_idb_store(
+dbId,
+name,
+transactionMode,
+transaction
+);
+};
+transaction.abort = function() {
+assertActive();
+inactive = true;
+if (doneTimer) clearTimeout(doneTimer);
+__forge_idb_post({
+type: 'forge-idb-transaction-abort',
+transactionId: transaction.__forgeId
+});
+};
+transaction.__requestStarted = function() {
+assertActive();
+pendingRequests++;
+if (doneTimer) {
+clearTimeout(doneTimer);
+doneTimer = null;
+}
+};
+transaction.__requestFinished = function() {
+if (pendingRequests > 0) pendingRequests--;
+scheduleDone(false);
+};
+transaction.__finish = function() {
+inactive = true;
+if (doneTimer) clearTimeout(doneTimer);
+};
+__forge_idb_pending.set(
+transaction.__forgeId,
+transaction
+);
+__forge_idb_post({
+type: 'forge-idb-transaction-open',
+transactionId: transaction.__forgeId,
+dbId,
+storeNames: names,
+mode: transactionMode
+});
+// Match native auto-commit closely enough to allow
+// synchronous requests and request callback chaining.
+scheduleDone(false);
+return transaction;
+}
+function __forge_idb_database(
+dbId,
+name,
+version,
+stores,
+upgradeRequestId
+) {
+const objectStoreNames =
+__forge_idb_store_list(stores);
+let upgradeId = upgradeRequestId || null;
+const db = {
+name,
+version,
+objectStoreNames
+};
+db.createObjectStore = function(
+storeName,
+options
+) {
+if (!upgradeId) {
+throw new DOMException(
+'createObjectStore() requires an upgrade',
+'InvalidStateError'
+);
+}
+storeName = String(storeName);
+objectStoreNames.__add(storeName);
+__forge_idb_post({
+type: 'forge-idb-create-store',
+requestId: upgradeId,
+name: storeName,
+options:
+options &&
+typeof options === 'object'
+? options
+: undefined
+});
+return __forge_idb_store(
+dbId,
+storeName,
+'versionchange',
+null
+);
+};
+db.deleteObjectStore = function(storeName) {
+if (!upgradeId) {
+throw new DOMException(
+'deleteObjectStore() requires an upgrade',
+'InvalidStateError'
+);
+}
+storeName = String(storeName);
+if (!objectStoreNames.contains(storeName)) {
+throw new DOMException(
+'Object store does not exist',
+'NotFoundError'
+);
+}
+objectStoreNames.__delete(storeName);
+__forge_idb_post({
+type: 'forge-idb-delete-store',
+requestId: upgradeId,
+name: storeName
+});
+};
+db.transaction = function(storeNames, mode) {
+return __forge_idb_transaction(
+dbId,
+storeNames,
+mode
+);
+};
+db.close = function() {
+__forge_idb_post({
+type: 'forge-idb-close',
+dbId
+});
+};
+db.__finishUpgrade = function() {
+upgradeId = null;
+};
+db.__update = function(
+nextVersion,
+nextStores
+) {
+db.version = nextVersion;
+objectStoreNames.__replace(nextStores);
+};
+return db;
+}
+const __forge_indexed_db = {
+open(name, version) {
+const request =
+__forge_idb_request('open', name);
+__forge_idb_post({
+type: 'forge-idb-open',
+requestId: request.__forgeId,
+name: String(name),
+version:
+version === undefined
+? null
+: version
+});
+return request;
+},
+deleteDatabase(name) {
+const request =
+__forge_idb_request(
+'deleteDatabase',
+name
+);
+__forge_idb_post({
+type: 'forge-idb-delete-db',
+requestId: request.__forgeId,
+name: String(name)
+});
+return request;
+}
+};
+Object.defineProperty(window, 'indexedDB', {
+configurable: true,
+enumerable: true,
+value: __forge_indexed_db
+});
+window.addEventListener(
+'message',
+function(event) {
+if (event.source !== window.parent) return;
+if (
+!event.data ||
+typeof event.data !== 'object'
+) {
+return;
+}
+const message = event.data;
+if (
+message.type ===
+'forge-idb-transaction-complete' ||
+message.type ===
+'forge-idb-transaction-abort'
+) {
+const transaction =
+__forge_idb_pending.get(
+String(
+message.transactionId || ''
+)
+);
+if (!transaction) return;
+transaction.__finish();
+if (
+message.type ===
+'forge-idb-transaction-complete'
+) {
+transaction.__fire('complete');
+} else {
+transaction.error =
+__forge_idb_error(
+message.error
+);
+transaction.__fire('abort');
+}
+__forge_idb_pending.delete(
+transaction.__forgeId
+);
+return;
+}
+const request =
+__forge_idb_pending.get(
+String(message.requestId || '')
+);
+if (!request) return;
+if (message.type === 'forge-idb-upgrade') {
+request.result =
+__forge_idb_database(
+message.dbId,
+request.__forgeName,
+message.newVersion,
+message.stores,
+request.__forgeId
+);
+request.transaction = {
+mode: 'versionchange'
+};
+let upgradeError = null;
+try {
+request.__fire(
+'upgradeneeded',
+{
+oldVersion:
+message.oldVersion,
+newVersion:
+message.newVersion
+}
+);
+} catch (error) {
+upgradeError = error;
+}
+__forge_idb_post({
+type: upgradeError
+? 'forge-idb-upgrade-abort'
+: 'forge-idb-upgrade-done',
+requestId: request.__forgeId
+});
+if (upgradeError) {
+setTimeout(function() {
+throw upgradeError;
+}, 0);
+}
+return;
+}
+if (
+message.type ===
+'forge-idb-schema-error'
+) {
+request.error =
+__forge_idb_error(
+message.error
+);
+return;
+}
+if (
+message.type ===
+'forge-idb-delete-db-blocked'
+) {
+request.__fire('blocked');
+return;
+}
+if (
+message.type ===
+'forge-idb-delete-db-success'
+) {
+request.readyState = 'done';
+request.result = undefined;
+request.__fire('success');
+__forge_idb_pending.delete(
+request.__forgeId
+);
+return;
+}
+if (
+message.type ===
+'forge-idb-delete-db-error'
+) {
+request.readyState = 'done';
+request.error =
+__forge_idb_error(
+message.error
+);
+request.__fire('error');
+__forge_idb_pending.delete(
+request.__forgeId
+);
+return;
+}
+if (
+message.type ===
+'forge-idb-open-success'
+) {
+request.readyState = 'done';
+if (!request.result) {
+request.result =
+__forge_idb_database(
+message.dbId,
+request.__forgeName,
+message.version,
+message.stores,
+null
+);
+} else {
+request.result
+.__finishUpgrade();
+request.result.__update(
+message.version,
+message.stores
+);
+}
+request.transaction = null;
+request.__fire('success');
+__forge_idb_pending.delete(
+request.__forgeId
+);
+return;
+}
+if (
+message.type ===
+'forge-idb-open-error'
+) {
+request.readyState = 'done';
+request.error =
+__forge_idb_error(
+message.error
+);
+request.__fire('error');
+__forge_idb_pending.delete(
+request.__forgeId
+);
+return;
+}
+if (
+message.type ===
+'forge-idb-op-success' ||
+message.type ===
+'forge-idb-op-error'
+) {
+request.readyState = 'done';
+if (
+message.type ===
+'forge-idb-op-success'
+) {
+request.result =
+message.result;
+} else {
+request.error =
+__forge_idb_error(
+message.error
+);
+}
+try {
+request.__fire(
+message.type ===
+'forge-idb-op-success'
+? 'success'
+: 'error'
+);
+} finally {
+if (
+request.transaction &&
+request.transaction
+.__requestFinished
+) {
+request.transaction
+.__requestFinished();
+}
+__forge_idb_pending.delete(
+request.__forgeId
+);
+}
+}
+}
+);
+// Base path for resolving relative fetch() URLs — baked in at render time.
+const __fetch_base = ${JSON.stringify(basePath || '/')};
+// Resolve a fetch URL to an absolute VFS path.
+// Relative URLs (bare or ./-prefixed) are resolved against the
+// current page's directory. Absolute http(s) URLs are left alone.
+function __resolve_fetch_url(rawUrl, base) {
+// postMessage cannot reliably structured-clone URL objects
+// across the opaque preview boundary. fetch() accepts URL
+// objects and other stringifiable RequestInfo values, so
+// normalize them before VFS resolution or bridge messaging.
+if (typeof rawUrl !== 'string') rawUrl = String(rawUrl);
+if (/^https?:\\/\\/|\\/\\//.test(rawUrl)) return rawUrl;
+if (rawUrl.startsWith('/')) return rawUrl;
+const dir = base.substring(0, base.lastIndexOf('/') + 1);
+const parts = (dir + rawUrl).split('/');
+const out = [];
+for (const part of parts) {
+if (part === '..') out.pop();
+else if (part !== '.' && part !== '') out.push(part);
+}
+return '/' + out.join('/');
+}
+function __report_network(detail) {
+try {
+window.parent.postMessage({
+type: 'forge-network',
+...detail
+}, '*');
+} catch(e) {}
+}
+// Observe resources the browser itself loads (images, scripts,
+// stylesheets, XHR, fonts, etc.). fetch() is excluded because
+// the interceptor below already reports it with richer VFS
+// versus network information.
+if ('PerformanceObserver' in window) {
+try {
+const __resource_observer = new PerformanceObserver((list) => {
+for (const entry of list.getEntries()) {
+if (entry.entryType !== 'resource' || entry.initiatorType === 'fetch') {
+continue;
+}
+const responseStatus =
+typeof entry.responseStatus === 'number' &&
+entry.responseStatus > 0
+? entry.responseStatus
+: null;
+__report_network({
+via: 'resource',
+resourceType: entry.initiatorType || 'resource',
+requested: String(entry.name),
+resolved: String(entry.name),
+route: 'browser',
+outcome: responseStatus === null ? 'observed' : 'response',
+status: responseStatus,
+ok: responseStatus === null
+? null
+: responseStatus >= 200 && responseStatus < 400
+});
+}
+});
+__resource_observer.observe({
+type: 'resource',
+buffered: true
+});
+} catch(e) {}
+}
+// CSP is enforced by the browser. This listener is telemetry
+// only: it reports violations without changing policy.
+document.addEventListener('securitypolicyviolation', (event) => {
+const directive =
+event.effectiveDirective ||
+event.violatedDirective ||
+'csp';
+__report_network({
+via: 'csp',
+resourceType: directive,
+requested: event.blockedURI || '(inline or unavailable)',
+resolved: event.blockedURI || '(inline or unavailable)',
+route: 'blocked',
+outcome: 'blocked',
+status: null,
+ok: false,
+directive,
+disposition: event.disposition || 'enforce'
+});
+});
+// Opaque previews cannot send a useful Referer. Route approved
+// OSM tile images through the authenticated parent fetch bridge.
+const __img_src = Object.getOwnPropertyDescriptor(
+HTMLImageElement.prototype, 'src'
+);
+Object.defineProperty(HTMLImageElement.prototype, 'src', {
+configurable: true,
+get() { return __img_src.get.call(this); },
+set(value) {
+const url = String(value || '');
+const osm = url.startsWith('https://tile.openstreetmap.org/');
+if (
+!url ||
+((url.includes(':') || url.startsWith('//')) && !osm)
+) {
+__img_src.set.call(this, value);
+return;
+}
+window.fetch(url)
+.then(response => {
+if (!response.ok) throw new Error('HTTP ' + response.status);
+return response.blob();
+})
+.then(blob => {
+const localUrl = URL.createObjectURL(blob);
+__img_src.set.call(this, localUrl);
+setTimeout(() => URL.revokeObjectURL(localUrl), 60000);
+})
+.catch(() => __img_src.set.call(this, url));
+}
+});
+window.fetch = function(url, ...args) {
+const fetchOptions = args[0] || {};
+let requestMethod =
+fetchOptions.method ||
+(url instanceof Request ? url.method : 'GET');
+if (url instanceof Request) {
+url = url.url;
+}
+requestMethod = String(requestMethod || 'GET').toUpperCase();
+const resolvedUrl = __resolve_fetch_url(url, __fetch_base);
+// Use a MessageChannel so each fetch gets its own private
+// reply port — no broadcast matching, no handler leaks,
+// no race conditions between concurrent fetches.
+return new Promise((resolve, reject) => {
+const channel = new MessageChannel();
+channel.port1.onmessage = (event) => {
+const {
+found,
+content,
+mimeType,
+status,
+route
+} = event.data;
+if (found) {
+const responseStatus =
+Number.isInteger(status) ? status : 200;
+const responseRoute = route || 'vfs';
+__report_network({
+via: 'fetch',
+requested: String(url),
+resolved: String(resolvedUrl),
+route: responseRoute,
+outcome: 'response',
+status: responseStatus,
+ok:
+responseStatus >= 200 &&
+responseStatus < 400
+});
+resolve(new Response(content, {
+status: responseStatus,
+headers: {
+'Content-Type':
+mimeType ||
+'application/octet-stream'
+}
+}));
+} else {
+// Not in VFS — fall back to real network fetch
+// using the *original* URL so the browser resolves
+// it correctly relative to the page origin.
+originalFetch(url, ...args).then(response => {
+__report_network({
+via: 'fetch',
+requested: String(url),
+resolved: String(resolvedUrl),
+route: 'network',
+outcome: 'response',
+status: response.status,
+ok: response.ok
+});
+resolve(response);
+}).catch(error => {
+__report_network({
+via: 'fetch',
+requested: String(url),
+resolved: String(resolvedUrl),
+route: 'network',
+outcome: 'error',
+status: null,
+ok: false,
+error: error && error.message ? error.message : String(error)
+});
+reject(error);
+});
+}
+};
+window.parent.postMessage(
+{
+type: 'vfs-fetch',
+url: resolvedUrl,
+method: requestMethod
+},
+'*',
+[channel.port2]
+);
+});
+};
+// -- VFS Navigation Interceptor ------------------------------
+const isInternal = (href) => {
+if (!href ||
+href.startsWith('http://') ||
+href.startsWith('https://') ||
+href.startsWith('//') ||
+href.startsWith('mailto:') ||
+href.startsWith('javascript:')) return false;
+const path = href.split('?')[0].split('#')[0];
+const last = path.split('/').pop();
+// Extensionless paths are SPA routes, not VFS documents.
+if (!path.endsWith('/') &&
+(!last || !last.includes('.'))) return false;
+if (!path.includes('..')) return true;
+const base = ${JSON.stringify(basePath || '/')};
+const dir = base.slice(0, base.lastIndexOf('/') + 1);
+let depth = 0;
+for (const part of (dir + path).split('/')) {
+if (part === '..') {
+if (!depth) return false;
+depth--;
+} else if (part && part !== '.') {
+depth++;
+}
+}
+return true;
+};
+const sendNav = (href, replace = false) => {
+window.parent.postMessage({ type: 'vfs-navigate', href, replace }, '*');
+};
+const sendSpa = (path, replace = false) => {
+window.parent.postMessage({ type: 'vfs-spa-navigate', path, replace }, '*');
+};
+const sendHash = () => {
+window.parent.postMessage({
+type: 'vfs-hash-change',
+hash: window.location.hash
+}, '*');
+};
+document.addEventListener('click', (e) => {
+const a = e.target.closest('a');
+if (!a) return;
+const href = a.getAttribute('href');
+if (!href) return;
+if (href.startsWith('#')) {
+e.preventDefault();
+// Keep fragment navigation inside the opaque srcdoc document.
+// The existing hashchange listener synchronizes the route to FORGE.
+if (window.location.hash !== href) {
+window.location.hash = href;
+} else {
+const target = document.getElementById(href.substring(1));
+if (target) target.scrollIntoView();
+}
+return;
+}
+if (!isInternal(href)) return;
+e.preventDefault();
+sendNav(href);
+}, true);
+const _assign  = window.location.assign.bind(window.location);
+const _replace = window.location.replace.bind(window.location);
+window.location.assign = (href) => {
+if (isInternal(href)) { sendNav(href); } else { _assign(href); }
+};
+window.location.replace = (href) => {
+if (isInternal(href)) { sendNav(href, true); } else { _replace(href); }
+};
+try {
+Object.defineProperty(window.location, 'href', {
+set(href) {
+if (isInternal(href)) { sendNav(href); } else { _assign(href); }
+},
+get() { return window.location.toString(); },
+configurable: true
+});
+} catch(e) {}
+const _pushState    = history.pushState.bind(history);
+const _replaceState = history.replaceState.bind(history);
+function reportHistory(url, replace = false) {
+if (url == null || url === '') return;
+// Event handlers receive the DOM event as their first argument.
+// Do not turn an accidentally forwarded event into a SPA route
+// such as "[object PointerEvent]".
+if (typeof Event !== 'undefined' && url instanceof Event) return;
+let value = String(url);
+// Some frameworks stringify callback arguments before they
+// reach history. Reject those event-object strings too.
+if (/^\[object [A-Za-z]*Event\]$/.test(value)) return;
+if (value.startsWith('#')) {
+window.parent.postMessage({
+type: 'vfs-hash-change',
+hash: value
+}, '*');
+return;
+}
+if (value.startsWith('about:///')) {
+// Vue Router exposes opaque srcdoc routes as about:///path.
+value = value.slice(8);
+if (value === '/srcdoc' ||
+value.startsWith('/srcdoc?') ||
+value.startsWith('/srcdoc#')) return;
+} else if (
+value.startsWith('http://') ||
+value.startsWith('https://')
+) {
+try {
+const parsed = new URL(value);
+const base = new URL(document.baseURI);
+if (parsed.origin !== base.origin) return;
+value = parsed.pathname + parsed.search + parsed.hash;
+} catch(e) {
+return;
+}
+} else if (value.startsWith('//')) {
+return;
+} else {
+const colon = value.indexOf(':');
+const slash = value.indexOf('/');
+if (colon > 0 &&
+(slash < 0 || colon < slash)) return;
+}
+if (value.startsWith('?')) {
+value = ${JSON.stringify(basePath || '/')} + value;
+}
+const path = value.split('?')[0].split('#')[0];
+const last = path.split('/').pop();
+const isSpa =
+path.endsWith('/') ||
+!last ||
+!last.includes('.');
+(isSpa ? sendSpa : sendNav)(value, replace);
+}
+const nativeHistoryUrl = url =>
+typeof url === 'string' && url.startsWith('#')
+? location.href.split('#')[0] + url
+: url;
+history.pushState = (state, title, url) => {
+try { _replaceState(state, title, nativeHistoryUrl(url)); } catch(e) {}
+if (url != null) reportHistory(url);
+else setTimeout(sendHash, 50);
+};
+history.replaceState = (state, title, url) => {
+try { _replaceState(state, title, nativeHistoryUrl(url)); } catch(e) {}
+if (url != null) reportHistory(url, true);
+else setTimeout(sendHash, 50);
+};
+window.addEventListener('keydown', e => {
+const key = e.key;
+if (!e.defaultPrevented &&
+(e.ctrlKey || e.metaKey) && e.shiftKey &&
+(key === 'C' || key === 'V')) {
+e.preventDefault();
+window.parent.postMessage(
+{ type: 'vfs-shortcut', key }, '*'
+);
+}
+});
+let __forge_history_restoring = false;
+window.addEventListener('hashchange', () => {
+if (!__forge_history_restoring) sendHash();
+});
+window.addEventListener('popstate', () => {
+if (!__forge_history_restoring) reportHistory(location.href);
+});
+window.addEventListener('message', e => {
+if (e.source !== window.parent) return;
+if (e.data?.type === 'forge-history') {
+history.go(e.data.delta);
+} else if (e.data?.type === 'forge-history-location') {
+__forge_history_restoring = true;
+try {
+_replaceState(history.state, '', e.data.value);
+} catch(e) {}
+window.dispatchEvent(new PopStateEvent('popstate', {
+state: history.state
+}));
+__forge_history_restoring = false;
+}
+});
+if (window.location.hash) sendHash();
+// Keep the trusted parent tab title synchronized without giving
+// it DOM access to this opaque-origin preview. Watching <head>
+// also captures SPA code that changes document.title later.
+let __forge_last_page_title = null;
+const __forge_report_page_title = () => {
+const title =
+typeof document.title === 'string'
+? document.title.trim()
+: '';
+if (title === __forge_last_page_title) return;
+__forge_last_page_title = title;
+window.parent.postMessage({
+type: 'page-title',
+title
+}, '*');
+};
+document.addEventListener(
+'DOMContentLoaded',
+__forge_report_page_title,
+{ once: true }
+);
+if (document.head && typeof MutationObserver !== 'undefined') {
+const __forge_title_observer =
+new MutationObserver(__forge_report_page_title);
+__forge_title_observer.observe(document.head, {
+subtree: true,
+childList: true,
+characterData: true
+});
+}
+// -- REPL eval handler --------------------------------
+window.addEventListener('message', function(event) {
+if (event.source !== window.parent) return;
+if (event.data && event.data.type === 'forge-set-hash') {
+const hash = typeof event.data.hash === 'string'
+? event.data.hash
+: '';
+__forge_history_restoring = true;
+try {
+_replaceState(
+history.state,
+'',
+nativeHistoryUrl(hash || '#')
+);
+} catch (e) {}
+window.dispatchEvent(new Event('hashchange'));
+__forge_history_restoring = false;
+if (!hash) {
+window.scrollTo(0, 0);
+return;
+}
+let id = hash.startsWith('#') ? hash.substring(1) : hash;
+try {
+id = decodeURIComponent(id);
+} catch (e) {}
+const target =
+document.getElementById(id) ||
+document.getElementsByName(id)[0];
+if (target) target.scrollIntoView();
+return;
+}
+if (event.data && event.data.type === 'forge-repl-eval') {
+var code = event.data.code;
+var result;
+var error = null;
+try {
+result = eval(code);
+} catch(e) {
+error = e;
+}
+// Send result back to parent
+if (error) {
+window.parent.postMessage({
+type: 'forge-repl-result',
+success: false,
+error: {
+name: error.name || 'Error',
+message: error.message || String(error),
+stack: error.stack
+}
+}, '*');
+} else {
+// Serialize the result
+var serialized;
+try {
+if (result === undefined) {
+serialized = 'undefined';
+} else if (result === null) {
+serialized = 'null';
+} else if (typeof result === 'function') {
+serialized = result.toString();
+} else if (typeof result === 'object') {
+serialized = JSON.stringify(result, null, 2);
+} else {
+serialized = String(result);
+}
+} catch(e) {
+serialized = String(result);
+}
+window.parent.postMessage({
+type: 'forge-repl-result',
+success: true,
+result: serialized
+}, '*');
+}
+}
+});
+// -- Console capture ----------------------------------
+(function() {
+var _levels = ['log', 'warn', 'error', 'info'];
+_levels.forEach(function(level) {
+var _orig = console[level].bind(console);
+console[level] = function() {
+_orig.apply(console, arguments);
+try {
+var parts = Array.prototype.slice.call(arguments).map(function(a) {
+if (a === null) return 'null';
+if (a === undefined) return 'undefined';
+// Handle Error objects specially - JSON.stringify returns {} for them
+// Check for Error-like objects (has message/stack) not just instanceof
+if (a instanceof Error || (typeof a === 'object' && (a.message || a.stack))) {
+var errObj = {
+name: a.name || 'Error',
+message: a.message || String(a),
+stack: a.stack
+};
+// Include any custom properties
+for (var key in a) {
+if (a.hasOwnProperty(key) && key !== 'name' && key !== 'message' && key !== 'stack') {
+try { errObj[key] = a[key]; } catch(e3) {}
+}
+}
+try { return JSON.stringify(errObj); } catch(e2) { return String(a); }
+}
+if (typeof a === 'object') { try { return JSON.stringify(a); } catch(e2) { return String(a); } }
+return String(a);
+});
+window.parent.postMessage({ type: 'forge-console', level: level, msg: parts.join(' ') }, '*');
+} catch(e) {}
+};
+});
+window.addEventListener('error', function(e) {
+const msg = e.error && e.error.stack;
+window.parent.postMessage({ type: 'forge-console', level: 'error', msg: msg || (e.message || 'Unknown error') + (e.filename ? ' (' + e.filename + ':' + e.lineno + ':' + e.colno + ')' : '') }, '*');
+});
+window.addEventListener('unhandledrejection', function(e) {
+const reason = e.reason;
+window.parent.postMessage({ type: 'forge-console', level: 'error', msg: 'Unhandled promise rejection: ' + (reason && reason.stack ? reason.stack : reason == null ? 'unknown' : String(reason)) }, '*');
+});
+})();
+} catch(e) {
+// Surface interceptor errors visibly so they're not silently swallowed
+console.error('[FORGE interceptor error]', e);
+document.addEventListener('DOMContentLoaded', function() {
+var d = makeEl('div');
+d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;padding:8px 12px;font:12px monospace;z-index:99999;';
+d.textContent = '[FORGE] Interceptor failed: ' + e.message;
+document.body.appendChild(d);
+});
+}
+})();
+// -- Dynamic import() interceptor -----------------------------
+const __vfs_module_cache = {};
+const __vfs_module_base  = ${JSON.stringify(basePath || '/')};
+// Dynamic imports are rewritten to __vfs_module() so project-local
+// modules can resolve through the VFS. Absolute HTTP(S) modules are
+// already real browser resources, so keep those on the native ESM
+// loader instead of normalizing them into fake VFS paths.
+const __vfs_native_import =
+new Function('url', 'return import(url);');
+function __vfs_module(path) {
+if (
+typeof path === 'string' &&
+(
+path.startsWith('https://') ||
+path.startsWith('http://')
+)
+) {
+return __vfs_native_import(path);
+}
+// Resolve relative paths against the base path of the entry file
+function resolvePath(p, base) {
+if (p.startsWith('/')) return p;
+const dir = base.substring(0, base.lastIndexOf('/') + 1);
+const parts = (dir + p).split('/');
+const out = [];
+for (const part of parts) {
+if (part === '..') out.pop();
+else if (part !== '.' && part !== '') out.push(part);
+}
+return '/' + out.join('/');
+}
+const resolved = resolvePath(path, __vfs_module_base);
+if (__vfs_module_cache[resolved]) {
+return Promise.resolve(__vfs_module_cache[resolved]);
+}
+return new Promise((resolve, reject) => {
+const channel = new MessageChannel();
+channel.port1.onmessage = (event) => {
+const { found, content } = event.data;
+if (!found) {
+reject(new Error('[FORGE] __vfs_module: file not found in VFS: ' + resolved));
+return;
+}
+try {
+// Strip ES module syntax from the raw source before
+// evaling, since the VFS returns the original file
+// contents (not the bundler-processed version).
+function __strip_exports(src) {
+src = src.replace(/\\r\\n/g, '\\n').replace(/\\r/g, '\\n');
+// export default function/class — keep declaration
+src = src.replace(/^export\\s+default\\s+(function|class)(\\s)/gm, '$1$2');
+// export default <expr> → var __moduleDefault = <expr>
+src = src.replace(/^export\\s+default\\s+(?!function|class)/gm, 'var __moduleDefault = ');
+// export async function
+src = src.replace(/^export\\s+async\\s+(function)\\s+/gm, 'async $1 ');
+// export const/let/var/function/class
+src = src.replace(/^export\\s+(const|let|var|function|class)\\s+/gm, '$1 ');
+// export { a, b } — strip entirely
+src = src.replace(/^export\\s+\\{[^}]*\\}\\s*;?/gm, '');
+// export * from / export { x } from — comment out
+src = src.replace(/^export\\s+(?:\\{[^}]*\\}|\\*)\\s+from\\s+['"][^'"]+['"]\\s*;?/gm,
+'/* [FORGE] re-export not supported */');
+// rewrite dynamic imports recursively
+src = src.replace(/\\bimport\\s*\\(/g, '__vfs_module(');
+// strip static import statements (avoid [\\s\\S] spanning lines)
+src = src.replace(/^import\\s+[^\\n]*?\\s+from\\s+['"][^'"]+['"]\\s*;?/gm, '');
+src = src.replace(/^import\\s+['"][^'"]+['"]\\s*;?/gm, '');
+return src;
+}
+const stripped = __strip_exports(content);
+// Eval the stripped source and collect exports
+const moduleExports = {};
+const moduleObj = { exports: moduleExports };
+const fn = new Function(
+'exports', 'module', '__vfs_module',
+stripped + '\\n' +
+'if (typeof __moduleDefault !== "undefined") ' +
+'  module.exports.default = __moduleDefault;'
+);
+fn(moduleExports, moduleObj, __vfs_module);
+const result = moduleObj.exports;
+__vfs_module_cache[resolved] = result;
+resolve(result);
+} catch (e) {
+reject(new Error('[FORGE] __vfs_module eval error in ' + resolved + ': ' + e.message));
+}
+};
+window.parent.postMessage(
+{ type: 'vfs-fetch', url: resolved },
+'*',
+[channel.port2]
+);
+});
+}
+<\/script>
     `;
 }
 // Render into the preview frame.
@@ -7425,6 +8046,9 @@ function isPreviewPeopleDirectoryRequest(url) {
     }
 }
 function getPreviewWhoamiPerson() {
+    const simulated = getPreviewIdentity();
+    if (simulated === 'anonymous') return null;
+    if (simulated) return { email: simulated };
     if (
         !currentUser ||
         typeof currentUser.email !== 'string' ||
@@ -7825,6 +8449,11 @@ window.addEventListener('load', async () => {
   // deployment's portable /whoami contract.
   await detectServerFeatures();
   await loadCurrentUser();
+  if (governmentNoticeEnabled && !governmentNoticeAcknowledged()) {
+    const governmentNotice = showGovernmentSystemNotice();
+    document.documentElement.classList.remove('initializing');
+    await governmentNotice;
+  }
   applyFeatureVisibility();
   openManagedShareAdminIfRequested();
   populateExamplesDropdown();

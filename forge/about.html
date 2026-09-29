@@ -112,7 +112,7 @@
 
     .header-btn.primary:hover { background: #1177bb; }
 
-    main {
+main {
       max-width: 960px;
       margin: 0 auto;
       padding: 48px 24px 80px;
@@ -633,31 +633,31 @@
 
 <main>
 
-  <!-- Hero -->
   <div class="hero">
     <div class="hero-badge">FORGE</div>
     <h1>Build it together.</h1>
     <p class="hero-sub">
       Software has an old rule: good, quick, cheap. Pick two.
-      We think that rule leaves out something important:
-      how the people building the thing work together.
+      FORGE starts from a different question: what changes when the people
+      building the thing can stay close to the work?
     </p>
-    <p class="hero-note"><strong>FORGE IDE:</strong> Build it small.</p>
+    <p class="hero-note">
+      <strong>FORGE IDE:</strong> Build small, understand it, and keep moving.
+    </p>
     <div class="hero-actions">
       <a href="index.html" class="btn btn-primary">Open the IDE</a>
       <a href="#getting-started" class="btn btn-outline">Get Started ↓</a>
-      <a href="#" data-forge-repository-link target="_blank" class="btn btn-outline">View on GitLab ↗</a>
+      <a href="#" data-forge-repository-link target="_blank" class="btn btn-outline">View source ↗</a>
     </div>
   </div>
 
-  <!-- FORGE idea -->
   <section>
     <div class="section-label">The idea</div>
     <h2>The old rule is incomplete.</h2>
     <p>
       Good, quick, and cheap really can pull against one another.
-      But the way we build changes those tradeoffs. Shorter feedback loops,
-      shared understanding, and fewer handoffs make it easier to improve all three.
+      But shorter feedback loops, shared understanding, and fewer handoffs
+      can move all three in the right direction.
     </p>
 
     <div class="tradeoff-diagram">
@@ -676,13 +676,9 @@
         <text x="210" y="30" class="diagram-title">The usual tradeoff</text>
         <text x="710" y="30" class="diagram-title">What FORGE adds</text>
 
-        <!-- Traditional triangle -->
-        <line x1="210" y1="105" x2="78" y2="315"
-              class="negative-line"/>
-        <line x1="210" y1="105" x2="342" y2="315"
-              class="negative-line"/>
-        <line x1="78" y1="315" x2="342" y2="315"
-              class="negative-line"/>
+        <line x1="210" y1="105" x2="78" y2="315" class="negative-line"/>
+        <line x1="210" y1="105" x2="342" y2="315" class="negative-line"/>
+        <line x1="78" y1="315" x2="342" y2="315" class="negative-line"/>
 
         <circle cx="210" cy="105" r="53" class="diagram-circle"/>
         <circle cx="78" cy="315" r="53" class="diagram-circle"/>
@@ -702,28 +698,18 @@
         </text>
 
         <circle cx="143" cy="210" r="14" class="negative-mark"/>
-        <text x="143" y="210"
-              class="relation-text negative-text">-</text>
-
+        <text x="143" y="210" class="relation-text negative-text">-</text>
         <circle cx="277" cy="210" r="14" class="negative-mark"/>
-        <text x="277" y="210"
-              class="relation-text negative-text">-</text>
-
+        <text x="277" y="210" class="relation-text negative-text">-</text>
         <circle cx="210" cy="315" r="14" class="negative-mark"/>
-        <text x="210" y="315"
-              class="relation-text negative-text">-</text>
+        <text x="210" y="315" class="relation-text negative-text">-</text>
 
-        <!-- Change arrow -->
         <path class="change-arrow"
               d="M430 190h38v-18l34 34-34 34v-18h-38z"/>
 
-        <!-- FORGE relationship -->
-        <line x1="710" y1="105" x2="710" y2="250"
-              class="positive-line"/>
-        <line x1="710" y1="250" x2="570" y2="315"
-              class="positive-line"/>
-        <line x1="710" y1="250" x2="850" y2="315"
-              class="positive-line"/>
+        <line x1="710" y1="105" x2="710" y2="250" class="positive-line"/>
+        <line x1="710" y1="250" x2="570" y2="315" class="positive-line"/>
+        <line x1="710" y1="250" x2="850" y2="315" class="positive-line"/>
 
         <circle cx="710" cy="105" r="53" class="diagram-circle"/>
         <circle cx="570" cy="315" r="53" class="diagram-circle"/>
@@ -749,16 +735,11 @@
         </text>
 
         <circle cx="710" cy="175" r="14" class="positive-mark"/>
-        <text x="710" y="175"
-              class="relation-text positive-text">+</text>
-
+        <text x="710" y="175" class="relation-text positive-text">+</text>
         <circle cx="640" cy="280" r="14" class="positive-mark"/>
-        <text x="640" y="280"
-              class="relation-text positive-text">+</text>
-
+        <text x="640" y="280" class="relation-text positive-text">+</text>
         <circle cx="780" cy="280" r="14" class="positive-mark"/>
-        <text x="780" y="280"
-              class="relation-text positive-text">+</text>
+        <text x="780" y="280" class="relation-text positive-text">+</text>
       </svg>
     </div>
 
@@ -768,499 +749,255 @@
     </p>
   </section>
 
-  <!-- Ecosystem -->
   <section>
-    <div class="section-label">The Ecosystem</div>
-    <h2>How it all fits together</h2>
+    <div class="section-label">The ecosystem</div>
+    <h2>One project, several useful places to work</h2>
     <p>
-      FORGE Tools are a family of tools that work together. You can use just the IDE,
-      or combine all the pieces for a full development workflow.
+      FORGE tools share a simple project format, so a small codebase can move
+      between an LLM conversation, the browser IDE, Git, and your local machine.
     </p>
 
     <div class="ecosystem">
       <div class="eco-node">
         <div class="eco-node-icon">🤖</div>
-        <div class="eco-node-label">Elsa</div>
-        <div class="eco-node-sub">Write the code</div>
+        <div class="eco-node-label">Your LLM</div>
+        <div class="eco-node-sub">Think &amp; write</div>
       </div>
       <div class="eco-arrow">→</div>
       <div class="eco-node">
         <div class="eco-node-icon">🛠️</div>
         <div class="eco-node-label">FORGE CODE</div>
-        <div class="eco-node-sub">Parse &amp; apply</div>
+        <div class="eco-node-sub">Apply &amp; test</div>
       </div>
       <div class="eco-arrow">→</div>
       <div class="eco-node">
         <div class="eco-node-icon">🔥</div>
         <div class="eco-node-label">FORGE IDE</div>
-        <div class="eco-node-sub">Preview &amp; share</div>
+        <div class="eco-node-sub">Edit &amp; share</div>
       </div>
       <div class="eco-arrow">→</div>
       <div class="eco-node">
         <div class="eco-node-icon">⚙️</div>
         <div class="eco-node-label">FORGE CLI</div>
-        <div class="eco-node-sub">Sync locally</div>
+        <div class="eco-node-sub">Work locally</div>
       </div>
       <div class="eco-arrow">→</div>
       <div class="eco-node">
-        <div class="eco-node-icon">🦊</div>
-        <div class="eco-node-label">GitLab</div>
+        <div class="eco-node-icon">🌿</div>
+        <div class="eco-node-label">Git</div>
         <div class="eco-node-sub">Collaborate</div>
       </div>
     </div>
 
     <div class="tip">
-      <strong>Just getting started?</strong> You only need the first three steps —
-      Elsa, the bookmarklet, and the IDE. The CLI and GitLab integration are there
-      when you're ready to go deeper.
+      <strong>Start small.</strong>
+      An LLM, FORGE Code, and FORGE IDE are enough for the basic loop.
+      CLI and Git workflows are there when the project needs to move farther.
     </div>
   </section>
 
-  <!-- Getting Started -->
   <section id="getting-started">
-    <div class="section-label">Getting Started</div>
-    <h2>From zero to shared app in 10 minutes</h2>
+    <div class="section-label">Getting started</div>
+    <h2>From conversation to working app</h2>
     <p>
-      Here's the fastest path to building and sharing something real.
-      All you need is Chrome and access to Elsa.
+      FORGE Code works with supported web LLM interfaces rather than one
+      particular model. The interface may vary; the workflow stays simple.
     </p>
 
-    <!-- Phase 1 -->
     <div class="phase">
       <div class="phase-header">
         <div class="phase-number">1</div>
         <div>
-          <div class="phase-title">Install the bookmarklet</div>
-          <div class="phase-subtitle">One-time setup — takes about 30 seconds</div>
+          <div class="phase-title">Add FORGE Code</div>
+          <div class="phase-subtitle">
+            The bookmarklet gives an LLM conversation a project workspace
+          </div>
         </div>
       </div>
+
       <div class="steps">
         <div class="step">
           <div class="step-num">1</div>
           <div class="step-body">
-            <div class="step-title">Make sure your bookmarks bar is visible</div>
+            <div class="step-title">Drag FORGE Code to your bookmarks bar</div>
             <div class="step-desc">
-              In Chrome, press <code>Ctrl+Shift+B</code> to show it if it's hidden.
-            </div>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <div class="step-body">
-            <div class="step-title">Drag the button below to your bookmarks bar</div>
-            <div class="step-desc">
-              Click and drag the blue button directly onto your Chrome bookmarks bar.
-              That's it — it's installed.
+              Show the bookmarks bar if needed, then drag the button below onto it.
             </div>
             <div class="bookmarklet-zone">
-              <div class="bookmarklet-zone-label">
-                👇 Drag this to your bookmarks bar
-              </div>
+              <div class="bookmarklet-zone-label">👇 Drag this to your bookmarks bar</div>
               <div id="bookmarkletTarget">
                 <div class="bookmarklet-loading">Loading bookmarklet...</div>
               </div>
             </div>
             <div class="step-note">
-              💡 Want to see all available bookmarklets?
-              <a href="bookmarklets.html">Visit the Bookmarklets page →</a>
+              See the <a href="bookmarklets.html">Bookmarklets page →</a>
+              for other browser tools.
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Phase 2 -->
     <div class="phase">
       <div class="phase-header">
         <div class="phase-number">2</div>
         <div>
-          <div class="phase-title">Build something with Elsa</div>
-          <div class="phase-subtitle">Ask Elsa to write a multi-file app, then parse it with one click</div>
+          <div class="phase-title">Build with an LLM</div>
+          <div class="phase-subtitle">Ask, apply, inspect, and repeat</div>
         </div>
       </div>
+
       <div class="steps">
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Open a supported LLM and launch FORGE Code</div>
+            <div class="step-desc">
+              Start with a normal coding request. FORGE Code supplies the protocol
+              the model uses to work with the browser-side project.
+            </div>
+          </div>
+        </div>
+
         <div class="step">
           <div class="step-num">3</div>
           <div class="step-body">
-            <div class="step-title">Open a new Elsa chat, and launch the Forge Code Bookmarklet</div>
+            <div class="step-title">Apply the model's steps</div>
             <div class="step-desc">
-              No special workspace or setup needed just start a fresh chat.
-              FORGE CODE already knows how to read whatever Elsa writes. The bookmarklet will
-              tell Elsa how to write code that it undersands. 
-
-              You can write your prompt directly in elsa, or you can write it in FORGE CODE's
-              prompt box. A good thing to try is a game. Puzzle games are simple, self-contained,
-              and are a good way to get familiar with how the process works.
-
-              Try something like:
-            </div>
-            <pre style="margin-top: 8px;">"Build me a sliding puzzle game with a 4x4 grid, a move counter, and a win condition."</pre>
-            <div class="step-desc" style="margin-top: 8px;">
-              Or try a crossword puzzle, a Jeopardy-style quiz, a Minesweeper clone,
-              a data visualization, or anything else you're curious about.
-              The more specific you are, the better the result.
+              FORGE Code parses the response, shows what will change, and applies
+              the operations to its virtual file system. You stay in the loop.
             </div>
           </div>
         </div>
+
         <div class="step">
           <div class="step-num">4</div>
           <div class="step-body">
-            <div class="step-title">When Elsa finishes, click "Apply Steps" in FORGE CODE</div>
+            <div class="step-title">Open the project in FORGE IDE</div>
             <div class="step-desc">
-              It will scan Elsa's response, find all the code blocks, and show you a summary of what it found.
-              It will put the code into a "virtual file system", which is just in the browser for you only.
+              Move into the IDE when you want a fuller file browser, editor,
+              preview, diagnostics, sharing tools, or repository workflows.
             </div>
           </div>
         </div>
-        <div class="step">
-          <div class="step-num">5</div>
-          <div class="step-body">
-            <div class="step-title">Click "Preview project"</div>
-            <div class="step-desc">
-              This sends your project straight to the full IDE where you can browse
-              files, edit, preview, and share. The project payload itself stays client-side:
-              it is compressed into the URL fragment after the "#" mark, which the browser
-              uses without sending that fragment to the server. The IDE may still make its
-              own configuration or identity requests. Your project is uploaded only when
-              you intentionally create a server-backed Short Link.
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
 
-    <!-- Phase 3 -->
     <div class="phase">
       <div class="phase-header">
         <div class="phase-number">3</div>
         <div>
-          <div class="phase-title">Share your app</div>
-          <div class="phase-subtitle">Get a link anyone at FDA can open in their browser</div>
+          <div class="phase-title">Share or move the project</div>
+          <div class="phase-subtitle">Choose the boundary that fits the work</div>
         </div>
       </div>
+
       <div class="steps">
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-title">Share from the IDE</div>
+            <div class="step-desc">
+              A Long Link keeps the compressed project in the URL fragment.
+              Server-backed sharing creates a compact link. Where enabled,
+              Managed or Named Shares can provide a stable address that can
+              be updated later.
+            </div>
+          </div>
+        </div>
+
         <div class="step">
           <div class="step-num">6</div>
           <div class="step-body">
-            <div class="step-title">In the IDE, create a Short Link</div>
+            <div class="step-title">Move local when you need to</div>
             <div class="step-desc">
-              This stores a server-backed copy of the project and creates a compact link
-              that opens it directly in the browser — no install needed for the person
-              you're sharing with. You'll see a privacy notice and can choose an expiration
-              time before creating the link.
-              <br><br>
-              On deployments that support stable Named Shares, FORGE generates a P-256
-              signing key in your browser. The private key is non-extractable and stays in
-              this browser profile; updates are signed locally, while only the public key
-              and signature are published. That lets FORGE verify that a later update came
-              from the browser that originally claimed the name. Clearing browser storage
-              or moving to another browser can therefore lose update access unless that
-              deployment provides recovery or administrative support.
+              FORGE CLI converts between a local directory and the same FORGE JSON
+              used by the browser tools. Git integrations can take the project farther.
             </div>
           </div>
         </div>
-        <div class="step">
-          <div class="step-num">7</div>
-          <div class="step-body">
-            <div class="step-title">Paste the link wherever you need it</div>
-            <div class="step-desc">
-              Teams chat, email, a ticket — the link opens the live app.
-              If you want a self-contained link that stores nothing on the server,
-              use <strong>Long Link</strong> instead.
-            </div>
+      </div>
+
+      <div class="cli-workflow" style="margin-top:20px;">
+        <div class="cli-card">
+          <div class="cli-card-title">📥 Browser → local</div>
+          <div class="cli-card-desc">
+            Export or copy the project, then use <code>forge in</code>
+            from the separate FORGE CLI project.
+          </div>
+        </div>
+        <div class="cli-card">
+          <div class="cli-card-title">📤 Local → browser</div>
+          <div class="cli-card-desc">
+            Use <code>forge out</code>, then paste the project into
+            FORGE IDE or FORGE Code.
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Showcase callout -->
-    <div class="tip" style="margin: 0 0 32px; border-left-color: var(--gold); font-size:0.92em;">
+    <div class="tip" style="margin:0 0 32px; border-left-color:var(--gold);">
       <strong>🚀 See what others have built.</strong>
-      The <a href="showcase/index.html" target="_blank">FORGE Showcase</a> is a gallery
-      of apps and tools built by the FDA community using this exact workflow —
-      Elsa, the bookmarklet, and the IDE. Browse it for inspiration, or to see
-      what's possible. One click opens any project directly in the IDE so you
-      can explore the code.
-    </div>
-
-    <!-- Phase 4 -->
-    <div class="phase">
-      <div class="phase-header">
-        <div class="phase-number">4</div>
-        <div>
-          <div class="phase-title">Sync with your local machine</div>
-          <div class="phase-subtitle">
-            Optional — for when you want to edit locally, use git, or work offline
-          </div>
-        </div>
-      </div>
-      <p style="margin-bottom: 16px;">
-        The FORGE CLI brings <code>forge in</code> and <code>forge out</code> to your terminal.
-        These two commands let you move a project between the IDE and your local file system
-        in seconds — no manual copy-paste of individual files.
-      </p>
-
-      <div class="cli-workflow">
-        <div class="cli-card">
-          <div class="cli-card-title">📥 IDE → Local machine</div>
-          <div class="cli-card-desc">
-            Copy the project JSON from the IDE, then extract it to a local directory.
-          </div>
-          <ol style="font-size:0.85em; color:var(--text-dim); padding-left:18px; line-height:2;">
-            <li>In the IDE: <code>Ctrl+Shift+C</code> (or Export ▾ → Copy JSON)</li>
-            <li>On your machine, navigate to your target directory</li>
-            <li>Run: <pre>forge in</pre></li>
-          </ol>
-          <div class="tip" style="margin-top:10px;">
-            <code>forge in</code> reads from your clipboard by default.
-            It will ask before overwriting existing files.
-          </div>
-        </div>
-        <div class="cli-card">
-          <div class="cli-card-title">📤 Local machine → IDE</div>
-          <div class="cli-card-desc">
-            Package your local directory back to JSON, then paste it into the IDE.
-          </div>
-          <ol style="font-size:0.85em; color:var(--text-dim); padding-left:18px; line-height:2;">
-            <li>In your project directory, run: <pre>forge out</pre></li>
-            <li>In the IDE: <code>Ctrl+Shift+V</code> (or Import ▾ → Paste JSON)</li>
-          </ol>
-          <div class="tip" style="margin-top:10px;">
-            <code>forge out</code> copies to your clipboard automatically.
-            Use a <code>.forgeignore</code> file to exclude <code>node_modules/</code> etc.
-          </div>
-        </div>
-      </div>
-
-      <div class="steps" style="margin-top: 24px;">
-        <div class="step">
-          <div class="step-num">10</div>
-          <div class="step-body">
-            <div class="step-title">Install the FORGE CLI</div>
-            <div class="step-desc">
-              Download and run the self-contained installer for your platform.
-              No git clone or internet access required after download.
-            </div>
-            <div id="cliInstallInline">
-              <div style="color:var(--text-dim); font-size:0.85em; padding:12px 0;">
-                Checking for installers...
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">11</div>
-          <div class="step-body">
-            <div class="step-title">Use a .forgeignore file to keep things clean</div>
-            <div class="step-desc">
-              Works just like <code>.gitignore</code>. Put it in your project root
-              to tell <code>forge out</code> what to skip — typically
-              <code>node_modules/</code>, build output, and secrets.
-              You can edit it directly in the IDE's Project tab.
-            </div>
-            <pre>node_modules/
-dist/
-.env
-*.log</pre>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">12</div>
-          <div class="step-body">
-            <div class="step-title">Push to GitLab when you're ready</div>
-            <div class="step-desc">
-              Once your project is on your local machine via <code>forge in</code>,
-              it's just a regular directory. Initialize a git repo, push to GitLab,
-              and collaborate normally. You can pull it back into the IDE any time
-              using <strong>Import ▾ → Import from GitLab</strong>.
-            </div>
-          </div>
-        </div>
-      </div>
+      The <a href="showcase/index.html" target="_blank">FORGE Showcase</a>
+      contains projects built with the same small-project workflow.
     </div>
   </section>
 
-  <!-- FAQ -->
   <section id="faq-section">
     <div class="section-label">FAQ</div>
     <h2>Common questions</h2>
 
     <div class="faq-list">
-
       <div class="faq-item">
         <button class="faq-question" onclick="toggleFaq(this)">
-          Can I host a basic static page?
+          What works well in FORGE IDE?
           <span class="faq-chevron">▼</span>
         </button>
         <div class="faq-answer">
-          Yes — this is the simplest use case and requires nothing special.
-          Build your HTML/CSS/JS in the IDE, then create a <strong>Short Link</strong>
-          or <strong>Fullscreen Link</strong> to get a link that opens your app
-          directly in the browser. Anyone with the link can view it — no install needed.
-          <br><br>
-          Try the <a href="index.html?loadExample=hello-world" target="_blank">Hello World example →</a>
+          Browser-based HTML, CSS, and JavaScript projects are the natural fit.
+          The IDE can store and edit other text files too, but its live preview
+          executes browser code rather than local Python, R, or other runtimes.
         </div>
       </div>
 
       <div class="faq-item">
         <button class="faq-question" onclick="toggleFaq(this)">
-          Can I host a page that calls a REST API?
+          Can a preview call a REST API?
           <span class="faq-chevron">▼</span>
         </button>
         <div class="faq-answer">
-          Yes. Your app runs in the browser and can call any REST API that allows it.
-          <a href="https://open.fda.gov" target="_blank">openFDA</a> works out of the box.
-          Internal FDA APIs may need CORS headers configured to allow requests from the
-          FORGE domain — check with the API owner if you get CORS errors.
-          <br><br>
-          Try the <a href="index.html?loadExample=rest-api" target="_blank">openFDA Drug Search example →</a>
-        </div>
-      </div>
-
-
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          Can I use SSO (single sign-on) in my app?
-          <span class="faq-chevron">▼</span>
-        </button>
-        <div class="faq-answer">
-          FORGE now has some identity groundwork, but it is not a general SSO API for
-          prototype code. On supported deployments, the IDE can obtain native FORGE
-          identity or discover the current FDA email from GSRS. Preview apps may read
-          that normalized identity through a narrow compatibility endpoint: local
-          <code>GET</code> requests whose path ends in <code>/whoami</code> or
-          <code>/whoami.cfm</code> are answered with FORGE's person object
-          (<code>email</code>, and when available <code>fullName</code> and
-          <code>identifier</code>). No SSO cookies or FORGE authentication headers are
-          exposed to the preview. This identity is a convenience for application UI,
-          not proof of authorization; authenticated application and server-side access
-          controls still depend on the deployment model.
+          Yes, when the API permits browser requests from the FORGE deployment.
+          Normal browser rules such as CORS still apply.
+          Try the
+          <a href="index.html?loadExample=rest-api" target="_blank">openFDA example →</a>
         </div>
       </div>
 
       <div class="faq-item">
         <button class="faq-question" onclick="toggleFaq(this)">
-          Does this work in browsers other than Chrome?
+          Where is my project stored?
           <span class="faq-chevron">▼</span>
         </button>
         <div class="faq-answer">
-          The IDE itself works in any modern browser (Chrome, Edge, Firefox, Safari).
-          However, the FORGE CODE bookmarklet works best in Chrome at FDA.
-          Edge may have issues with bookmarklet drag-and-drop. If you're just using
-          the IDE directly (not the bookmarklet), any browser is fine.
+          Editing and previewing use a browser-side virtual file system.
+          A Long Link embeds the compressed project in the URL fragment.
+          Server-backed Short or Managed Shares intentionally store project data
+          on the configured FORGE server.
         </div>
       </div>
 
       <div class="faq-item">
         <button class="faq-question" onclick="toggleFaq(this)">
-          Is my code stored anywhere when I use the IDE?
+          What's the difference between FORGE Code and FORGE IDE?
           <span class="faq-chevron">▼</span>
         </button>
         <div class="faq-answer">
-          By default, your project stays in the browser-side virtual file system.
-          Editing and previewing do not upload the project payload, although the IDE
-          may make ordinary requests for its own configuration or identity metadata.
+          <strong>FORGE Code</strong> lives with the LLM conversation and is optimized
+          for the fast ask → apply → inspect loop.
           <br><br>
-          <strong>Long Link</strong>: your project is compressed and embedded directly
-          in the URL fragment. The project is not stored server-side by FORGE.
-          <br><br>
-          <strong>Short Link</strong>: a compressed copy of your project is stored on
-          the FORGE server. Managed Short Links have bounded expiration and show a
-          privacy notice before creation. Don't use sharing features for information
-          that is not appropriate to place in the resulting link or server-backed share.
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          What's the difference between FORGE CODE and FORGE IDE?
-          <span class="faq-chevron">▼</span>
-        </button>
-        <div class="faq-answer">
-          They're designed for different moments in the workflow, and they're
-          better together than either is alone.
-          <br><br>
-          <strong>FORGE CODE</strong> is a bookmarklet that lives in your browser
-          and runs on any webpage — including Elsa. Its home is the LLM conversation:
-          you ask Elsa to write or modify code, FORGE CODE parses the response,
-          applies the changes to a virtual file system, and lets you preview the
-          result without ever leaving the chat. It's built for the fast, iterative
-          "ask → apply → see → ask again" loop.
-          <br><br>
-          <strong>FORGE IDE</strong> (this app) is where you go when you want to
-          do more with what you've built: browse and edit files, preview across
-          pages, share via URL, push to GitLab, or hand the project off to someone
-          else. It's built for the moments after the LLM conversation — reviewing,
-          refining, and shipping.
-          <br><br>
-          The handoff between them is one click in either direction. FORGE CODE
-          has an "Open in FORGE IDE" button that sends your current project straight
-          here. FORGE IDE projects can be exported as a JSON payload and loaded
-          back into FORGE CODE for another round of AI-assisted editing. They're
-          two parts of the same loop, not two separate tools.
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          Can I use this for Python or R projects?
-          <span class="faq-chevron">▼</span>
-        </button>
-        <div class="faq-answer">
-          The IDE can store and edit any text file, including Python and R scripts.
-          However, the live preview only runs HTML/CSS/JavaScript — it can't execute
-          Python or R in the browser. You can use the IDE to manage and share the
-          source files, then run them locally after extracting with <code>forge in</code>.
-          Python and R execution in the browser (via Pyodide and WebR) is on the roadmap.
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          How do I update the FORGE CLI after installing it?
-          <span class="faq-chevron">▼</span>
-        </button>
-        <div class="faq-answer">
-          Download the latest installer and run it with the update flag:
-          <br><br>
-          <strong>Windows:</strong> <code>forge-install.bat -Update</code>
-          <br>
-          <strong>Mac/Linux:</strong> <code>bash forge-install.sh --update</code>
-          <br><br>
-          This removes the old installation and replaces it with the new version.
-          Your PATH configuration is preserved.
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          What is .forgeignore and do I need it?
-          <span class="faq-chevron">▼</span>
-        </button>
-        <div class="faq-answer">
-          <code>.forgeignore</code> works exactly like <code>.gitignore</code> —
-          it tells <code>forge out</code> which files and directories to skip when
-          packaging your project to JSON. You don't need it for simple projects,
-          but it's essential once you have a <code>node_modules/</code> directory
-          or other large generated files you don't want included.
-          <br><br>
-          You can edit your <code>.forgeignore</code> directly in the IDE's
-          <strong>Project</strong> tab without leaving the browser.
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <button class="faq-question" onclick="toggleFaq(this)">
-          Can I import an existing GitLab repository?
-          <span class="faq-chevron">▼</span>
-        </button>
-        <div class="faq-answer">
-          Yes. Click <strong>Import ▾ → Import from GitLab</strong> in the IDE.
-          You'll need a personal access token with <code>read_api</code> scope
-          from your GitLab instance. The IDE will fetch the repository tree and
-          all file contents, respecting any <code>.forgeignore</code> patterns
-          it finds in the repo.
+          <strong>FORGE IDE</strong> is the fuller browser development environment:
+          files, editing, preview, diagnostics, sharing, and repository workflows.
+          They use the same project model so moving between them is intentionally easy.
         </div>
       </div>
 
@@ -1270,29 +1007,23 @@ dist/
           <span class="faq-chevron">▼</span>
         </button>
         <div class="faq-answer">
-          In the IDE, use <strong>Contact</strong> to begin a support email or
-          <strong>Report</strong> to begin a report with useful URL/share context.
-          You can also check the
-          <a href="#" data-forge-repository-link target="_blank">
-            GitLab repository
-          </a>
-          for known issues, or email
-          <a href="#" data-forge-contact-link>email FORGE</a> directly.
+          Use <strong>Contact</strong> or <strong>Report</strong> in the IDE,
+          check the
+          <a href="#" data-forge-repository-link target="_blank">source repository</a>,
+          or <a href="#" data-forge-contact-link>email FORGE</a>.
         </div>
       </div>
-
     </div>
   </section>
 
-  <!-- Links -->
   <section>
     <div class="section-label">Resources</div>
     <h2>More to explore</h2>
-    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:12px; margin-top:8px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-top:8px;">
       <a href="index.html" class="cli-card" style="text-decoration:none; display:block;">
         <div style="font-size:1.5em; margin-bottom:6px;">🔥</div>
         <div class="cli-card-title">FORGE IDE</div>
-        <div class="cli-card-desc">The main development environment</div>
+        <div class="cli-card-desc">Open the development environment</div>
       </a>
       <a href="showcase/index.html" class="cli-card" style="text-decoration:none; display:block;">
         <div style="font-size:1.5em; margin-bottom:6px;">🚀</div>
@@ -1302,18 +1033,13 @@ dist/
       <a href="bookmarklets.html" class="cli-card" style="text-decoration:none; display:block;">
         <div style="font-size:1.5em; margin-bottom:6px;">🔖</div>
         <div class="cli-card-title">Bookmarklets</div>
-        <div class="cli-card-desc">FDA workflow browser tools</div>
-      </a>
-      <a href="bookmarklet_maker.html" class="cli-card" style="text-decoration:none; display:block;">
-        <div style="font-size:1.5em; margin-bottom:6px;">🛠️</div>
-        <div class="cli-card-title">Bookmarklet Maker</div>
-        <div class="cli-card-desc">Encode and decode bookmarklets</div>
+        <div class="cli-card-desc">Browser tools including FORGE Code</div>
       </a>
       <a href="#" data-forge-repository-link target="_blank"
          class="cli-card" style="text-decoration:none; display:block;">
-        <div style="font-size:1.5em; margin-bottom:6px;">🦊</div>
-        <div class="cli-card-title">GitLab Repository</div>
-        <div class="cli-card-desc">Source code, issues, and docs</div>
+        <div style="font-size:1.5em; margin-bottom:6px;">🌿</div>
+        <div class="cli-card-title">Source Repository</div>
+        <div class="cli-card-desc">Source code, issues, and design notes</div>
       </a>
     </div>
   </section>
@@ -1333,7 +1059,6 @@ dist/
 </footer>
 
 <script src="forge-version.js"></script>
-<script src="forge-cli-install.js"></script>
 <script>
   // -- Config --------------------------------------------------------------
   const BOOKMARKLETS_JSON_URL = 'bookmarklets.json';
@@ -1381,23 +1106,6 @@ dist/
     }
   }
 
-  // -- Load CLI install widget -----------------------------------------------
-  async function loadCliInstall() {
-    const container = document.getElementById('cliInstallInline');
-    await ForgeCliInstall.renderInstallUI(container, { compact: true });
-  }
-
-  // -- Footer version --------------------------------------------------------
-  async function loadFooterVersion() {
-    try {
-      const res = await fetch('downloads/manifest.json', { cache: 'no-cache' });
-      if (!res.ok) return;
-      const m = await res.json();
-      document.getElementById('footerVersion').textContent =
-        `FDA FORGE IDE · CLI v${m.version} · Built ${new Date(m.built).toLocaleDateString()}`;
-    } catch (e) { /* silent */ }
-  }
-
   // -- FAQ accordion ---------------------------------------------------------
   function toggleFaq(btn) {
     const item = btn.closest('.faq-item');
@@ -1425,8 +1133,6 @@ dist/
 
   // -- Init ------------------------------------------------------------------
   loadBookmarklet();
-  loadCliInstall();
-  loadFooterVersion();
 </script>
 <script>
 fetch('forge-config.json',{cache:'no-cache'})
