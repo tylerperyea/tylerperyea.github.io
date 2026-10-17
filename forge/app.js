@@ -492,6 +492,8 @@ const gitlabUrlInput = byId('gitlabUrl');
 const gitlabTokenInput = byId('gitlabToken');
 const gitlabProjectInput = byId('gitlabProject');
 const gitlabBranchInput = byId('gitlabBranch');
+const gitlabBranchOptions = byId('gitlabBranchOptions');
+const gitlabBranchStatus = byId('gitlabBranchStatus');
 const saveTokenCheckbox = byId('saveToken');
 const importProgress = byId('importProgress');
 const gitlabBrowseProjectsBtn = byId('gitlabBrowseProjectsBtn');
@@ -517,6 +519,9 @@ function setGitImportProvider(n){
     const s=localStorage.getItem(n+'Token')||'';
     gitlabUrlInput.value=gitImportOrigin();gitlabTokenInput.value=s;saveTokenCheckbox.checked=!!s;
     gitlabProjectInput.value=gitlabBranchInput.value='';
+    gitImportBranchPicker.clear();
+    gitlabBranchStatus.textContent=
+        'Select a repository to load branches, or enter one manually.';
     renderRecentGitLabProjects();setGitLabProjectBrowserExpanded(false);
     byId('gitImportBtn').disabled=0;
 }
@@ -626,6 +631,9 @@ function selectGitLabProject(project) {
     if (normalized.default_branch) {
         gitlabBranchInput.value = normalized.default_branch;
     }
+    loadImportGitBranches(
+        normalized.path_with_namespace || normalized.id
+    );
     if(gitImportProviderName==='gitlab')rememberGitLabProject(normalized);
     renderRecentGitLabProjects();
     setGitLabProjectBrowserExpanded(false);
@@ -760,6 +768,101 @@ async function fetchGitLabProjects(token,query='',page=1,provider='gitlab'){
     if(!r.ok)throw new Error(`GitLab API error ${r.status}: ${r.statusText}`);
     const d=await r.json();return Array.isArray(d)?d:[];
 }
+async function fetchGitBranches(token,project,provider='gitlab'){
+    const name=String(project||'').trim(),branches=[];
+    if(!token||!name)return branches;
+    for(let page=1;;page++){
+        const gh=provider==='github';
+        const id=gh
+            ?name.split('/').map(encodeURIComponent).join('/')
+            :isNaN(name)?name.replace(/\//g,'%2F'):name;
+        const base=gh
+            ?window.FORGE_GITHUB_ORIGIN||'https://api.github.com'
+            :window.FORGE_GITLAB_ORIGIN;
+        const url=gh
+            ?`${base}/repos/${id}/branches?per_page=100&page=${page}`
+            :`${base}/api/v4/projects/${id}/repository/branches?per_page=100&page=${page}`;
+        const response=await fetch(url,{headers:gh
+            ?{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json'}
+            :{'PRIVATE-TOKEN':token,Accept:'application/json'}
+        });
+        if(!response.ok)throw new Error(`Branch lookup failed: ${response.status}`);
+        const rows=await response.json();
+        if(!Array.isArray(rows))break;
+        branches.push(...rows.map(row=>row?.name).filter(Boolean));
+        if(rows.length<100)break;
+    }
+    return [...new Set(branches)].sort((a,b)=>a.localeCompare(b));
+}
+function createGitBranchPicker(input,list,onSelect=()=>{}){
+    let branches=[];
+    const close=()=>{
+        list.hidden=true;
+        input.setAttribute('aria-expanded','false');
+    };
+    const render=all=>{
+        const query=all?'':input.value.trim().toLowerCase();
+        const options=branches.filter(branch=>
+            !query||branch.toLowerCase().includes(query)
+        ).map(branch=>{
+            const option=makeEl('button');
+            option.type='button';
+            option.className='gitlab-project-option git-branch-option';
+            option.textContent=branch;
+            option.onmousedown=event=>event.preventDefault();
+            option.onclick=()=>{
+                input.value=branch;
+                onSelect(branch);
+                close();
+                input.focus();
+            };
+            return option;
+        });
+        list.replaceChildren(...options);
+        const show=options.length&&document.activeElement===input;
+        list.hidden=!show;
+        input.setAttribute('aria-expanded',show?'true':'false');
+    };
+    input.addEventListener('focus',()=>render(true));
+    input.addEventListener('click',()=>render(true));
+    input.addEventListener('input',()=>render(false));
+    input.addEventListener('blur',()=>setTimeout(close,0));
+    return {
+        clear(){branches=[];list.replaceChildren();close();},
+        set(values){branches=values||[];render(true);}
+    };
+}
+async function loadGitBranches(picker,status,token,project,provider){
+    picker.clear();
+    if(!token||!project){
+        status.textContent='Select a repository to load branches, or enter one manually.';
+        return;
+    }
+    status.textContent='Loading branches...';
+    try{
+        const branches=await fetchGitBranches(token,project,provider);
+        picker.set(branches);
+        status.textContent=branches.length
+            ?`${branches.length} branch(es) available; manual entry also works.`
+            :'No branches returned; enter one manually.';
+    }catch(error){
+        status.textContent='Could not load branches; enter one manually.';
+        console.warn('Git branch lookup failed:',error);
+    }
+}
+const gitImportBranchPicker=createGitBranchPicker(
+    gitlabBranchInput,
+    gitlabBranchOptions
+);
+function loadImportGitBranches(project=gitlabProjectInput.value.trim()){
+    return loadGitBranches(
+        gitImportBranchPicker,
+        gitlabBranchStatus,
+        gitlabTokenInput.value.trim(),
+        String(project||'').trim(),
+        gitImportProviderName
+    );
+}
 async function loadGitLabProjects(query = '', page = 1) {
     const token = gitlabTokenInput.value.trim();
     if (!token) {
@@ -800,6 +903,9 @@ window.ForgeGitProjects=window.ForgeGitLabProjects={
     getRecent:getRecentGitLabProjects,
     remember:rememberGitLabProject,
     fetchProjects:fetchGitLabProjects,
+    fetchBranches:fetchGitBranches,
+    createBranchPicker:createGitBranchPicker,
+    loadBranches:loadGitBranches,
     createOption:createGitLabProjectOption
 };
 function toggleGitLabProjectBrowser() {
@@ -834,6 +940,8 @@ gitlabProjectNextBtn.addEventListener('click', () => {
         gitlabProjectSearchPage + 1
     );
 });
+gitlabProjectInput.addEventListener('change',loadImportGitBranches);
+gitlabTokenInput.addEventListener('change',loadImportGitBranches);
 function openGitLabModal() {
     gitlabUrlInput.value=gitImportOrigin();
     const p=byId('gitImportProvider');if(p)p.value=gitImportProviderName;
@@ -7304,6 +7412,11 @@ function __resolve_fetch_url(rawUrl, base) {
 // objects and other stringifiable RequestInfo values, so
 // normalize them before VFS resolution or bridge messaging.
 if (typeof rawUrl !== 'string') rawUrl = String(rawUrl);
+if (rawUrl.startsWith('forge-vfs:')) {
+const reference = new URL(rawUrl);
+return decodeURIComponent(reference.pathname) +
+reference.search + reference.hash;
+}
 if (/^https?:\\/\\/|\\/\\//.test(rawUrl)) return rawUrl;
 if (rawUrl.startsWith('/')) return rawUrl;
 const dir = base.substring(0, base.lastIndexOf('/') + 1);
@@ -7840,97 +7953,68 @@ document.body.appendChild(d);
 }
 })();
 // -- Dynamic import() interceptor -----------------------------
-const __vfs_module_cache = {};
-const __vfs_module_base  = ${JSON.stringify(basePath || '/')};
-// Dynamic imports are rewritten to __vfs_module() so project-local
-// modules can resolve through the VFS. Absolute HTTP(S) modules are
-// already real browser resources, so keep those on the native ESM
-// loader instead of normalizing them into fake VFS paths.
+const __vfs_module_cache = new Map();
+const __vfs_module_base = ${JSON.stringify(basePath || '/')};
 const __vfs_native_import =
-new Function('url', 'return import(url);');
-function __vfs_module(path) {
-if (
-typeof path === 'string' &&
-(
-path.startsWith('https://') ||
-path.startsWith('http://')
-)
-) {
-return __vfs_native_import(path);
+new Function('url', 'options', 'return import(url, options);');
+function __vfs_module(path, base = __vfs_module_base, options) {
+return Promise.resolve().then(() => {
+const baseUrl = 'forge-vfs://' +
+base.split('/').map(encodeURIComponent).join('/');
+const reference = new URL(String(path), baseUrl);
+if (reference.protocol !== 'forge-vfs:') {
+return __vfs_native_import(reference.href, options);
 }
-// Resolve relative paths against the base path of the entry file
-function resolvePath(p, base) {
-if (p.startsWith('/')) return p;
-const dir = base.substring(0, base.lastIndexOf('/') + 1);
-const parts = (dir + p).split('/');
-const out = [];
-for (const part of parts) {
-if (part === '..') out.pop();
-else if (part !== '.' && part !== '') out.push(part);
+const resolved = decodeURIComponent(reference.pathname);
+if (__vfs_module_cache.has(resolved)) {
+return __vfs_module_cache.get(resolved);
 }
-return '/' + out.join('/');
-}
-const resolved = resolvePath(path, __vfs_module_base);
-if (__vfs_module_cache[resolved]) {
-return Promise.resolve(__vfs_module_cache[resolved]);
-}
-return new Promise((resolve, reject) => {
+const pending = new Promise((resolve, reject) => {
 const channel = new MessageChannel();
+const timer = setTimeout(() => {
+finish(new Error('[FORGE] Module request timed out: ' + resolved));
+}, 15000);
+function finish(error, result) {
+clearTimeout(timer);
+channel.port1.close();
+if (error) reject(error);
+else resolve(result);
+}
 channel.port1.onmessage = (event) => {
-const { found, content } = event.data;
-if (!found) {
-reject(new Error('[FORGE] __vfs_module: file not found in VFS: ' + resolved));
+const { found, content, moduleError } = event.data;
+if (!found || moduleError) {
+finish(new Error('[FORGE] Module load failed: ' + resolved +
+(moduleError ? ': ' + moduleError : ': file not found')));
 return;
 }
 try {
-// Strip ES module syntax from the raw source before
-// evaling, since the VFS returns the original file
-// contents (not the bundler-processed version).
-function __strip_exports(src) {
-src = src.replace(/\\r\\n/g, '\\n').replace(/\\r/g, '\\n');
-// export default function/class — keep declaration
-src = src.replace(/^export\\s+default\\s+(function|class)(\\s)/gm, '$1$2');
-// export default <expr> → var __moduleDefault = <expr>
-src = src.replace(/^export\\s+default\\s+(?!function|class)/gm, 'var __moduleDefault = ');
-// export async function
-src = src.replace(/^export\\s+async\\s+(function)\\s+/gm, 'async $1 ');
-// export const/let/var/function/class
-src = src.replace(/^export\\s+(const|let|var|function|class)\\s+/gm, '$1 ');
-// export { a, b } — strip entirely
-src = src.replace(/^export\\s+\\{[^}]*\\}\\s*;?/gm, '');
-// export * from / export { x } from — comment out
-src = src.replace(/^export\\s+(?:\\{[^}]*\\}|\\*)\\s+from\\s+['"][^'"]+['"]\\s*;?/gm,
-'/* [FORGE] re-export not supported */');
-// rewrite dynamic imports recursively
-src = src.replace(/\\bimport\\s*\\(/g, '__vfs_module(');
-// strip static import statements (avoid [\\s\\S] spanning lines)
-src = src.replace(/^import\\s+[^\\n]*?\\s+from\\s+['"][^'"]+['"]\\s*;?/gm, '');
-src = src.replace(/^import\\s+['"][^'"]+['"]\\s*;?/gm, '');
-return src;
-}
-const stripped = __strip_exports(content);
-// Eval the stripped source and collect exports
-const moduleExports = {};
-const moduleObj = { exports: moduleExports };
-const fn = new Function(
-'exports', 'module', '__vfs_module',
-stripped + '\\n' +
-'if (typeof __moduleDefault !== "undefined") ' +
-'  module.exports.default = __moduleDefault;'
+const result = new Function('return ' + content)();
+Promise.resolve(result).then(
+exports => finish(null, exports),
+error => finish(error)
 );
-fn(moduleExports, moduleObj, __vfs_module);
-const result = moduleObj.exports;
-__vfs_module_cache[resolved] = result;
-resolve(result);
-} catch (e) {
-reject(new Error('[FORGE] __vfs_module eval error in ' + resolved + ': ' + e.message));
+} catch (error) {
+finish(new Error('[FORGE] Module evaluation failed: ' +
+resolved + ': ' + error.message));
 }
 };
+try {
 window.parent.postMessage(
-{ type: 'vfs-fetch', url: resolved },
+{ type: 'vfs-fetch', url: resolved, module: true },
 '*',
 [channel.port2]
 );
+} catch (error) {
+finish(error);
+}
+});
+__vfs_module_cache.set(resolved, pending);
+pending.catch(() => {
+if (__vfs_module_cache.get(resolved) === pending) {
+__vfs_module_cache.delete(resolved);
+}
+});
+return pending;
 });
 }
 <\/script>
@@ -8163,7 +8247,30 @@ window.addEventListener('message', (event) => {
         if (event.ports && event.ports[0]) {
             const port = event.ports[0];
             if (found) {
-                port.postMessage({ found: true, content, mimeType });
+                if (event.data.module === true) {
+                    try {
+                        if (typeof content !== 'string') {
+                            throw new Error('A JavaScript module must contain text');
+                        }
+                        const bundled = processor.bundleModuleScript(
+                            content,
+                            path,
+                            false
+                        );
+                        port.postMessage({
+                            found: true,
+                            content: bundled,
+                            mimeType: 'application/javascript'
+                        });
+                    } catch (error) {
+                        port.postMessage({
+                            found: false,
+                            moduleError: error.message || String(error)
+                        });
+                    }
+                } else {
+                    port.postMessage({ found: true, content, mimeType });
+                }
             } else if (
                 (method === 'GET' || method === 'HEAD') &&
                 isPreviewPeopleDirectoryRequest(url)

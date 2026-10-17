@@ -48,7 +48,7 @@ class HTMLProcessor {
       }
     );
   }
-  bundleModuleScript(entryContent, basePath) {
+  bundleModuleScript(entryContent, basePath, exposeEntry = true) {
     entryContent = entryContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     const visited  = new Set();
     const order    = []; // insertion order for registry entries
@@ -76,13 +76,14 @@ class HTMLProcessor {
     visit(entryContent, basePath);
     // -- Build the registry object ----------------------------------------
     const registryEntries = order.map(p =>
-      `  __modules[${JSON.stringify(p)}] = function(exports, require) { /*__FORGE_SOURCE__${encodeURIComponent(p)}:${sourceLines[p]}*/\n` +
+      `  __modules[${JSON.stringify(p)}] = async function(exports, require, __forge_meta, __forge_done) { /*__FORGE_SOURCE__${encodeURIComponent(p)}:${sourceLines[p]}*/\n` +
       this.indent(registry[p], 4) +
-      `\n  };`
+      `\n    __forge_done();\n  };`
     ).join('\n\n');
     const windowExposure =
       `  var __entry = __require(${JSON.stringify(basePath)});\n` +
-      `  if (__entry) {\n` +
+      `  if (__entry instanceof Promise) __entry = await __entry;\n` +
+      `  if (${exposeEntry ? '__entry' : 'false'}) {\n` +
       `    Object.keys(__entry).forEach(function(k) {\n` +
       `      if (k === 'default') {\n` +
       `        var d = __entry.default;\n` +
@@ -110,31 +111,44 @@ function __require(id) {
   }
   var exports = {};
   __moduleCache[id] = exports; // set before calling to handle circular deps
-  __modules[id](exports, __require);
+  var meta = Object.assign(Object.create(null), {
+    url: 'forge-vfs://' + id.split('/').map(encodeURIComponent).join('/')
+  });
+  // Async factories still run immediately until their first await.
+  // Keep synchronous modules synchronous for existing preview scripts.
+  var complete = false;
+  var completion = __modules[id](exports, __require, meta, function() {
+    complete = true;
+  });
+  if (!complete) {
+    var pending = completion.then(function() { return exports; });
+    __moduleCache[id] = pending;
+    return pending;
+  }
   return exports;
 }
 // __dynamic_import: resolves a relative specifier against a known base path,
 // then calls __require. Used by dynamic import() calls inside bundled modules.
-function __dynamic_import(base, specifier) {
-  // If specifier is absolute, use it directly.
-  if (typeof specifier === 'string' && (specifier.startsWith('/') || specifier.startsWith('http'))) {
-    return Promise.resolve(__require(specifier));
-  }
-  // Resolve relative path against base file path.
-  var dir = base.substring(0, base.lastIndexOf('/') + 1);
-  var parts = (dir + specifier).split('/');
-  var out = [];
-  for (var i = 0; i < parts.length; i++) {
-    if (parts[i] === '..') { out.pop(); }
-    else if (parts[i] !== '.' && parts[i] !== '') { out.push(parts[i]); }
-  }
-  var resolved = '/' + out.join('/');
-  return Promise.resolve(__require(resolved));
+function __dynamic_import(base, specifier, options) {
+  return Promise.resolve().then(function() {
+    var baseUrl = 'forge-vfs://' +
+      base.split('/').map(encodeURIComponent).join('/');
+    var reference = new URL(String(specifier), baseUrl);
+    if (reference.protocol === 'forge-vfs:') {
+      var resolved = decodeURIComponent(reference.pathname);
+      if (__modules[resolved]) return __require(resolved);
+    }
+    if (typeof __vfs_module === 'function') {
+      return __vfs_module(reference.href, base, options);
+    }
+    throw new Error('[FORGE] Dynamic module loader unavailable: ' + reference.href);
+  });
 }
 // -- Module definitions --------------------------------------------------------
 ${registryEntries}
 // -- Boot & expose entry-point exports ----------------------------------------
 ${windowExposure}
+return __entry;
 })();`;
   }
   /**
@@ -168,6 +182,15 @@ ${windowExposure}
       const clause = m[1].trim();
       const source = m[2];
       const entry = { raw: m[0], source, names: [], defaultName: null, namespaceName: null };
+      const defaultAndNamespace = clause.match(
+        /^(\w+)\s*,\s*\*\s+as\s+(\w+)$/
+      );
+      if (defaultAndNamespace) {
+        entry.defaultName = defaultAndNamespace[1];
+        entry.namespaceName = defaultAndNamespace[2];
+        imports.push(entry);
+        continue;
+      }
       const nsMatch = clause.match(/^\*\s+as\s+(\w+)$/);
       if (nsMatch) {
         entry.namespaceName = nsMatch[1];
@@ -200,6 +223,169 @@ ${windowExposure}
       return { imported: asParts[0].trim(), local: (asParts[1] || asParts[0]).trim() };
     }).filter(Boolean);
   }
+  // Rewrite executable references while preserving strings, comments,
+  // regular expressions, template text, and source line counts.
+  rewriteModuleReferences(content, filePath) {
+    const dynamic = '__dynamic_import.bind(null, ' +
+      JSON.stringify(filePath) + ')';
+    const isWord = c => !!c && /[\w$]/.test(c);
+    const skipTrivia = start => {
+      let i = start;
+      while (i < content.length) {
+        if (/\s/.test(content[i])) {
+          i++;
+        } else if (content.startsWith('//', i)) {
+          const end = content.indexOf('\n', i + 2);
+          i = end < 0 ? content.length : end;
+        } else if (content.startsWith('/*', i)) {
+          const end = content.indexOf('*/', i + 2);
+          i = end < 0 ? content.length : end + 2;
+        } else {
+          break;
+        }
+      }
+      return i;
+    };
+    const scan = (start, interpolation = false) => {
+      let output = '';
+      let i = start;
+      let depth = 0;
+      let previous = '';
+      let regexAllowed = true;
+      const parens = [];
+      while (i < content.length) {
+        const c = content[i];
+        if (interpolation && c === '}' && depth === 0) break;
+        if (/\s/.test(c)) {
+          output += c;
+          i++;
+          continue;
+        }
+        if (content.startsWith('//', i) ||
+            content.startsWith('/*', i)) {
+          const line = content[i + 1] === '/';
+          const end = content.indexOf(line ? '\n' : '*/', i + 2);
+          const next = end < 0 ? content.length : end + (line ? 0 : 2);
+          output += content.slice(i, next);
+          i = next;
+          continue;
+        }
+        if (c === '"' || c === "'") {
+          const begin = i++;
+          while (i < content.length) {
+            if (content[i] === '\\') {
+              i += 2;
+            } else if (content[i++] === c) {
+              break;
+            }
+          }
+          output += content.slice(begin, i);
+          previous = 'value';
+          regexAllowed = false;
+          continue;
+        }
+        if (c === '`') {
+          output += content[i++];
+          while (i < content.length) {
+            if (content[i] === '\\') {
+              output += content.slice(i, i + 2);
+              i += 2;
+            } else if (content[i] === '`') {
+              output += content[i++];
+              break;
+            } else if (content.startsWith('${', i)) {
+              const inner = scan(i + 2, true);
+              output += '${' + inner.output;
+              i = inner.end;
+              if (content[i] === '}') output += content[i++];
+            } else {
+              output += content[i++];
+            }
+          }
+          previous = 'value';
+          regexAllowed = false;
+          continue;
+        }
+        if (c === '/' && regexAllowed && content[i + 1] !== '=') {
+          const begin = i++;
+          let inClass = false;
+          while (i < content.length) {
+            const next = content[i++];
+            if (next === '\\') i++;
+            else if (next === '[') inClass = true;
+            else if (next === ']') inClass = false;
+            else if (next === '/' && !inClass) break;
+          }
+          while (/[a-z]/i.test(content[i] || '') && i < content.length) i++;
+          output += content.slice(begin, i);
+          previous = 'value';
+          regexAllowed = false;
+          continue;
+        }
+        if (/[A-Za-z_$]/.test(c)) {
+          const begin = i++;
+          while (isWord(content[i])) i++;
+          const word = content.slice(begin, i);
+          const next = skipTrivia(i);
+          if (word === 'import' && previous !== '.') {
+            if (content[next] === '.') {
+              const member = skipTrivia(next + 1);
+              if (content.slice(member, member + 4) === 'meta' &&
+                  !isWord(content[member + 4])) {
+                const end = member + 4;
+                output += '__forge_meta' +
+                  content.slice(i, end).replace(/[^\r\n]/g, ' ');
+                i = end;
+                previous = 'value';
+                regexAllowed = false;
+                continue;
+              }
+            } else if (content[next] === '(') {
+              output += dynamic;
+              previous = 'value';
+              regexAllowed = false;
+              continue;
+            }
+          }
+          output += word;
+          previous = word;
+          regexAllowed =
+            /^(return|throw|case|delete|void|typeof|new|yield|await|in|instanceof|else|do)$/.test(word);
+          continue;
+        }
+        if (/[0-9]/.test(c)) {
+          const begin = i++;
+          while (/[\w.]/.test(content[i] || '') && i < content.length) i++;
+          output += content.slice(begin, i);
+          previous = 'value';
+          regexAllowed = false;
+          continue;
+        }
+        if (c === '(') {
+          parens.push(/^(if|while|for|with|switch|catch)$/.test(previous));
+          regexAllowed = true;
+        } else if (c === ')') {
+          regexAllowed = parens.pop() === true;
+        } else {
+          if (c === '{') depth++;
+          if (c === '}') depth--;
+          regexAllowed = c !== ']' && c !== '.';
+          if ((c === '+' || c === '-') && content[i + 1] === c) {
+            output += c + c;
+            i += 2;
+            previous = 'value';
+            regexAllowed = false;
+            continue;
+          }
+        }
+        output += c;
+        previous = c;
+        i++;
+      }
+      return { output, end: i };
+    };
+    return scan(0).output;
+  }
   stripModuleSyntaxCJS(content, filePath, imports) {
     let result = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     // -- Rewrite import statements → require() ----------------------------
@@ -210,11 +396,19 @@ ${windowExposure}
         continue;
       }
       const resolvedId = this.resolvePath(imp.source, filePath);
-      const requireCall = `__require(${JSON.stringify(resolvedId)})`;
+      const call = `__require(${JSON.stringify(resolvedId)})`;
+      const requireCall =
+        `(${call} instanceof Promise ? await ${call} : ${call})`;
       let replacement;
       if (imp.namespaceName) {
         // import * as Foo from './foo'  →  var Foo = require('./foo')
         replacement = `var ${imp.namespaceName} = ${requireCall};`;
+        if (imp.defaultName) {
+          replacement +=
+            ` var ${imp.defaultName} = ` +
+            `${imp.namespaceName}.default !== undefined ? ` +
+            `${imp.namespaceName}.default : ${imp.namespaceName};`;
+        }
       } else if (imp.defaultName && imp.names.length > 0) {
         // import Foo, { bar, baz } from './foo'
         const named = imp.names.map(n =>
@@ -244,7 +438,7 @@ ${windowExposure}
     // -- Rewrite export statements → exports.x = x ------------------------
     // export default function/class Name → function/class Name + exports.default = Name
     result = result.replace(
-      /^export\s+default\s+(function|class)\s+(\w+)/gm,
+      /^export\s+default\s+(async\s+function|function|class)\s+(\w+)/gm,
       (_, kw, name) => `${kw} ${name}`
     );
     // After stripping, we need to add the exports.default assignment.
@@ -335,9 +529,7 @@ ${windowExposure}
     if (defaultFnMatch) {
       result += `\nexports.default = ${defaultFnMatch[1]};`;
     }
-    const escapedPath = JSON.stringify(filePath);
-    result = result.replace(/\bimport\s*\(/g, `__dynamic_import(${escapedPath}, `);
-    return result;
+    return this.rewriteModuleReferences(result, filePath);
   }
   /**
    * Strip import/export syntax from a module file.
