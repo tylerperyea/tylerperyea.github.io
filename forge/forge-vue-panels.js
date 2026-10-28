@@ -20,7 +20,6 @@
         }
         return true;
     }
-    // -- File List Component ---------------------------------------------------
     const ForgeFileList = {
         name: 'ForgeFileList',
         props: {
@@ -109,6 +108,10 @@
                 if (!moveActionFocus(event, controls)) return;
                 this.$emit('select', item.path);
                 focusForgeEditorSoon();
+            },
+            renameFile(path) {
+                const old=path.split('/').pop(),name=prompt('Rename file',old);
+                if(name&&name!==old) window.ForgeFileMove?.renameFileOrFolder(path,name.trim(),'file');
             }
         },
         template: `
@@ -144,6 +147,12 @@
                             @keydown="onFileActionKeydown($event, item)"
                             title="Preview"
                             aria-label="Preview file">👁️</button>
+                        <button
+                            class="file-item-btn"
+                            @click.stop="renameFile(item.path)"
+                            @keydown="onFileActionKeydown($event, item)"
+                            title="Rename file"
+                            aria-label="Rename file">✎</button>
                         <button
                             class="file-item-btn"
                             @click.stop="$emit('move', { path: item.path, type: 'file' })"
@@ -329,9 +338,6 @@
             </div>
         `
     };
-    // Must match the constant of the same name in app.js. Kept as a
-    // separate literal since these are two independent non-module scripts
-    // and don't share top-level const/let bindings.
     const FORGE_DIR_PLACEHOLDER = '.forgekeep';
     function buildFileTree(paths) {
         const root = { name: '', path: '', type: 'dir', children: [], _map: {} };
@@ -369,7 +375,6 @@
         })(root);
         return root.children;
     }
-    // Transient cross-component drag state does not need Vue reactivity.
     let _draggedNode = null;
     const TreeNode = {
         name: 'TreeNode',
@@ -509,7 +514,6 @@
                 this.$emit('select', this.node.path);
                 focusForgeEditorSoon();
             },
-            // -- Drag & drop --------------------------------------------------
             onDragStart(e) {
                 _draggedNode = { path: this.node.path, type: this.node.type };
                 e.dataTransfer.effectAllowed = 'move';
@@ -551,9 +555,6 @@
                     const input = this.$refs.renameInput;
                     if (!input) return;
                     input.focus();
-                    // For files, pre-select just the base name (before the
-                    // extension) so typing immediately replaces it without
-                    // requiring the user to retype the extension.
                     if (!this.isDir) {
                         const dotIdx = this.node.name.lastIndexOf('.');
                         if (dotIdx > 0) {
@@ -640,6 +641,11 @@
                             title="Preview"
                             aria-label="Preview file">👁️</button>
                         <button class="file-item-btn"
+                            @click.stop="startRename"
+                            @keydown="onActionKeydown"
+                            :title="isDir ? 'Rename folder' : 'Rename file'"
+                            :aria-label="isDir ? 'Rename folder' : 'Rename file'">✎</button>
+                        <button class="file-item-btn"
                             @click.stop="$emit('move', { path: node.path, type: node.type })"
                             @keydown="onActionKeydown"
                             :title="isDir ? 'Move folder' : 'Move file'"
@@ -674,7 +680,6 @@
         `
     };
     TreeNode.components = { TreeNode };
-    // -- Tree view wrapper (same props/events shape as ForgeFileList) -------
     const ForgeFileTree = {
         name: 'ForgeFileTree',
         components: { TreeNode },
@@ -742,7 +747,6 @@
             <div v-else class="info-text" style="padding: 10px;">No files loaded</div>
         `
     };
-    // -- Editor Tab Bar --------------------------------------------------------
     const EditorTabBar = {
         name: 'EditorTabBar',
         props: {
@@ -843,7 +847,6 @@
             </div>
         `
     };
-    // -- Console Panel ---------------------------------------------------------
     const ConsolePanel = {
         name: 'ConsolePanel',
         props: {
