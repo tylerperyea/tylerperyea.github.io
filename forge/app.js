@@ -7852,49 +7852,32 @@ document.getElementsByName(id)[0];
 if (target) target.scrollIntoView();
 return;
 }
-if (event.data && event.data.type === 'forge-repl-eval') {
-var code = event.data.code;
-var result;
-var error = null;
-try {
-result = eval(code);
-} catch(e) {
-error = e;
-}
-// Send result back to parent
-if (error) {
+if(event.data&&event.data.type==='forge-repl-eval'){
+var code=String(event.data.code||'');
+code=code.replace(/^\\s*(let|const)\\s+/,'var ');
+var result,error=null;
+try{result=window.eval(code);}catch(e){error=e;}
+if(error){
 window.parent.postMessage({
-type: 'forge-repl-result',
-success: false,
-error: {
-name: error.name || 'Error',
-message: error.message || String(error),
-stack: error.stack
+type:'forge-repl-result',success:false,
+error:{
+name:error.name||'Error',
+message:error.message||String(error),
+stack:error.stack
 }
-}, '*');
-} else {
-// Serialize the result
+},'*');
+}else{
 var serialized;
-try {
-if (result === undefined) {
-serialized = 'undefined';
-} else if (result === null) {
-serialized = 'null';
-} else if (typeof result === 'function') {
-serialized = result.toString();
-} else if (typeof result === 'object') {
-serialized = JSON.stringify(result, null, 2);
-} else {
-serialized = String(result);
-}
-} catch(e) {
-serialized = String(result);
-}
+try{
+if(result===undefined)serialized='undefined';
+else if(result===null)serialized='null';
+else if(typeof result==='function')serialized=result.toString();
+else if(typeof result==='object')serialized=JSON.stringify(result,null,2);
+else serialized=String(result);
+}catch(e){serialized=String(result);}
 window.parent.postMessage({
-type: 'forge-repl-result',
-success: true,
-result: serialized
-}, '*');
+type:'forge-repl-result',success:true,result:serialized
+},'*');
 }
 }
 });

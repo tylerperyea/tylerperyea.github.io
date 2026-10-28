@@ -913,6 +913,34 @@
                     }
                 }
             },
+            setReplHeight(h) {
+                const ta=this.$refs.replTextarea;
+                if(ta) ta.style.height=Math.max(28,Math.min(200,h))+'px';
+            },
+            startReplResize(e) {
+                if(e.button!==0) return;
+                const ta=this.$refs.replTextarea;
+                if(!ta) return;
+                e.preventDefault();
+                const y=e.clientY,h=ta.getBoundingClientRect().height;
+                const move=ev=>this.setReplHeight(h+y-ev.clientY);
+                const up=()=>{
+                    document.removeEventListener('mousemove',move);
+                    document.removeEventListener('mouseup',up);
+                };
+                document.addEventListener('mousemove',move);
+                document.addEventListener('mouseup',up);
+            },
+            handleReplResizeKeydown(e) {
+                if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+                const ta = this.$refs.replTextarea;
+                if (!ta) return;
+                e.preventDefault();
+                this.setReplHeight(
+                    ta.getBoundingClientRect().height +
+                    (e.key === 'ArrowUp' ? 20 : -20)
+                );
+            },
         },
         updated() {
             const el = this.$refs.logOutput;
@@ -942,9 +970,20 @@
                         <span class="console-entry-msg" :class="'msg-' + entry.level" @click="openSource(entry.msg)" :style="entry.msg.includes('forge-vfs://')?'cursor:pointer':''" :title="entry.msg.includes('forge-vfs://')?'Open source':''">{{ entry.msg }}</span>
                     </div>
                 </div>
+                <div
+                    class="console-repl-resize-handle"
+                    role="separator"
+                    aria-orientation="horizontal"
+                    aria-label="Resize JavaScript console input"
+                    tabindex="0"
+                    title="Drag to resize console input"
+                    @mousedown="startReplResize"
+                    @keydown="handleReplResizeKeydown"
+                ></div>
                 <div class="console-repl-input">
                     <span class="console-repl-prompt">&gt;</span>
                     <textarea
+                        ref="replTextarea"
                         v-model="replInput"
                         @keydown="handleReplKeydown"
                         placeholder="Type JavaScript to execute in preview context... (Enter to run, Shift+Enter for newline, ↑↓ for history)"

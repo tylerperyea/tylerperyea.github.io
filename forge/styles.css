@@ -437,7 +437,7 @@ button.danger:hover {
     padding: 30px 20px;
     color: #858585;
 }
-/* Compact CLI install (for about page / banners) */
+
 .cli-install-compact {
     display: flex;
     align-items: center;
@@ -465,7 +465,7 @@ button.danger:hover {
     gap: 8px;
     flex-wrap: wrap;
 }
-/* btn class for anchor tags styled as buttons */
+
 .btn {
     display: inline-block;
     padding: 8px 16px;
@@ -1254,7 +1254,7 @@ body .preview-tab-wrapper.active {
     color: #fff;
     background: transparent;
 }
-/* Toast notifications — bottom right */
+
 .toast-container {
     position: fixed;
     bottom: 40px;
@@ -1333,6 +1333,9 @@ body .preview-tab-wrapper.active {
 .modal-body {
     padding: 20px;
     overflow-y: auto;
+}
+#gitlabModal .modal-body {
+    padding-bottom: 240px;
 }
 .modal-footer {
     padding: 20px;
@@ -1437,6 +1440,32 @@ body .preview-tab-wrapper.active {
 .gitlab-project-input-row input {
     flex: 1;
     min-width: 0;
+}
+.git-branch-combobox {
+    position: relative;
+}
+.git-branch-combobox input {
+    width: 100%;
+    box-sizing: border-box;
+}
+.git-branch-options {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 3px);
+    left: 0;
+    right: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px;
+    background: #181818;
+    border: 1px solid #3e3e42;
+    border-radius: 5px;
+}
+.git-branch-option {
+    font-family: 'Consolas', 'Monaco', monospace;
 }
 .gitlab-browse-btn {
     flex-shrink: 0;
@@ -1761,7 +1790,7 @@ body .preview-tab-wrapper.active {
 .file-status-icon {
     font-size: 0.9em;
 }
-/* -- In-file Search Bar --------------------------------------------------- */
+
 .editor-search-bar {
     background: #2d2d30;
     border-bottom: 1px solid #3e3e42;
@@ -1841,14 +1870,13 @@ button:disabled {
 /* == Console Tab == */
 .console-log-output {
     flex: 1;
+    min-height: 0;
     padding: 10px 15px;
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 0.82em;
     line-height: 1.5;
     overflow-y: auto;
     background: #1e1e1e;
-    height: calc(100vh - 242px);
-    max-height: calc(100vh - 242px);
 }
 .console-entry {
     display: flex;
@@ -1911,13 +1939,21 @@ button:disabled {
     font-size: 0.8em;
 }
 /* Console REPL Input */
+.console-repl-resize-handle {
+    height:7px; flex-shrink:0; border-block:1px solid #3e3e42;
+    cursor:ns-resize; position:relative;
+}
+.console-repl-resize-handle::after {
+    content:''; position:absolute; left:calc(50% - 18px); top:2px;
+    width:36px; border-top:2px double #666;
+}
+.console-repl-resize-handle:focus { outline:0; }
 .console-repl-input {
     display: flex;
     align-items: flex-start;
     gap: 8px;
     padding: 8px 12px;
     background: #1a1a1a;
-    border-top: 1px solid #3e3e42;
 }
 .console-repl-prompt {
     color: #4fc3f7;
@@ -1936,7 +1972,7 @@ button:disabled {
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 0.85em;
     padding: 6px 8px;
-    resize: vertical;
+    resize: none;
     min-height: 28px;
     max-height: 200px;
     line-height: 1.5;
@@ -2233,7 +2269,7 @@ body.is-dragging-context iframe {
 .global-search-replace-btn:hover {
     background: #1177bb;
 }
-/* -- Each file's results as a distinct card -- */
+
 .global-search-file-group {
     background: #232326;
     border: 1px solid #34343a;
@@ -2305,7 +2341,7 @@ body.is-dragging-context iframe {
     padding: 1px 3px;
     font-weight: 600;
 }
-/* File-mode (Ctrl+P) result cards — single-row, whole card clickable */
+
 .global-search-file-group-clickable {
     cursor: pointer;
     transition: border-color 0.12s, background 0.12s;
@@ -2335,7 +2371,7 @@ body.is-dragging-context iframe {
     font-weight: 700;
     padding: 0;
 }
-/* Position the modal nearer the top when in file-open mode, VS Code style */
+
 .modal-overlay:has(.global-search-modal.quick-open-position) {
     align-items: flex-start;
 }
@@ -2388,7 +2424,7 @@ body.is-dragging-context iframe {
     gap: 4px;
     min-width: 0;
 }
-/* -- GitLab Push Modal ---------------------------------------------------- */
+
 .gitlab-push-modal {
     max-width: 720px;
     width: 95%;
@@ -2400,7 +2436,7 @@ body.is-dragging-context iframe {
     /* individual panes handle overflow */
     overflow-y: auto;
 }
-/* Ensure textareas inside the push modal fill full width and are resizable */
+
 .gitlab-push-modal textarea {
     width: 100%;
     resize: vertical;
@@ -2579,12 +2615,12 @@ body.is-dragging-context iframe {
 .push-preview-enc  { text-align: center; }
 .push-preview-row-create .push-preview-path { color: #68d391; }
 .push-preview-row-delete .push-preview-path { color: #fc8181; text-decoration: line-through; opacity: 0.8; }
-/* -- end GitLab Push Modal ------------------------------------------------ */
+
 .file-item-btn-danger:hover {
     opacity: 1;
     filter: drop-shadow(0 0 2px rgba(220, 53, 69, 0.6));
 }
-/* -- Editor Tab Bar ------------------------------------------------------ */
+
 .editor-tab-bar {
     display: flex;
     align-items: stretch;
