@@ -361,16 +361,24 @@ function projectClipboardShortcut(key) {
     else return false;
     return true;
 }
-async function copyProjectToClipboard() {
+async function copyProjectToClipboard(items) {
     if (vfs.getAllPaths().length === 0) {
         toast.error('No project to copy');
         return;
     }
     try {
-        const json = JSON.stringify(vfs.toJSON(), null, 2);
-        await copyToClipboard(json);
-        const fileCount = vfs.getAllPaths().length;
-        toast.success(`Project JSON copied to clipboard (${fileCount} files)`, 3000);
+        const project = vfs.toJSON();
+        const selection = Array.isArray(items);
+        if (selection) {
+            project.files = project.files.filter(file => items.some(item =>
+                file.path === item.path || (item.type === 'dir' && file.path.startsWith(item.path + '/'))));
+        }
+        if (!project.files.length) {
+            toast.error('No selected files to copy');
+            return;
+        }
+        await copyToClipboard(JSON.stringify(project, null, 2));
+        toast.success(`${selection ? 'Selection' : 'Project'} JSON copied to clipboard (${project.files.length} files)`, 3000);
     } catch (e) {
         toast.error('Failed to copy: ' + e.message);
         console.error('copyProjectToClipboard error:', e);
@@ -3324,6 +3332,11 @@ function saveCmStateToCache(path) {
 }
 // Called by forge-file-move.js when a file/folder is renamed
 window.forgeTabCache = {
+    capture() {
+        if (!currentEditingFile) return;
+        saveCmStateToCache(currentEditingFile);
+        tabUnsavedMap.set(currentEditingFile, hasUnsavedChanges);
+    },
     rename(oldPath, newPath) {
         if (tabContentCache.has(oldPath)) {
             tabContentCache.set(newPath, tabContentCache.get(oldPath));
@@ -3855,23 +3868,7 @@ function createDirectory(){
 }
 function deleteFile(){
     if (currentEditingFile) {
-        if (confirm(`Are you sure you want to delete ${currentEditingFile}?`)) {
-            const pathToDelete = currentEditingFile;
-            tabContentCache.delete(pathToDelete);
-            tabUnsavedMap.delete(pathToDelete);
-            if (window.forgePanels) window.forgePanels.closeTab(pathToDelete);
-            vfs.deleteFile(pathToDelete);
-            closeEditor();
-            if (currentPath === pathToDelete) {
-                currentPath = null;
-                previewFrame.srcdoc = '';
-                urlBar.value = 'No project loaded';
-                setPreviewWelcomeVisible(true);
-            }
-            updateFileList();
-            updateFileBrowser();
-            toast.success('File deleted');
-        }
+        window.ForgeFileMove.deleteItems([{ path: currentEditingFile, type: 'file' }]);
     }
 }
 function commitCurrentEditorContent(){
@@ -5432,26 +5429,15 @@ function openFileMoveModal(sourcePath, sourceType = 'file') {
     const select = byId('fileMoveDestination');
     const confirmButton = byId('fileMoveConfirmBtn');
     if (!source || !select || !confirmButton) return;
-    pendingFileMove = {
-        sourcePath,
-        sourceType: sourceType === 'dir' ? 'dir' : 'file'
-    };
-    source.textContent = sourcePath;
+    pendingFileMove = window.ForgeFileMove.normalizeItems(Array.isArray(sourcePath)
+        ? sourcePath : [{ path: sourcePath, type: sourceType === 'dir' ? 'dir' : 'file' }]);
+    if (!pendingFileMove.length) return;
+    source.textContent = pendingFileMove.map(item => item.path).join(', ');
     select.replaceChildren();
-    const currentParent = getFileMoveParent(sourcePath);
-    const destinations = getFileMoveDestinations().filter(directory => {
-        if (directory === currentParent) return false;
-        if (
-            pendingFileMove.sourceType === 'dir' &&
-            (
-                directory === sourcePath ||
-                directory.startsWith(sourcePath + '/')
-            )
-        ) {
-            return false;
-        }
-        return true;
-    });
+    const destinations = getFileMoveDestinations().filter(directory =>
+        !pendingFileMove.every(item => directory === getFileMoveParent(item.path)) &&
+        !pendingFileMove.some(item => item.type === 'dir' &&
+            (directory === item.path || directory.startsWith(item.path + '/'))));
     if (destinations.length === 0) {
         const option = makeEl('option');
         option.textContent = 'No other folders available';
@@ -5495,11 +5481,7 @@ function confirmFileMoveModal() {
         select.value === '__forge_project_root__'
             ? ''
             : select.value;
-    const moved = window.ForgeFileMove.moveFileOrFolder(
-        pendingFileMove.sourcePath,
-        targetDirectory,
-        pendingFileMove.sourceType
-    );
+    const moved = window.ForgeFileMove.moveItems(pendingFileMove, targetDirectory);
     if (moved) closeFileMoveModal();
 }
 function getFileStatusTitle(p) {

@@ -378,303 +378,187 @@
     let _draggedNode = null;
     const TreeNode = {
         name: 'TreeNode',
+        inject: ['fileTree'],
         props: {
-            node:           { type: Object, required: true },
-            depth:          { type: Number, default: 0 },
-            selectedPath:   { type: String, default: null },
-            collapsedPaths: { type: Object, required: true },
+            node: { type: Object, required: true },
+            depth: { type: Number, default: 0 },
         },
         emits: ['select', 'preview', 'open-settings', 'move'],
-        data() {
-            return {
-                renaming: false,
-                editValue: '',
-            };
-        },
+        data() { return { renaming: false, editValue: '' }; },
         computed: {
-            isDir()       { return this.node.type === 'dir'; },
-            isCollapsed() { return this.isDir && this.collapsedPaths.has(this.node.path); },
-            isSelected()  { return !this.isDir && this.node.path === this.selectedPath; },
-            isExcluded() {
-                if (this.isDir || typeof vfs === 'undefined') return false;
-                return vfs.isExcluded(this.node.path);
-            },
-            isHtml() { return !this.isDir && (this.node.path.endsWith('.html') || this.node.path.endsWith('.htm')); },
-            isJs()   { return !this.isDir && this.node.path.endsWith('.js'); },
+            isDir() { return this.node.type === 'dir'; },
+            isCollapsed() { return this.isDir && this.fileTree.collapsedPaths.has(this.node.path); },
+            isSelected() { return this.fileTree.selection.has(this.node.path); },
+            isExcluded() { return !this.isDir && vfs.isExcluded(this.node.path); },
+            isHtml() { return !this.isDir && /\.html?$/.test(this.node.path); },
             statusIcon() {
-                if (this.isDir || typeof vfs === 'undefined') return '';
+                if (this.isDir) return '';
                 const meta = vfs.getMeta(this.node.path);
-                if (meta.excluded)              return '🚫';
-                if (meta.url && !meta.excluded) return '🔗';
-                if (meta.encoding === 'base64') return '📦';
-                if (meta.description)           return '📝';
-                return '📄';
+                if (meta.excluded) return '\uD83D\uDEAB';
+                if (meta.url) return '\uD83D\uDD17';
+                if (meta.encoding === 'base64') return '\uD83D\uDCE6';
+                return meta.description ? '\uD83D\uDCDD' : '\uD83D\uDCC4';
             },
-            sizeLabel() {
-                if (this.isDir || typeof vfs === 'undefined') return '';
-                return vfs.formatBytes(vfs.getFileSizeBytes(this.node.path));
-            },
-            // Directory a dropped item should land in when dropped on THIS row.
-            // Folder row → itself. File row → its parent directory.
+            sizeLabel() { return this.isDir ? '' : vfs.formatBytes(vfs.getFileSizeBytes(this.node.path)); },
             dropTargetDir() {
-                if (this.isDir) return this.node.path;
-                const idx = this.node.path.lastIndexOf('/');
-                return idx > 0 ? this.node.path.substring(0, idx) : '';
+                return this.isDir ? this.node.path : this.node.path.slice(0, Math.max(0, this.node.path.lastIndexOf('/')));
             },
         },
         methods: {
             toggleDir() {
-                if (!this.isDir) return;
-                if (this.collapsedPaths.has(this.node.path)) {
-                    this.collapsedPaths.delete(this.node.path);
-                } else {
-                    this.collapsedPaths.add(this.node.path);
-                }
+                const paths = this.fileTree.collapsedPaths;
+                if (paths.has(this.node.path)) paths.delete(this.node.path);
+                else paths.add(this.node.path);
             },
-            onRowClick() {
-                if (this.isDir) this.toggleDir();
-                else this.$emit('select', this.node.path);
+            onRowClick(event) {
+                this.fileTree.choose(this.node, event);
+                if (this.isDir && !event.shiftKey && !event.ctrlKey && !event.metaKey) this.toggleDir();
             },
             onRowKeydown(event) {
-                const key = event.key;
+                if (event.target !== event.currentTarget) return;
+                const key = event.key, row = event.currentTarget;
+                if (key === 'Delete') {
+                    event.preventDefault();
+                    if (!this.isSelected) this.fileTree.choose(this.node, {}, false);
+                    this.fileTree.remove();
+                    return;
+                }
                 if (key === 'Enter' || key === ' ') {
                     event.preventDefault();
-                    this.onRowClick();
+                    if (key === ' ') this.fileTree.choose(this.node, { ctrlKey: true }, false);
+                    else this.onRowClick(event);
                     return;
                 }
-                if (key === 'ArrowRight' && !this.isDir) {
+                if (key === 'ArrowRight') {
                     event.preventDefault();
-                    const firstAction = event.currentTarget
-                        .querySelector('.file-item-actions .file-item-btn');
-                    if (firstAction) {
-                        firstAction.focus();
-                    } else {
-                        this.$emit('select', this.node.path);
-                        focusForgeEditorSoon();
-                    }
-                    return;
-                }
-                if (key === 'ArrowRight' && this.isDir) {
-                    event.preventDefault();
-                    if (this.isCollapsed) {
-                        this.toggleDir();
-                    } else {
-                        const firstChild = event.currentTarget.parentElement
-                            ?.querySelector('.tree-children [role="treeitem"]');
-                        if (firstChild) firstChild.focus();
+                    if (this.isDir && this.isCollapsed) this.toggleDir();
+                    else {
+                        const next = this.isDir
+                            ? row.parentElement.querySelector('.tree-children [role="treeitem"]')
+                            : row.querySelector('.file-item-btn');
+                        if (next) next.focus();
                     }
                     return;
                 }
                 if (key === 'ArrowLeft') {
                     event.preventDefault();
-                    if (this.isDir && !this.isCollapsed) {
-                        this.toggleDir();
-                        return;
-                    }
-                    const childGroup = event.currentTarget.closest('.tree-children');
-                    const parentRow = childGroup
-                        ?.parentElement
-                        ?.querySelector(':scope > .tree-row[role="treeitem"]');
-                    if (parentRow) parentRow.focus();
+                    if (this.isDir && !this.isCollapsed) this.toggleDir();
+                    else row.closest('.tree-children')?.parentElement
+                        ?.querySelector(':scope > .tree-row')?.focus();
                     return;
                 }
-                const tree = event.currentTarget.closest('[role="tree"]');
-                if (!tree) return;
-                const items = Array.from(
-                    tree.querySelectorAll('[role="treeitem"]')
-                ).filter(item => item.offsetParent !== null);
-                const currentIndex = items.indexOf(event.currentTarget);
-                if (currentIndex < 0 || items.length === 0) return;
-                let nextIndex = currentIndex;
-                if (key === 'ArrowDown') {
-                    nextIndex = Math.min(currentIndex + 1, items.length - 1);
-                } else if (key === 'ArrowUp') {
-                    nextIndex = Math.max(currentIndex - 1, 0);
-                } else if (key === 'Home') {
-                    nextIndex = 0;
-                } else if (key === 'End') {
-                    nextIndex = items.length - 1;
-                } else {
-                    return;
-                }
+                const items = this.fileTree.visibleNodes;
+                const index = items.findIndex(item => item.path === this.node.path);
+                let next = index;
+                if (key === 'ArrowDown') next++;
+                else if (key === 'ArrowUp') next--;
+                else if (key === 'Home') next = 0;
+                else if (key === 'End') next = items.length - 1;
+                else return;
                 event.preventDefault();
-                items[nextIndex].focus();
+                const node = items[Math.max(0, Math.min(next, items.length - 1))];
+                if (event.shiftKey) this.fileTree.choose(node, event, false, this.node.path);
+                const rows = row.closest('[role="tree"]').querySelectorAll('.tree-row');
+                Array.from(rows).find(el => el.dataset.path === node.path)?.focus();
             },
             onActionKeydown(event) {
                 if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
                 event.stopPropagation();
                 const row = event.currentTarget.closest('.tree-row');
-                if (!row) return;
-                const controls = [
-                    row,
-                    ...row.querySelectorAll('.file-item-actions .file-item-btn')
-                ];
-                if (!moveActionFocus(event, controls)) return;
-                if (this.isDir) return;
-                this.$emit('select', this.node.path);
-                focusForgeEditorSoon();
-            },
-            onDragStart(e) {
-                _draggedNode = { path: this.node.path, type: this.node.type };
-                e.dataTransfer.effectAllowed = 'move';
-                try { e.dataTransfer.setData('text/plain', this.node.path); } catch (err) {}
-                e.currentTarget.classList.add('dragging');
-            },
-            onDragEnd(e) {
-                e.currentTarget.classList.remove('dragging');
-                document.querySelectorAll('.tree-row-drag-over').forEach(el =>
-                    el.classList.remove('tree-row-drag-over'));
-                _draggedNode = null;
-            },
-            onDragOver(e) {
-                if (!_draggedNode) return;
-                if (this.isDir && _draggedNode.path === this.node.path) return; // can't drop a folder on itself
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                e.currentTarget.classList.add('tree-row-drag-over');
-            },
-            onDragLeave(e) {
-                e.currentTarget.classList.remove('tree-row-drag-over');
-            },
-            onDrop(e) {
-                if (!_draggedNode) return;
-                e.preventDefault();
-                e.stopPropagation();
-                e.currentTarget.classList.remove('tree-row-drag-over');
-                const { path: sourcePath, type: sourceType } = _draggedNode;
-                _draggedNode = null;
-                if (window.ForgeFileMove) {
-                    window.ForgeFileMove.moveFileOrFolder(sourcePath, this.dropTargetDir, sourceType);
-                    if (window.forgePanels) window.forgePanels.refresh();
+                const controls = [row, ...row.querySelectorAll('.file-item-btn')];
+                if (moveActionFocus(event, controls) && !this.isDir) {
+                    this.$emit('select', this.node.path);
+                    focusForgeEditorSoon();
                 }
+            },
+            onDragStart(event) {
+                if (this.renaming || event.target.closest('button,input')) {
+                    event.preventDefault();
+                    return;
+                }
+                if (!this.isSelected) this.fileTree.choose(this.node, {}, false);
+                _draggedNode = this.fileTree.items;
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', _draggedNode.map(item => item.path).join('\n'));
+                event.currentTarget.classList.add('dragging');
+            },
+            onDragEnd(event) {
+                event.currentTarget.classList.remove('dragging');
+                document.querySelectorAll('.tree-row-drag-over,.tree-root-drag-over')
+                    .forEach(el => el.classList.remove('tree-row-drag-over', 'tree-root-drag-over'));
+                _draggedNode = null;
+            },
+            onDragOver(event) {
+                if (!_draggedNode || _draggedNode.some(item => item.type === 'dir' &&
+                    (this.dropTargetDir === item.path || this.dropTargetDir.startsWith(item.path + '/')))) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                event.currentTarget.classList.add('tree-row-drag-over');
+            },
+            onDrop(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.currentTarget.classList.remove('tree-row-drag-over');
+                this.fileTree.drop(this.dropTargetDir);
             },
             startRename() {
                 this.editValue = this.node.name;
                 this.renaming = true;
                 this.$nextTick(() => {
                     const input = this.$refs.renameInput;
-                    if (!input) return;
                     input.focus();
-                    if (!this.isDir) {
-                        const dotIdx = this.node.name.lastIndexOf('.');
-                        if (dotIdx > 0) {
-                            input.setSelectionRange(0, dotIdx);
-                            return;
-                        }
-                    }
-                    input.select();
+                    const dot = this.isDir ? -1 : this.node.name.lastIndexOf('.');
+                    if (dot > 0) input.setSelectionRange(0, dot);
+                    else input.select();
                 });
             },
             confirmRename() {
                 if (!this.renaming) return;
                 this.renaming = false;
-                const newName = this.editValue.trim();
-                if (!newName || newName === this.node.name) return;
-                if (window.ForgeFileMove) {
-                    const ok = window.ForgeFileMove.renameFileOrFolder(this.node.path, newName, this.node.type);
-                    if (ok && window.forgePanels) window.forgePanels.refresh();
+                const name = this.editValue.trim();
+                if (name && name !== this.node.name) {
+                    window.ForgeFileMove.renameFileOrFolder(this.node.path, name, this.node.type);
                 }
-            },
-            cancelRename() {
-                this.renaming = false;
-            },
-            deleteFolder() {
-                if (!this.isDir || !window.ForgeFileMove) return;
-                const { allPaths, realPaths } = window.ForgeFileMove.getFolderContents(this.node.path);
-                if (allPaths.length === 0) return;
-                const message = realPaths.length > 0
-                    ? `Delete folder "${this.node.name}" and its ${realPaths.length} file${realPaths.length !== 1 ? 's' : ''}? This cannot be undone.`
-                    : `Delete empty folder "${this.node.name}"?`;
-                if (!confirm(message)) return;
-                window.ForgeFileMove.deleteFolder(this.node.path);
-                if (window.forgePanels) window.forgePanels.refresh();
             },
         },
         template: `
             <div class="tree-node">
-                <div
-                    class="tree-row"
+                <div class="tree-row" role="treeitem" tabindex="0" draggable="true"
                     :class="{ selected: isSelected, 'tree-row-dir': isDir, 'file-item-ignored': isExcluded }"
-                    :style="{ paddingLeft: (depth * 16 + 8) + 'px' }"
-                    :data-path="node.path"
-                    :title="node.path"
+                    :style="{ paddingLeft: (depth * 16 + 8) + 'px' }" :data-path="node.path" :title="node.path"
                     :aria-label="(isDir ? 'Folder ' : 'File ') + node.name"
-                    :aria-expanded="isDir ? String(!isCollapsed) : undefined"
-                    :aria-selected="!isDir ? String(isSelected) : undefined"
-                    role="treeitem"
-                    tabindex="0"
-                    draggable="true"
-                    @click="onRowClick"
-                    @keydown="onRowKeydown"
-                    @dragstart="onDragStart"
-                    @dragend="onDragEnd"
-                    @dragover="onDragOver"
-                    @dragleave="onDragLeave"
-                    @drop="onDrop"
-                >
-                    <span v-if="isDir" class="tree-toggle" :class="{ collapsed: isCollapsed }">▸</span>
+                    :aria-expanded="isDir ? String(!isCollapsed) : undefined" :aria-selected="String(isSelected)"
+                    @click="onRowClick" @keydown="onRowKeydown" @dragstart="onDragStart" @dragend="onDragEnd"
+                    @dragover="onDragOver" @dragleave="$event.currentTarget.classList.remove('tree-row-drag-over')" @drop="onDrop">
+                    <span v-if="isDir" class="tree-toggle" :class="{ collapsed: isCollapsed }"
+                        @click.stop="toggleDir" aria-hidden="true">&#9656;</span>
                     <span v-else class="tree-toggle-spacer"></span>
-                    <span class="tree-icon">{{ isDir ? (isCollapsed ? '📁' : '📂') : statusIcon }}</span>
+                    <span class="tree-icon" aria-hidden="true">{{ isDir ? (isCollapsed ? '\uD83D\uDCC1' : '\uD83D\uDCC2') : statusIcon }}</span>
                     <div class="tree-file-main">
-                        <span
-                            v-if="!renaming"
-                            class="tree-name"
-                            :class="{ 'file-item-name-ignored': isExcluded }"
-                            @dblclick.stop="startRename"
-                        >{{ node.name }}</span>
-                        <input
-                            v-else
-                            ref="renameInput"
-                            v-model="editValue"
-                            class="tree-rename-input"
-                            @click.stop
-                            @keydown.enter.stop="confirmRename"
-                            @keydown.esc.stop="cancelRename"
-                            @blur="confirmRename"
-                        >
+                        <span v-if="!renaming" class="tree-name" :class="{ 'file-item-name-ignored': isExcluded }"
+                            @dblclick.stop="startRename">{{ node.name }}</span>
+                        <input v-else ref="renameInput" v-model="editValue" class="tree-rename-input"
+                            :aria-label="'Rename ' + node.name" @click.stop @keydown.enter.stop="confirmRename"
+                            @keydown.esc.stop="renaming = false" @blur="confirmRename">
                         <span v-if="!isDir && !renaming" class="file-size-label">{{ sizeLabel }}</span>
                     </div>
                     <div class="file-item-actions">
-                        <button v-if="!isDir && isHtml && !isExcluded" class="file-item-btn"
-                            @click.stop="$emit('preview', node.path)"
-                            @keydown="onActionKeydown"
-                            title="Preview"
-                            aria-label="Preview file">👁️</button>
-                        <button class="file-item-btn"
-                            @click.stop="startRename"
-                            @keydown="onActionKeydown"
-                            :title="isDir ? 'Rename folder' : 'Rename file'"
-                            :aria-label="isDir ? 'Rename folder' : 'Rename file'">✎</button>
-                        <button class="file-item-btn"
-                            @click.stop="$emit('move', { path: node.path, type: node.type })"
-                            @keydown="onActionKeydown"
-                            :title="isDir ? 'Move folder' : 'Move file'"
-                            :aria-label="isDir ? 'Move folder' : 'Move file'">↔</button>
-                        <button v-if="!isDir" class="file-item-btn"
-                            @click.stop="$emit('open-settings', node.path)"
-                            @keydown="onActionKeydown"
-                            title="File settings"
-                            aria-label="File settings">⚙️</button>
-                        <button v-if="isDir" class="file-item-btn file-item-btn-danger"
-                            @click.stop="deleteFolder"
-                            @keydown="onActionKeydown"
-                            title="Delete folder"
-                            aria-label="Delete folder">🗑️</button>
+                        <button v-if="!isDir && isHtml && !isExcluded" class="file-item-btn" title="Preview" aria-label="Preview file"
+                            @click.stop="$emit('preview', node.path)" @keydown="onActionKeydown">&#128065;</button>
+                        <button class="file-item-btn" title="Rename" aria-label="Rename item"
+                            @click.stop="startRename" @keydown="onActionKeydown">&#9998;</button>
+                        <button class="file-item-btn" title="Move" aria-label="Move item or selection"
+                            @click.stop="$emit('move', { items: isSelected ? fileTree.items : [node] })" @keydown="onActionKeydown">&#8596;</button>
+                        <button v-if="!isDir" class="file-item-btn" title="File settings" aria-label="File settings"
+                            @click.stop="$emit('open-settings', node.path)" @keydown="onActionKeydown">&#9881;</button>
+                        <button v-if="isDir" class="file-item-btn file-item-btn-danger" title="Delete" aria-label="Delete folder or selection"
+                            @click.stop="fileTree.remove(isSelected ? fileTree.items : [node])" @keydown="onActionKeydown">&#128465;</button>
                     </div>
                 </div>
                 <div v-if="isDir && !isCollapsed" class="tree-children" role="group">
-                    <tree-node
-                        v-for="child in node.children"
-                        :key="child.path"
-                        :node="child"
-                        :depth="depth + 1"
-                        :selected-path="selectedPath"
-                        :collapsed-paths="collapsedPaths"
-                        @select="$emit('select', $event)"
-                        @preview="$emit('preview', $event)"
-                        @open-settings="$emit('open-settings', $event)"
-                        @move="$emit('move', $event)"
-                    ></tree-node>
+                    <tree-node v-for="child in node.children" :key="child.path" :node="child" :depth="depth + 1"
+                        @select="$emit('select', $event)" @preview="$emit('preview', $event)"
+                        @open-settings="$emit('open-settings', $event)" @move="$emit('move', $event)"></tree-node>
                 </div>
             </div>
         `
@@ -684,67 +568,121 @@
         name: 'ForgeFileTree',
         components: { TreeNode },
         props: {
-            vfsVersion:   { type: Number, default: 0 },
+            vfsVersion: { type: Number, default: 0 },
             selectedPath: { type: String, default: null },
         },
         emits: ['select', 'preview', 'open-settings', 'move'],
         data() {
-            return { collapsedPaths: Vue.reactive(new Set()) };
+            return {
+                collapsedPaths: new Set(), selection: new Set(this.selectedPath ? [this.selectedPath] : []),
+                anchor: this.selectedPath
+            };
         },
+        provide() { return { fileTree: this }; },
         computed: {
-            treeRoots() {
-                void this.vfsVersion;
-                if (typeof vfs === 'undefined') return [];
-                return buildFileTree(vfs.getAllPaths());
+            treeRoots() { void this.vfsVersion; return buildFileTree(vfs.getAllPaths()); },
+            allNodes() { return this.flatten(false); },
+            visibleNodes() { return this.flatten(true); },
+            items() {
+                return window.ForgeFileMove.normalizeItems(this.allNodes.filter(node => this.selection.has(node.path)));
             },
-            hasFiles() { return this.treeRoots.length > 0; }
+        },
+        watch: {
+            selectedPath(path) {
+                if (!path || this.selection.size <= 1) {
+                    this.selection = new Set(path ? [path] : []);
+                    this.anchor = path;
+                }
+            },
+            vfsVersion() {
+                const valid = new Set(this.allNodes.map(node => node.path));
+                this.selection = new Set([...this.selection].filter(path => valid.has(path)));
+                if (!valid.has(this.anchor)) this.anchor = null;
+            },
         },
         methods: {
-            onRootDragOver(e) {
-                if (!_draggedNode) return;
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                e.currentTarget.classList.add('tree-root-drag-over');
-            },
-            onRootDragLeave(e) {
-                e.currentTarget.classList.remove('tree-root-drag-over');
-            },
-            onRootDrop(e) {
-                e.preventDefault();
-                e.currentTarget.classList.remove('tree-root-drag-over');
-                if (!_draggedNode) return;
-                const { path: sourcePath, type: sourceType } = _draggedNode;
-                _draggedNode = null;
-                if (window.ForgeFileMove) {
-                    window.ForgeFileMove.moveFileOrFolder(sourcePath, '', sourceType);
-                    if (window.forgePanels) window.forgePanels.refresh();
+            copySelection() { return copyProjectToClipboard(this.items); },
+            copyShortcut(event) {
+                if (this.selection.size && (event.ctrlKey || event.metaKey) && event.shiftKey &&
+                    event.key.toUpperCase() === 'C' && !event.target.closest('input,textarea,[contenteditable]')) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.copySelection();
                 }
+            },
+            flatten(visible) {
+                const result = [];
+                const visit = nodes => nodes.forEach(node => {
+                    result.push(node);
+                    if (!visible || !this.collapsedPaths.has(node.path)) visit(node.children);
+                });
+                visit(this.treeRoots);
+                return result;
+            },
+            choose(node, event = {}, open = true, fallback = node.path) {
+                const path = node.path, toggle = event.ctrlKey || event.metaKey;
+                if (event.shiftKey) {
+                    const paths = this.visibleNodes.map(item => item.path);
+                    let start = paths.indexOf(this.anchor);
+                    if (start < 0) {
+                        this.anchor = fallback;
+                        start = paths.indexOf(fallback);
+                    }
+                    const end = paths.indexOf(path);
+                    const range = paths.slice(Math.min(start, end), Math.max(start, end) + 1);
+                    this.selection = new Set(toggle ? [...this.selection, ...range] : range);
+                } else if (toggle) {
+                    if (this.selection.has(path)) this.selection.delete(path);
+                    else this.selection.add(path);
+                    this.anchor = path;
+                } else {
+                    this.selection = new Set([path]);
+                    this.anchor = path;
+                    if (open && node.type === 'file') this.$emit('select', path);
+                }
+            },
+            remove(items = this.items) {
+                if (window.ForgeFileMove.deleteItems(items)) {
+                    this.selection.clear();
+                    this.anchor = null;
+                    this.$nextTick(() => this.$el.querySelector('[role="treeitem"]')?.focus());
+                }
+            },
+            drop(target) {
+                const items = _draggedNode;
+                _draggedNode = null;
+                if (items && window.ForgeFileMove.moveItems(items, target)) {
+                    this.selection = new Set(items.map(item =>
+                        (target + '/' + item.path.split('/').pop()).replace(/\/+/g, '/')));
+                    this.anchor = null;
+                }
+            },
+            rootDragOver(event) {
+                if (!_draggedNode) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                event.currentTarget.classList.add('tree-root-drag-over');
             },
         },
         template: `
-            <div
-                v-if="hasFiles"
-                class="tree-root-dropzone"
-                role="tree"
-                aria-label="Project files (tree view)"
-                @dragover.self="onRootDragOver"
-                @dragleave.self="onRootDragLeave"
-                @drop.self="onRootDrop"
-            >
-                <tree-node
-                    v-for="node in treeRoots"
-                    :key="node.path"
-                    :node="node"
-                    :depth="0"
-                    :selected-path="selectedPath"
-                    :collapsed-paths="collapsedPaths"
-                    @select="$emit('select', $event)"
-                    @preview="$emit('preview', $event)"
-                    @open-settings="$emit('open-settings', $event)"
-                    @move="$emit('move', $event)"
-                ></tree-node>
+            <div v-if="treeRoots.length" @keydown="copyShortcut">
+                <div v-if="selection.size" class="tree-selection-bar" role="group" aria-label="Tree selection actions">
+                    <span aria-live="polite">{{ selection.size }} selected</span>
+                    <button type="button" class="secondary" title="Copy selected files as Forge JSON (Ctrl/Cmd+Shift+C)" @click="copySelection">Forge out</button>
+                    <button type="button" class="secondary" @click="$emit('move', { items })">Move</button>
+                    <button type="button" class="danger" @click="remove()">&#128465;&#65039; Delete</button>
+                </div>
+                <div class="tree-root-dropzone" role="tree" aria-label="Project files (tree view)" aria-multiselectable="true"
+                    title="Shift-click: range. Ctrl/Cmd-click or Space: toggle. Shift+arrows: range. Escape: clear. Delete: delete selection."
+                    @keydown.esc="if (!$event.target.closest('input')) { selection.clear(); anchor = null; }"
+                    @dragover.self="rootDragOver" @dragleave.self="$event.currentTarget.classList.remove('tree-root-drag-over')"
+                    @drop.self.prevent="$event.currentTarget.classList.remove('tree-root-drag-over'); drop('')">
+                    <tree-node v-for="node in treeRoots" :key="node.path" :node="node"
+                        @select="$emit('select', $event)" @preview="$emit('preview', $event)"
+                        @open-settings="$emit('open-settings', $event)" @move="$emit('move', $event)"></tree-node>
+                </div>
             </div>
-            <div v-else class="info-text" style="padding: 10px;">No files loaded</div>
+            <div v-else class="info-text" style="padding:10px;">No files loaded</div>
         `
     };
     const EditorTabBar = {
@@ -1468,7 +1406,7 @@
             }
             function onFileMove(move) {
                 if (!move || typeof openFileMoveModal !== 'function') return;
-                openFileMoveModal(move.path, move.type);
+                openFileMoveModal(move.items || move.path, move.type);
             }
             return {
                 activeTab,

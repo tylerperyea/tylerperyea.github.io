@@ -174,14 +174,14 @@
           <div class="dropdown-item" onclick="pasteProjectFromClipboard(); toggleDropdown('dd-import')">
             <span class="dropdown-icon">📋</span>
             <span>
-              <strong>Paste JSON</strong>
+              <strong>Paste JSON (Forge in)</strong>
               <small>From clipboard (Ctrl+Shift+V)</small>
             </span>
           </div>
           <div class="dropdown-item" onclick="openLoadJsonModal(); toggleDropdown('dd-import')">
             <span class="dropdown-icon">📄</span>
             <span>
-              <strong>Load JSON</strong>
+              <strong>Load JSON (Forge in)</strong>
               <small>Paste or type forge JSON</small>
             </span>
           </div>
@@ -226,7 +226,7 @@
           <div class="dropdown-item" onclick="copyProjectToClipboard(); toggleDropdown('dd-export')">
             <span class="dropdown-icon">📋</span>
             <span>
-              <strong>Copy JSON</strong>
+              <strong>Copy JSON (Forge out)</strong>
               <small>To clipboard (Ctrl+Shift+C)</small>
             </span>
           </div>
@@ -673,6 +673,10 @@
             <div class="file-browser-header" v-show="!isFileBrowserCollapsed">
               <span>Project Files</span>
               <div class="file-browser-header-actions">
+                <details v-if="fileViewMode === 'tree'" class="tree-selection-help">
+                  <summary title="File selection shortcuts" aria-label="File selection shortcuts">?</summary>
+                  <div>Ctrl/Cmd-click toggles items. Shift-click or Shift+arrows selects a range. Space toggles; Escape clears. Ctrl/Cmd+Shift+C copies the selection as Forge JSON.</div>
+                </details>
                 <div class="file-view-toggle">
                   <button
                     class="file-view-toggle-btn"
@@ -983,8 +987,22 @@
 
         <div class="form-group">
           <label for="gitlabBranch">Branch (optional)</label>
-          <input type="text" id="gitlabBranch" placeholder="main">
-          <small>Leave empty to use default branch</small>
+          <div class="git-branch-combobox">
+            <input type="text" id="gitlabBranch" placeholder="main"
+                   autocomplete="off"
+                   role="combobox"
+                   aria-autocomplete="list"
+                   aria-expanded="false"
+                   aria-controls="gitlabBranchOptions">
+            <div id="gitlabBranchOptions"
+                 class="git-branch-options"
+                 role="listbox"
+                 aria-label="Available repository branches"
+                 hidden></div>
+          </div>
+          <small id="gitlabBranchStatus" role="status" aria-live="polite">
+            Select a repository to load branches, or enter one manually.
+          </small>
         </div>
 
         <div id="importProgress" role="status" aria-live="polite"></div>
@@ -1420,11 +1438,11 @@
             <span class="shortcut-key">Ctrl+R</span>
           </li>
           <li>
-            <span class="shortcut-desc">Copy project JSON to clipboard</span>
+            <span class="shortcut-desc">Forge out project or tree selection as JSON</span>
             <span class="shortcut-key">Ctrl+Shift+C</span>
           </li>
           <li>
-            <span class="shortcut-desc">Paste project JSON from clipboard</span>
+            <span class="shortcut-desc">Forge in project JSON from clipboard</span>
             <span class="shortcut-key">Ctrl+Shift+V</span>
           </li>
           <li>
@@ -1680,20 +1698,6 @@
           </div>
         </div>
 
-        <div class="push-row">
-          <div class="form-group push-form-field">
-            <label for="pushSourceBranch">Source branch (base)</label>
-            <input type="text" id="pushSourceBranch" placeholder="main"
-                   oninput="ForgeGitPush.onBranchModeChange()">
-          </div>
-          <div class="form-group push-form-field">
-            <label for="pushTargetBranch">Target branch</label>
-            <input type="text" id="pushTargetBranch"
-                   oninput="ForgeGitPush.onTargetBranchChange()"
-                   placeholder="forge/changes-...">
-          </div>
-        </div>
-
         <div class="form-group">
           <div class="push-branch-toggle">
             <label class="push-radio-label">
@@ -1712,6 +1716,35 @@
           <div id="pushForceWarn" class="push-warn" hidden>
             ⚠️ Pushing to an existing branch appends a new commit.
             All VFS files will be created or updated; no history is rewritten.
+          </div>
+        </div>
+
+        <div class="push-row">
+          <div class="form-group push-form-field">
+            <label for="pushSourceBranch">Source branch (base)</label>
+            <div class="git-branch-combobox">
+              <input type="text" id="pushSourceBranch" placeholder="main"
+                     autocomplete="off"
+                     role="combobox"
+                     aria-autocomplete="list"
+                     aria-expanded="false"
+                     aria-controls="pushSourceBranchOptions"
+                     oninput="ForgeGitPush.onBranchModeChange()">
+              <div id="pushSourceBranchOptions"
+                   class="git-branch-options"
+                   role="listbox"
+                   aria-label="Available repository branches"
+                   hidden></div>
+            </div>
+            <small id="pushSourceBranchStatus" role="status" aria-live="polite">
+              Select a repository to load branches, or enter one manually.
+            </small>
+          </div>
+          <div class="form-group push-form-field">
+            <label for="pushTargetBranch">Target branch</label>
+            <input type="text" id="pushTargetBranch"
+                   oninput="ForgeGitPush.onTargetBranchChange()"
+                   placeholder="forge/changes-...">
           </div>
         </div>
 

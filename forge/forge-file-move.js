@@ -1,267 +1,138 @@
-// forge-file-move.js
-// Moving files and folders around in the VFS (drag & drop support for the
-// tree view). The VFS has no real concept of directories — paths are flat
-// strings — so "moving a folder" means renaming every file whose path
-// starts with that folder's prefix.
-
+// Shared file/folder operations. Plan the complete batch before changing the VFS.
 (function () {
-
-    function joinPath(dir, name) {
-        const cleanDir = dir === '/' ? '' : dir;
-        return (cleanDir + '/' + name).replace(/\/+/g, '/');
+  function normalizeItems(items) {
+    const unique = new Map(items.map(item => [item.path, item]));
+    return [...unique.values()].filter(item => ![...unique.values()].some(parent =>
+      parent.type === 'dir' && item.path.startsWith(parent.path + '/')));
+  }
+  function pathsFor(item) {
+    return vfs.getAllPaths().filter(path => path === item.path ||
+      (item.type === 'dir' && path.startsWith(item.path + '/')));
+  }
+  function getFolderContents(path) {
+    const allPaths = pathsFor({ path, type: 'dir' });
+    return { allPaths, realPaths: allPaths.filter(p => !p.endsWith('/.forgekeep')) };
+  }
+  function planChanges(items, targetDir, newName) {
+    const renames = [], roots = new Set();
+    targetDir = targetDir === '/' ? '' : targetDir;
+    for (const item of normalizeItems(items)) {
+      const paths = pathsFor(item);
+      if (!paths.length) return { error: 'A selected item no longer exists: ' + item.path };
+      if (item.type === 'dir' &&
+          (targetDir === item.path || targetDir.startsWith(item.path + '/'))) {
+        return { error: 'Cannot move a folder into itself' };
+      }
+      const name = newName || item.path.split('/').pop();
+      const destination = (targetDir + '/' + name).replace(/\/+/g, '/');
+      if (roots.has(destination)) return { error: 'Multiple items would use ' + destination };
+      roots.add(destination);
+      if (destination === item.path) continue;
+      paths.forEach(old => renames.push({ old, new: destination + old.slice(item.path.length) }));
     }
-
-    /**
-     * Work out what renames a move would require, without touching the VFS.
-     * @returns {{ ok:true, renames:Array<{old:string,new:string}> } |
-     *           { ok:false, reason:string, conflictPath?:string }}
-     */
-    function planFolderRename(sourcePath, newPrefix) {
-        const affected = vfs.getAllPaths().filter(
-            p => p === sourcePath || p.startsWith(sourcePath + '/')
-        );
-        if (affected.length === 0) {
-            return { ok: false, reason: 'empty-folder' };
-        }
-
-        const renames = affected.map(p => ({
-            old: p,
-            new: newPrefix + p.substring(sourcePath.length),
-        }));
-
-        const movingSet = new Set(affected);
-        for (const r of renames) {
-            if (vfs.hasFile(r.new) && !movingSet.has(r.new)) {
-                return {
-                    ok: false,
-                    reason: 'conflict',
-                    conflictPath: r.new
-                };
-            }
-        }
-
-        return { ok: true, renames };
+    const moving = new Set(renames.map(r => r.old));
+    const occupied = vfs.getAllPaths().filter(path => !moving.has(path));
+    const destinations = new Set();
+    for (const r of renames) {
+      if (destinations.has(r.new)) return { error: 'Multiple files would use ' + r.new };
+      destinations.add(r.new);
     }
-
-    function planMove(sourcePath, targetDir, sourceType) {
-        const cleanTargetDir = targetDir === '/' ? '' : targetDir;
-
-        if (sourceType === 'file') {
-            const baseName = sourcePath.split('/').pop();
-            const newPath = joinPath(cleanTargetDir, baseName);
-
-            if (newPath === sourcePath) return { ok: false, reason: 'same-location' };
-            if (vfs.hasFile(newPath))  return { ok: false, reason: 'conflict', conflictPath: newPath };
-
-            return { ok: true, renames: [{ old: sourcePath, new: newPath }] };
-        }
-
-        // sourceType === 'dir' — can't move a folder into itself or its own descendant
-        if (cleanTargetDir === sourcePath || cleanTargetDir.startsWith(sourcePath + '/')) {
-            return { ok: false, reason: 'into-self' };
-        }
-
-        const baseName  = sourcePath.split('/').pop();
-        const newPrefix = joinPath(cleanTargetDir, baseName);
-        if (newPrefix === sourcePath) return { ok: false, reason: 'same-location' };
-
-        return planFolderRename(sourcePath, newPrefix);
+    const targets = [...destinations];
+    for (const path of targets) {
+      if (occupied.some(p => p === path || p.startsWith(path + '/') || path.startsWith(p + '/')) ||
+          targets.some(p => p !== path && (p.startsWith(path + '/') || path.startsWith(p + '/')))) {
+        return { error: 'Cannot use "' + path + '": a file or folder conflicts' };
+      }
     }
-
-    /** Execute a planned set of renames against the VFS. */
-    function applyRenames(renames) {
-        // Snapshot content+meta before deleting anything, so an old path
-        // being read never depends on delete/add ordering.
-        const snapshots = renames.map(r => ({
-            ...r,
-            content: vfs.getFile(r.old),
-            meta:    vfs.getMeta(r.old),
-        }));
-
-        snapshots.forEach(s => vfs.deleteFile(s.old));
-        snapshots.forEach(s => vfs.addFile(s.new, s.content, s.meta));
+    return { renames };
+  }
+  function refresh() {
+    if (typeof updateFileList === 'function') updateFileList();
+    if (typeof updateFileBrowser === 'function') updateFileBrowser();
+    if (typeof refreshProjectSettingsTab === 'function') refreshProjectSettingsTab();
+  }
+  function applyPlan(plan, label) {
+    if (plan.error) {
+      showToast(plan.error, 'error');
+      return false;
     }
-
-    /** Patch up any live references that pointed at a path which just moved. */
-    function updateReferencesAfterMove(renames) {
-        const map = {};
-        renames.forEach(r => { map[r.old] = r.new; });
-
-        // Update tab cache
-        if (window.forgeTabCache) {
-            renames.forEach(r => window.forgeTabCache.rename(r.old, r.new));
-        }
-
-        // Update tab bar entries
-        if (window.forgePanels) {
-            renames.forEach(r => window.forgePanels.renameTab(r.old, r.new));
-        }
-
-        if (typeof currentEditingFile !== 'undefined' && currentEditingFile && map[currentEditingFile]) {
-            if (typeof openFileInEditor === 'function') openFileInEditor(map[currentEditingFile]);
-        }
-
-        if (typeof currentPath !== 'undefined' && currentPath && map[currentPath]) {
-            currentPath = map[currentPath];
-            if (typeof _lazy === 'function') _lazy('urlBar').value = currentPath;
-        }
-
-
+    if (!plan.renames.length) return false;
+    const renames = plan.renames;
+    window.forgeTabCache?.capture?.();
+    const snapshots = renames.map(r => ({
+      ...r, content: vfs.getFile(r.old), meta: vfs.getMeta(r.old)
+    }));
+    snapshots.forEach(s => vfs.deleteFile(s.old));
+    snapshots.forEach(s => vfs.addFile(s.new, s.content, s.meta));
+    const map = new Map(renames.map(r => [r.old, r.new]));
+    renames.forEach(r => {
+      window.forgeTabCache?.rename(r.old, r.new);
+      window.forgePanels?.renameTab(r.old, r.new);
+    });
+    if (typeof currentEditingFile !== 'undefined' && map.has(currentEditingFile)) {
+      currentEditingFile = map.get(currentEditingFile);
+      if (typeof openFileInEditor === 'function') openFileInEditor(currentEditingFile);
     }
-
-    /**
-     * Public entry point used by the tree view's drag & drop handlers.
-     */
-    function refreshAfterFileChange() {
-        if (typeof updateFileList === 'function') updateFileList();
-        if (typeof updateFileBrowser === 'function') updateFileBrowser();
-        if (typeof refreshProjectSettingsTab === 'function') refreshProjectSettingsTab();
+    if (typeof currentPath !== 'undefined' && map.has(currentPath)) {
+      currentPath = map.get(currentPath);
+      const bar = document.getElementById('urlBar');
+      if (bar) bar.value = currentPath;
     }
-
-    function moveFileOrFolder(sourcePath, targetDir, sourceType) {
-        if (typeof vfs === 'undefined') return false;
-
-        const plan = planMove(sourcePath, targetDir, sourceType);
-
-        if (!plan.ok) {
-            if (plan.reason === 'conflict') {
-                showToast(`Cannot move — "${plan.conflictPath}" already exists`, 'error', 4000);
-            } else if (plan.reason === 'into-self') {
-                showToast('Cannot move a folder into itself', 'error');
-            }
-            // 'same-location' -> silently no-op, this is just "dropped where it already was"
-            return false;
-        }
-
-        applyRenames(plan.renames);
-        updateReferencesAfterMove(plan.renames);
-
-        refreshAfterFileChange();
-
-        const count = plan.renames.length;
-        const label = sourceType === 'dir'
-            ? `Moved folder (${count} file${count !== 1 ? 's' : ''})`
-            : `Moved ${sourcePath.split('/').pop()}`;
-        showToast(label, 'success');
-        return true;
+    refresh();
+    showToast(label, 'success');
+    return true;
+  }
+  function moveItems(items, targetDir) {
+    if (typeof vfs === 'undefined') return false;
+    return applyPlan(planChanges(items, targetDir), 'Selection moved');
+  }
+  function moveFileOrFolder(path, targetDir, type) {
+    return moveItems([{ path, type }], targetDir);
+  }
+  function renameFileOrFolder(path, name, type) {
+    if (typeof vfs === 'undefined') return false;
+    if (!name || !name.trim() || /[\/\\]/.test(name) || name === '.' || name === '..') {
+      showToast('Enter a name without slashes, other than "." or ".."', 'error');
+      return false;
     }
-
-    function validateName(name) {
-        if (!name || !name.trim()) return 'Name cannot be empty';
-        if (name.includes('/')) return 'Name cannot contain "/"';
-        if (name === '.' || name === '..') return 'Invalid name';
-        return null;
+    const parent = path.slice(0, Math.max(0, path.lastIndexOf('/')));
+    return applyPlan(planChanges([{ path, type }], parent, name), 'Item renamed');
+  }
+  function deleteItems(items) {
+    if (typeof vfs === 'undefined') return false;
+    const paths = [...new Set(normalizeItems(items).flatMap(pathsFor))];
+    if (!paths.length) return false;
+    const real = paths.filter(p => !p.endsWith('/.forgekeep'));
+    const shown = real.length ? real : items.map(item => item.path);
+    const message = 'Delete ' + real.length + ' file(s), including selected folders?\n\n' +
+      shown.slice(0, 12).join('\n') + (shown.length > 12 ? '\n(and more)' : '') +
+      '\n\nUnsaved edits to these files will be lost. This cannot be undone.';
+    if (!confirm(message)) return false;
+    paths.forEach(p => window.forgeTabCache?.remove(p));
+    window.forgePanels?.closeTabsForPaths(paths);
+    paths.forEach(p => vfs.deleteFile(p));
+    if (typeof currentEditingFile !== 'undefined' && paths.includes(currentEditingFile)) {
+      if (typeof closeEditor === 'function') closeEditor();
+      const next = window.forgePanels?.activeTabPath;
+      if (next && typeof openFileInEditor === 'function') openFileInEditor(next);
     }
-
-    /**
-     * Work out what renames a simple rename-in-place would require.
-     * Same shape/return type as planMove, but keeps the parent directory
-     * fixed and only changes the final path segment.
-     */
-    function planRename(sourcePath, newName, sourceType) {
-        const err = validateName(newName);
-        if (err) return { ok: false, reason: 'invalid', message: err };
-
-        const idx = sourcePath.lastIndexOf('/');
-        const parentDir = idx > 0 ? sourcePath.substring(0, idx) : '';
-        const newPath = joinPath(parentDir, newName);
-
-        if (newPath === sourcePath) return { ok: false, reason: 'same-name' };
-
-        if (sourceType === 'file') {
-            if (vfs.hasFile(newPath)) return { ok: false, reason: 'conflict', conflictPath: newPath };
-            return { ok: true, renames: [{ old: sourcePath, new: newPath }] };
-        }
-
-        // sourceType === 'dir' — rename the prefix on every descendant path
-        return planFolderRename(sourcePath, newPath);
+    if (typeof currentPath !== 'undefined' && paths.includes(currentPath)) {
+      currentPath = null;
+      const frame = document.getElementById('previewFrame');
+      const bar = document.getElementById('urlBar');
+      if (frame) frame.srcdoc = '';
+      if (bar) bar.value = 'No project loaded';
+      if (typeof setPreviewWelcomeVisible === 'function') setPreviewWelcomeVisible(true);
     }
-
-    /**
-     * Public entry point used by the tree view's inline rename UI.
-     * Returns true on success, false if the rename was rejected.
-     */
-    function renameFileOrFolder(sourcePath, newName, sourceType) {
-        if (typeof vfs === 'undefined') return false;
-
-        const plan = planRename(sourcePath, newName, sourceType);
-
-        if (!plan.ok) {
-            if (plan.reason === 'invalid') {
-                showToast(plan.message, 'error');
-            } else if (plan.reason === 'conflict') {
-                showToast(`Cannot rename — "${plan.conflictPath}" already exists`, 'error', 4000);
-            }
-            // 'same-name' → silently no-op, nothing to do
-            return false;
-        }
-
-        applyRenames(plan.renames);
-        updateReferencesAfterMove(plan.renames);
-
-        refreshAfterFileChange();
-
-        showToast(sourceType === 'dir' ? 'Folder renamed' : 'File renamed', 'success');
-        return true;
-    }
-
-    /**
-     * Delete a folder and everything inside it (including the .forgekeep
-     * placeholder, if present). Returns { count, hadRealFiles } describing
-     * what was deleted, so callers can decide whether to prompt first.
-     */
-    function getFolderContents(folderPath) {
-        if (typeof vfs === 'undefined') return { allPaths: [], realPaths: [] };
-
-        const allPaths = vfs.getAllPaths().filter(p =>
-            p === folderPath || p.startsWith(folderPath + '/')
-        );
-        const realPaths = allPaths.filter(p => !p.endsWith('/.forgekeep') && p !== folderPath + '/.forgekeep');
-
-        return { allPaths, realPaths };
-    }
-
-    /**
-     * Delete a folder (and all its contents) from the VFS.
-     * Cleans up any open editor tab, preview, or server entrypoint that
-     * pointed inside the deleted subtree.
-     */
-    function deleteFolder(folderPath) {
-        if (typeof vfs === 'undefined') return;
-
-        const { allPaths } = getFolderContents(folderPath);
-        if (allPaths.length === 0) return;
-
-        // Close tabs for all deleted paths
-        if (window.forgeTabCache) {
-            allPaths.forEach(p => window.forgeTabCache.remove(p));
-        }
-        if (window.forgePanels) {
-            window.forgePanels.closeTabsForPaths(allPaths);
-        }
-
-        allPaths.forEach(p => vfs.deleteFile(p));
-
-        const isInsideDeleted = (p) => p === folderPath || (p && p.startsWith(folderPath + '/'));
-
-        if (typeof currentEditingFile !== 'undefined' && currentEditingFile && isInsideDeleted(currentEditingFile)) {
-            if (typeof closeEditor === 'function') closeEditor();
-        }
-
-        if (typeof currentPath !== 'undefined' && currentPath && isInsideDeleted(currentPath)) {
-            currentPath = null;
-            if (typeof _lazy === 'function') {
-                _lazy('previewFrame').srcdoc = '';
-                _lazy('urlBar').value = 'No project loaded';
-            }
-        }
-
-
-
-        refreshAfterFileChange();
-
-        showToast(`Folder deleted: ${folderPath}`, 'success');
-    }
-
-    window.ForgeFileMove = { moveFileOrFolder, renameFileOrFolder, getFolderContents, deleteFolder };
+    refresh();
+    showToast('Selection deleted', 'success');
+    return true;
+  }
+  function deleteFolder(path) {
+    return deleteItems([{ path, type: 'dir' }]);
+  }
+  window.ForgeFileMove = {
+    moveFileOrFolder, renameFileOrFolder, getFolderContents, deleteFolder,
+    normalizeItems, planChanges, moveItems, deleteItems
+  };
 })();
