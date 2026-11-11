@@ -1,12 +1,4 @@
-// Shared FORGE IDE release metadata.
-//
-// version.json is the single UI source for:
-// - the displayed IDE version
-// - the Forge IDE repository URL
-// - the release-notes URL
-//
-// Repository links use data-forge-repository-link so dynamically generated
-// UI can use the same metadata without copying URLs into JavaScript.
+// version.json supplies UI release metadata; data-forge-repository-link marks repository links.
 
 (function () {
     'use strict';

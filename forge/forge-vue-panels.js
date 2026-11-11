@@ -945,9 +945,15 @@
                 );
             },
         },
+        beforeUpdate() {
+            const el = this.$refs.logOutput;
+            if (el && el.clientHeight) {
+                this._consoleFollowTail = el.scrollHeight - el.clientHeight - el.scrollTop <= 2;
+            }
+        },
         updated() {
             const el = this.$refs.logOutput;
-            if (el) el.scrollTop = el.scrollHeight;
+            if (el && el.clientHeight && this._consoleFollowTail !== false) el.scrollTop = el.scrollHeight;
         },
         template: `
             <div style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
