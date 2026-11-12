@@ -7418,6 +7418,7 @@ type: 'forge-network',
 }, '*');
 } catch(e) {}
 }
+const __network = (${window.ForgeNetwork.capture.toString()})(__report_network);
 // Observe resources the browser itself loads (images, scripts,
 // stylesheets, XHR, fonts, etc.). fetch() is excluded because
 // the interceptor below already reports it with richer VFS
@@ -7437,6 +7438,8 @@ entry.responseStatus > 0
 __report_network({
 via: 'resource',
 resourceType: entry.initiatorType || 'resource',
+time: new Date(performance.timeOrigin + entry.startTime).toISOString(),
+duration: entry.duration,
 requested: String(entry.name),
 resolved: String(entry.name),
 route: 'browser',
@@ -7505,91 +7508,40 @@ setTimeout(() => URL.revokeObjectURL(localUrl), 60000);
 .catch(() => __img_src.set.call(this, url));
 }
 });
-window.fetch = function(url, ...args) {
-const fetchOptions = args[0] || {};
-let requestMethod =
-fetchOptions.method ||
-(url instanceof Request ? url.method : 'GET');
-if (url instanceof Request) {
-url = url.url;
-}
-requestMethod = String(requestMethod || 'GET').toUpperCase();
-const resolvedUrl = __resolve_fetch_url(url, __fetch_base);
-// Use a MessageChannel so each fetch gets its own private
-// reply port — no broadcast matching, no handler leaks,
-// no race conditions between concurrent fetches.
+window.fetch = function(input, ...args) {
+const options = args[0] || {};
+const url = input instanceof Request ? input.url : input;
+const method = String(options.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+const resolved = __resolve_fetch_url(url, __fetch_base);
+const audit = __network.start(input, options, resolved, method);
 return new Promise((resolve, reject) => {
 const channel = new MessageChannel();
-channel.port1.onmessage = (event) => {
-const {
-found,
-content,
-mimeType,
-status,
-route
-} = event.data;
-if (found) {
-const responseStatus =
-Number.isInteger(status) ? status : 200;
-const responseRoute = route || 'vfs';
-__report_network({
-via: 'fetch',
-requested: String(url),
-resolved: String(resolvedUrl),
-route: responseRoute,
-outcome: 'response',
-status: responseStatus,
-ok:
-responseStatus >= 200 &&
-responseStatus < 400
-});
-resolve(new Response(content, {
-status: responseStatus,
-headers: {
-'Content-Type':
-mimeType ||
-'application/octet-stream'
-}
-}));
-} else {
-// Not in VFS — fall back to real network fetch
-// using the *original* URL so the browser resolves
-// it correctly relative to the page origin.
-originalFetch(url, ...args).then(response => {
-__report_network({
-via: 'fetch',
-requested: String(url),
-resolved: String(resolvedUrl),
-route: 'network',
-outcome: 'response',
-status: response.status,
-ok: response.ok
-});
-resolve(response);
-}).catch(error => {
-__report_network({
-via: 'fetch',
-requested: String(url),
-resolved: String(resolvedUrl),
-route: 'network',
-outcome: 'error',
-status: null,
-ok: false,
-error: error && error.message ? error.message : String(error)
-});
+function fail(error) {
+__network.fail(audit, error);
 reject(error);
-});
 }
+channel.port1.onmessage = (event) => {
+channel.port1.close();
+const { found, content, mimeType, status, route } = event.data;
+try {
+if (found) {
+const code = Number.isInteger(status) ? status : 200;
+const noBody = method === 'HEAD' || [204, 205, 304].includes(code);
+const response = new Response(noBody ? null : content, {
+status: code,
+headers: { 'Content-Type': mimeType || 'application/octet-stream' }
+});
+__network.finish(audit, response, route || 'vfs');
+resolve(response);
+} else {
+originalFetch(input, ...args).then(response => {
+__network.finish(audit, response, 'network');
+resolve(response);
+}).catch(fail);
+}
+} catch (error) { fail(error); }
 };
-window.parent.postMessage(
-{
-type: 'vfs-fetch',
-url: resolvedUrl,
-method: requestMethod
-},
-'*',
-[channel.port2]
-);
+window.parent.postMessage({ type: 'vfs-fetch', url: resolved, method }, '*', [channel.port2]);
 });
 };
 // -- VFS Navigation Interceptor ------------------------------
@@ -7849,20 +7801,30 @@ stack:error.stack
 }
 },'*');
 }else{
-var serialized;
-try{
-if(result===undefined)serialized='undefined';
-else if(result===null)serialized='null';
-else if(typeof result==='function')serialized=result.toString();
-else if(typeof result==='object')serialized=JSON.stringify(result,null,2);
-else serialized=String(result);
-}catch(e){serialized=String(result);}
+var serialized=__format_value(result,2);
 window.parent.postMessage({
 type:'forge-repl-result',success:true,result:serialized
 },'*');
 }
 }
 });
+function __format_value(value, space) {
+if (value === null) return 'null';
+if (value === undefined) return 'undefined';
+if (typeof value !== 'object') return String(value);
+try {
+let data = value;
+if (value instanceof Error || (!space && (value.message || value.stack))) {
+data = { name: value.name || 'Error', message: value.message || String(value), stack: value.stack };
+for (const key of Object.keys(value)) {
+if (!['name', 'message', 'stack'].includes(key)) {
+try { data[key] = value[key]; } catch (_) {}
+}
+}
+}
+return JSON.stringify(data, null, space);
+} catch (_) { return String(value); }
+}
 // -- Console capture ----------------------------------
 (function() {
 var _levels = ['log', 'warn', 'error', 'info'];
@@ -7871,28 +7833,7 @@ var _orig = console[level].bind(console);
 console[level] = function() {
 _orig.apply(console, arguments);
 try {
-var parts = Array.prototype.slice.call(arguments).map(function(a) {
-if (a === null) return 'null';
-if (a === undefined) return 'undefined';
-// Handle Error objects specially - JSON.stringify returns {} for them
-// Check for Error-like objects (has message/stack) not just instanceof
-if (a instanceof Error || (typeof a === 'object' && (a.message || a.stack))) {
-var errObj = {
-name: a.name || 'Error',
-message: a.message || String(a),
-stack: a.stack
-};
-// Include any custom properties
-for (var key in a) {
-if (a.hasOwnProperty(key) && key !== 'name' && key !== 'message' && key !== 'stack') {
-try { errObj[key] = a[key]; } catch(e3) {}
-}
-}
-try { return JSON.stringify(errObj); } catch(e2) { return String(a); }
-}
-if (typeof a === 'object') { try { return JSON.stringify(a); } catch(e2) { return String(a); } }
-return String(a);
-});
+var parts = Array.prototype.slice.call(arguments).map(value => __format_value(value));
 window.parent.postMessage({ type: 'forge-console', level: level, msg: parts.join(' ') }, '*');
 } catch(e) {}
 };
@@ -8366,35 +8307,18 @@ window.addEventListener('message', (event) => {
         recordPreviewHistory(urlBar.value);
         syncPreviewLocationToParent(path, currentLocation.query, hash);
     } else if (event.data.type === 'forge-network') {
-        const loadingText=findOne('.loading-text');
-        if(loadingText)loadingText.textContent='Loaded '+String(event.data.requested).split('/').pop().split('?')[0]+'…';
-        window.forgeNetworkEvents = window.forgeNetworkEvents || [];
-        window.forgeNetworkEvents.push({
-            time: new Date().toISOString(),
-            via: event.data.via,
-            resourceType: event.data.resourceType || null,
-            requested: event.data.requested,
-            resolved: event.data.resolved,
-            route: event.data.route,
-            outcome: event.data.outcome,
-            status: event.data.status,
-            ok: event.data.ok,
-            error: event.data.error || null,
-            directive: event.data.directive || null,
-            disposition: event.data.disposition || null,
+        const loadingText = findOne('.loading-text');
+        if (loadingText && event.data.requested && event.data.outcome !== 'pending') {
+            loadingText.textContent = 'Loaded ' + String(event.data.requested).split('/').pop().split('?')[0];
+        }
+        const { type, ...detail } = event.data;
+        window.ForgeNetwork.record({
+            ...detail,
             allowable: previewUserAllowlist &&
-                event.data.outcome === 'blocked' &&
-                previewUserDirectives.includes(event.data.directive) &&
-                /^https?:\/\//i.test(event.data.requested || '')
+                detail.outcome === 'blocked' &&
+                previewUserDirectives.includes(detail.directive) &&
+                /^https?:\/\//i.test(detail.requested || '')
         });
-        if (window.forgeNetworkEvents.length > 500) {
-            window.forgeNetworkEvents.shift();
-        }
-        if (window.forgePanels && window.forgePanels.addNetworkEntry) {
-            window.forgePanels.addNetworkEntry(
-                window.forgeNetworkEvents[window.forgeNetworkEvents.length - 1]
-            );
-        }
     } else if (event.data.type === 'forge-console') {
         if (window.forgePanels && window.forgePanels.addConsoleEntry) {
             window.forgePanels.addConsoleEntry(
@@ -8431,24 +8355,17 @@ window.addEventListener('message', (event) => {
 // Update file list display
 function updateFileList() {
     const paths = vfs.getAllPaths().filter(p => !p.endsWith('/' + FORGE_DIR_PLACEHOLDER));
-    if (paths.length > 0) {
-        fileListContent.textContent = '';
-        const fragment = document.createDocumentFragment();
-        paths.forEach(p => {
-            const item = makeEl('div');
-            item.className = 'file-item';
-            const name = makeEl('span');
-            name.className = 'file-item-name';
-            name.textContent = p;
-            item.appendChild(name);
-            fragment.appendChild(item);
-        });
-        fileListContent.appendChild(fragment);
-        fileList.hidden = false;
-    } else {
-        fileListContent.textContent = '';
-        fileList.hidden = true;
+    const fragment = document.createDocumentFragment();
+    for (const p of paths) {
+        const item = makeEl('div'), name = makeEl('span');
+        item.className = 'file-item';
+        name.className = 'file-item-name';
+        name.textContent = p;
+        item.appendChild(name);
+        fragment.appendChild(item);
     }
+    fileListContent.replaceChildren(fragment);
+    fileList.hidden = !paths.length;
 }
 async function parsePayload(b64Data){
     const decompressed = await decompress(b64Data);

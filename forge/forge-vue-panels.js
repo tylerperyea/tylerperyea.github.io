@@ -55,13 +55,7 @@
                 if (meta.description)           return '📝';
                 return '';
             },
-            getTitle(p, meta) {
-                if (meta.excluded)              return meta.description ? `Excluded: ${meta.description}` : 'Excluded file';
-                if (meta.url)                   return `Referenced: ${meta.url}`;
-                if (meta.encoding === 'base64') return 'Binary file (base64)';
-                if (meta.description)           return meta.description;
-                return '';
-            },
+            getTitle(p) { return getFileStatusTitle(p); },
             onFileKeydown(event, item) {
                 if (event.key === 'ArrowRight') {
                     event.preventDefault();
@@ -245,36 +239,25 @@
                     Load a project to view settings.
                 </div>
                 <div v-else class="project-settings-content">
-                    <div class="settings-section">
-                        <h3 class="settings-section-title">📋 Project Metadata</h3>
-                        <div class="settings-field">
-                            <label class="settings-field-label" for="ps-title">Project Title</label>
-                            <input id="ps-title" class="settings-input" type="text"
-                                placeholder="my-project" v-model="title">
-                            <div class="settings-hint">Used as the title field in forge JSON output.</div>
-                        </div>
-                        <div class="settings-field">
-                            <label class="settings-field-label" for="ps-default-output">Default Output Filename</label>
-                            <input id="ps-default-output" class="settings-input" type="text"
-                                placeholder="forge.json" v-model="defaultOutput">
-                            <div class="settings-hint">Default filename when running forge out -o (CLI only).</div>
-                        </div>
-                    </div>
-                    <div class="settings-section">
-                        <h3 class="settings-section-title">⚙️ Forge CLI Options</h3>
-                        <div class="settings-field">
-                            <label class="settings-field-label">
-                                <input type="checkbox" id="ps-include-binary" v-model="includeBinary">
-                                Include Binary Files (include_binary)
+                    <div class="settings-section" v-for="(fields, heading) in {
+                        '📋 Project Metadata': {
+                            title: {id:'ps-title',label:'Project Title',placeholder:'my-project',hint:'Used as the title field in forge JSON output.'},
+                            defaultOutput: {id:'ps-default-output',label:'Default Output Filename',placeholder:'forge.json',hint:'Default filename when running forge out -o (CLI only).'}
+                        },
+                        '⚙️ Forge CLI Options': {
+                            includeBinary: {id:'ps-include-binary',label:'Include Binary Files (include_binary)',check:true,hint:'When enabled, forge out encodes binary files as base64.'},
+                            fetchRefs: {id:'ps-fetch-refs',label:'Auto-Fetch References (fetch_refs)',check:true,hint:'When enabled, forge in downloads files that have a url field.'}
+                        }
+                    }" :key="heading">
+                        <h3 class="settings-section-title">{{ heading }}</h3>
+                        <div class="settings-field" v-for="(field, key) in fields" :key="key">
+                            <label class="settings-field-label" :for="field.id">
+                                <input v-if="field.check" type="checkbox" :id="field.id" v-model="$data[key]">
+                                {{ field.label }}
                             </label>
-                            <div class="settings-hint">When enabled, forge out encodes binary files as base64.</div>
-                        </div>
-                        <div class="settings-field">
-                            <label class="settings-field-label">
-                                <input type="checkbox" id="ps-fetch-refs" v-model="fetchRefs">
-                                Auto-Fetch References (fetch_refs)
-                            </label>
-                            <div class="settings-hint">When enabled, forge in downloads files that have a url field.</div>
+                            <input v-if="!field.check" type="text" class="settings-input" :id="field.id"
+                                :placeholder="field.placeholder" v-model="$data[key]">
+                            <div class="settings-hint">{{ field.hint }}</div>
                         </div>
                     </div>
                     <div class="settings-section">
@@ -301,33 +284,13 @@
                     <div class="settings-section">
                         <h3 class="settings-section-title">📊 Project Stats</h3>
                         <div class="settings-stats-grid">
-                            <div class="stats-item">
-                                <div class="stats-number">{{ stats.total || 0 }}</div>
-                                <div class="stats-label">Total Files</div>
-                            </div>
-                            <div class="stats-item">
-                                <div class="stats-number">{{ stats.size || '0 B' }}</div>
-                                <div class="stats-label">Project Size</div>
-                            </div>
-                            <div class="stats-item">
-                                <div class="stats-number">{{ stats.text || 0 }}</div>
-                                <div class="stats-label">Text Files</div>
-                            </div>
-                            <div class="stats-item">
-                                <div class="stats-number">{{ stats.binary || 0 }}</div>
-                                <div class="stats-label">Binary Files</div>
-                            </div>
-                            <div class="stats-item">
-                                <div class="stats-number">{{ stats.excluded || 0 }}</div>
-                                <div class="stats-label">Excluded</div>
-                            </div>
-                            <div class="stats-item">
-                                <div class="stats-number">{{ stats.withUrl || 0 }}</div>
-                                <div class="stats-label">With URL</div>
-                            </div>
-                            <div class="stats-item">
-                                <div class="stats-number">{{ stats.withDesc || 0 }}</div>
-                                <div class="stats-label">Described</div>
+                            <div class="stats-item" v-for="(label, key) in {
+                                total: 'Total Files', size: 'Project Size', text: 'Text Files',
+                                binary: 'Binary Files', excluded: 'Excluded',
+                                withUrl: 'With URL', withDesc: 'Described'
+                            }" :key="key">
+                                <div class="stats-number">{{ stats[key] || (key === 'size' ? '0 B' : 0) }}</div>
+                                <div class="stats-label">{{ label }}</div>
                             </div>
                         </div>
                     </div>
@@ -946,114 +909,81 @@
     };
     // -- Network Panel ---------------------------------------------------------
     const NetworkPanel = {
-        name: 'NetworkPanel',
-        props: {
-            entries: { type: Array, default: () => [] },
-        },
-        emits: ['clear', 'copy'],
-        methods: {
-            formatTime(value) {
-                const date = new Date(value);
-                if (Number.isNaN(date.getTime())) return '';
-                return date.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
-            },
-            routeLabel(route) {
-                return $switch(route)
-                    .case('vfs', 'VFS')
-                    .case('network', 'Network')
-                    .case('browser', 'Browser')
-                    .case('blocked', 'Blocked')
-                    .default(route || '—');
-            },
-            statusLabel(entry) {
-                if (entry.outcome === 'blocked') return 'Blocked';
-                if (entry.outcome === 'error') return 'Failed';
-                if (entry.status != null) return String(entry.status);
-                if (entry.via === 'resource') return 'Observed';
-                return '—';
-            },
-            allow(entry) {
-                if (window.forgeAllowPreviewOrigin) {
-                    window.forgeAllowPreviewOrigin(entry);
-                }
-            },
-        },
-        template: `
-            <div style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
-                <div class="console-header">
-                    <div class="console-header-stats">
-                        <span>{{ entries.length }} network event{{ entries.length === 1 ? '' : 's' }}</span>
-                        <span style="opacity:0.65;">Fetch + browser resource telemetry</span>
-                    </div>
-                    <div style="display:flex; gap:6px;">
-                        <button class="secondary" @click="$emit('copy')" :disabled="entries.length === 0">
-                            Copy
-                        </button>
-                        <button class="secondary" @click="$emit('clear')" :disabled="entries.length === 0">
-                            Clear Network Log
-                        </button>
-                    </div>
-                </div>
-                <div style="flex:1; overflow:auto;">
-                    <table style="width:100%; border-collapse:collapse; font-size:13px;">
-                        <thead>
-                            <tr style="text-align:left;">
-                                <th style="padding:8px; white-space:nowrap;">Time</th>
-                                <th style="padding:8px;">Type</th>
-                                <th style="padding:8px; width:100%;">Request</th>
-                                <th style="padding:8px;">Route</th>
-                                <th style="padding:8px;">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-if="entries.length === 0">
-                                <td colspan="5" style="padding:18px; opacity:0.65; text-align:center;">
-                                    No network activity yet.
-                                </td>
-                            </tr>
-                            <tr v-for="(entry, index) in entries" :key="index">
-                                <td style="padding:7px 8px; white-space:nowrap; vertical-align:top;">
-                                    {{ formatTime(entry.time) }}
-                                </td>
-                                <td style="padding:7px 8px; vertical-align:top;">
-                                    {{ entry.resourceType || entry.via || '—' }}
-                                </td>
-                                <td style="padding:7px 8px; vertical-align:top; overflow-wrap:anywhere;">
-                                    <div>{{ entry.requested }}</div>
-                                    <div
-                                        v-if="entry.resolved && entry.resolved !== entry.requested"
-                                        style="opacity:0.6; margin-top:2px;"
-                                    >
-                                        → {{ entry.resolved }}
-                                    </div>
-                                    <button
-                                        v-if="entry.allowable"
-                                        class="secondary"
-                                        style="margin-top:5px;"
-                                        @click="allow(entry)"
-                                        title="Allow this exact origin for this blocked resource type in this browser"
-                                    >Allow origin</button>
-                                </td>
-                                <td style="padding:7px 8px; white-space:nowrap; vertical-align:top;">
-                                    {{ routeLabel(entry.route) }}
-                                </td>
-                                <td
-                                    style="padding:7px 8px; white-space:nowrap; vertical-align:top;"
-                                    :title="entry.error || ''"
-                                >
-                                    {{ statusLabel(entry) }}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `
-    };
+  name: 'NetworkPanel',
+  props: { entries: { type: Array, default: () => [] } },
+  emits: ['clear', 'copy'],
+  data() { return { selectedId: null }; },
+  computed: { selected() { return this.entries.find(e => e.id === this.selectedId); } },
+  methods: {
+    formatTime(value) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString();
+    },
+    routeLabel(route) {
+      return { vfs: 'VFS', network: 'Network', browser: 'Browser', blocked: 'Blocked' }[route] || route || '-';
+    },
+    statusLabel(e) {
+      return { pending: 'Pending', blocked: 'Blocked', error: 'Failed' }[e.outcome] ??
+        e.status ?? (e.via === 'resource' ? 'Observed' : '-');
+    },
+    duration(e) {
+      const ms = e.headersMs ?? e.duration;
+      return ms == null ? '-' : Number(ms).toFixed(1) + ' ms' + (e.headersMs != null ? ' (headers)' : '');
+    },
+    allow(e) { window.forgeAllowPreviewOrigin?.(e); },
+    fetchCode: window.ForgeNetwork.asFetch,
+    har: window.ForgeNetwork.har,
+    allFetch() { return this.entries.map(e => this.fetchCode(e) || '// Replay data unavailable.').join('\n\n'); },
+    show(e, key) {
+      const value = key === 'timing' && (e.headersMs != null || e.duration != null)
+        ? { 'Headers (ms)': e.headersMs, 'Capture completion (ms)': e.captureMs, 'Resource total (ms)': e.duration } : e[key];
+      return typeof value === 'string' ? value : JSON.stringify(value ?? 'Unavailable', null, 2);
+    },
+  },
+  template: `
+    <div class="network-panel">
+      <div class="console-header">
+        <span class="console-header-stats">{{ entries.length }} network events</span>
+        <div class="console-actions">
+          <button class="secondary" @click="$emit('copy')" :disabled="!entries.length">Copy log (JSON)</button>
+          <button class="secondary" @click="$emit('copy', allFetch())" :disabled="!entries.length">Copy all as fetch</button>
+          <button class="secondary" @click="$emit('copy', har())" :disabled="!entries.length"
+            title="Copy captured HTTP fetch requests and responses. VFS and resource-only events are in JSON. Timings are application observations.">Copy all traffic (HAR)</button>
+          <button class="secondary" @click="$emit('clear')" :disabled="!entries.length">Clear log</button>
+        </div>
+      </div>
+      <div class="network-list">
+        <table class="network-log">
+          <thead><tr><th v-for="label in ['Time','Method/Type','Request','Route','Status','Duration']" :key="label">{{ label }}</th></tr></thead>
+          <tbody>
+            <tr v-if="!entries.length"><td colspan="6">No network activity yet.</td></tr>
+            <tr v-for="e in entries" :key="e.id">
+              <td>{{ formatTime(e.time) }}</td><td>{{ e.method || e.resourceType || e.via }}</td>
+              <td>
+                <button class="network-request" @click="selectedId=e.id">{{ e.requested }}</button>
+                <div v-if="e.resolved && e.resolved !== e.requested" class="network-resolved">{{ e.resolved }}</div>
+                <button v-if="e.allowable" class="secondary" @click.stop="allow(e)">Allow origin</button>
+              </td>
+              <td>{{ routeLabel(e.route) }}</td><td :title="e.error || ''">{{ statusLabel(e) }}</td><td>{{ duration(e) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-if="selected" class="network-inspector">
+        <div class="console-actions">
+          <button class="secondary" @click="$emit('copy', fetchCode(selected))" :disabled="!fetchCode(selected)">Copy as fetch</button>
+          <button class="secondary" @click="$emit('copy', selected.responseBody)" :disabled="typeof selected.responseBody !== 'string'">Copy response</button>
+          <button class="secondary" @click="$emit('copy', {status:selected.status, headers:selected.responseHeaders, body:selected.responseBody, state:selected.responseBodyState})">Copy response info</button>
+          <button class="secondary" @click="selectedId=null">Close</button>
+        </div>
+        <details v-for="(label,key) in {requestHeaders:'Request headers',requestBody:'Payload',responseHeaders:'Response headers',responseBody:'Response',timing:'Timing'}"
+          :key="key" :open="key === 'responseBody'">
+          <summary>{{ label }} {{ selected[key + 'State'] || '' }}</summary><pre>{{ show(selected, key) }}</pre>
+        </details>
+      </div>
+    </div>
+  `
+};
     // -- Main app --------------------------------------------------------------
     const app = createApp({
         components: { ProjectSettingsPanel, ForgeFileList, ForgeFileTree, EditorTabBar, ConsolePanel, NetworkPanel },
@@ -1177,13 +1107,7 @@
             // Console state
             const consoleLogs = ref([]);
             const MAX_CONSOLE = 500;
-            // Network state
-            const MAX_NETWORK = 500;
-            const networkLogs = ref(
-                Array.isArray(window.forgeNetworkEvents)
-                    ? window.forgeNetworkEvents.slice(-MAX_NETWORK)
-                    : []
-            );
+            const networkLogs = ref(window.ForgeNetwork.events);
             // Context overlay state
             const contextMessage = ref(null);
             const contextVisible = ref(false);
@@ -1198,48 +1122,19 @@
                 }
             }
             function clearConsole() { consoleLogs.value = []; }
-            function addNetworkEntry(entry) {
-                networkLogs.value.push({ ...entry });
-                if (networkLogs.value.length > MAX_NETWORK) {
-                    networkLogs.value.splice(0, networkLogs.value.length - MAX_NETWORK);
-                }
-            }
-            function clearNetwork() {
-                networkLogs.value = [];
-                window.forgeNetworkEvents = [];
-            }
-            async function copyText(text) {
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(text);
-                    return;
-                }
-                const ta = document.createElement('textarea');
-                ta.value = text;
-                ta.style.position = 'fixed';
-                ta.style.top = '-9999px';
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-            }
-            async function copyNetwork() {
+            function addNetworkEntry(entry) { window.ForgeNetwork.record(entry); }
+            function clearNetwork() { window.ForgeNetwork.clear(); }
+            function copyText(text) { return copyToClipboard(text); }
+            async function copyLog(entries, label) {
                 try {
-                    const json = JSON.stringify(networkLogs.value, null, 2);
-                    await copyText(json);
-                    if (typeof showToast === 'function') showToast('Network log copied to clipboard', 'success');
-                } catch(e) {
-                    if (typeof showToast === 'function') showToast('Copy failed: ' + e.message, 'error');
+                    await copyText(typeof entries === 'string' ? entries : JSON.stringify(entries, null, 2));
+                    if (typeof showToast === 'function') showToast(label + ' copied to clipboard', 'success');
+                } catch (error) {
+                    if (typeof showToast === 'function') showToast('Copy failed: ' + error.message, 'error');
                 }
             }
-            async function copyConsole() {
-                try {
-                    const json = JSON.stringify(consoleLogs.value, null, 2);
-                    await copyText(json);
-                    if (typeof showToast === 'function') showToast('Console log copied to clipboard', 'success');
-                } catch(e) {
-                    if (typeof showToast === 'function') showToast('Copy failed: ' + e.message, 'error');
-                }
-            }
+            function copyNetwork(value = networkLogs.value) { return copyLog(value, 'Network data'); }
+            function copyConsole() { return copyLog(consoleLogs.value, 'Console log'); }
             function setContextMessage(msg, from) {
                 contextMessage.value = msg;
                 contextFrom.value    = from || null;
